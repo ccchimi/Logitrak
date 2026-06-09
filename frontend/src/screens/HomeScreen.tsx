@@ -1,201 +1,368 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-    View,
-    Text,
-    FlatList,
-    TouchableOpacity,
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  useWindowDimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { styles } from './HomeStyles';
+import { styles, ESTADO_COLORS } from './HomeStyles';
 import { obtenerViajesActivos, Viaje } from '../services/viajesService';
 import TarjetaViaje from '../components/TarjetaViaje';
 
+type Filtro = 'Todos' | 'En Viaje' | 'Pendiente' | 'Entregado';
+
+const FILTROS: Filtro[] = ['Todos', 'En Viaje', 'Pendiente', 'Entregado'];
+
+const NAV = [
+  { label: 'Panel', icon: '▦', ruta: 'Home' },
+  { label: 'Solicitar envío', icon: '＋', ruta: 'SolicitudEnvio' },
+  { label: 'Historial', icon: '🗂', ruta: 'Historial' },
+  { label: 'Perfil', icon: '👤', ruta: 'Perfil' },
+];
+
+const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+const MESES = [
+  'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+  'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
+];
+
+function obtenerSaludo(): string {
+  const h = new Date().getHours();
+  if (h < 12) return 'Buenos días';
+  if (h < 19) return 'Buenas tardes';
+  return 'Buenas noches';
+}
+
+function obtenerFechaHoy(): string {
+  const d = new Date();
+  return `${DIAS[d.getDay()]} ${d.getDate()} de ${MESES[d.getMonth()]} de ${d.getFullYear()}`;
+}
+
 export default function HomeScreen({ navigation }: any) {
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
 
-    const [viajes, setViajes] = useState<Viaje[]>([]);
+  const esEscritorio = width >= 1000;
+  const apilarPaneles = width < 1280;
 
-    useEffect(() => {
-        obtenerViajesActivos().then(datos => setViajes(datos));
-    }, []);
+  const [viajes, setViajes] = useState<Viaje[]>([]);
+  const [cargando, setCargando] = useState(true);
+  const [filtro, setFiltro] = useState<Filtro>('Todos');
 
-    return (
-        <View style={styles.container}>
+  // Ancho real de la grilla (para calcular cuántas tarjetas entran por fila).
+  const [gridW, setGridW] = useState(0);
 
-            {/* BOTONES ARRIBA */}
+  useEffect(() => {
+    let activo = true;
+    obtenerViajesActivos().then((datos) => {
+      if (!activo) return;
+      setViajes(datos);
+      setCargando(false);
+    });
+    return () => {
+      activo = false;
+    };
+  }, []);
 
-            <View style={styles.topActions}>
+  const metricas = useMemo(() => {
+    const total = viajes.length;
+    const enViaje = viajes.filter((v) => v.estado === 'En Viaje').length;
+    const pendientes = viajes.filter((v) => v.estado === 'Pendiente').length;
+    const entregados = viajes.filter((v) => v.estado === 'Entregado').length;
+    const cumplimiento = total > 0 ? Math.round((entregados / total) * 100) : 0;
+    return { total, enViaje, pendientes, entregados, cumplimiento };
+  }, [viajes]);
 
-                <TouchableOpacity
-                    style={styles.topActionBtn}
-                    onPress={() => navigation.navigate('Perfil')}
-                >
-                    <Text style={styles.topActionText}>
-                        👤 Perfil
-                    </Text>
+  const viajesFiltrados = useMemo(() => {
+    if (filtro === 'Todos') return viajes;
+    return viajes.filter((v) => v.estado === filtro);
+  }, [viajes, filtro]);
 
-                </TouchableOpacity>
+  const conteoPorFiltro = (f: Filtro) =>
+    f === 'Todos' ? viajes.length : viajes.filter((v) => v.estado === f).length;
 
-                <TouchableOpacity
-                    style={styles.topActionBtn}
-                    onPress={() => navigation.navigate('Historial')}
-                >
-                    <Text style={styles.topActionText}>
-                        📦 Historial
-                    </Text>
+  // Columnas responsive: hasta 4 por fila en pantallas anchas, baja según el ancho.
+  const GAP = 16;
+  const columnas = gridW >= 1080 ? 4 : gridW >= 800 ? 3 : gridW >= 520 ? 2 : 1;
+  const anchoTarjeta =
+    gridW > 0 ? Math.floor((gridW - GAP * (columnas - 1)) / columnas) : undefined;
 
-                </TouchableOpacity>
+  const irA = (ruta: string) => {
+    if (ruta !== 'Home') navigation.navigate(ruta);
+  };
 
-                <TouchableOpacity
-                    style={styles.topActionBtnPrimary}
-                    onPress={() => navigation.navigate('SolicitudEnvio')}
-                >
-                    <Text style={styles.topActionTextPrimary}>
-                        🚚 Nuevo
-                    </Text>
+  const kpis = [
+    { label: 'Total envíos', valor: metricas.total, color: ESTADO_COLORS.accent, sub: 'En el sistema' },
+    { label: 'En viaje', valor: metricas.enViaje, color: ESTADO_COLORS.blue, sub: 'En tránsito ahora' },
+    { label: 'Pendientes', valor: metricas.pendientes, color: ESTADO_COLORS.amber, sub: 'Por despachar' },
+    { label: 'Entregados', valor: metricas.entregados, color: ESTADO_COLORS.green, sub: 'Completados' },
+  ];
 
-                </TouchableOpacity>
+  const distribucion = [
+    { name: 'En viaje', valor: metricas.enViaje, color: ESTADO_COLORS.blue },
+    { name: 'Pendiente', valor: metricas.pendientes, color: ESTADO_COLORS.amber },
+    { name: 'Entregado', valor: metricas.entregados, color: ESTADO_COLORS.green },
+  ];
 
-            </View>
+  // ===== SIDEBAR (escritorio) =====
+  const Sidebar = (
+    <View style={[styles.sidebar, { paddingTop: insets.top + 26 }]}>
+      <View style={styles.sbBrandRow}>
+        <Text style={styles.sbLogo}>
+          logitrak<Text style={styles.sbDot}>.</Text>
+        </Text>
+      </View>
 
+      <Text style={styles.sbNavLabel}>Menú</Text>
+      {NAV.map((item) => {
+        const activo = item.ruta === 'Home';
+        return (
+          <TouchableOpacity
+            key={item.ruta}
+            style={[styles.navItem, activo && styles.navItemActive]}
+            onPress={() => irA(item.ruta)}
+          >
+            <Text style={styles.navIcon}>{item.icon}</Text>
+            <Text style={[styles.navLabel, activo && styles.navLabelActive]}>
+              {item.label}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
 
-            {/* HEADER */}
+      <View style={styles.sbSpacer} />
 
-            <View style={styles.header}>
-
-                <View>
-
-                    <Text style={styles.headerEyebrow}>
-                        Bienvenido/a a
-                    </Text>
-
-                    <Text style={styles.headerTitulo}>
-                        Logitrack
-                    </Text>
-
-                    <Text style={styles.headerSubtitulo}>
-                        Administrá tus envíos y seguimientos activos.
-                    </Text>
-
-                </View>
-
-
-                <View style={styles.headerRight}>
-
-                    <View style={styles.statusPill}>
-
-                        <Text style={styles.statusDot}>
-                            ●
-                        </Text>
-
-                        <Text style={styles.statusText}>
-                            Online
-                        </Text>
-
-                    </View>
-
-
-                    <TouchableOpacity
-                        style={styles.logoutBtn}
-                        onPress={() => navigation.navigate('Login')}
-                    >
-
-                        <Text style={styles.logoutBtnTexto}>
-                            Salir
-                        </Text>
-
-                    </TouchableOpacity>
-
-                </View>
-
-            </View>
-
-
-            {/* PANEL */}
-
-            <View style={styles.heroCard}>
-
-                <Text style={styles.heroLabel}>
-                    Panel de Control
-                </Text>
-
-                <Text style={styles.heroTitulo}>
-                    Tus envíos en movimiento
-                </Text>
-
-                <Text style={styles.heroTexto}>
-                    Tenés {viajes.length} envíos recientes registrados en Logitrack.
-                </Text>
-
-
-                <View style={styles.heroStats}>
-
-                    <View style={styles.statBox}>
-                        <Text style={styles.statNumber}>
-                            {viajes.length}
-                        </Text>
-
-                        <Text style={styles.statLabel}>
-                            Activos
-                        </Text>
-                    </View>
-
-
-                    <View style={styles.statBox}>
-                        <Text style={styles.statNumber}>
-                            24h
-                        </Text>
-
-                        <Text style={styles.statLabel}>
-                            Tracking
-                        </Text>
-                    </View>
-
-                </View>
-
-            </View>
-
-
-            {/* BOTÓN NUEVO */}
-
-            <TouchableOpacity
-                style={styles.mainCta}
-                onPress={() => navigation.navigate('SolicitudEnvio')}
-            >
-
-                <Text style={styles.mainCtaText}>
-                    + Solicitar Nuevo Envío
-                </Text>
-
-            </TouchableOpacity>
-
-
-            {/* TÍTULO */}
-
-            <View style={styles.sectionHeader}>
-
-                <Text style={styles.seccionTitulo}>
-                    Mis Envíos Recientes
-                </Text>
-
-                <Text style={styles.seccionSubtitulo}>
-                    Últimos movimientos registrados
-                </Text>
-
-            </View>
-
-
-            {/* LISTA */}
-
-            <FlatList
-                data={viajes}
-                keyExtractor={(item) => item.id}
-                renderItem={({ item }) => (
-                    <TarjetaViaje viaje={item} />
-                )}
-                contentContainerStyle={styles.listaContainer}
-                showsVerticalScrollIndicator={false}
-            />
-
+      <View style={styles.sbUserCard}>
+        <View style={styles.sbAvatar}>
+          <Text style={styles.sbAvatarText}>A</Text>
         </View>
-    );
+        <View>
+          <Text style={styles.sbUserName}>Admin</Text>
+          <Text style={styles.sbUserMail}>admin@logitrak.com</Text>
+        </View>
+      </View>
+
+      <TouchableOpacity style={styles.sbSalir} onPress={() => navigation.navigate('Login')}>
+        <Text style={styles.sbSalirText}>Cerrar sesión</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  // ===== CONTENIDO PRINCIPAL =====
+  const Encabezado = (
+    <View style={styles.block}>
+      {/* Topbar solo en móvil/tablet (en escritorio lo cubre el sidebar) */}
+      {!esEscritorio && (
+        <>
+          <View style={[styles.mTop, { marginTop: insets.top + 8 }]}>
+            <View style={styles.mBrandRow}>
+              <Text style={styles.mLogo}>
+                logitrak<Text style={styles.mDot}>.</Text>
+              </Text>
+              <View style={styles.mRolePill}>
+                <Text style={styles.mRolePillText}>ADMIN</Text>
+              </View>
+            </View>
+
+            <TouchableOpacity style={styles.mSalir} onPress={() => navigation.navigate('Login')}>
+              <Text style={styles.mSalirText}>Salir</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.mNavRow}>
+            {NAV.filter((n) => n.ruta !== 'Home').map((item) => (
+              <TouchableOpacity key={item.ruta} style={styles.mChip} onPress={() => irA(item.ruta)}>
+                <Text style={styles.mChipText}>{item.icon}  {item.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </>
+      )}
+
+      {/* Encabezado de página */}
+      <View style={[styles.pageHead, esEscritorio && { marginTop: insets.top + 12 }]}>
+        <View style={{ flex: 1, minWidth: 240 }}>
+          <Text style={styles.eyebrow}>Panel de operaciones</Text>
+          <Text style={styles.greeting}>{obtenerSaludo()}, Admin</Text>
+          <Text style={styles.dateText}>{obtenerFechaHoy()}</Text>
+        </View>
+
+        <View style={styles.pageHeadRight}>
+          <View style={styles.statusPill}>
+            <View style={styles.statusDot} />
+            <Text style={styles.statusText}>Online</Text>
+          </View>
+
+          <TouchableOpacity style={styles.ctaSmall} onPress={() => navigation.navigate('SolicitudEnvio')}>
+            <Text style={styles.ctaSmallText}>+  Nuevo envío</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* KPIs */}
+      <View style={styles.kpiRow}>
+        {kpis.map((k) => {
+          const prop =
+            k.label === 'Total envíos'
+              ? 1
+              : metricas.total > 0
+              ? k.valor / metricas.total
+              : 0;
+
+          return (
+            <View key={k.label} style={styles.kpiCard}>
+              <View style={styles.kpiTopRow}>
+                <Text style={styles.kpiLabel}>{k.label}</Text>
+                <View style={[styles.kpiDot, { backgroundColor: k.color }]} />
+              </View>
+              <Text style={styles.kpiValue}>{cargando ? '—' : k.valor}</Text>
+              <Text style={styles.kpiSub}>{k.sub}</Text>
+              <View style={styles.kpiBarTrack}>
+                <View
+                  style={[
+                    styles.kpiBarFill,
+                    { backgroundColor: k.color, width: `${Math.round(prop * 100)}%` },
+                  ]}
+                />
+              </View>
+            </View>
+          );
+        })}
+      </View>
+
+      {/* PANELES */}
+      <View style={[styles.twoCol, apilarPaneles && { flexDirection: 'column' }]}>
+        {/* Cumplimiento */}
+        <View style={styles.panel}>
+          <View style={styles.panelHeadRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.panelTitle}>Tasa de cumplimiento</Text>
+              <Text style={styles.panelSub}>
+                Envíos entregados sobre el total registrado.
+              </Text>
+            </View>
+            <Text style={styles.panelPct}>{metricas.cumplimiento}%</Text>
+          </View>
+          <View style={styles.progressTrack}>
+            <View style={[styles.progressFill, { width: `${metricas.cumplimiento}%` }]} />
+          </View>
+        </View>
+
+        {/* Distribución por estado */}
+        <View style={styles.panel}>
+          <View style={styles.panelHeadRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.panelTitle}>Distribución por estado</Text>
+              <Text style={styles.panelSub}>Cómo se reparten tus envíos hoy.</Text>
+            </View>
+          </View>
+
+          {distribucion.map((d) => {
+            const prop = metricas.total > 0 ? d.valor / metricas.total : 0;
+            return (
+              <View key={d.name} style={styles.distRow}>
+                <View style={styles.distLabelRow}>
+                  <View style={styles.distLabel}>
+                    <View style={[styles.distDot, { backgroundColor: d.color }]} />
+                    <Text style={styles.distName}>{d.name}</Text>
+                  </View>
+                  <Text style={styles.distCount}>{d.valor}</Text>
+                </View>
+                <View style={styles.distBarTrack}>
+                  <View
+                    style={[
+                      styles.distBarFill,
+                      { backgroundColor: d.color, width: `${Math.round(prop * 100)}%` },
+                    ]}
+                  />
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      </View>
+
+      {/* FILTROS */}
+      <View style={styles.filtersRow}>
+        {FILTROS.map((f) => {
+          const activo = filtro === f;
+          return (
+            <TouchableOpacity
+              key={f}
+              onPress={() => setFiltro(f)}
+              style={[styles.chip, activo && styles.chipActive]}
+            >
+              <Text style={[styles.chipText, activo && styles.chipTextActive]}>
+                {f}{'  '}
+                <Text style={[styles.chipCount, activo && styles.chipCountActive]}>
+                  {conteoPorFiltro(f)}
+                </Text>
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      {/* SECCIÓN */}
+      <View style={styles.sectionRow}>
+        <View>
+          <Text style={styles.sectionTitle}>Envíos recientes</Text>
+          <Text style={styles.sectionSub}>
+            {viajesFiltrados.length}{' '}
+            {viajesFiltrados.length === 1 ? 'envío' : 'envíos'}
+            {filtro !== 'Todos' ? ` · ${filtro}` : ''}
+          </Text>
+        </View>
+
+        <TouchableOpacity onPress={() => navigation.navigate('Historial')}>
+          <Text style={styles.linkText}>Ver historial →</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  return (
+    <View style={[styles.screen, esEscritorio && styles.screenRow]}>
+      {esEscritorio && Sidebar}
+
+      <View style={styles.main}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {Encabezado}
+
+          <View style={styles.block}>
+            <View
+              style={styles.cardsGrid}
+              onLayout={(e) => setGridW(e.nativeEvent.layout.width)}
+            >
+              {viajesFiltrados.length === 0 && !cargando ? (
+                <View style={styles.emptyWrap}>
+                  <Text style={styles.emptyIcon}>🗂️</Text>
+                  <Text style={styles.emptyTitle}>Sin envíos en esta vista</Text>
+                  <Text style={styles.emptyText}>
+                    No hay envíos con el estado “{filtro}”. Probá con otro filtro o
+                    creá un envío nuevo.
+                  </Text>
+                </View>
+              ) : (
+                viajesFiltrados.map((item) => (
+                  <View
+                    key={item.id}
+                    style={[styles.cell, { width: anchoTarjeta ?? '100%' }]}
+                  >
+                    <TarjetaViaje viaje={item} />
+                  </View>
+                ))
+              )}
+            </View>
+          </View>
+        </ScrollView>
+      </View>
+    </View>
+  );
 }
