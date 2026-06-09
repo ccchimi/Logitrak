@@ -6,6 +6,7 @@ import LoginScreens from '../screens/LoginScreens';
 import HomeScreen from '../screens/HomeScreen';
 import SolicitudEnvioScreen from '../screens/SolicitudEnvioScreen';
 import SeguimientoScreen from '../screens/SeguimientoScreen';
+import PerfilScreen from '../screens/PerfilScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -32,6 +33,11 @@ export default function AppNavigator() {
                     name="Seguimiento"
                     component={SeguimientoScreen}
                     options={{ title: 'Seguimiento en Vivo', headerLeft: () => null }}
+                />
+                <Stack.Screen
+                    name="Perfil"
+                    component={PerfilScreen}
+                    options={{ title: 'Mi Perfil - Logitrack' }}
                 />
             </Stack.Navigator>
         </NavigationContainer>

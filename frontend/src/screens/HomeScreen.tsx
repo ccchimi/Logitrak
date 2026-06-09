@@ -14,14 +14,17 @@ export default function HomeScreen({ navigation }: any) {
 
     return (
         <View style={styles.container}>
-            {/* Encabezado */}
+            {/* Encabezado con Botón de Perfil y Salir */}
             <View style={styles.header}>
-                <Text style={styles.bienvenida}>Panel de Control</Text>
+                <TouchableOpacity onPress={() => navigation.navigate('Perfil')}>
+                    <Text style={localStyles.perfilEnlace}>👤 Ver Perfil</Text>
+                </TouchableOpacity>
                 <TouchableOpacity style={styles.logoutBtn} onPress={() => navigation.navigate('Login')}>
                     <Text style={styles.logoutBtnTexto}>Salir</Text>
                 </TouchableOpacity>
             </View>
 
+            <Text style={styles.bienvenida}>Panel de Control</Text>
             <TouchableOpacity
                 style={localStyles.botonNuevoEnvio}
                 onPress={() => navigation.navigate('SolicitudEnvio')}
@@ -43,13 +46,18 @@ export default function HomeScreen({ navigation }: any) {
 }
 
 const localStyles = StyleSheet.create({
+    perfilEnlace: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: TEMA.colores.primario,
+    },
     botonNuevoEnvio: {
         backgroundColor: TEMA.colores.secundario,
         height: 50,
         borderRadius: 8,
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 20,
+        marginVertical: 15,
     },
     botonTexto: {
         color: TEMA.colores.textoPrincipal,
