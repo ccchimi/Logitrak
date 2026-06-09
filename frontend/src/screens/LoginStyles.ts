@@ -54,9 +54,11 @@ export const styles = StyleSheet.create({
         position: 'relative',
         zIndex: 10,
         width: Math.min(width - 40, 420),
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        backgroundColor: 'rgba(18, 18, 18, 0.94)',
         padding: 32,
         borderRadius: 20,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 165, 0, 0.3)',
         shadowColor: '#ffa500',
         shadowOffset: { width: 0, height: 20 },
         shadowOpacity: 0.5,
@@ -84,19 +86,19 @@ export const styles = StyleSheet.create({
         height: 48,
         paddingLeft: 15,
         paddingRight: 45,
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        backgroundColor: 'rgba(255, 255, 255, 0.08)',
         borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.2)',
+        borderColor: 'rgba(255, 165, 0, 0.35)',
         borderRadius: 25,
-        color: '#fff',
-        fontSize: 14,
+        color: '#FFFFFF',
+        fontSize: 15,
     },
 
     inputIcon: {
         position: 'absolute',
         right: 15,
         top: 12,
-        color: 'rgba(255, 255, 255, 0.5)',
+        color: '#ffa500',
         fontSize: 16,
     },
 
@@ -107,8 +109,8 @@ export const styles = StyleSheet.create({
     },
 
     forgetPasswordText: {
-        color: 'rgba(255, 255, 255, 0.6)',
-        fontSize: 12,
+        color: 'rgba(255, 255, 255, 0.75)',
+        fontSize: 13,
     },
 
     buttonShadow: {
@@ -143,8 +145,8 @@ export const styles = StyleSheet.create({
     },
 
     socialText: {
-        color: 'rgba(255, 255, 255, 0.6)',
-        fontSize: 16,
+        color: 'rgba(255, 255, 255, 0.75)',
+        fontSize: 14,
         marginBottom: 15,
     },
 

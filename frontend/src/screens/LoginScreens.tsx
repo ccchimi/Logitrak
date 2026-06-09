@@ -125,7 +125,7 @@ export default function LoginScreens({ navigation }: any) {
                         <TextInput
                             style={styles.input}
                             placeholder="Usuario / Legajo"
-                            placeholderTextColor="rgba(255,255,255,0.5)"
+                            placeholderTextColor="rgba(255,255,255,0.55)"
                             value={usuario}
                             onChangeText={setUsuario}
                             autoCapitalize="none"
@@ -137,7 +137,7 @@ export default function LoginScreens({ navigation }: any) {
                         <TextInput
                             style={styles.input}
                             placeholder="Contraseña"
-                            placeholderTextColor="rgba(255,255,255,0.5)"
+                            placeholderTextColor="rgba(255,255,255,0.55)"
                             secureTextEntry
                             value={contrasena}
                             onChangeText={setContrasena}
