@@ -3,12 +3,15 @@
   "version": "1.0.0",
   "main": "index.ts",
   "dependencies": {
+    "@expo-google-fonts/dm-sans": "^0.4.2",
+    "@expo-google-fonts/syne": "^0.4.2",
     "@google/genai": "^2.8.0",
     "@google/generative-ai": "^0.24.1",
     "@react-navigation/native": "^7.3.0",
     "@react-navigation/native-stack": "^7.17.1",
     "dotenv": "^17.4.2",
     "expo": "~54.0.0",
+    "expo-font": "~14.0.12",
     "expo-linear-gradient": "~15.0.8",
     "expo-status-bar": "~3.0.9",
     "react": "19.1.0",
@@ -19,6 +22,7 @@
     "react-native-web": "^0.21.0"
   },
   "devDependencies": {
+    "@expo/ngrok": "^4.1.3",
     "@types/react": "~19.1.10",
     "typescript": "~5.9.2"
   },
