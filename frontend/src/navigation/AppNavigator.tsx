@@ -7,7 +7,8 @@ import HomeScreen from '../screens/HomeScreen';
 import SolicitudEnvioScreen from '../screens/SolicitudEnvioScreen';
 import SeguimientoScreen from '../screens/SeguimientoScreen';
 import PerfilScreen from '../screens/PerfilScreen';
-import HistorialScreen from '../screens/HistorialScreen'; // <-- Nueva importación
+import HistorialScreen from '../screens/HistorialScreen';
+import ChoferScreen from '../screens/ChoferScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -40,11 +41,15 @@ export default function AppNavigator() {
                     component={PerfilScreen}
                     options={{ title: 'Mi Perfil - Logitrack' }}
                 />
-                {/* Nueva pantalla de Historial */}
                 <Stack.Screen
                     name="Historial"
                     component={HistorialScreen}
                     options={{ title: 'Historial de Envíos' }}
+                />
+                <Stack.Screen
+                    name="Chofer"
+                    component={ChoferScreen}
+                    options={{ title: 'Consola del Chofer', headerLeft: () => null }}
                 />
             </Stack.Navigator>
         </NavigationContainer>

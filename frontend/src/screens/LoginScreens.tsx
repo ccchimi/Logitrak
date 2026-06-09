@@ -9,17 +9,22 @@ export default function LoginScreens({ navigation }: any) {
     const [error, setError] = useState('');
 
     const manejarIngreso = () => {
-        // Validación local simulada (Sin backend todavía)
-        if (usuario.trim() === '' || contrasena.trim() === '') {
+        const usuarioLimpio = usuario.trim().toLowerCase();
+        const contrasenaLimpia = contrasena.trim();
+
+        if (usuarioLimpio === '' || contrasenaLimpia === '') {
             setError('Por favor, completa todos los campos.');
             return;
         }
 
-        if (usuario === 'admin' && contrasena === '1234') {
+        if (usuarioLimpio === 'admin' && contrasenaLimpia === '1234') {
             setError('');
             navigation.navigate('Home');
+        } else if (usuarioLimpio === 'chofer' && contrasenaLimpia === '1234') {
+            setError('');
+            navigation.navigate('Chofer');
         } else {
-            setError('Usuario o contraseña incorrectos (Prueba admin/1234).');
+            setError('Datos incorrectos (Prueba admin/1234 o chofer/1234).');
         }
     };
 
@@ -33,7 +38,7 @@ export default function LoginScreens({ navigation }: any) {
 
                 <InputTexto
                     label="Usuario / Legajo"
-                    placeholder="Ej: admin"
+                    placeholder="admin (cliente) o chofer (transportista)"
                     value={usuario}
                     onChangeText={setUsuario}
                 />
