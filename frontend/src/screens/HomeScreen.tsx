@@ -1,16 +1,65 @@
-import React from 'react';
-import { View, Text, Button } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
 import { styles } from './HomeStyles';
+import { obtenerViajesActivos, Viaje } from '../services/viajesService';
+import TarjetaViaje from '../components/TarjetaViaje';
+import { TEMA } from '../theme/colores';
 
-export default function HomeScreen ({ navigation }: any) {
+export default function HomeScreen({ navigation }: any) {
+    const [viajes, setViajes] = useState<Viaje[]>([]);
+
+    useEffect(() => {
+        obtenerViajesActivos().then(datos => setViajes(datos));
+    }, []);
+
     return (
         <View style={styles.container}>
-            <Text style={styles.titulo}>Bienvenido a Logitrack</Text>
-            <Text style={styles.subtitulo}>Panel Principal</Text>
-            <Button
-                title="Cerrar Sesion"
-                onPress={() => navigation.navigate('Login')}
+            {/* Encabezado */}
+            <View style={styles.header}>
+                <Text style={styles.bienvenida}>Panel de Control</Text>
+                <TouchableOpacity style={styles.logoutBtn} onPress={() => navigation.navigate('Login')}>
+                    <Text style={styles.logoutBtnTexto}>Salir</Text>
+                </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+                style={localStyles.botonNuevoEnvio}
+                onPress={() => navigation.navigate('SolicitudEnvio')}
+            >
+                <Text style={localStyles.botonTexto}>+ Solicitar Nuevo Envío</Text>
+            </TouchableOpacity>
+
+            <Text style={localStyles.seccionTitulo}>Mis Envíos Recientes</Text>
+
+            <FlatList
+                data={viajes}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => <TarjetaViaje viaje={item} />}
+                contentContainerStyle={styles.listaContainer}
+                showsVerticalScrollIndicator={false}
             />
         </View>
-    )
+    );
 }
+
+const localStyles = StyleSheet.create({
+    botonNuevoEnvio: {
+        backgroundColor: TEMA.colores.secundario,
+        height: 50,
+        borderRadius: 8,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    botonTexto: {
+        color: TEMA.colores.textoPrincipal,
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    seccionTitulo: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: TEMA.colores.textoSecundario,
+        marginBottom: 10,
+    }
+});

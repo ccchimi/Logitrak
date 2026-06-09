@@ -1,20 +1,36 @@
-import { StyleSheet } from "react-native";
+import { StyleSheet } from 'react-native';
+import { TEMA } from '../theme/colores';
 
 export const styles = StyleSheet.create({
     container: {
         flex: 1,
-        justifyContent: 'center',
+        backgroundColor: TEMA.colores.fondo,
+        paddingHorizontal: 15,
+        paddingTop: 10,
+    },
+    header: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
         alignItems: 'center',
-        backgroundColor: '#eef2f3',
+        marginVertical: 15,
     },
-    titulo: {
-        fontSize: 24,
+    bienvenida: {
+        fontSize: 20,
         fontWeight: 'bold',
-        color: '#lalala'
+        color: TEMA.colores.textoPrincipal,
     },
-    subtitulo: {
-        fontSize: 16,
-        color: '#666',
-        marginBottom: 20,
+    logoutBtn: {
+        paddingVertical: 6,
+        paddingHorizontal: 12,
+        backgroundColor: TEMA.colores.error,
+        borderRadius: 6,
+    },
+    logoutBtnTexto: {
+        color: TEMA.colores.blanco,
+        fontWeight: '600',
+        fontSize: 13,
+    },
+    listaContainer: {
+        paddingBottom: 20,
     }
 });
