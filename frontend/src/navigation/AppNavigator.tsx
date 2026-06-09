@@ -1,5 +1,4 @@
 import React from 'react';
-import { Image } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
@@ -36,18 +35,7 @@ export default function AppNavigator() {
                 <Stack.Screen
                     name="Home"
                     component={HomeScreen}
-                    options={{
-                        headerTitle: () => (
-                            <Image
-                                source={require('../../assets/logo.png')}
-                                style={{
-                                    width: 95,
-                                    height: 38,
-                                }}
-                                resizeMode="contain"
-                            />
-                        ),
-                    }}
+                    options={{ headerShown: false }}
                 />
 
                 <Stack.Screen
