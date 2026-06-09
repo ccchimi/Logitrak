@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, styles } from './LoginStyles';
+import { useRootFlow } from '../navigation/RootFlowContext';
 
 const NUM_BARS = 50;
 const ACTIVE_TRAIL = 8;
@@ -18,6 +19,8 @@ export default function LoginScreens({ navigation }: any) {
   const contrasenaRef = useRef('');
 
   const [error, setError] = useState('');
+
+  const { volverAlInicio, puedeVolver } = useRootFlow();
 
   const manejarIngreso = () => {
     const usuarioLimpio = usuarioRef.current.trim().toLowerCase();
@@ -50,6 +53,17 @@ export default function LoginScreens({ navigation }: any) {
         <SpinnerFondo />
 
         <View style={styles.loginBox}>
+          {puedeVolver && (
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={volverAlInicio}
+              accessibilityLabel="Volver al inicio"
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Text style={styles.closeButtonText}>✕</Text>
+            </TouchableOpacity>
+          )}
+
           <Text style={styles.kicker}>Acceso al sistema</Text>
 
           <Text style={styles.titulo}>
@@ -113,11 +127,15 @@ export default function LoginScreens({ navigation }: any) {
             </View>
           </View>
 
-          <TouchableOpacity style={styles.forgetPassword}>
-            <Text style={styles.forgetPasswordText}>
-              ¿Olvidaste tu contraseña?
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.linksRow}>
+            <TouchableOpacity onPress={() => { /* TODO: navegar a pantalla de Registro cuando exista */ }}>
+              <Text style={styles.linkCrear}>Crear cuenta</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity>
+              <Text style={styles.linkOlvido}>¿Olvidaste tu contraseña?</Text>
+            </TouchableOpacity>
+          </View>
 
           <TouchableOpacity
             activeOpacity={0.85}
