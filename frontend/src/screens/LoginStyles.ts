@@ -2,202 +2,231 @@ import { Dimensions, StyleSheet } from 'react-native';
 
 const { width } = Dimensions.get('window');
 
+const CIRCLE_SIZE = Math.min(width * 1.45, 760);
+const LOGIN_WIDTH = Math.min(width - 40, 450);
+
+export const COLORS = {
+  black: '#0e0e0e',
+  white: '#ffffff',
+  accent: '#FFD700',
+  accentDark: '#f0c800',
+  muted: '#8a8880',
+  border: 'rgba(255, 255, 255, 0.1)',
+  borderAccent: 'rgba(255, 215, 0, 0.28)',
+};
+
+export const FONTS = {
+  title: 'Syne_800ExtraBold',
+  titleBold: 'Syne_700Bold',
+  text: 'DMSans_400Regular',
+  textMedium: 'DMSans_500Medium',
+  textLight: 'DMSans_300Light',
+};
+
 export const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 20,
-        overflow: 'hidden',
-    },
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.black,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    overflow: 'hidden',
+  },
 
-    circleArea: {
-        position: 'relative',
-        width: 700,
-        height: 700,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
+  circleArea: {
+    position: 'relative',
+    width: CIRCLE_SIZE,
+    height: CIRCLE_SIZE,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 
-    circleContainer: {
-        position: 'absolute',
-        width: 700,
-        height: 700,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
+  circleContainer: {
+    position: 'absolute',
+    width: CIRCLE_SIZE,
+    height: CIRCLE_SIZE,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 
-    barWrapper: {
-        position: 'absolute',
-        width: 700,
-        height: 700,
-        alignItems: 'center',
-    },
+  barWrapper: {
+    position: 'absolute',
+    width: CIRCLE_SIZE,
+    height: CIRCLE_SIZE,
+    alignItems: 'center',
+  },
 
-    bar: {
-        width: 8,
-        height: 35,
-        backgroundColor: '#525252',
-        borderRadius: 4,
-    },
+  bar: {
+    width: 8,
+    height: 40,
+    backgroundColor: '#2b2b2b',
+    borderRadius: 8,
+  },
 
-    barActive: {
-        backgroundColor: '#ffa500',
-        shadowColor: '#ffa500',
-        shadowOpacity: 0.8,
-        shadowRadius: 12,
-        shadowOffset: { width: 0, height: 0 },
-        elevation: 8,
-    },
+  barActive: {
+    backgroundColor: COLORS.accent,
+    shadowColor: COLORS.accent,
+    shadowOpacity: 0.85,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 10,
+  },
 
-    loginBox: {
-        position: 'relative',
-        zIndex: 10,
-        width: Math.min(width - 40, 420),
-        backgroundColor: 'rgba(18, 18, 18, 0.94)',
-        padding: 32,
-        borderRadius: 20,
-        borderWidth: 1,
-        borderColor: 'rgba(255, 165, 0, 0.3)',
-        shadowColor: '#ffa500',
-        shadowOffset: { width: 0, height: 20 },
-        shadowOpacity: 0.5,
-        shadowRadius: 30,
-        elevation: 12,
-    },
+  loginBox: {
+    position: 'relative',
+    zIndex: 10,
+    width: LOGIN_WIDTH,
+    backgroundColor: 'rgba(14, 14, 14, 0.94)',
+    padding: 38,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.borderAccent,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 40 },
+    shadowOpacity: 0.45,
+    shadowRadius: 50,
+    elevation: 14,
+  },
 
-    titulo: {
-        textAlign: 'center',
-        color: '#ffa500',
-        marginBottom: 30,
-        fontSize: 32,
-        fontWeight: '600',
-        textTransform: 'uppercase',
-        letterSpacing: 2,
-    },
+  kicker: {
+    color: COLORS.accent,
+    fontFamily: FONTS.textMedium,
+    fontSize: 12,
+    textAlign: 'center',
+    textTransform: 'uppercase',
+    letterSpacing: 2,
+    marginBottom: 12,
+  },
 
-    inputGroup: {
-        position: 'relative',
-        marginBottom: 25,
-    },
+  titulo: {
+    color: COLORS.white,
+    fontFamily: FONTS.title,
+    fontSize: 38,
+    textAlign: 'center',
+    letterSpacing: -1,
+    marginBottom: 8,
+  },
 
-    input: {
-        width: '100%',
-        height: 48,
-        paddingLeft: 15,
-        paddingRight: 45,
-        backgroundColor: 'rgba(255, 255, 255, 0.08)',
-        borderWidth: 1,
-        borderColor: 'rgba(255, 165, 0, 0.35)',
-        borderRadius: 25,
-        color: '#FFFFFF',
-        fontSize: 15,
-    },
+  logoDot: {
+    color: COLORS.accent,
+  },
 
-    inputIcon: {
-        position: 'absolute',
-        right: 15,
-        top: 12,
-        color: '#ffa500',
-        fontSize: 16,
-    },
+  subtitulo: {
+    color: COLORS.muted,
+    fontFamily: FONTS.text,
+    fontSize: 15,
+    textAlign: 'center',
+    marginBottom: 34,
+  },
 
-    forgetPassword: {
-        alignItems: 'flex-end',
-        marginTop: -15,
-        marginBottom: 25,
-    },
+  formGroup: {
+    marginBottom: 20,
+  },
 
-    forgetPasswordText: {
-        color: 'rgba(255, 255, 255, 0.75)',
-        fontSize: 13,
-    },
+  label: {
+    color: COLORS.white,
+    fontFamily: FONTS.textMedium,
+    fontSize: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 8,
+  },
 
-    buttonShadow: {
-        width: '100%',
-        borderRadius: 25,
-        shadowColor: '#ffa500',
-        shadowOpacity: 0.5,
-        shadowRadius: 15,
-        shadowOffset: { width: 0, height: 10 },
-        elevation: 6,
-    },
+  inputContainer: {
+    position: 'relative',
+    width: '100%',
+    height: 50,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 6,
+    justifyContent: 'center',
+  },
 
-    loginButton: {
-        width: '100%',
-        paddingVertical: 14,
-        borderRadius: 25,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
+  inputContainerFocused: {
+    borderColor: COLORS.accent,
+    shadowColor: COLORS.accent,
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 0 },
+  },
 
-    loginButtonText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-    },
+  input: {
+    width: '100%',
+    height: '100%',
+    paddingLeft: 14,
+    paddingRight: 46,
+    color: COLORS.white,
+    fontFamily: FONTS.text,
+    fontSize: 15,
+  },
 
-    socialLogin: {
-        marginTop: 25,
-        alignItems: 'center',
-    },
+  inputIcon: {
+    position: 'absolute',
+    right: 14,
+    top: 13,
+    color: COLORS.accent,
+    fontSize: 16,
+  },
 
-    socialText: {
-        color: 'rgba(255, 255, 255, 0.75)',
-        fontSize: 14,
-        marginBottom: 15,
-    },
+  forgetPassword: {
+    alignItems: 'flex-end',
+    marginTop: -6,
+    marginBottom: 24,
+  },
 
-    socialIcons: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
+  forgetPasswordText: {
+    color: COLORS.muted,
+    fontFamily: FONTS.text,
+    fontSize: 13,
+  },
 
-    socialIcon: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: '#000000',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginHorizontal: 8,
-    },
+  buttonShadow: {
+    width: '100%',
+    borderRadius: 6,
+    shadowColor: COLORS.accent,
+    shadowOpacity: 0.38,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 8,
+  },
 
-    socialIconDark: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: '#000',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginHorizontal: 8,
-    },
+  loginButton: {
+    width: '100%',
+    paddingVertical: 16,
+    borderRadius: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 
-    socialIconText: {
-        color: '#fff',
-        fontSize: 18,
-        fontWeight: 'bold',
-    },
+  loginButtonText: {
+    color: COLORS.black,
+    fontFamily: FONTS.titleBold,
+    fontSize: 14,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
 
-    signupLink: {
-        marginTop: 25,
-        alignItems: 'center',
-    },
+  hintBox: {
+    marginTop: 24,
+    paddingTop: 18,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+  },
 
-    signupText: {
-        color: '#ffa500',
-        fontSize: 14,
-        fontWeight: '600',
-    },
+  hintText: {
+    color: COLORS.muted,
+    fontFamily: FONTS.text,
+    fontSize: 12,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
 
-    errorTexto: {
-        color: '#ff6b6b',
-        fontSize: 14,
-        textAlign: 'center',
-        marginBottom: 18,
-        fontWeight: '500',
-    },
+  errorTexto: {
+    color: '#ff6b6b',
+    fontFamily: FONTS.textMedium,
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
 });
