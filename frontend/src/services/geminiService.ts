@@ -1,20 +1,44 @@
 import { GoogleGenerativeAI, GenerativeModel } from '@google/generative-ai';
 
-const API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+const MODELO_GEMINI = 'gemini-2.5-flash';
+
+function obtenerApiKey(): string | undefined {
+    return process.env.EXPO_PUBLIC_GEMINI_API_KEY?.trim();
+}
+
+function esApiKeyValida(apiKey: string | undefined): apiKey is string {
+    return !!apiKey && apiKey.startsWith('AIza') && apiKey !== 'your_api_key_here';
+}
 
 function obtenerModelo(): GenerativeModel | null {
-    if (!API_KEY) {
+    const apiKey = obtenerApiKey();
+
+    if (!apiKey) {
         console.warn(
             'Falta EXPO_PUBLIC_GEMINI_API_KEY en .env — las funciones de IA usarán datos de respaldo.'
         );
         return null;
     }
 
-    const genAI = new GoogleGenerativeAI(API_KEY);
-    return genAI.getGenerativeModel(
-        { model: 'gemini-2.0-flash' },
-        { apiVersion: 'v1' }
-    );
+    if (!esApiKeyValida(apiKey)) {
+        console.error(
+            'EXPO_PUBLIC_GEMINI_API_KEY no es una API key válida de Google. ' +
+            'Debe empezar con "AIza" y copiarse desde AI Studio → "Copiar clave". ' +
+            'No uses tokens OAuth ni guías cURL.'
+        );
+        return null;
+    }
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+    return genAI.getGenerativeModel({
+        model: MODELO_GEMINI,
+        generationConfig: { responseMimeType: 'application/json' },
+    });
+}
+
+function parsearJsonGemini<T>(texto: string): T {
+    const limpio = texto.replace(/```json|```/g, '').trim();
+    return JSON.parse(limpio);
 }
 
 export interface RespuestaClienteIA {
@@ -57,19 +81,16 @@ export async function calcularEnvioConGemini(peso: string, bultos: string, orige
         return {
             vehiculo: 'Furgoneta Utilitaria (Modo sin API Key)',
             precio: 4900,
-            explicacion: 'Configura EXPO_PUBLIC_GEMINI_API_KEY en .env para cotizaciones con IA.',
+            explicacion: 'Configura una API key válida (AIza...) en frontend/.env y reiniciá Expo con --clear.',
         };
     }
 
     try {
         const resultado = await modelo.generateContent(prompt);
-        let textoRespuesta = resultado.response.text().trim();
-
-        textoRespuesta = textoRespuesta.replace(/```json|```/g, '').trim();
-
-        return JSON.parse(textoRespuesta);
+        return parsearJsonGemini<RespuestaClienteIA>(resultado.response.text());
     } catch (error) {
-        console.error('Error en Gemini Cliente, activando fallback:', error);
+        const detalle = error instanceof Error ? error.message : String(error);
+        console.error('Error en Gemini Cliente, activando fallback:', detalle);
         return {
             vehiculo: 'Furgoneta Utilitaria (Respaldo por Error)',
             precio: 4900,
@@ -108,13 +129,10 @@ export async function generarAlertaViajeRandom(): Promise<AlertaChoferIA> {
 
     try {
         const resultado = await modelo.generateContent(prompt);
-        let textoRespuesta = resultado.response.text().trim();
-
-        textoRespuesta = textoRespuesta.replace(/```json|```/g, '').trim();
-
-        return JSON.parse(textoRespuesta);
+        return parsearJsonGemini<AlertaChoferIA>(resultado.response.text());
     } catch (error) {
-        console.error('Error en Gemini Chofer, activando fallback:', error);
+        const detalle = error instanceof Error ? error.message : String(error);
+        console.error('Error en Gemini Chofer, activando fallback:', detalle);
         return {
             origen: 'Av. Rivadavia 4900, Caballito, CABA',
             destino: 'Av. Corrientes 1300, Centro, CABA',
