@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { styles } from './ChoferStyles';
 import { generarAlertaViajeRandom, AlertaChoferIA } from '../services/geminiService';
+
 export default function ChoferScreen({ navigation }: any) {
     const [cargandoAlerta, setCargandoAlerta] = useState(false);
     const [tieneAlerta, setTieneAlerta] = useState(false);
@@ -44,19 +45,18 @@ export default function ChoferScreen({ navigation }: any) {
 
     return (
         <View style={styles.container}>
-            {/* Encabezado */}
             <View style={styles.header}>
                 <Text style={styles.titulo}>Hola, Marcos Di Palma 👋</Text>
                 <TouchableOpacity style={styles.botonSalir} onPress={() => navigation.navigate('Login')}>
-                    <Text style={{color: '#fff', fontWeight: 'bold', fontSize: 13}}>Salir</Text>
+                    <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 13 }}>Salir</Text>
                 </TouchableOpacity>
             </View>
 
             <Text style={styles.subtitulo}>Consola de Transportista Homologado</Text>
 
             {!tieneAlerta && !viajeActivo && (
-                <View style={{alignItems: 'center', marginTop: 40}}>
-                    <Text style={{fontSize: 16, color: '#64748B', marginBottom: 20}}>
+                <View style={{ alignItems: 'center', marginTop: 40 }}>
+                    <Text style={{ fontSize: 16, color: '#64748B', marginBottom: 20 }}>
                         {cargandoAlerta ? "Consultando asignaciones en la red de IA..." : "Esperando asignación automática de la IA..."}
                     </Text>
 
@@ -68,7 +68,7 @@ export default function ChoferScreen({ navigation }: any) {
                         {cargandoAlerta ? (
                             <ActivityIndicator color="#fff" />
                         ) : (
-                            <Text style={[styles.botonTexto, {paddingHorizontal: 20}]}>⚡ Solicitar Asignación Inteligente (Random)</Text>
+                            <Text style={[styles.botonTexto, { paddingHorizontal: 20 }]}>⚡ Solicitar Asignación Inteligente</Text>
                         )}
                     </TouchableOpacity>
                 </View>
@@ -80,7 +80,7 @@ export default function ChoferScreen({ navigation }: any) {
                     <Text style={styles.alertaTexto}>• Origen: {datosViaje.origen}</Text>
                     <Text style={styles.alertaTexto}>• Destino: {datosViaje.destino}</Text>
                     <Text style={styles.alertaTexto}>• Carga: {datosViaje.carga}</Text>
-                    <Text style={[styles.alertaTexto, {fontWeight: 'bold', marginTop: 5}]}>• Tarifa Ofrecida: ${datosViaje.tarifa}</Text>
+                    <Text style={[styles.alertaTexto, { fontWeight: 'bold', marginTop: 5 }]}>• Tarifa Ofrecida: ${datosViaje.tarifa}</Text>
 
                     <TouchableOpacity style={styles.botonAceptar} onPress={aceptarViaje}>
                         <Text style={styles.botonTexto}>Aceptar y Hoja de Ruta</Text>
@@ -94,13 +94,13 @@ export default function ChoferScreen({ navigation }: any) {
                         <Text style={styles.estadoTexto}>ORDEN EN CURSO: REAL-TIME</Text>
                     </View>
 
-                    <Text style={{fontSize: 15, fontWeight: 'bold', color: '#1E3A8A', marginBottom: 10}}>
+                    <Text style={{ fontSize: 15, fontWeight: 'bold', color: '#1E3A8A', marginBottom: 10 }}>
                         Estado Actual: {estadosChofer[pasoEstado]}
                     </Text>
 
-                    <Text style={{fontSize: 14, color: '#334155', marginBottom: 4}}>• Retirar en: {datosViaje.origen}</Text>
-                    <Text style={{fontSize: 14, color: '#334155', marginBottom: 4}}>• Entregar en: {datosViaje.destino}</Text>
-                    <Text style={{fontSize: 14, color: '#475569', fontStyle: 'italic', marginBottom: 15}}>• Item: {datosViaje.carga}</Text>
+                    <Text style={{ fontSize: 14, color: '#334155', marginBottom: 4 }}>• Retirar en: {datosViaje.origen}</Text>
+                    <Text style={{ fontSize: 14, color: '#334155', marginBottom: 4 }}>• Entregar en: {datosViaje.destino}</Text>
+                    <Text style={{ fontSize: 14, color: '#475569', fontStyle: 'italic', marginBottom: 15 }}>• Item: {datosViaje.carga}</Text>
 
                     <TouchableOpacity style={styles.botonEstado} onPress={avanzarEstado}>
                         <Text style={styles.botonTexto}>
