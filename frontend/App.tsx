@@ -22,10 +22,13 @@ import {
   DMSans_300Light,
   DMSans_400Regular,
   DMSans_500Medium,
+  DMSans_600SemiBold,
+  DMSans_700Bold,
 } from '@expo-google-fonts/dm-sans';
 
 import AppNavigator from './src/navigation/AppNavigator';
-import Index from './src/screens/Index';
+import Inicio from './src/screens/Inicio';
+import { RootFlowProvider } from './src/navigation/RootFlowContext';
 
 export default function App() {
   const { width, height } = useWindowDimensions();
@@ -37,6 +40,8 @@ export default function App() {
     DMSans_300Light,
     DMSans_400Regular,
     DMSans_500Medium,
+    DMSans_600SemiBold,
+    DMSans_700Bold,
   });
 
   const esPC = Platform.OS === 'web' && width >= 768;
@@ -69,6 +74,32 @@ export default function App() {
     });
   };
 
+  // Vuelve desde la app (p. ej. el Login) a la landing (Index),
+  // reutilizando la misma transicion pero al reves.
+  const volverAlInicio = () => {
+    transitionY.setValue(height);
+
+    Animated.timing(transitionY, {
+      toValue: 0,
+      duration: 550,
+      easing: Easing.bezier(0.77, 0, 0.175, 1),
+      useNativeDriver: true,
+    }).start(() => {
+      setMostrarApp(false);
+
+      requestAnimationFrame(() => {
+        Animated.timing(transitionY, {
+          toValue: -height,
+          duration: 550,
+          easing: Easing.bezier(0.77, 0, 0.175, 1),
+          useNativeDriver: true,
+        }).start(() => {
+          transitionY.setValue(height);
+        });
+      });
+    });
+  };
+
   if (!fontsLoaded && !fontError) {
     return (
       <View style={styles.loadingContainer}>
@@ -80,9 +111,11 @@ export default function App() {
   return (
     <View style={styles.root}>
       {esPC && !mostrarApp ? (
-        <Index onGoLogin={irAlLoginReal} />
+        <Inicio onGoLogin={irAlLoginReal} />
       ) : (
-        <AppNavigator />
+        <RootFlowProvider value={{ volverAlInicio, puedeVolver: esPC }}>
+          <AppNavigator />
+        </RootFlowProvider>
       )}
 
       <Animated.View
@@ -123,7 +156,7 @@ const styles = StyleSheet.create({
     color: '#FFD700',
     fontSize: 32,
     fontWeight: '800',
-    fontFamily: 'Syne_800ExtraBold',
+    fontFamily: 'DMSans_700Bold',
   },
 
   logoDot: {
