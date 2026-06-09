@@ -1,19 +1,21 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
 import { styles } from './SolicitudEnvioStyles';
 import InputTexto from '../components/InputTexto';
 import { TEMA } from '../theme/colores';
+import { calcularEnvioConGemini } from '../services/geminiService'; // Importamos el servicio de IA
 
-export default function SolicitudEnvioScreen({ navigation }: any) { // <-- Agregamos navigation
+export default function SolicitudEnvioScreen({ navigation }: any) {
     const [origen, setOrigen] = useState('');
     const [destino, setDestino] = useState('');
     const [peso, setPeso] = useState('');
     const [bultos, setBultos] = useState('');
 
     const [error, setError] = useState('');
+    const [cargando, setCargando] = useState(false); // Estado para controlar el spinner de carga
     const [resultadoIA, setResultadoIA] = useState<any>(null);
 
-    const procesarEnvioInteligente = () => {
+    const procesarEnvioInteligente = async () => {
         if (!origen || !destino || !peso || !bultos) {
             setError('Por favor completa todos los campos requeridos.');
             setResultadoIA(null);
@@ -21,27 +23,19 @@ export default function SolicitudEnvioScreen({ navigation }: any) { // <-- Agreg
         }
 
         setError('');
-        const pesoNum = parseFloat(peso);
+        setCargando(true);
+        setResultadoIA(null);
 
-        let vehiculoAsignado = 'Auto Utilitario';
-        let precioEstimado = 3500;
-
-        if (pesoNum <= 5) {
-            vehiculoAsignado = 'Motomensajería (Inmediato)';
-            precioEstimado = 1200 * parseInt(bultos);
-        } else if (pesoNum > 50) {
-            vehiculoAsignado = 'Camión de Carga Pesada';
-            precioEstimado = 8500 + (pesoNum * 20);
-        } else {
-            vehiculoAsignado = 'Furgoneta / Auto';
-            precioEstimado = 3200 + (pesoNum * 50);
-        }
+        const respuestaIA = await calcularEnvioConGemini(peso, bultos, origen, destino);
 
         setResultadoIA({
-            vehiculo: vehiculoAsignado,
-            precio: precioEstimado,
-            sla: 'Garantía: Llegada en menos de 20 min al origen'
+            vehiculo: respuestaIA.vehiculo,
+            precio: respuestaIA.precio,
+            explicacion: respuestaIA.explicacion,
+            sla: 'Garantía: Llegada en menos de 20 min al origen o cupón de descuento.'
         });
+
+        setCargando(false);
     };
 
     return (
@@ -82,17 +76,28 @@ export default function SolicitudEnvioScreen({ navigation }: any) { // <-- Agreg
                     </View>
                 </View>
 
-                <TouchableOpacity style={styles.botonCalcular} onPress={procesarEnvioInteligente}>
-                    <Text style={styles.botonTexto}>Calcular Envío Inteligente</Text>
+                <TouchableOpacity
+                    style={[styles.botonCalcular, { backgroundColor: cargando ? '#94A3B8' : TEMA.colores.primario }]}
+                    onPress={procesarEnvioInteligente}
+                    disabled={cargando}
+                >
+                    {cargando ? (
+                        <ActivityIndicator color="#fff" />
+                    ) : (
+                        <Text style={styles.botonTexto}>Calcular Envío Inteligente</Text>
+                    )}
                 </TouchableOpacity>
             </View>
 
             {resultadoIA && (
                 <View style={styles.resultadoCard}>
-                    <Text style={styles.resultadoTitulo}>🤖 Asignación de Flota Automática:</Text>
-                    <Text style={styles.resultadoDetalle}>• Vehículo Sugerido: {resultadoIA.vehiculo}</Text>
-                    <Text style={styles.resultadoDetalle}>• Cotización Final: ${resultadoIA.precio}</Text>
-                    <Text style={[styles.resultadoDetalle, {fontWeight: 'bold', color: '#10B981', marginTop: 5, marginBottom: 10}]}>
+                    <Text style={styles.resultadoTitulo}>🤖 Analizado por Gemini AI:</Text>
+                    <Text style={styles.resultadoDetalle}>• Unidad Sugerida: {resultadoIA.vehiculo}</Text>
+                    <Text style={styles.resultadoDetalle}>• Cotización Dinámica: ${resultadoIA.precio}</Text>
+                    <Text style={[styles.resultadoDetalle, { fontStyle: 'italic', color: '#475569', marginTop: 3 }]}>
+                        💬 "{resultadoIA.explicacion}"
+                    </Text>
+                    <Text style={[styles.resultadoDetalle, {fontWeight: 'bold', color: '#10B981', marginTop: 8, marginBottom: 10}]}>
                         ⏱️ {resultadoIA.sla}
                     </Text>
 

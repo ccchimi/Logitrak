@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { styles } from './ChoferStyles';
-
+import { generarAlertaViajeRandom, AlertaChoferIA } from '../services/geminiService';
 export default function ChoferScreen({ navigation }: any) {
+    const [cargandoAlerta, setCargandoAlerta] = useState(false);
     const [tieneAlerta, setTieneAlerta] = useState(false);
     const [viajeActivo, setViajeActivo] = useState(false);
+    const [datosViaje, setDatosViaje] = useState<AlertaChoferIA | null>(null);
     const [pasoEstado, setPasoEstado] = useState(0);
 
     const estadosChofer = [
@@ -14,8 +16,15 @@ export default function ChoferScreen({ navigation }: any) {
         '¡Envío Entregado con Éxito!'
     ];
 
-    const simularAlertaIA = () => {
+    const dispararAsignacionInteligente = async () => {
+        setCargandoAlerta(true);
+        setTieneAlerta(false);
+
+        const nuevaAlerta = await generarAlertaViajeRandom();
+
+        setDatosViaje(nuevaAlerta);
         setTieneAlerta(true);
+        setCargandoAlerta(false);
     };
 
     const aceptarViaje = () => {
@@ -29,6 +38,7 @@ export default function ChoferScreen({ navigation }: any) {
             setPasoEstado(pasoEstado + 1);
         } else {
             setViajeActivo(false);
+            setDatosViaje(null);
         }
     };
 
@@ -42,24 +52,35 @@ export default function ChoferScreen({ navigation }: any) {
                 </TouchableOpacity>
             </View>
 
-            <Text style={styles.subtitulo}>Vehículo actual: Motocicleta Honda Wave (B2C)</Text>
+            <Text style={styles.subtitulo}>Consola de Transportista Homologado</Text>
 
             {!tieneAlerta && !viajeActivo && (
                 <View style={{alignItems: 'center', marginTop: 40}}>
-                    <Text style={{fontSize: 16, color: '#64748B', marginBottom: 20}}>Esperando asignación automática de la IA...</Text>
-                    <TouchableOpacity style={styles.botonEstado} onPress={simularAlertaIA}>
-                        <Text style={[styles.botonTexto, {paddingHorizontal: 20}]}>⚡ Simular Envío Asignado por IA</Text>
+                    <Text style={{fontSize: 16, color: '#64748B', marginBottom: 20}}>
+                        {cargandoAlerta ? "Consultando asignaciones en la red de IA..." : "Esperando asignación automática de la IA..."}
+                    </Text>
+
+                    <TouchableOpacity
+                        style={[styles.botonEstado, cargandoAlerta && { backgroundColor: '#94A3B8' }]}
+                        onPress={dispararAsignacionInteligente}
+                        disabled={cargandoAlerta}
+                    >
+                        {cargandoAlerta ? (
+                            <ActivityIndicator color="#fff" />
+                        ) : (
+                            <Text style={[styles.botonTexto, {paddingHorizontal: 20}]}>⚡ Solicitar Asignación Inteligente (Random)</Text>
+                        )}
                     </TouchableOpacity>
                 </View>
             )}
 
-            {tieneAlerta && (
+            {tieneAlerta && datosViaje && (
                 <View style={styles.tarjetaAlerta}>
-                    <Text style={styles.alertaTitulo}>🚨 ¡Nuevo Viaje Asignado por IA!</Text>
-                    <Text style={styles.alertaTexto}>• Origen: Av. Rivadavia 5000, Caballito</Text>
-                    <Text style={styles.alertaTexto}>• Destino: Av. Corrientes 1200, Centro</Text>
-                    <Text style={styles.alertaTexto}>• Carga: Paquete Chico (Ropa) - 3 Kg</Text>
-                    <Text style={[styles.alertaTexto, {fontWeight: 'bold', marginTop: 5}]}>• Tarifa Estimada: $1.200</Text>
+                    <Text style={styles.alertaTitulo}>🚨 ¡Viaje Asignado por Gemini AI!</Text>
+                    <Text style={styles.alertaTexto}>• Origen: {datosViaje.origen}</Text>
+                    <Text style={styles.alertaTexto}>• Destino: {datosViaje.destino}</Text>
+                    <Text style={styles.alertaTexto}>• Carga: {datosViaje.carga}</Text>
+                    <Text style={[styles.alertaTexto, {fontWeight: 'bold', marginTop: 5}]}>• Tarifa Ofrecida: ${datosViaje.tarifa}</Text>
 
                     <TouchableOpacity style={styles.botonAceptar} onPress={aceptarViaje}>
                         <Text style={styles.botonTexto}>Aceptar y Hoja de Ruta</Text>
@@ -67,22 +88,23 @@ export default function ChoferScreen({ navigation }: any) {
                 </View>
             )}
 
-            {viajeActivo && (
+            {viajeActivo && datosViaje && (
                 <View style={styles.tarjetaViajeActivo}>
                     <View style={styles.estadoBadge}>
-                        <Text style={styles.estadoTexto}>ORDEN ACTIVA: #TRK-951</Text>
+                        <Text style={styles.estadoTexto}>ORDEN EN CURSO: REAL-TIME</Text>
                     </View>
 
                     <Text style={{fontSize: 15, fontWeight: 'bold', color: '#1E3A8A', marginBottom: 10}}>
                         Estado Actual: {estadosChofer[pasoEstado]}
                     </Text>
 
-                    <Text style={{fontSize: 14, color: '#334155', marginBottom: 4}}>• Retirar en: Av. Rivadavia 5000</Text>
-                    <Text style={{fontSize: 14, color: '#334155', marginBottom: 15}}>• Entregar en: Av. Corrientes 1200</Text>
+                    <Text style={{fontSize: 14, color: '#334155', marginBottom: 4}}>• Retirar en: {datosViaje.origen}</Text>
+                    <Text style={{fontSize: 14, color: '#334155', marginBottom: 4}}>• Entregar en: {datosViaje.destino}</Text>
+                    <Text style={{fontSize: 14, color: '#475569', fontStyle: 'italic', marginBottom: 15}}>• Item: {datosViaje.carga}</Text>
 
                     <TouchableOpacity style={styles.botonEstado} onPress={avanzarEstado}>
                         <Text style={styles.botonTexto}>
-                            {pasoEstado === 3 ? '🏁 Cerrar y Esperar Otro Viaje' : '🔀 Avanzar Siguiente Estado'}
+                            {pasoEstado === 3 ? '🏁 Completar y Liberar Consola' : '🔀 Avanzar Siguiente Estado'}
                         </Text>
                     </TouchableOpacity>
                 </View>
