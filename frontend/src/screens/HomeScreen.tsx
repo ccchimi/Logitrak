@@ -14,17 +14,24 @@ export default function HomeScreen({ navigation }: any) {
 
     return (
         <View style={styles.container}>
-            {/* Encabezado con Botón de Perfil y Salir */}
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.navigate('Perfil')}>
-                    <Text style={localStyles.perfilEnlace}>👤 Ver Perfil</Text>
-                </TouchableOpacity>
+                <View style={localStyles.navGroup}>
+                    <TouchableOpacity onPress={() => navigation.navigate('Perfil')}>
+                        <Text style={localStyles.perfilEnlace}>👤 Perfil</Text>
+                    </TouchableOpacity>
+                    <Text style={localStyles.separador}>|</Text>
+                    <TouchableOpacity onPress={() => navigation.navigate('Historial')}>
+                        <Text style={localStyles.perfilEnlace}>📦 Historial</Text>
+                    </TouchableOpacity>
+                </View>
+
                 <TouchableOpacity style={styles.logoutBtn} onPress={() => navigation.navigate('Login')}>
                     <Text style={styles.logoutBtnTexto}>Salir</Text>
                 </TouchableOpacity>
             </View>
 
             <Text style={styles.bienvenida}>Panel de Control</Text>
+
             <TouchableOpacity
                 style={localStyles.botonNuevoEnvio}
                 onPress={() => navigation.navigate('SolicitudEnvio')}
@@ -46,10 +53,19 @@ export default function HomeScreen({ navigation }: any) {
 }
 
 const localStyles = StyleSheet.create({
+    navGroup: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
     perfilEnlace: {
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: '600',
         color: TEMA.colores.primario,
+    },
+    separador: {
+        marginHorizontal: 10,
+        color: TEMA.colores.borde,
+        fontSize: 16,
     },
     botonNuevoEnvio: {
         backgroundColor: TEMA.colores.secundario,
