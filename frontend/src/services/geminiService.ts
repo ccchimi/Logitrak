@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+const API_KEY = process.env.API_KEY
 
 if (!API_KEY) {
     throw new Error("Falta la variable EXPO_PUBLIC_GEMINI_API_KEY en el archivo .env");
