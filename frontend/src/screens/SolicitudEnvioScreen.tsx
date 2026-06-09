@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { styles } from './SolicitudEnvioStyles';
 import InputTexto from '../components/InputTexto';
+import { TEMA } from '../theme/colores';
 
-export default function SolicitudEnvioScreen() {
+export default function SolicitudEnvioScreen({ navigation }: any) { // <-- Agregamos navigation
     const [origen, setOrigen] = useState('');
     const [destino, setDestino] = useState('');
     const [peso, setPeso] = useState('');
@@ -39,7 +40,7 @@ export default function SolicitudEnvioScreen() {
         setResultadoIA({
             vehiculo: vehiculoAsignado,
             precio: precioEstimado,
-            sla: 'Garantía: LLegada en menos de 20 min al origen'
+            sla: 'Garantía: Llegada en menos de 20 min al origen'
         });
     };
 
@@ -91,11 +92,34 @@ export default function SolicitudEnvioScreen() {
                     <Text style={styles.resultadoTitulo}>🤖 Asignación de Flota Automática:</Text>
                     <Text style={styles.resultadoDetalle}>• Vehículo Sugerido: {resultadoIA.vehiculo}</Text>
                     <Text style={styles.resultadoDetalle}>• Cotización Final: ${resultadoIA.precio}</Text>
-                    <Text style={[styles.resultadoDetalle, {fontWeight: 'bold', color: '#10B981', marginTop: 5}]}>
+                    <Text style={[styles.resultadoDetalle, {fontWeight: 'bold', color: '#10B981', marginTop: 5, marginBottom: 10}]}>
                         ⏱️ {resultadoIA.sla}
                     </Text>
+
+                    <TouchableOpacity
+                        style={localStyles.botonConfirmar}
+                        onPress={() => navigation.navigate('Seguimiento')}
+                    >
+                        <Text style={localStyles.botonConfirmarTexto}>Confirmar y Solicitar Chofer</Text>
+                    </TouchableOpacity>
                 </View>
             )}
         </ScrollView>
     );
 }
+
+const localStyles = StyleSheet.create({
+    botonConfirmar: {
+        backgroundColor: '#10B981',
+        height: 45,
+        borderRadius: 8,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginTop: 5,
+    },
+    botonConfirmarTexto: {
+        color: TEMA.colores.blanco,
+        fontSize: 15,
+        fontWeight: 'bold',
+    }
+});
