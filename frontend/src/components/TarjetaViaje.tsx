@@ -101,12 +101,14 @@ const styles = StyleSheet.create({
         marginBottom: 4,
         textTransform: 'uppercase',
         letterSpacing: 0.4,
+        fontFamily: 'DMSans_500Medium',
     },
 
     codigo: {
         fontSize: 16,
         fontWeight: '900',
         color: '#111111',
+        fontFamily: 'DMSans_700Bold',
     },
 
     estadoBadge: {
@@ -127,6 +129,7 @@ const styles = StyleSheet.create({
     estadoTexto: {
         fontSize: 13,
         fontWeight: '900',
+        fontFamily: 'DMSans_700Bold',
     },
 
     rutaContainer: {
@@ -161,12 +164,14 @@ const styles = StyleSheet.create({
         color: '#6B7280',
         fontWeight: '700',
         marginBottom: 3,
+        fontFamily: 'DMSans_500Medium',
     },
 
     destino: {
         fontSize: 19,
         fontWeight: '900',
         color: '#111111',
+        fontFamily: 'DMSans_700Bold',
     },
 
     footer: {
@@ -180,12 +185,14 @@ const styles = StyleSheet.create({
         color: '#6B7280',
         fontWeight: '700',
         marginBottom: 4,
+        fontFamily: 'DMSans_500Medium',
     },
 
     footerText: {
         fontSize: 14,
         color: '#111111',
         fontWeight: '700',
+        fontFamily: 'DMSans_700Bold',
     },
 
     fechaBox: {
