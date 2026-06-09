@@ -16,8 +16,8 @@ export const COLORS = {
 };
 
 export const FONTS = {
-  title: 'Syne_800ExtraBold',
-  titleBold: 'Syne_700Bold',
+  title: 'DMSans_700Bold',
+  titleBold: 'DMSans_700Bold',
   text: 'DMSans_400Regular',
   textMedium: 'DMSans_500Medium',
   textLight: 'DMSans_300Light',
@@ -86,6 +86,28 @@ export const styles = StyleSheet.create({
     shadowOpacity: 0.45,
     shadowRadius: 50,
     elevation: 14,
+  },
+
+  closeButton: {
+    position: 'absolute',
+    top: 14,
+    right: 14,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    zIndex: 20,
+  },
+
+  closeButtonText: {
+    color: COLORS.muted,
+    fontFamily: FONTS.textMedium,
+    fontSize: 14,
+    lineHeight: 16,
   },
 
   kicker: {
@@ -169,14 +191,22 @@ export const styles = StyleSheet.create({
     fontSize: 16,
   },
 
-  forgetPassword: {
-    alignItems: 'flex-end',
-    marginTop: -6,
+  linksRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: -4,
     marginBottom: 24,
   },
 
-  forgetPasswordText: {
-    color: COLORS.muted,
+  linkCrear: {
+    color: COLORS.accent,
+    fontFamily: FONTS.textMedium,
+    fontSize: 13,
+  },
+
+  linkOlvido: {
+    color: '#A8A59C',
     fontFamily: FONTS.text,
     fontSize: 13,
   },
