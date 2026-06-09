@@ -1,17 +1,21 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, GenerativeModel } from '@google/generative-ai';
 
-const API_KEY = process.env.API_KEY
+const API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
 
-if (!API_KEY) {
-    throw new Error("Falta la variable EXPO_PUBLIC_GEMINI_API_KEY en el archivo .env");
+function obtenerModelo(): GenerativeModel | null {
+    if (!API_KEY) {
+        console.warn(
+            'Falta EXPO_PUBLIC_GEMINI_API_KEY en .env — las funciones de IA usarán datos de respaldo.'
+        );
+        return null;
+    }
+
+    const genAI = new GoogleGenerativeAI(API_KEY);
+    return genAI.getGenerativeModel(
+        { model: 'gemini-2.0-flash' },
+        { apiVersion: 'v1' }
+    );
 }
-
-const genAI = new GoogleGenerativeAI(API_KEY);
-
-const modelo = genAI.getGenerativeModel(
-    { model: "gemini-2.0-flash" },
-    { apiVersion: "v1" }
-);
 
 export interface RespuestaClienteIA {
     vehiculo: string;
@@ -48,19 +52,28 @@ export async function calcularEnvioConGemini(peso: string, bultos: string, orige
     }
   `;
 
+    const modelo = obtenerModelo();
+    if (!modelo) {
+        return {
+            vehiculo: 'Furgoneta Utilitaria (Modo sin API Key)',
+            precio: 4900,
+            explicacion: 'Configura EXPO_PUBLIC_GEMINI_API_KEY en .env para cotizaciones con IA.',
+        };
+    }
+
     try {
         const resultado = await modelo.generateContent(prompt);
         let textoRespuesta = resultado.response.text().trim();
 
-        textoRespuesta = textoRespuesta.replace(/```json|```/g, "").trim();
+        textoRespuesta = textoRespuesta.replace(/```json|```/g, '').trim();
 
         return JSON.parse(textoRespuesta);
     } catch (error) {
-        console.error("Error en Gemini Cliente, activando fallback:", error);
+        console.error('Error en Gemini Cliente, activando fallback:', error);
         return {
-            vehiculo: "Furgoneta Utilitaria (Respaldo por Error)",
+            vehiculo: 'Furgoneta Utilitaria (Respaldo por Error)',
             precio: 4900,
-            explicacion: "Error de formato en la consulta central. Modo contingencia activo."
+            explicacion: 'Error de formato en la consulta central. Modo contingencia activo.',
         };
     }
 }
@@ -83,20 +96,30 @@ export async function generarAlertaViajeRandom(): Promise<AlertaChoferIA> {
     }
   `;
 
+    const modelo = obtenerModelo();
+    if (!modelo) {
+        return {
+            origen: 'Av. Rivadavia 4900, Caballito, CABA',
+            destino: 'Av. Corrientes 1300, Centro, CABA',
+            carga: 'Paquete mediano (modo sin API Key)',
+            tarifa: 2800,
+        };
+    }
+
     try {
         const resultado = await modelo.generateContent(prompt);
         let textoRespuesta = resultado.response.text().trim();
 
-        textoRespuesta = textoRespuesta.replace(/```json|```/g, "").trim();
+        textoRespuesta = textoRespuesta.replace(/```json|```/g, '').trim();
 
         return JSON.parse(textoRespuesta);
     } catch (error) {
-        console.error("Error en Gemini Chofer, activando fallback:", error);
+        console.error('Error en Gemini Chofer, activando fallback:', error);
         return {
-            origen: "Av. Rivadavia 4900, Caballito, CABA",
-            destino: "Av. Corrientes 1300, Centro, CABA",
-            carga: "Paquete mediano de contingencia administrativa",
-            tarifa: 2800
+            origen: 'Av. Rivadavia 4900, Caballito, CABA',
+            destino: 'Av. Corrientes 1300, Centro, CABA',
+            carga: 'Paquete mediano de contingencia administrativa',
+            tarifa: 2800,
         };
     }
 }
