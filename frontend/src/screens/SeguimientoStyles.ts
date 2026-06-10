@@ -6,16 +6,8 @@ export const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: TEMA.colores.fondo,
     },
-    mapaMock: {
+    mapa: {
         flex: 1,
-        backgroundColor: '#CBD5E1',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    mapaTexto: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: TEMA.colores.textoSecundario,
     },
     cardSeguimiento: {
         backgroundColor: TEMA.colores.blanco,
