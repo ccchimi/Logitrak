@@ -79,12 +79,12 @@ export default function TarjetaViaje({ viaje }: TarjetaProps) {
 
 const styles = StyleSheet.create({
     card: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: '#161616',
         borderRadius: 24,
         padding: 20,
         marginBottom: 16,
         borderWidth: 1,
-        borderColor: '#E6E1DA',
+        borderColor: 'rgba(255, 255, 255, 0.1)',
     },
 
     header: {
@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
 
     label: {
         fontSize: 12,
-        color: '#6B7280',
+        color: 'rgba(255, 255, 255, 0.5)',
         fontWeight: '700',
         marginBottom: 4,
         textTransform: 'uppercase',
@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
     codigo: {
         fontSize: 16,
         fontWeight: '900',
-        color: '#111111',
+        color: '#FFFFFF',
         fontFamily: 'DMSans_700Bold',
     },
 
@@ -135,7 +135,9 @@ const styles = StyleSheet.create({
     rutaContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#F7F3ED',
+        backgroundColor: '#111111',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.07)',
         borderRadius: 18,
         padding: 14,
         marginBottom: 16,
@@ -145,7 +147,9 @@ const styles = StyleSheet.create({
         width: 46,
         height: 46,
         borderRadius: 16,
-        backgroundColor: '#FFD83D',
+        backgroundColor: 'rgba(255, 215, 0, 0.14)',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 215, 0, 0.35)',
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 14,
@@ -161,7 +165,7 @@ const styles = StyleSheet.create({
 
     rutaLabel: {
         fontSize: 12,
-        color: '#6B7280',
+        color: 'rgba(255, 255, 255, 0.5)',
         fontWeight: '700',
         marginBottom: 3,
         fontFamily: 'DMSans_500Medium',
@@ -170,7 +174,7 @@ const styles = StyleSheet.create({
     destino: {
         fontSize: 19,
         fontWeight: '900',
-        color: '#111111',
+        color: '#FFFFFF',
         fontFamily: 'DMSans_700Bold',
     },
 
@@ -182,7 +186,7 @@ const styles = StyleSheet.create({
 
     footerLabel: {
         fontSize: 12,
-        color: '#6B7280',
+        color: 'rgba(255, 255, 255, 0.5)',
         fontWeight: '700',
         marginBottom: 4,
         fontFamily: 'DMSans_500Medium',
@@ -190,7 +194,7 @@ const styles = StyleSheet.create({
 
     footerText: {
         fontSize: 14,
-        color: '#111111',
+        color: '#FFFFFF',
         fontWeight: '700',
         fontFamily: 'DMSans_700Bold',
     },

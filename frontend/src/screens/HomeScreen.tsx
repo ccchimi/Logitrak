@@ -6,9 +6,10 @@ import {
   TouchableOpacity,
   useWindowDimensions,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { styles, ESTADO_COLORS } from './HomeStyles';
+import { styles, COLORS, ESTADO_COLORS } from './HomeStyles';
 import { obtenerViajesActivos, Viaje } from '../services/viajesService';
 import TarjetaViaje from '../components/TarjetaViaje';
 
@@ -21,6 +22,27 @@ const NAV = [
   { label: 'Solicitar envío', icon: '＋', ruta: 'SolicitudEnvio' },
   { label: 'Historial', icon: '🗂', ruta: 'Historial' },
   { label: 'Perfil', icon: '👤', ruta: 'Perfil' },
+];
+
+const ACCESOS_RAPIDOS = [
+  {
+    icono: '🤖',
+    titulo: 'Cotizar con Boxy',
+    sub: 'El asistente IA verifica direcciones y arma la tarifa.',
+    ruta: 'SolicitudEnvio',
+  },
+  {
+    icono: '🛰️',
+    titulo: 'Seguimiento en vivo',
+    sub: 'Mapa en tiempo real de las unidades en tránsito.',
+    ruta: 'Seguimiento',
+  },
+  {
+    icono: '🗂️',
+    titulo: 'Historial completo',
+    sub: 'Auditá todos los envíos despachados por el sistema.',
+    ruta: 'Historial',
+  },
 ];
 
 const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -41,9 +63,13 @@ function obtenerFechaHoy(): string {
   return `${DIAS[d.getDay()]} ${d.getDate()} de ${MESES[d.getMonth()]} de ${d.getFullYear()}`;
 }
 
-export default function HomeScreen({ navigation }: any) {
+export default function HomeScreen({ navigation, route }: any) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
+
+  const nombre: string = route?.params?.nombre ?? 'Admin';
+  const usuario: string = route?.params?.usuario ?? 'admin';
+  const primerNombre = nombre.split(' ')[0];
 
   const esEscritorio = width >= 1000;
   const apilarPaneles = width < 1280;
@@ -95,10 +121,10 @@ export default function HomeScreen({ navigation }: any) {
   };
 
   const kpis = [
-    { label: 'Total envíos', valor: metricas.total, color: ESTADO_COLORS.accent, sub: 'En el sistema' },
-    { label: 'En viaje', valor: metricas.enViaje, color: ESTADO_COLORS.blue, sub: 'En tránsito ahora' },
-    { label: 'Pendientes', valor: metricas.pendientes, color: ESTADO_COLORS.amber, sub: 'Por despachar' },
-    { label: 'Entregados', valor: metricas.entregados, color: ESTADO_COLORS.green, sub: 'Completados' },
+    { label: 'Total envíos', valor: metricas.total, color: ESTADO_COLORS.accent, icono: '📦', sub: 'En el sistema' },
+    { label: 'En viaje', valor: metricas.enViaje, color: ESTADO_COLORS.blue, icono: '🚚', sub: 'En tránsito ahora' },
+    { label: 'Pendientes', valor: metricas.pendientes, color: ESTADO_COLORS.amber, icono: '⏳', sub: 'Por despachar' },
+    { label: 'Entregados', valor: metricas.entregados, color: ESTADO_COLORS.green, icono: '✅', sub: 'Completados' },
   ];
 
   const distribucion = [
@@ -115,6 +141,7 @@ export default function HomeScreen({ navigation }: any) {
           logitrak<Text style={styles.sbDot}>.</Text>
         </Text>
       </View>
+      <Text style={styles.sbTag}>Centro de comando</Text>
 
       <Text style={styles.sbNavLabel}>Menú</Text>
       {NAV.map((item) => {
@@ -125,7 +152,7 @@ export default function HomeScreen({ navigation }: any) {
             style={[styles.navItem, activo && styles.navItemActive]}
             onPress={() => irA(item.ruta)}
           >
-            <Text style={styles.navIcon}>{item.icon}</Text>
+            <Text style={[styles.navIcon, activo && styles.navIconActive]}>{item.icon}</Text>
             <Text style={[styles.navLabel, activo && styles.navLabelActive]}>
               {item.label}
             </Text>
@@ -133,15 +160,25 @@ export default function HomeScreen({ navigation }: any) {
         );
       })}
 
+      <View style={styles.sbBoxyCard}>
+        <Text style={styles.sbBoxyKicker}>LogiTrack IA</Text>
+        <Text style={styles.sbBoxyText}>
+          Boxy cotiza tus envíos verificando direcciones y carga en tiempo real.
+        </Text>
+        <TouchableOpacity style={styles.sbBoxyBtn} onPress={() => irA('SolicitudEnvio')}>
+          <Text style={styles.sbBoxyBtnText}>Cotizar ahora</Text>
+        </TouchableOpacity>
+      </View>
+
       <View style={styles.sbSpacer} />
 
       <View style={styles.sbUserCard}>
         <View style={styles.sbAvatar}>
-          <Text style={styles.sbAvatarText}>A</Text>
+          <Text style={styles.sbAvatarText}>{primerNombre.charAt(0).toUpperCase()}</Text>
         </View>
         <View>
-          <Text style={styles.sbUserName}>Admin</Text>
-          <Text style={styles.sbUserMail}>admin@logitrak.com</Text>
+          <Text style={styles.sbUserName}>{primerNombre}</Text>
+          <Text style={styles.sbUserMail}>@{usuario} · Administrador</Text>
         </View>
       </View>
 
@@ -182,25 +219,55 @@ export default function HomeScreen({ navigation }: any) {
         </>
       )}
 
-      {/* Encabezado de página */}
-      <View style={[styles.pageHead, esEscritorio && { marginTop: insets.top + 12 }]}>
-        <View style={{ flex: 1, minWidth: 240 }}>
-          <Text style={styles.eyebrow}>Panel de operaciones</Text>
-          <Text style={styles.greeting}>{obtenerSaludo()}, Admin</Text>
-          <Text style={styles.dateText}>{obtenerFechaHoy()}</Text>
-        </View>
-
-        <View style={styles.pageHeadRight}>
-          <View style={styles.statusPill}>
-            <View style={styles.statusDot} />
-            <Text style={styles.statusText}>Online</Text>
+      {/* HERO */}
+      <LinearGradient
+        colors={['#1A1A1A', '#101010']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.hero, esEscritorio && { marginTop: insets.top + 12 }]}
+      >
+        <View style={styles.heroRow}>
+          <View style={{ flex: 1, minWidth: 240 }}>
+            <Text style={styles.eyebrow}>Panel de operaciones</Text>
+            <Text style={styles.greeting}>
+              {obtenerSaludo()}, {primerNombre}
+            </Text>
+            <Text style={styles.dateText}>{obtenerFechaHoy()}</Text>
           </View>
 
-          <TouchableOpacity style={styles.ctaSmall} onPress={() => navigation.navigate('SolicitudEnvio')}>
-            <Text style={styles.ctaSmallText}>+  Nuevo envío</Text>
+          <View style={styles.heroRight}>
+            <View style={styles.statusPill}>
+              <View style={styles.statusDot} />
+              <Text style={styles.statusText}>Operativa en línea</Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.heroActions}>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            style={styles.ctaPrimary}
+            onPress={() => navigation.navigate('SolicitudEnvio')}
+          >
+            <LinearGradient
+              colors={[COLORS.accent, COLORS.accentDark]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.ctaPrimaryInner}
+            >
+              <Text style={styles.ctaPrimaryText}>＋  Nuevo envío con Boxy</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.ctaGhost} onPress={() => navigation.navigate('Seguimiento')}>
+            <Text style={styles.ctaGhostText}>🛰️  Seguimiento en vivo</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.ctaGhost} onPress={() => navigation.navigate('Historial')}>
+            <Text style={styles.ctaGhostText}>🗂  Historial</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </LinearGradient>
 
       {/* KPIs */}
       <View style={styles.kpiRow}>
@@ -216,7 +283,9 @@ export default function HomeScreen({ navigation }: any) {
             <View key={k.label} style={styles.kpiCard}>
               <View style={styles.kpiTopRow}>
                 <Text style={styles.kpiLabel}>{k.label}</Text>
-                <View style={[styles.kpiDot, { backgroundColor: k.color }]} />
+                <View style={[styles.kpiIconChip, { backgroundColor: `${k.color}1E` }]}>
+                  <Text style={styles.kpiIconText}>{k.icono}</Text>
+                </View>
               </View>
               <Text style={styles.kpiValue}>{cargando ? '—' : k.valor}</Text>
               <Text style={styles.kpiSub}>{k.sub}</Text>
@@ -249,6 +318,9 @@ export default function HomeScreen({ navigation }: any) {
           <View style={styles.progressTrack}>
             <View style={[styles.progressFill, { width: `${metricas.cumplimiento}%` }]} />
           </View>
+          <Text style={styles.panelFootNote}>
+            {metricas.entregados} de {metricas.total} envíos completados sin incidencias.
+          </Text>
         </View>
 
         {/* Distribución por estado */}
@@ -283,6 +355,25 @@ export default function HomeScreen({ navigation }: any) {
             );
           })}
         </View>
+      </View>
+
+      {/* ACCESOS RÁPIDOS */}
+      <View style={styles.quickRow}>
+        {ACCESOS_RAPIDOS.map((a) => (
+          <TouchableOpacity
+            key={a.titulo}
+            style={styles.quickCard}
+            activeOpacity={0.8}
+            onPress={() => irA(a.ruta)}
+          >
+            <View style={styles.quickIconChip}>
+              <Text style={styles.quickIcon}>{a.icono}</Text>
+            </View>
+            <Text style={styles.quickTitle}>{a.titulo}</Text>
+            <Text style={styles.quickSub}>{a.sub}</Text>
+            <Text style={styles.quickArrow}>Abrir →</Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
       {/* FILTROS */}
