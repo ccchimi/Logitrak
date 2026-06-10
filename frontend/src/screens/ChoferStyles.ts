@@ -1,262 +1,644 @@
-import { StyleSheet, ViewStyle, TextStyle } from 'react-native';
-import { TEMA } from '../theme/colores';
+import { Platform, StyleSheet } from 'react-native';
 
-interface EstilosChofer {
-    container: ViewStyle;
-    header: ViewStyle;
-    titulo: TextStyle;
-    subtitulo: TextStyle;
-    tarjetaAlerta: ViewStyle;
-    alertaHeader: ViewStyle;
-    alertaTitulo: TextStyle;
-    alertaTexto: TextStyle;
-    referenciaTexto: TextStyle;
-    badgePrioridad: TextStyle;
-    prioridadAlta: TextStyle;
-    prioridadMedia: TextStyle;
-    prioridadBaja: TextStyle;
-    metricasFila: ViewStyle;
-    metricaCaja: ViewStyle;
-    metricaLabel: TextStyle;
-    metricaValor: TextStyle;
-    metricaValorDestacado: TextStyle;
-    requisitosBox: ViewStyle;
-    seccionTitulo: TextStyle;
-    requisitoTexto: TextStyle;
-    recomendacionBox: ViewStyle;
-    recomendacionPositiva: ViewStyle;
-    recomendacionNeutra: ViewStyle;
-    recomendacionTitulo: TextStyle;
-    recomendacionMotivo: TextStyle;
-    botonAceptar: ViewStyle;
-    botonRechazar: ViewStyle;
-    botonRechazarTexto: TextStyle;
-    botonTexto: TextStyle;
-    tarjetaViajeActivo: ViewStyle;
-    estadoBadge: ViewStyle;
-    estadoTexto: TextStyle;
-    botonEstado: ViewStyle;
-    botonSalir: ViewStyle;
-}
+export const COLORS = {
+    bg: '#0E0E0E',
+    surface: '#161616',
+    card: '#1B1B1B',
+    cardDeep: '#111111',
+    white: '#FFFFFF',
+    accent: '#FFD700',
+    accentDark: '#F0C800',
+    accentSoft: 'rgba(255, 215, 0, 0.12)',
+    ink: '#0E0E0E',
+    muted: 'rgba(255, 255, 255, 0.55)',
+    mutedStrong: 'rgba(255, 255, 255, 0.78)',
+    border: 'rgba(255, 255, 255, 0.08)',
+    borderStrong: 'rgba(255, 255, 255, 0.16)',
+    borderAccent: 'rgba(255, 215, 0, 0.30)',
+    green: '#10B981',
+    amber: '#F59E0B',
+    red: '#EF4444',
+    cyan: '#22D3EE',
+    blue: '#3B82F6',
+};
 
-export const styles = StyleSheet.create<EstilosChofer>({
+export const FONTS = {
+    title: 'DMSans_700Bold',
+    titleBold: 'DMSans_700Bold',
+    text: 'DMSans_400Regular',
+    textMedium: 'DMSans_500Medium',
+};
+
+const cardShadow = Platform.select({
+    ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 14 },
+        shadowOpacity: 0.32,
+        shadowRadius: 24,
+    },
+    android: { elevation: 7 },
+    default: {},
+});
+
+export const styles = StyleSheet.create({
+    safeArea: {
+        flex: 1,
+        backgroundColor: COLORS.bg,
+    },
+
     container: {
         flex: 1,
-        backgroundColor: TEMA.colores.fondo,
-        padding: 20,
+        backgroundColor: COLORS.bg,
     },
+
+    scrollContent: {
+        padding: 18,
+        paddingBottom: 40,
+        width: '100%',
+        maxWidth: 760,
+        alignSelf: 'center',
+    },
+
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 20,
+        marginBottom: 18,
     },
-    titulo: {
+
+    brandRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+    },
+
+    logo: {
+        color: COLORS.white,
         fontSize: 22,
-        fontWeight: 'bold',
-        color: TEMA.colores.textoPrincipal,
+        fontFamily: FONTS.title,
+        letterSpacing: -0.5,
     },
-    subtitulo: {
-        fontSize: 14,
-        color: TEMA.colores.textoSecundario,
-        marginBottom: 15,
-        fontWeight: '500',
-    },
-    tarjetaAlerta: {
-        backgroundColor: '#FEF2F2',
-        borderColor: '#FCA5A5',
+
+    logoDot: { color: COLORS.accent },
+
+    rolePill: {
+        backgroundColor: COLORS.accentSoft,
         borderWidth: 1,
-        borderRadius: 12,
-        padding: 20,
-        marginBottom: 20,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 6,
-        elevation: 4,
+        borderColor: COLORS.borderAccent,
+        paddingHorizontal: 9,
+        paddingVertical: 3,
+        borderRadius: 6,
     },
-    alertaHeader: {
+
+    rolePillText: {
+        color: COLORS.accent,
+        fontSize: 10,
+        letterSpacing: 1,
+        fontFamily: FONTS.titleBold,
+    },
+
+    botonSalir: {
+        borderWidth: 1,
+        borderColor: COLORS.borderStrong,
+        backgroundColor: COLORS.surface,
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 999,
+    },
+
+    botonSalirTexto: {
+        color: COLORS.mutedStrong,
+        fontSize: 13,
+        fontFamily: FONTS.titleBold,
+    },
+
+    saludoBlock: {
+        marginBottom: 16,
+    },
+
+    eyebrow: {
+        color: COLORS.accent,
+        fontSize: 11,
+        letterSpacing: 3,
+        textTransform: 'uppercase',
+        marginBottom: 8,
+        fontFamily: FONTS.textMedium,
+    },
+
+    saludo: {
+        color: COLORS.white,
+        fontSize: 28,
+        letterSpacing: -0.8,
+        fontFamily: FONTS.title,
+        marginBottom: 4,
+    },
+
+    subtitulo: {
+        color: COLORS.muted,
+        fontSize: 14,
+        fontFamily: FONTS.text,
+    },
+
+    estadoStrip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        alignSelf: 'flex-start',
+        backgroundColor: COLORS.surface,
+        borderWidth: 1,
+        borderColor: COLORS.borderStrong,
+        borderRadius: 999,
+        paddingHorizontal: 14,
+        paddingVertical: 9,
+        marginBottom: 22,
+    },
+
+    estadoStripDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+    },
+
+    estadoStripTexto: {
+        color: COLORS.mutedStrong,
+        fontSize: 12,
+        fontFamily: FONTS.titleBold,
+        textTransform: 'uppercase',
+        letterSpacing: 0.6,
+    },
+
+    idleCard: {
+        backgroundColor: COLORS.surface,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        borderRadius: 24,
+        paddingVertical: 42,
+        paddingHorizontal: 26,
+        alignItems: 'center',
+        ...cardShadow,
+    },
+
+    idleIconWrap: {
+        width: 76,
+        height: 76,
+        borderRadius: 24,
+        backgroundColor: COLORS.accentSoft,
+        borderWidth: 1,
+        borderColor: COLORS.borderAccent,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 20,
+    },
+
+    idleIcon: { fontSize: 32 },
+
+    idleTitulo: {
+        color: COLORS.white,
+        fontSize: 19,
+        fontFamily: FONTS.titleBold,
+        marginBottom: 8,
+        textAlign: 'center',
+    },
+
+    idleTexto: {
+        color: COLORS.muted,
+        fontSize: 14,
+        lineHeight: 21,
+        fontFamily: FONTS.text,
+        textAlign: 'center',
+        maxWidth: 340,
+        marginBottom: 26,
+    },
+
+    errorTexto: {
+        color: '#ff6b6b',
+        fontSize: 13,
+        fontFamily: FONTS.textMedium,
+        textAlign: 'center',
+        marginBottom: 14,
+    },
+
+    ctaPrimario: {
+        backgroundColor: COLORS.accent,
+        borderRadius: 14,
+        minHeight: 52,
+        paddingHorizontal: 28,
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: COLORS.accent,
+        shadowOpacity: 0.35,
+        shadowRadius: 16,
+        shadowOffset: { width: 0, height: 8 },
+        elevation: 8,
+    },
+
+    ctaPrimarioDeshabilitado: {
+        backgroundColor: '#3A3A3A',
+        shadowOpacity: 0,
+    },
+
+    ctaPrimarioTexto: {
+        color: COLORS.ink,
+        fontSize: 14,
+        fontFamily: FONTS.titleBold,
+        letterSpacing: 0.4,
+    },
+
+    // ===== TARJETA DE OFERTA =====
+    ofertaCard: {
+        backgroundColor: COLORS.surface,
+        borderWidth: 1,
+        borderColor: COLORS.borderAccent,
+        borderRadius: 26,
+        padding: 22,
+        ...cardShadow,
+    },
+
+    ofertaHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'flex-start',
         flexWrap: 'wrap',
-        gap: 6,
-        marginBottom: 4,
+        gap: 8,
+        marginBottom: 6,
     },
-    alertaTitulo: {
+
+    ofertaTitulo: {
+        color: COLORS.accent,
         fontSize: 18,
-        fontWeight: 'bold',
-        color: TEMA.colores.error,
-        marginBottom: 10,
+        fontFamily: FONTS.titleBold,
         flexShrink: 1,
     },
-    alertaTexto: {
-        fontSize: 15,
-        color: TEMA.colores.textoPrincipal,
-        marginVertical: 2,
-    },
-    referenciaTexto: {
-        fontSize: 12,
-        color: TEMA.colores.textoSecundario,
-        marginBottom: 10,
-        fontWeight: '600',
-    },
+
     badgePrioridad: {
-        fontSize: 11,
-        fontWeight: 'bold',
+        fontSize: 10,
+        fontFamily: FONTS.titleBold,
+        letterSpacing: 0.8,
         paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 12,
+        paddingVertical: 5,
+        borderRadius: 999,
         overflow: 'hidden',
     },
+
     prioridadAlta: {
-        color: '#B91C1C',
-        backgroundColor: '#FEE2E2',
+        color: '#FCA5A5',
+        backgroundColor: 'rgba(239, 68, 68, 0.16)',
     },
+
     prioridadMedia: {
-        color: '#B45309',
-        backgroundColor: '#FEF3C7',
+        color: '#FCD34D',
+        backgroundColor: 'rgba(245, 158, 11, 0.16)',
     },
+
     prioridadBaja: {
-        color: '#1D4ED8',
-        backgroundColor: '#DBEAFE',
+        color: '#93C5FD',
+        backgroundColor: 'rgba(59, 130, 246, 0.16)',
     },
+
+    referenciaTexto: {
+        color: COLORS.muted,
+        fontSize: 12,
+        fontFamily: FONTS.textMedium,
+        marginBottom: 16,
+    },
+
+    // Ruta origen → destino
+    rutaBox: {
+        backgroundColor: COLORS.cardDeep,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        borderRadius: 16,
+        padding: 14,
+        marginBottom: 14,
+    },
+
+    rutaFila: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: 10,
+    },
+
+    rutaDotCol: {
+        alignItems: 'center',
+        width: 12,
+        paddingTop: 4,
+    },
+
+    rutaDotOrigen: {
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        backgroundColor: COLORS.accent,
+    },
+
+    rutaDotDestino: {
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        backgroundColor: COLORS.green,
+    },
+
+    rutaLineaVertical: {
+        width: 2,
+        flexGrow: 1,
+        minHeight: 16,
+        backgroundColor: COLORS.borderStrong,
+        marginVertical: 3,
+    },
+
+    rutaTextos: {
+        flex: 1,
+    },
+
+    rutaLabel: {
+        color: COLORS.muted,
+        fontSize: 10,
+        fontFamily: FONTS.textMedium,
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+        marginBottom: 2,
+    },
+
+    rutaValor: {
+        color: COLORS.white,
+        fontSize: 14,
+        fontFamily: FONTS.titleBold,
+        lineHeight: 20,
+        marginBottom: 10,
+    },
+
+    // Carga
+    cargaTexto: {
+        color: COLORS.mutedStrong,
+        fontSize: 13,
+        fontFamily: FONTS.textMedium,
+        lineHeight: 19,
+        marginBottom: 14,
+    },
+
+    cargaDestacado: {
+        color: COLORS.white,
+        fontFamily: FONTS.titleBold,
+    },
+
     metricasFila: {
         flexDirection: 'row',
-        gap: 8,
-        marginTop: 12,
-        marginBottom: 4,
+        gap: 10,
+        marginBottom: 14,
     },
+
     metricaCaja: {
         flex: 1,
-        backgroundColor: TEMA.colores.blanco,
-        borderRadius: 10,
+        backgroundColor: COLORS.cardDeep,
+        borderRadius: 14,
         borderWidth: 1,
-        borderColor: TEMA.colores.borde,
-        paddingVertical: 8,
-        paddingHorizontal: 10,
+        borderColor: COLORS.border,
+        paddingVertical: 10,
+        paddingHorizontal: 12,
     },
+
     metricaLabel: {
         fontSize: 10,
-        fontWeight: 'bold',
-        color: TEMA.colores.textoSecundario,
+        fontFamily: FONTS.textMedium,
+        color: COLORS.muted,
         textTransform: 'uppercase',
-        marginBottom: 2,
+        letterSpacing: 0.8,
+        marginBottom: 3,
     },
+
     metricaValor: {
-        fontSize: 14,
-        fontWeight: 'bold',
-        color: TEMA.colores.textoPrincipal,
+        fontSize: 15,
+        fontFamily: FONTS.titleBold,
+        color: COLORS.white,
     },
+
     metricaValorDestacado: {
-        fontSize: 14,
-        fontWeight: 'bold',
-        color: '#047857',
+        fontSize: 15,
+        fontFamily: FONTS.titleBold,
+        color: COLORS.green,
     },
+
     requisitosBox: {
-        backgroundColor: '#F0F9FF',
-        borderRadius: 10,
+        backgroundColor: 'rgba(34, 211, 238, 0.07)',
+        borderRadius: 14,
         borderWidth: 1,
-        borderColor: '#BAE6FD',
-        padding: 10,
-        marginTop: 10,
+        borderColor: 'rgba(34, 211, 238, 0.25)',
+        padding: 13,
+        marginBottom: 14,
     },
+
     seccionTitulo: {
-        fontSize: 12,
-        fontWeight: 'bold',
-        color: '#0369A1',
+        fontSize: 11,
+        fontFamily: FONTS.titleBold,
+        color: COLORS.cyan,
         textTransform: 'uppercase',
-        marginBottom: 4,
+        letterSpacing: 1,
+        marginBottom: 6,
     },
+
     requisitoTexto: {
         fontSize: 13,
-        color: '#075985',
-        marginVertical: 1,
+        color: 'rgba(165, 243, 252, 0.85)',
+        fontFamily: FONTS.textMedium,
+        lineHeight: 20,
     },
+
     recomendacionBox: {
-        borderRadius: 10,
+        borderRadius: 14,
         borderWidth: 1,
-        padding: 10,
-        marginTop: 10,
+        padding: 13,
+        marginBottom: 16,
     },
+
     recomendacionPositiva: {
-        backgroundColor: '#ECFDF5',
-        borderColor: '#A7F3D0',
+        backgroundColor: 'rgba(16, 185, 129, 0.08)',
+        borderColor: 'rgba(16, 185, 129, 0.30)',
     },
+
     recomendacionNeutra: {
-        backgroundColor: '#FFFBEB',
-        borderColor: '#FDE68A',
+        backgroundColor: 'rgba(245, 158, 11, 0.08)',
+        borderColor: 'rgba(245, 158, 11, 0.30)',
     },
+
     recomendacionTitulo: {
         fontSize: 13,
-        fontWeight: 'bold',
-        color: TEMA.colores.textoPrincipal,
-        marginBottom: 2,
+        fontFamily: FONTS.titleBold,
+        color: COLORS.white,
+        marginBottom: 3,
     },
+
     recomendacionMotivo: {
         fontSize: 13,
-        color: TEMA.colores.textoSecundario,
-        lineHeight: 18,
+        color: COLORS.mutedStrong,
+        fontFamily: FONTS.text,
+        lineHeight: 19,
     },
+
+    tarifaFila: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-end',
+        marginBottom: 16,
+    },
+
+    tarifaLabel: {
+        color: COLORS.muted,
+        fontSize: 12,
+        fontFamily: FONTS.textMedium,
+        textTransform: 'uppercase',
+        letterSpacing: 0.8,
+    },
+
+    tarifaValor: {
+        color: COLORS.accent,
+        fontSize: 26,
+        fontFamily: FONTS.title,
+        letterSpacing: -0.5,
+    },
+
+    tarifaNota: {
+        color: COLORS.muted,
+        fontSize: 12,
+        fontFamily: FONTS.text,
+        marginTop: 2,
+    },
+
     botonAceptar: {
-        backgroundColor: '#10B981',
-        height: 45,
-        borderRadius: 8,
+        backgroundColor: COLORS.accent,
+        minHeight: 52,
+        borderRadius: 14,
         justifyContent: 'center',
         alignItems: 'center',
-        marginTop: 15,
+        shadowColor: COLORS.accent,
+        shadowOpacity: 0.3,
+        shadowRadius: 14,
+        shadowOffset: { width: 0, height: 8 },
+        elevation: 7,
     },
-    botonRechazar: {
-        height: 40,
-        borderRadius: 8,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginTop: 8,
-        borderWidth: 1,
-        borderColor: '#FCA5A5',
-    },
-    botonRechazarTexto: {
-        color: '#B91C1C',
+
+    botonAceptarTexto: {
+        color: COLORS.ink,
         fontSize: 14,
-        fontWeight: 'bold',
+        fontFamily: FONTS.titleBold,
+        letterSpacing: 0.4,
     },
-    botonTexto: {
-        color: TEMA.colores.blanco,
-        fontSize: 15,
-        fontWeight: 'bold',
-    },
-    tarjetaViajeActivo: {
-        backgroundColor: TEMA.colores.blanco,
-        borderRadius: 12,
-        padding: 20,
-        borderWidth: 1,
-        borderColor: TEMA.colores.borde,
-    },
-    estadoBadge: {
-        backgroundColor: '#E0F2FE',
-        paddingVertical: 4,
-        paddingHorizontal: 10,
-        borderRadius: 20,
-        alignSelf: 'flex-start',
-        marginBottom: 12,
-    },
-    estadoTexto: {
-        fontSize: 13,
-        fontWeight: 'bold',
-        color: '#0369A1',
-    },
-    botonEstado: {
-        backgroundColor: TEMA.colores.primario,
-        height: 48,
-        borderRadius: 8,
+
+    botonRechazar: {
+        minHeight: 46,
+        borderRadius: 14,
         justifyContent: 'center',
         alignItems: 'center',
-        marginTop: 15,
+        marginTop: 10,
+        borderWidth: 1,
+        borderColor: 'rgba(239, 68, 68, 0.4)',
     },
-    botonSalir: {
+
+    botonRechazarTexto: {
+        color: '#FCA5A5',
+        fontSize: 13,
+        fontFamily: FONTS.titleBold,
+    },
+
+    viajeCard: {
+        backgroundColor: COLORS.surface,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        borderRadius: 26,
+        padding: 22,
+        ...cardShadow,
+    },
+
+    viajeBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 7,
+        alignSelf: 'flex-start',
+        backgroundColor: COLORS.accentSoft,
+        borderWidth: 1,
+        borderColor: COLORS.borderAccent,
         paddingVertical: 6,
         paddingHorizontal: 12,
-        backgroundColor: '#4B5563',
-        borderRadius: 6,
+        borderRadius: 999,
+        marginBottom: 18,
+    },
+
+    viajeBadgeDot: {
+        width: 7,
+        height: 7,
+        borderRadius: 4,
+        backgroundColor: COLORS.accent,
+    },
+
+    viajeBadgeTexto: {
+        fontSize: 11,
+        fontFamily: FONTS.titleBold,
+        color: COLORS.accent,
+        letterSpacing: 1,
+    },
+
+    stepperRow: {
+        flexDirection: 'row',
+        gap: 6,
+        marginBottom: 10,
+    },
+
+    stepSegmento: {
+        flex: 1,
+        height: 6,
+        borderRadius: 999,
+        backgroundColor: COLORS.cardDeep,
+    },
+
+    stepSegmentoActivo: {
+        backgroundColor: COLORS.accent,
+    },
+
+    pasoLabel: {
+        color: COLORS.muted,
+        fontSize: 11,
+        fontFamily: FONTS.textMedium,
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+        marginBottom: 6,
+    },
+
+    estadoActual: {
+        color: COLORS.white,
+        fontSize: 19,
+        fontFamily: FONTS.titleBold,
+        marginBottom: 18,
+        lineHeight: 26,
+    },
+
+    itemTexto: {
+        color: COLORS.mutedStrong,
+        fontSize: 13,
+        fontFamily: FONTS.textMedium,
+        fontStyle: 'italic',
+        marginBottom: 12,
+    },
+
+    botonEstado: {
+        backgroundColor: COLORS.accent,
+        minHeight: 52,
+        borderRadius: 14,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginTop: 14,
+    },
+
+    botonEstadoFinal: {
+        backgroundColor: COLORS.green,
+    },
+
+    botonEstadoTexto: {
+        color: COLORS.ink,
+        fontSize: 14,
+        fontFamily: FONTS.titleBold,
+        letterSpacing: 0.4,
+    },
+
+    botonEstadoTextoFinal: {
+        color: COLORS.white,
     },
 });

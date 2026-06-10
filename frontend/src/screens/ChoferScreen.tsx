@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
-import { styles } from './ChoferStyles';
-import { generarAsignacionViaje, AsignacionViaje, PrioridadViaje } from '../services/botLogisticaService';
+import { ActivityIndicator, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { styles, COLORS } from './ChoferStyles';
+import { generarAsignacionViaje, AsignacionViaje, PrioridadViaje } from '../services/botLogistica';
 
 const ETIQUETA_PRIORIDAD: Record<PrioridadViaje, string> = {
     alta: 'PRIORIDAD ALTA',
@@ -9,20 +9,23 @@ const ETIQUETA_PRIORIDAD: Record<PrioridadViaje, string> = {
     baja: 'PRIORIDAD ESTÁNDAR',
 };
 
-export default function ChoferScreen({ navigation }: any) {
+const ESTADOS_CHOFER = [
+    'Yendo al punto de retiro',
+    'Llegué al punto de retiro',
+    'Paquete en mano, en viaje al destino',
+    '¡Envío entregado con éxito!',
+];
+
+export default function ChoferScreen({ navigation, route }: any) {
+    const nombre: string = route?.params?.nombre ?? 'Marcos Di Palma';
+    const primerNombre = nombre.split(' ')[0];
+
     const [cargandoAlerta, setCargandoAlerta] = useState(false);
     const [tieneAlerta, setTieneAlerta] = useState(false);
     const [viajeActivo, setViajeActivo] = useState(false);
     const [datosViaje, setDatosViaje] = useState<AsignacionViaje | null>(null);
     const [pasoEstado, setPasoEstado] = useState(0);
     const [errorAsignacion, setErrorAsignacion] = useState<string | null>(null);
-
-    const estadosChofer = [
-        'Chofer asignado (Yendo al origen)',
-        'Llegué al punto de Retiro',
-        'Paquete en mano (En viaje al destino)',
-        '¡Envío Entregado con Éxito!'
-    ];
 
     const dispararAsignacionInteligente = async () => {
         setCargandoAlerta(true);
@@ -52,7 +55,7 @@ export default function ChoferScreen({ navigation }: any) {
     };
 
     const avanzarEstado = () => {
-        if (pasoEstado < 3) {
+        if (pasoEstado < ESTADOS_CHOFER.length - 1) {
             setPasoEstado(pasoEstado + 1);
         } else {
             setViajeActivo(false);
@@ -69,147 +72,234 @@ export default function ChoferScreen({ navigation }: any) {
 
     const formatearARS = (monto: number) => `$${monto.toLocaleString('es-AR')}`;
 
-    return (
-        <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 30 }}>
-            <View style={styles.header}>
-                <Text style={styles.titulo}>Hola, Marcos Di Palma 👋</Text>
-                <TouchableOpacity style={styles.botonSalir} onPress={() => navigation.navigate('Login')}>
-                    <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 13 }}>Salir</Text>
-                </TouchableOpacity>
+    const estadoOperativo = viajeActivo
+        ? { texto: 'En servicio', color: COLORS.accent }
+        : tieneAlerta
+          ? { texto: 'Oferta entrante', color: COLORS.amber }
+          : { texto: 'Disponible', color: COLORS.green };
+
+    const renderRuta = (origen: string, destino: string) => (
+        <View style={styles.rutaBox}>
+            <View style={styles.rutaFila}>
+                <View style={styles.rutaDotCol}>
+                    <View style={styles.rutaDotOrigen} />
+                    <View style={styles.rutaLineaVertical} />
+                    <View style={styles.rutaDotDestino} />
+                </View>
+
+                <View style={styles.rutaTextos}>
+                    <Text style={styles.rutaLabel}>Retiro</Text>
+                    <Text style={styles.rutaValor}>{origen}</Text>
+
+                    <Text style={styles.rutaLabel}>Entrega</Text>
+                    <Text style={[styles.rutaValor, { marginBottom: 0 }]}>{destino}</Text>
+                </View>
             </View>
+        </View>
+    );
 
-            <Text style={styles.subtitulo}>Consola de Transportista Homologado</Text>
+    return (
+        <SafeAreaView style={styles.safeArea}>
+            <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
+                {/* HEADER */}
+                <View style={styles.header}>
+                    <View style={styles.brandRow}>
+                        <Text style={styles.logo}>
+                            logitrak<Text style={styles.logoDot}>.</Text>
+                        </Text>
+                        <View style={styles.rolePill}>
+                            <Text style={styles.rolePillText}>CHOFER</Text>
+                        </View>
+                    </View>
 
-            {!tieneAlerta && !viajeActivo && (
-                <View style={{ alignItems: 'center', marginTop: 40 }}>
-                    <Text style={{ fontSize: 16, color: '#64748B', marginBottom: 20, textAlign: 'center' }}>
-                        {cargandoAlerta
-                            ? 'El despachador inteligente está evaluando viajes para tu perfil...'
-                            : errorAsignacion ?? 'Esperando asignación automática del sistema...'}
-                    </Text>
-
-                    <TouchableOpacity
-                        style={[styles.botonEstado, cargandoAlerta && { backgroundColor: '#94A3B8' }]}
-                        onPress={dispararAsignacionInteligente}
-                        disabled={cargandoAlerta}
-                    >
-                        {cargandoAlerta ? (
-                            <ActivityIndicator color="#fff" />
-                        ) : (
-                            <Text style={[styles.botonTexto, { paddingHorizontal: 20 }]}>⚡ Solicitar Asignación Inteligente</Text>
-                        )}
+                    <TouchableOpacity style={styles.botonSalir} onPress={() => navigation.navigate('Login')}>
+                        <Text style={styles.botonSalirTexto}>Salir</Text>
                     </TouchableOpacity>
                 </View>
-            )}
 
-            {tieneAlerta && datosViaje && (
-                <View style={styles.tarjetaAlerta}>
-                    <View style={styles.alertaHeader}>
-                        <Text style={styles.alertaTitulo}>🚨 ¡Viaje Asignado por LogiTrack!</Text>
-                        <Text style={[styles.badgePrioridad, estiloPrioridad(datosViaje.prioridad)]}>
-                            {ETIQUETA_PRIORIDAD[datosViaje.prioridad]}
+                <View style={styles.saludoBlock}>
+                    <Text style={styles.eyebrow}>Consola de transportista</Text>
+                    <Text style={styles.saludo}>Hola, {primerNombre} 👋</Text>
+                    <Text style={styles.subtitulo}>Unidad homologada · Red LogiTrack</Text>
+                </View>
+
+                <View style={styles.estadoStrip}>
+                    <View style={[styles.estadoStripDot, { backgroundColor: estadoOperativo.color }]} />
+                    <Text style={styles.estadoStripTexto}>{estadoOperativo.texto}</Text>
+                </View>
+
+                {!tieneAlerta && !viajeActivo && (
+                    <View style={styles.idleCard}>
+                        <View style={styles.idleIconWrap}>
+                            <Text style={styles.idleIcon}>📡</Text>
+                        </View>
+
+                        <Text style={styles.idleTitulo}>
+                            {cargandoAlerta ? 'Buscando el mejor viaje para vos…' : 'Sin viajes asignados'}
                         </Text>
+
+                        <Text style={styles.idleTexto}>
+                            {cargandoAlerta
+                                ? 'El despachador inteligente está evaluando rutas, cargas y rentabilidad para tu perfil.'
+                                : errorAsignacion ??
+                                  'El sistema asigna viajes automáticamente. También podés pedirle una asignación al despachador inteligente.'}
+                        </Text>
+
+                        {errorAsignacion && !cargandoAlerta ? (
+                            <Text style={styles.errorTexto}>Último intento sin resultados.</Text>
+                        ) : null}
+
+                        <TouchableOpacity
+                            style={[styles.ctaPrimario, cargandoAlerta && styles.ctaPrimarioDeshabilitado]}
+                            onPress={dispararAsignacionInteligente}
+                            disabled={cargandoAlerta}
+                        >
+                            {cargandoAlerta ? (
+                                <ActivityIndicator color={COLORS.white} />
+                            ) : (
+                                <Text style={styles.ctaPrimarioTexto}>⚡ Solicitar asignación inteligente</Text>
+                            )}
+                        </TouchableOpacity>
                     </View>
+                )}
 
-                    <Text style={styles.referenciaTexto}>
-                        Ref. {datosViaje.id} · La oferta expira en {datosViaje.expiraEnSeg} seg
-                    </Text>
+                {tieneAlerta && datosViaje && (
+                    <View style={styles.ofertaCard}>
+                        <View style={styles.ofertaHeader}>
+                            <Text style={styles.ofertaTitulo}>🚨 Viaje asignado por LogiTrack</Text>
+                            <Text style={[styles.badgePrioridad, estiloPrioridad(datosViaje.prioridad)]}>
+                                {ETIQUETA_PRIORIDAD[datosViaje.prioridad]}
+                            </Text>
+                        </View>
 
-                    <Text style={styles.alertaTexto}>• Origen: {datosViaje.origen}</Text>
-                    <Text style={styles.alertaTexto}>• Destino: {datosViaje.destino}</Text>
-                    <Text style={styles.alertaTexto}>
-                        • Carga: {datosViaje.carga.descripcion} ({datosViaje.carga.categoriaEtiqueta})
-                    </Text>
-                    <Text style={styles.alertaTexto}>
-                        • {datosViaje.carga.pesoKg} kg · {datosViaje.carga.bultos} bulto(s) · Unidad: {datosViaje.vehiculoRequerido}
-                    </Text>
+                        <Text style={styles.referenciaTexto}>
+                            Ref. {datosViaje.id} · La oferta expira en {datosViaje.expiraEnSeg} seg
+                        </Text>
 
-                    <View style={styles.metricasFila}>
-                        <View style={styles.metricaCaja}>
-                            <Text style={styles.metricaLabel}>Recorrido</Text>
-                            <Text style={styles.metricaValor}>{datosViaje.distanciaKm} km</Text>
+                        {renderRuta(datosViaje.origen, datosViaje.destino)}
+
+                        <Text style={styles.cargaTexto}>
+                            <Text style={styles.cargaDestacado}>{datosViaje.carga.descripcion}</Text>
+                            {' · '}{datosViaje.carga.categoriaEtiqueta}
+                            {'\n'}{datosViaje.carga.pesoKg} kg · {datosViaje.carga.bultos} bulto(s) · Unidad: {datosViaje.vehiculoRequerido}
+                        </Text>
+
+                        <View style={styles.metricasFila}>
+                            <View style={styles.metricaCaja}>
+                                <Text style={styles.metricaLabel}>Recorrido</Text>
+                                <Text style={styles.metricaValor}>{datosViaje.distanciaKm} km</Text>
+                            </View>
+                            <View style={styles.metricaCaja}>
+                                <Text style={styles.metricaLabel}>Retiro en</Text>
+                                <Text style={styles.metricaValor}>~{datosViaje.etaRetiroMin} min</Text>
+                            </View>
+                            <View style={styles.metricaCaja}>
+                                <Text style={styles.metricaLabel}>Tu pago</Text>
+                                <Text style={styles.metricaValorDestacado}>{formatearARS(datosViaje.pagoChofer)}</Text>
+                            </View>
                         </View>
-                        <View style={styles.metricaCaja}>
-                            <Text style={styles.metricaLabel}>Retiro en</Text>
-                            <Text style={styles.metricaValor}>~{datosViaje.etaRetiroMin} min</Text>
+
+                        {datosViaje.requisitos.length > 0 && (
+                            <View style={styles.requisitosBox}>
+                                <Text style={styles.seccionTitulo}>Protocolo de manejo</Text>
+                                {datosViaje.requisitos.map(req => (
+                                    <Text key={req} style={styles.requisitoTexto}>✓ {req}</Text>
+                                ))}
+                            </View>
+                        )}
+
+                        <View
+                            style={[
+                                styles.recomendacionBox,
+                                datosViaje.recomendacion.accion === 'aceptar'
+                                    ? styles.recomendacionPositiva
+                                    : styles.recomendacionNeutra,
+                            ]}
+                        >
+                            <Text style={styles.recomendacionTitulo}>
+                                {datosViaje.recomendacion.accion === 'aceptar'
+                                    ? '🤖 Boxy recomienda: ACEPTAR'
+                                    : '🤖 Boxy recomienda: EVALUAR'}
+                            </Text>
+                            <Text style={styles.recomendacionMotivo}>{datosViaje.recomendacion.motivo}</Text>
                         </View>
-                        <View style={styles.metricaCaja}>
-                            <Text style={styles.metricaLabel}>Tu pago</Text>
-                            <Text style={styles.metricaValorDestacado}>{formatearARS(datosViaje.pagoChofer)}</Text>
+
+                        <View style={styles.tarifaFila}>
+                            <View>
+                                <Text style={styles.tarifaLabel}>Tu comisión</Text>
+                                <Text style={styles.tarifaNota}>
+                                    Tarifa total del viaje: {formatearARS(datosViaje.tarifa)}
+                                </Text>
+                            </View>
+                            <Text style={styles.tarifaValor}>{formatearARS(datosViaje.pagoChofer)}</Text>
                         </View>
+
+                        <TouchableOpacity style={styles.botonAceptar} onPress={aceptarViaje}>
+                            <Text style={styles.botonAceptarTexto}>Aceptar y abrir hoja de ruta</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity style={styles.botonRechazar} onPress={rechazarViaje}>
+                            <Text style={styles.botonRechazarTexto}>Rechazar oferta</Text>
+                        </TouchableOpacity>
                     </View>
+                )}
 
-                    {datosViaje.requisitos.length > 0 && (
-                        <View style={styles.requisitosBox}>
-                            <Text style={styles.seccionTitulo}>Protocolo de manejo</Text>
-                            {datosViaje.requisitos.map(req => (
-                                <Text key={req} style={styles.requisitoTexto}>✓ {req}</Text>
+                {viajeActivo && datosViaje && (
+                    <View style={styles.viajeCard}>
+                        <View style={styles.viajeBadge}>
+                            <View style={styles.viajeBadgeDot} />
+                            <Text style={styles.viajeBadgeTexto}>ORDEN EN CURSO · TIEMPO REAL</Text>
+                        </View>
+
+                        <View style={styles.stepperRow}>
+                            {ESTADOS_CHOFER.map((_, i) => (
+                                <View
+                                    key={i}
+                                    style={[styles.stepSegmento, i <= pasoEstado && styles.stepSegmentoActivo]}
+                                />
                             ))}
                         </View>
-                    )}
 
-                    <View
-                        style={[
-                            styles.recomendacionBox,
-                            datosViaje.recomendacion.accion === 'aceptar'
-                                ? styles.recomendacionPositiva
-                                : styles.recomendacionNeutra,
-                        ]}
-                    >
-                        <Text style={styles.recomendacionTitulo}>
-                            {datosViaje.recomendacion.accion === 'aceptar'
-                                ? '🤖 Boxy recomienda: ACEPTAR'
-                                : '🤖 Boxy recomienda: EVALUAR'}
+                        <Text style={styles.pasoLabel}>
+                            Paso {pasoEstado + 1} de {ESTADOS_CHOFER.length}
                         </Text>
-                        <Text style={styles.recomendacionMotivo}>{datosViaje.recomendacion.motivo}</Text>
+
+                        <Text style={styles.estadoActual}>{ESTADOS_CHOFER[pasoEstado]}</Text>
+
+                        {renderRuta(datosViaje.origen, datosViaje.destino)}
+
+                        <Text style={styles.itemTexto}>
+                            {datosViaje.carga.descripcion} ({datosViaje.carga.categoriaEtiqueta}) ·{' '}
+                            {datosViaje.distanciaKm} km (~{datosViaje.tiempoViajeMin} min de viaje)
+                        </Text>
+
+                        {datosViaje.requisitos.length > 0 && (
+                            <View style={styles.requisitosBox}>
+                                <Text style={styles.seccionTitulo}>Protocolo de manejo</Text>
+                                {datosViaje.requisitos.map(req => (
+                                    <Text key={req} style={styles.requisitoTexto}>✓ {req}</Text>
+                                ))}
+                            </View>
+                        )}
+
+                        <TouchableOpacity
+                            style={[styles.botonEstado, pasoEstado === ESTADOS_CHOFER.length - 1 && styles.botonEstadoFinal]}
+                            onPress={avanzarEstado}
+                        >
+                            <Text
+                                style={[
+                                    styles.botonEstadoTexto,
+                                    pasoEstado === ESTADOS_CHOFER.length - 1 && styles.botonEstadoTextoFinal,
+                                ]}
+                            >
+                                {pasoEstado === ESTADOS_CHOFER.length - 1
+                                    ? '🏁 Completar y liberar consola'
+                                    : 'Avanzar al siguiente estado →'}
+                            </Text>
+                        </TouchableOpacity>
                     </View>
-
-                    <Text style={[styles.alertaTexto, { fontWeight: 'bold', marginTop: 5 }]}>
-                        • Tarifa del viaje: {formatearARS(datosViaje.tarifa)} (tu comisión: {formatearARS(datosViaje.pagoChofer)})
-                    </Text>
-
-                    <TouchableOpacity style={styles.botonAceptar} onPress={aceptarViaje}>
-                        <Text style={styles.botonTexto}>Aceptar y Hoja de Ruta</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity style={styles.botonRechazar} onPress={rechazarViaje}>
-                        <Text style={styles.botonRechazarTexto}>Rechazar oferta</Text>
-                    </TouchableOpacity>
-                </View>
-            )}
-
-            {viajeActivo && datosViaje && (
-                <View style={styles.tarjetaViajeActivo}>
-                    <View style={styles.estadoBadge}>
-                        <Text style={styles.estadoTexto}>ORDEN EN CURSO: REAL-TIME</Text>
-                    </View>
-
-                    <Text style={{ fontSize: 15, fontWeight: 'bold', color: '#1E3A8A', marginBottom: 10 }}>
-                        Estado Actual: {estadosChofer[pasoEstado]}
-                    </Text>
-
-                    <Text style={{ fontSize: 14, color: '#334155', marginBottom: 4 }}>• Retirar en: {datosViaje.origen}</Text>
-                    <Text style={{ fontSize: 14, color: '#334155', marginBottom: 4 }}>• Entregar en: {datosViaje.destino}</Text>
-                    <Text style={{ fontSize: 14, color: '#334155', marginBottom: 4 }}>
-                        • Recorrido: {datosViaje.distanciaKm} km (~{datosViaje.tiempoViajeMin} min de viaje)
-                    </Text>
-                    <Text style={{ fontSize: 14, color: '#475569', fontStyle: 'italic', marginBottom: 6 }}>
-                        • Item: {datosViaje.carga.descripcion} ({datosViaje.carga.categoriaEtiqueta})
-                    </Text>
-
-                    {datosViaje.requisitos.map(req => (
-                        <Text key={req} style={{ fontSize: 13, color: '#0369A1', marginBottom: 3 }}>
-                            ✓ {req}
-                        </Text>
-                    ))}
-
-                    <TouchableOpacity style={styles.botonEstado} onPress={avanzarEstado}>
-                        <Text style={styles.botonTexto}>
-                            {pasoEstado === 3 ? '🏁 Completar y Liberar Consola' : '🔀 Avanzar Siguiente Estado'}
-                        </Text>
-                    </TouchableOpacity>
-                </View>
-            )}
-        </ScrollView>
+                )}
+            </ScrollView>
+        </SafeAreaView>
     );
 }
