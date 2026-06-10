@@ -1,159 +1,657 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import {
+    Animated,
+    Easing,
+    KeyboardAvoidingView,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
 import { styles } from './SolicitudEnvioStyles';
-import InputTexto from '../components/InputTexto';
-import { TEMA } from '../theme/colores';
 import { cotizarEnvio } from '../services/botLogisticaService';
 
+type CampoEnvio = 'origen' | 'destino' | 'peso' | 'bultos' | 'largo' | 'ancho' | 'alto';
+
+type EnvioData = {
+    origen: string;
+    destino: string;
+    peso: string;
+    bultos: string;
+    largo: string;
+    ancho: string;
+    alto: string;
+};
+
+type ResultadoIA = {
+    vehiculo: string;
+    precio: string | number;
+    explicacion: string;
+    sla: string;
+};
+
+type ChatMessage = {
+    id: string;
+    sender: 'bot' | 'user';
+    text: string;
+    kind?: 'normal' | 'thinking' | 'result';
+    result?: ResultadoIA;
+};
+
+type ChatStep = {
+    field: CampoEnvio;
+    question: string;
+    placeholder: string;
+    optional?: boolean;
+    keyboardType?: 'default' | 'numeric';
+};
+
+const INITIAL_DATA: EnvioData = {
+    origen: '',
+    destino: '',
+    peso: '',
+    bultos: '',
+    largo: '',
+    ancho: '',
+    alto: '',
+};
+
+const CHAT_STEPS: ChatStep[] = [
+    {
+        field: 'origen',
+        question: 'Hola, soy Boxy. Voy a ayudarte a calcular tu envío. Primero, ¿cuál es el punto de retiro?',
+        placeholder: 'Ej: Av. Rivadavia 5000, CABA',
+    },
+    {
+        field: 'destino',
+        question: 'Perfecto. Ahora decime, ¿cuál es el punto de entrega?',
+        placeholder: 'Ej: Av. Corrientes 1200, CABA',
+    },
+    {
+        field: 'peso',
+        question: 'Genial. ¿Cuál es el peso total aproximado del envío en kg?',
+        placeholder: 'Ej: 8',
+        keyboardType: 'numeric',
+    },
+    {
+        field: 'bultos',
+        question: '¿Cuántos bultos son en total?',
+        placeholder: 'Ej: 2',
+        keyboardType: 'numeric',
+    },
+    {
+        field: 'largo',
+        question: 'Para mejorar la cotización por volumen, ¿cuál es el largo del bulto en cm? Si no lo sabés, podés tocar Saltar.',
+        placeholder: 'Ej: 40',
+        keyboardType: 'numeric',
+        optional: true,
+    },
+    {
+        field: 'ancho',
+        question: '¿Y el ancho del bulto en cm?',
+        placeholder: 'Ej: 30',
+        keyboardType: 'numeric',
+        optional: true,
+    },
+    {
+        field: 'alto',
+        question: 'Último dato: ¿cuál es el alto del bulto en cm?',
+        placeholder: 'Ej: 25',
+        keyboardType: 'numeric',
+        optional: true,
+    },
+];
+
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+const createId = (prefix: string) => {
+    return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+};
+
 export default function SolicitudEnvioScreen({ navigation }: any) {
-    const [origen, setOrigen] = useState('');
-    const [destino, setDestino] = useState('');
-    const [peso, setPeso] = useState('');
-    const [bultos, setBultos] = useState('');
-    const [largo, setLargo] = useState('');
-    const [ancho, setAncho] = useState('');
-    const [alto, setAlto] = useState('');
+    const scrollRef = useRef<ScrollView | null>(null);
+    const startedRef = useRef(false);
+    const typingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-    const [error, setError] = useState('');
+    const spinValue = useRef(new Animated.Value(0)).current;
+    const spinReverseValue = useRef(new Animated.Value(0)).current;
+    const pulseValue = useRef(new Animated.Value(0)).current;
+    const thinkingOpacity = useRef(new Animated.Value(0.35)).current;
+
+    const [messages, setMessages] = useState<ChatMessage[]>([]);
+    const [currentStep, setCurrentStep] = useState(0);
+    const [inputValue, setInputValue] = useState('');
+    const [envioData, setEnvioData] = useState<EnvioData>(INITIAL_DATA);
+
+    const [isThinking, setIsThinking] = useState(false);
+    const [isBotTyping, setIsBotTyping] = useState(false);
     const [cargando, setCargando] = useState(false);
-    const [resultadoIA, setResultadoIA] = useState<any>(null);
+    const [resultadoIA, setResultadoIA] = useState<ResultadoIA | null>(null);
 
-    const procesarEnvioInteligente = async () => {
-        if (!origen || !destino || !peso || !bultos) {
-            setError('Por favor completa todos los campos requeridos.');
-            setResultadoIA(null);
-            return;
-        }
+    const currentQuestion: ChatStep | undefined = CHAT_STEPS[currentStep];
 
-        setError('');
+    const auraRotation = spinValue.interpolate({
+        inputRange: [0, 1],
+        outputRange: ['0deg', '360deg'],
+    });
+
+    const auraReverseRotation = spinReverseValue.interpolate({
+        inputRange: [0, 1],
+        outputRange: ['360deg', '0deg'],
+    });
+
+    const pulseScale = pulseValue.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0.9, 1.18],
+    });
+
+    const pulseOpacity = pulseValue.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0.25, 0.75],
+    });
+
+    useEffect(() => {
+        spinValue.setValue(0);
+        spinReverseValue.setValue(0);
+        pulseValue.setValue(0);
+
+        const mainSpin = Animated.loop(
+            Animated.timing(spinValue, {
+                toValue: 1,
+                duration: 1300,
+                easing: Easing.linear,
+                useNativeDriver: true,
+            })
+        );
+
+        const reverseSpin = Animated.loop(
+            Animated.timing(spinReverseValue, {
+                toValue: 1,
+                duration: 1900,
+                easing: Easing.linear,
+                useNativeDriver: true,
+            })
+        );
+
+        const pulse = Animated.loop(
+            Animated.sequence([
+                Animated.timing(pulseValue, {
+                    toValue: 1,
+                    duration: 700,
+                    easing: Easing.inOut(Easing.ease),
+                    useNativeDriver: true,
+                }),
+                Animated.timing(pulseValue, {
+                    toValue: 0,
+                    duration: 700,
+                    easing: Easing.inOut(Easing.ease),
+                    useNativeDriver: true,
+                }),
+            ])
+        );
+
+        mainSpin.start();
+        reverseSpin.start();
+        pulse.start();
+
+        return () => {
+            mainSpin.stop();
+            reverseSpin.stop();
+            pulse.stop();
+        };
+    }, [spinValue, spinReverseValue, pulseValue]);
+
+    useEffect(() => {
+        const thinkingAnimation = Animated.loop(
+            Animated.sequence([
+                Animated.timing(thinkingOpacity, {
+                    toValue: 1,
+                    duration: 550,
+                    easing: Easing.inOut(Easing.ease),
+                    useNativeDriver: true,
+                }),
+                Animated.timing(thinkingOpacity, {
+                    toValue: 0.35,
+                    duration: 550,
+                    easing: Easing.inOut(Easing.ease),
+                    useNativeDriver: true,
+                }),
+            ])
+        );
+
+        thinkingAnimation.start();
+
+        return () => {
+            thinkingAnimation.stop();
+        };
+    }, [thinkingOpacity]);
+
+    const typeBotMessage = useCallback(
+        (fullText: string, kind: ChatMessage['kind'] = 'normal', result?: ResultadoIA) => {
+            return new Promise<void>(resolve => {
+                const id = createId('bot');
+
+                if (typingTimerRef.current) {
+                    clearInterval(typingTimerRef.current);
+                }
+
+                setIsBotTyping(true);
+
+                setMessages(prev => [
+                    ...prev,
+                    {
+                        id,
+                        sender: 'bot',
+                        text: '',
+                        kind,
+                        result,
+                    },
+                ]);
+
+                let index = 0;
+
+                typingTimerRef.current = setInterval(() => {
+                    index += 1;
+
+                    setMessages(prev =>
+                        prev.map(message =>
+                            message.id === id
+                                ? {
+                                      ...message,
+                                      text: fullText.slice(0, index),
+                                  }
+                                : message
+                        )
+                    );
+
+                    if (index >= fullText.length) {
+                        if (typingTimerRef.current) {
+                            clearInterval(typingTimerRef.current);
+                            typingTimerRef.current = null;
+                        }
+
+                        setIsBotTyping(false);
+                        resolve();
+                    }
+                }, 18);
+            });
+        },
+        []
+    );
+
+    useEffect(() => {
+        if (startedRef.current) return;
+
+        startedRef.current = true;
+        void typeBotMessage(CHAT_STEPS[0].question);
+    }, [typeBotMessage]);
+
+    useEffect(() => {
+        return () => {
+            if (typingTimerRef.current) {
+                clearInterval(typingTimerRef.current);
+            }
+        };
+    }, []);
+
+    const addThinkingMessage = useCallback(() => {
+        const id = createId('thinking');
+
+        setIsThinking(true);
+
+        setMessages(prev => [
+            ...prev,
+            {
+                id,
+                sender: 'bot',
+                text: 'Pensando',
+                kind: 'thinking',
+            },
+        ]);
+
+        return id;
+    }, []);
+
+    const removeThinkingMessage = useCallback((id: string) => {
+        setMessages(prev => prev.filter(message => message.id !== id));
+        setIsThinking(false);
+    }, []);
+
+    const procesarEnvioInteligente = async (data: EnvioData) => {
+        const thinkingId = addThinkingMessage();
+
         setCargando(true);
         setResultadoIA(null);
 
-        const respuestaIA = await cotizarEnvio(peso, bultos, origen, destino, {
-            largo: parseFloat(largo) || undefined,
-            ancho: parseFloat(ancho) || undefined,
-            alto: parseFloat(alto) || undefined,
-        });
+        let botText = '';
+        let resultado: ResultadoIA | undefined;
 
-        setResultadoIA({
-            vehiculo: respuestaIA.vehiculo,
-            precio: respuestaIA.precio,
-            explicacion: respuestaIA.explicacion,
-            sla: 'Garantía: Llegada en menos de 20 min al origen o cupón de descuento.'
-        });
+        try {
+            const respuestaIA = await cotizarEnvio(data.peso, data.bultos, data.origen, data.destino, {
+                largo: parseFloat(data.largo) || undefined,
+                ancho: parseFloat(data.ancho) || undefined,
+                alto: parseFloat(data.alto) || undefined,
+            });
 
-        setCargando(false);
+            resultado = {
+                vehiculo: respuestaIA.vehiculo,
+                precio: respuestaIA.precio,
+                explicacion: respuestaIA.explicacion,
+                sla: 'Garantía: llegada en menos de 20 min al origen o cupón de descuento.',
+            };
+
+            setResultadoIA(resultado);
+            botText = 'Listo. Ya tengo una cotización inteligente para tu envío.';
+        } catch (_error) {
+            botText = 'No pude calcular la cotización en este momento. Revisá los datos e intentá nuevamente.';
+        } finally {
+            removeThinkingMessage(thinkingId);
+            setCargando(false);
+        }
+
+        await typeBotMessage(botText, resultado ? 'result' : 'normal', resultado);
     };
 
-    return (
-        <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
-            <View style={styles.formulario}>
-                {error ? <Text style={styles.errorTexto}>{error}</Text> : null}
+    const avanzarChat = async (nextData: EnvioData, stepIndex: number) => {
+        if (stepIndex < CHAT_STEPS.length - 1) {
+            const nextStep = stepIndex + 1;
+            const thinkingId = addThinkingMessage();
 
-                <InputTexto
-                    label="Punto de Retiro (Origen)"
-                    placeholder="Ej: Av. Rivadavia 5000, CABA"
-                    value={origen}
-                    onChangeText={setOrigen}
-                />
+            setCurrentStep(nextStep);
 
-                <InputTexto
-                    label="Punto de Entrega (Destino)"
-                    placeholder="Ej: Av. Corrientes 1200, CABA"
-                    value={destino}
-                    onChangeText={setDestino}
-                />
+            await delay(750);
 
-                <View style={styles.fila}>
-                    <View style={styles.columnaMedio}>
-                        <InputTexto
-                            label="Peso Total (Kg)"
-                            placeholder="Ej: 8"
-                            value={peso}
-                            onChangeText={setPeso}
-                        />
-                    </View>
-                    <View style={styles.columnaMedio}>
-                        <InputTexto
-                            label="Cantidad Bultos"
-                            placeholder="Ej: 2"
-                            value={bultos}
-                            onChangeText={setBultos}
-                        />
-                    </View>
-                </View>
+            removeThinkingMessage(thinkingId);
+            await typeBotMessage(CHAT_STEPS[nextStep].question);
 
-                <Text style={localStyles.notaDim}>Dimensiones del bulto en cm (opcional — mejora la cotización por volumen)</Text>
-                <View style={styles.fila}>
-                    <View style={localStyles.columnaTercio}>
-                        <InputTexto label="Largo" placeholder="cm" value={largo} onChangeText={setLargo} />
-                    </View>
-                    <View style={localStyles.columnaTercio}>
-                        <InputTexto label="Ancho" placeholder="cm" value={ancho} onChangeText={setAncho} />
-                    </View>
-                    <View style={localStyles.columnaTercio}>
-                        <InputTexto label="Alto" placeholder="cm" value={alto} onChangeText={setAlto} />
-                    </View>
-                </View>
+            return;
+        }
 
-                <TouchableOpacity
-                    style={[styles.botonCalcular, { backgroundColor: cargando ? '#94A3B8' : TEMA.colores.primario }]}
-                    onPress={procesarEnvioInteligente}
-                    disabled={cargando}
-                >
-                    {cargando ? (
-                        <ActivityIndicator color="#fff" />
-                    ) : (
-                        <Text style={styles.botonTexto}>Calcular Envío Inteligente</Text>
-                    )}
-                </TouchableOpacity>
+        setCurrentStep(CHAT_STEPS.length);
+        await procesarEnvioInteligente(nextData);
+    };
+
+    const submitAnswer = async (value: string, skipped = false) => {
+        if (!currentQuestion || isThinking || isBotTyping || cargando) return;
+
+        const cleanValue = value.trim();
+
+        if (!cleanValue && !currentQuestion.optional) return;
+
+        const visibleValue = skipped ? 'Prefiero no indicarlo' : cleanValue;
+
+        const nextData = {
+            ...envioData,
+            [currentQuestion.field]: skipped ? '' : cleanValue,
+        };
+
+        setEnvioData(nextData);
+        setInputValue('');
+
+        setMessages(prev => [
+            ...prev,
+            {
+                id: createId('user'),
+                sender: 'user',
+                text: visibleValue,
+            },
+        ]);
+
+        await avanzarChat(nextData, currentStep);
+    };
+
+    const handleSend = async () => {
+        const cleanValue = inputValue.trim();
+
+        if (!currentQuestion) return;
+
+        if (!cleanValue && currentQuestion.optional) {
+            await submitAnswer('', true);
+            return;
+        }
+
+        await submitAnswer(cleanValue);
+    };
+
+    const handleSkip = async () => {
+        if (!currentQuestion?.optional) return;
+
+        await submitAnswer('', true);
+    };
+
+    const resetChat = () => {
+        if (typingTimerRef.current) {
+            clearInterval(typingTimerRef.current);
+            typingTimerRef.current = null;
+        }
+
+        setMessages([]);
+        setCurrentStep(0);
+        setInputValue('');
+        setEnvioData(INITIAL_DATA);
+        setResultadoIA(null);
+        setIsThinking(false);
+        setIsBotTyping(false);
+        setCargando(false);
+
+        void typeBotMessage(CHAT_STEPS[0].question);
+    };
+
+    const renderBoxyAvatar = () => (
+        <View style={styles.boxyLogoWrapper}>
+            <Animated.View
+                style={[
+                    styles.boxyPulseGlow,
+                    {
+                        opacity: pulseOpacity,
+                        transform: [{ scale: pulseScale }],
+                    },
+                ]}
+            />
+
+            <Animated.View
+                style={[
+                    styles.boxySpinnerArcOne,
+                    {
+                        transform: [{ rotate: auraRotation }],
+                    },
+                ]}
+            />
+
+            <Animated.View
+                style={[
+                    styles.boxySpinnerArcTwo,
+                    {
+                        transform: [{ rotate: auraReverseRotation }],
+                    },
+                ]}
+            />
+
+            <Animated.View
+                style={[
+                    styles.boxyOrbitTrack,
+                    {
+                        transform: [{ rotate: auraRotation }],
+                    },
+                ]}
+            >
+                <View style={styles.boxyOrbitDot} />
+            </Animated.View>
+
+            <View style={styles.boxyLogoInner}>
+                <Text style={styles.boxyLogoText}>B</Text>
+            </View>
+        </View>
+    );
+
+    const renderUserAvatar = () => (
+        <View style={styles.userAvatar}>
+            <Text style={styles.userAvatarText}>TÚ</Text>
+        </View>
+    );
+
+    const renderThinkingContent = () => (
+        <Animated.Text style={[styles.thinkingText, { opacity: thinkingOpacity }]}>
+            Pensando...
+        </Animated.Text>
+    );
+
+    const renderResultado = (resultado: ResultadoIA) => (
+        <View style={styles.resultadoCardChat}>
+            <Text style={styles.resultadoTitulo}>Asignación de Boxy</Text>
+
+            <View style={styles.resultadoLinea}>
+                <Text style={styles.resultadoLabel}>Unidad sugerida</Text>
+                <Text style={styles.resultadoValor}>{resultado.vehiculo}</Text>
             </View>
 
-            {resultadoIA && (
-                <View style={styles.resultadoCard}>
-                    <Text style={styles.resultadoTitulo}>🤖 Asignación del Motor LogiTrack:</Text>
-                    <Text style={styles.resultadoDetalle}>• Unidad Sugerida: {resultadoIA.vehiculo}</Text>
-                    <Text style={styles.resultadoDetalle}>• Cotización Dinámica: ${resultadoIA.precio}</Text>
-                    <Text style={[styles.resultadoDetalle, { fontStyle: 'italic', color: '#475569', marginTop: 3 }]}>
-                        💬 "{resultadoIA.explicacion}"
-                    </Text>
-                    <Text style={[styles.resultadoDetalle, {fontWeight: 'bold', color: '#10B981', marginTop: 8, marginBottom: 10}]}>
-                        ⏱️ {resultadoIA.sla}
-                    </Text>
+            <View style={styles.resultadoLinea}>
+                <Text style={styles.resultadoLabel}>Cotización dinámica</Text>
+                <Text style={styles.resultadoPrecio}>${resultado.precio}</Text>
+            </View>
 
-                    <TouchableOpacity
-                        style={localStyles.botonConfirmar}
-                        onPress={() => navigation.navigate('Seguimiento', { origen, destino })}
-                    >
-                        <Text style={localStyles.botonConfirmarTexto}>Confirmar y Solicitar Chofer</Text>
-                    </TouchableOpacity>
+            <Text style={styles.resultadoExplicacion}>“{resultado.explicacion}”</Text>
+            <Text style={styles.resultadoSla}>⏱️ {resultado.sla}</Text>
+
+            <TouchableOpacity
+                style={styles.botonConfirmar}
+                onPress={() =>
+                    navigation.navigate('Seguimiento', {
+                        origen: envioData.origen,
+                        destino: envioData.destino,
+                    })
+                }
+            >
+                <Text style={styles.botonConfirmarTexto}>Confirmar y Solicitar Chofer</Text>
+            </TouchableOpacity>
+        </View>
+    );
+
+    const renderMessage = (message: ChatMessage) => {
+        const isBot = message.sender === 'bot';
+
+        return (
+            <View key={message.id} style={[styles.messageRow, isBot ? styles.botRow : styles.userRow]}>
+                {isBot && renderBoxyAvatar()}
+
+                <View style={[styles.messageContent, isBot ? styles.botMessageContent : styles.userMessageContent]}>
+                    <Text style={styles.messageAuthor}>{isBot ? 'Boxy' : 'Vos'}</Text>
+
+                    {message.kind === 'thinking' ? (
+                        renderThinkingContent()
+                    ) : (
+                        <>
+                            <Text style={isBot ? styles.botMessageText : styles.userMessageText}>
+                                {message.text}
+                            </Text>
+
+                            {message.result ? renderResultado(message.result) : null}
+                        </>
+                    )}
                 </View>
-            )}
-        </ScrollView>
+
+                {!isBot && renderUserAvatar()}
+            </View>
+        );
+    };
+
+    const isComposerDisabled = isThinking || isBotTyping || cargando || !currentQuestion;
+    const isSendDisabled = isComposerDisabled || (!inputValue.trim() && !currentQuestion?.optional);
+
+    return (
+        <SafeAreaView style={styles.safeArea}>
+            <KeyboardAvoidingView
+                style={styles.keyboardAvoiding}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
+            >
+                <View style={styles.container}>
+                    <View style={styles.content}>
+                        <View style={styles.headerCard}>
+                            <View style={styles.headerInfo}>
+                                {renderBoxyAvatar()}
+
+                                <View style={styles.headerTextBox}>
+                                    <Text style={styles.headerKicker}>LogiTrack IA</Text>
+                                    <Text style={styles.headerTitle}>Boxy</Text>
+                                    <Text style={styles.headerSubtitle}>
+                                        Cotizá tu envío conversando con el asistente inteligente.
+                                    </Text>
+                                </View>
+                            </View>
+                        </View>
+
+                        <ScrollView
+                            ref={scrollRef}
+                            style={styles.messagesScroll}
+                            contentContainerStyle={styles.messagesContent}
+                            keyboardShouldPersistTaps="handled"
+                            showsVerticalScrollIndicator={false}
+                            onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
+                        >
+                            {messages.map(renderMessage)}
+                        </ScrollView>
+                    </View>
+
+                    {resultadoIA ? (
+                        <View style={styles.finalActions}>
+                            <TouchableOpacity style={styles.restartButton} onPress={resetChat}>
+                                <Text style={styles.restartButtonText}>Nueva cotización</Text>
+                            </TouchableOpacity>
+                        </View>
+                    ) : (
+                        <View style={styles.composerShell}>
+                            <View style={styles.inputMeta}>
+                                <Text style={styles.inputLabel}>
+                                    {currentQuestion ? 'Respondé a Boxy' : 'Conversación finalizada'}
+                                </Text>
+
+                                {currentQuestion?.optional ? (
+                                    <Text style={styles.optionalBadge}>Opcional</Text>
+                                ) : null}
+                            </View>
+
+                            <View style={styles.inputRow}>
+                                <TextInput
+                                    style={styles.textInput}
+                                    placeholder={currentQuestion?.placeholder || 'Escribí tu respuesta...'}
+                                    placeholderTextColor="#8A8880"
+                                    value={inputValue}
+                                    onChangeText={setInputValue}
+                                    editable={!isComposerDisabled}
+                                    keyboardType={currentQuestion?.keyboardType || 'default'}
+                                    returnKeyType="send"
+                                    onSubmitEditing={() => void handleSend()}
+                                />
+
+                                <TouchableOpacity
+                                    style={[
+                                        styles.sendButton,
+                                        isSendDisabled ? styles.sendButtonDisabled : styles.sendButtonActive,
+                                    ]}
+                                    disabled={isSendDisabled}
+                                    onPress={() => void handleSend()}
+                                >
+                                    <Text style={styles.sendButtonText}>➜</Text>
+                                </TouchableOpacity>
+                            </View>
+
+                            {currentQuestion?.optional ? (
+                                <TouchableOpacity
+                                    style={styles.skipButton}
+                                    disabled={isComposerDisabled}
+                                    onPress={() => void handleSkip()}
+                                >
+                                    <Text style={styles.skipButtonText}>Saltar este dato</Text>
+                                </TouchableOpacity>
+                            ) : null}
+                        </View>
+                    )}
+                </View>
+            </KeyboardAvoidingView>
+        </SafeAreaView>
     );
 }
-
-const localStyles = StyleSheet.create({
-    columnaTercio: {
-        width: '31%',
-    },
-    notaDim: {
-        fontSize: 12,
-        color: '#64748B',
-        marginTop: 12,
-        marginBottom: 2,
-    },
-    botonConfirmar: {
-        backgroundColor: '#10B981',
-        height: 45,
-        borderRadius: 8,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginTop: 5,
-    },
-    botonConfirmarTexto: {
-        color: TEMA.colores.blanco,
-        fontSize: 15,
-        fontWeight: 'bold',
-    }
-});
