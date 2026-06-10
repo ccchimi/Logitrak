@@ -1,84 +1,254 @@
-import { StyleSheet, ViewStyle, TextStyle } from 'react-native';
-import { TEMA } from '../theme/colores';
+import { Platform, StyleSheet } from 'react-native';
 
-// Definimos los tipos estrictos para que TypeScript no chiste con las propiedades nativas
-interface EstilosPerfil {
-    container: ViewStyle;
-    tarjetaUsuario: ViewStyle;
-    avatar: TextStyle;
-    nombre: TextStyle;
-    detalle: TextStyle;
-    seccionTitulo: TextStyle;
-    tarjetaCupon: ViewStyle;
-    cuponHeader: ViewStyle;
-    cuponCodigo: TextStyle;
-    cuponDescuento: TextStyle;
-    cuponMotivo: TextStyle;
-}
+// Perfil: identidad negro + dorado del resto de la app.
+export const COLORS = {
+    bg: '#0E0E0E',
+    surface: '#161616',
+    card: '#1B1B1B',
+    cardDeep: '#111111',
+    white: '#FFFFFF',
+    accent: '#FFD700',
+    accentSoft: 'rgba(255, 215, 0, 0.12)',
+    ink: '#0E0E0E',
+    muted: 'rgba(255, 255, 255, 0.55)',
+    mutedStrong: 'rgba(255, 255, 255, 0.78)',
+    border: 'rgba(255, 255, 255, 0.08)',
+    borderStrong: 'rgba(255, 255, 255, 0.16)',
+    borderAccent: 'rgba(255, 215, 0, 0.30)',
+    green: '#10B981',
+};
 
-export const styles = StyleSheet.create<EstilosPerfil>({
+export const FONTS = {
+    title: 'DMSans_700Bold',
+    titleBold: 'DMSans_700Bold',
+    text: 'DMSans_400Regular',
+    textMedium: 'DMSans_500Medium',
+};
+
+const cardShadow = Platform.select({
+    ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: 0.3,
+        shadowRadius: 20,
+    },
+    android: { elevation: 6 },
+    default: {},
+});
+
+export const styles = StyleSheet.create({
+    safeArea: {
+        flex: 1,
+        backgroundColor: COLORS.bg,
+    },
+
     container: {
         flex: 1,
-        backgroundColor: TEMA.colores.fondo,
-        padding: 20,
+        backgroundColor: COLORS.bg,
     },
-    tarjetaUsuario: {
-        backgroundColor: TEMA.colores.blanco,
-        borderRadius: 12,
-        padding: 20,
+
+    listContent: {
+        padding: 18,
+        paddingBottom: 40,
+        width: '100%',
+        maxWidth: 760,
+        alignSelf: 'center',
+    },
+
+    // ===== HEADER =====
+    header: {
+        flexDirection: 'row',
         alignItems: 'center',
+        gap: 14,
+        marginBottom: 18,
+    },
+
+    backButton: {
+        width: 44,
+        height: 44,
+        borderRadius: 14,
+        backgroundColor: COLORS.surface,
         borderWidth: 1,
-        borderColor: TEMA.colores.borde,
-        marginBottom: 25,
+        borderColor: COLORS.borderStrong,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
-    avatar: {
-        fontSize: 50,
-        marginBottom: 10,
+
+    backButtonText: {
+        color: COLORS.white,
+        fontSize: 24,
+        fontWeight: '900',
+        marginTop: -2,
     },
+
+    headerTextos: { flex: 1 },
+
+    eyebrow: {
+        color: COLORS.accent,
+        fontSize: 11,
+        letterSpacing: 3,
+        textTransform: 'uppercase',
+        fontFamily: FONTS.textMedium,
+        marginBottom: 4,
+    },
+
+    titulo: {
+        color: COLORS.white,
+        fontSize: 26,
+        letterSpacing: -0.8,
+        fontFamily: FONTS.title,
+    },
+
+    // ===== TARJETA DE USUARIO =====
+    tarjetaUsuario: {
+        backgroundColor: COLORS.surface,
+        borderWidth: 1,
+        borderColor: COLORS.borderAccent,
+        borderRadius: 24,
+        padding: 24,
+        alignItems: 'center',
+        marginBottom: 14,
+        ...cardShadow,
+    },
+
+    avatarCirculo: {
+        width: 76,
+        height: 76,
+        borderRadius: 24,
+        backgroundColor: COLORS.accent,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 14,
+    },
+
+    avatarTexto: {
+        color: COLORS.ink,
+        fontSize: 28,
+        fontFamily: FONTS.title,
+    },
+
     nombre: {
+        color: COLORS.white,
         fontSize: 22,
-        fontWeight: 'bold',
-        color: TEMA.colores.textoPrincipal,
+        fontFamily: FONTS.title,
+        letterSpacing: -0.5,
+        marginBottom: 4,
     },
-    detalle: {
-        fontSize: 14,
-        color: TEMA.colores.textoSecundario,
-        marginTop: 4,
-    },
-    seccionTitulo: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: TEMA.colores.textoPrincipal,
-        marginBottom: 15,
-    },
-    tarjetaCupon: {
-        backgroundColor: '#FEF3C7',
-        borderRadius: 10,
-        padding: 15,
-        marginBottom: 12,
+
+    cuentaPill: {
+        backgroundColor: COLORS.accentSoft,
         borderWidth: 1,
-        borderColor: '#FDE68A',
-        borderStyle: 'dashed',
+        borderColor: COLORS.borderAccent,
+        borderRadius: 999,
+        paddingHorizontal: 12,
+        paddingVertical: 5,
+        marginBottom: 12,
     },
+
+    cuentaPillTexto: {
+        color: COLORS.accent,
+        fontSize: 11,
+        fontFamily: FONTS.titleBold,
+        letterSpacing: 0.6,
+        textTransform: 'uppercase',
+    },
+
+    detalle: {
+        color: COLORS.muted,
+        fontSize: 13,
+        fontFamily: FONTS.textMedium,
+        marginBottom: 2,
+    },
+
+    // ===== STATS =====
+    statsRow: {
+        flexDirection: 'row',
+        gap: 10,
+        marginBottom: 22,
+    },
+
+    statCaja: {
+        flex: 1,
+        backgroundColor: COLORS.surface,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        borderRadius: 16,
+        paddingVertical: 14,
+        paddingHorizontal: 14,
+        alignItems: 'center',
+        ...cardShadow,
+    },
+
+    statValor: {
+        color: COLORS.white,
+        fontSize: 20,
+        fontFamily: FONTS.title,
+        marginBottom: 2,
+    },
+
+    statLabel: {
+        color: COLORS.muted,
+        fontSize: 10,
+        fontFamily: FONTS.textMedium,
+        textTransform: 'uppercase',
+        letterSpacing: 0.8,
+        textAlign: 'center',
+    },
+
+    // ===== CUPONES =====
+    seccionTitulo: {
+        color: COLORS.white,
+        fontSize: 17,
+        fontFamily: FONTS.titleBold,
+        marginBottom: 4,
+    },
+
+    seccionSub: {
+        color: COLORS.muted,
+        fontSize: 13,
+        fontFamily: FONTS.text,
+        marginBottom: 14,
+    },
+
+    tarjetaCupon: {
+        backgroundColor: COLORS.surface,
+        borderWidth: 1,
+        borderColor: COLORS.borderAccent,
+        borderStyle: 'dashed',
+        borderRadius: 18,
+        padding: 16,
+        marginBottom: 12,
+    },
+
     cuponHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
+        marginBottom: 8,
     },
+
     cuponCodigo: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: '#B45309',
+        color: COLORS.mutedStrong,
+        fontSize: 12,
+        fontFamily: FONTS.titleBold,
+        letterSpacing: 0.6,
     },
+
     cuponDescuento: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#D97706',
-    },
-    cuponMotivo: {
+        color: COLORS.ink,
+        backgroundColor: COLORS.accent,
         fontSize: 13,
-        color: '#78350F',
-        marginTop: 6,
-        fontWeight: '500',
-    }
+        fontFamily: FONTS.title,
+        paddingHorizontal: 12,
+        paddingVertical: 5,
+        borderRadius: 999,
+        overflow: 'hidden',
+    },
+
+    cuponMotivo: {
+        color: COLORS.muted,
+        fontSize: 13,
+        lineHeight: 19,
+        fontFamily: FONTS.text,
+    },
 });
