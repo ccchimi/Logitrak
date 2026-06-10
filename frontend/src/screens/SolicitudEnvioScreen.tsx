@@ -3,16 +3,19 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator
 import { styles } from './SolicitudEnvioStyles';
 import InputTexto from '../components/InputTexto';
 import { TEMA } from '../theme/colores';
-import { calcularEnvioConGemini } from '../services/geminiService'; // Importamos el servicio de IA
+import { cotizarEnvio } from '../services/botLogisticaService';
 
 export default function SolicitudEnvioScreen({ navigation }: any) {
     const [origen, setOrigen] = useState('');
     const [destino, setDestino] = useState('');
     const [peso, setPeso] = useState('');
     const [bultos, setBultos] = useState('');
+    const [largo, setLargo] = useState('');
+    const [ancho, setAncho] = useState('');
+    const [alto, setAlto] = useState('');
 
     const [error, setError] = useState('');
-    const [cargando, setCargando] = useState(false); // Estado para controlar el spinner de carga
+    const [cargando, setCargando] = useState(false);
     const [resultadoIA, setResultadoIA] = useState<any>(null);
 
     const procesarEnvioInteligente = async () => {
@@ -26,7 +29,11 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
         setCargando(true);
         setResultadoIA(null);
 
-        const respuestaIA = await calcularEnvioConGemini(peso, bultos, origen, destino);
+        const respuestaIA = await cotizarEnvio(peso, bultos, origen, destino, {
+            largo: parseFloat(largo) || undefined,
+            ancho: parseFloat(ancho) || undefined,
+            alto: parseFloat(alto) || undefined,
+        });
 
         setResultadoIA({
             vehiculo: respuestaIA.vehiculo,
@@ -76,6 +83,19 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
                     </View>
                 </View>
 
+                <Text style={localStyles.notaDim}>Dimensiones del bulto en cm (opcional — mejora la cotización por volumen)</Text>
+                <View style={styles.fila}>
+                    <View style={localStyles.columnaTercio}>
+                        <InputTexto label="Largo" placeholder="cm" value={largo} onChangeText={setLargo} />
+                    </View>
+                    <View style={localStyles.columnaTercio}>
+                        <InputTexto label="Ancho" placeholder="cm" value={ancho} onChangeText={setAncho} />
+                    </View>
+                    <View style={localStyles.columnaTercio}>
+                        <InputTexto label="Alto" placeholder="cm" value={alto} onChangeText={setAlto} />
+                    </View>
+                </View>
+
                 <TouchableOpacity
                     style={[styles.botonCalcular, { backgroundColor: cargando ? '#94A3B8' : TEMA.colores.primario }]}
                     onPress={procesarEnvioInteligente}
@@ -91,7 +111,7 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
 
             {resultadoIA && (
                 <View style={styles.resultadoCard}>
-                    <Text style={styles.resultadoTitulo}>🤖 Analizado por Gemini AI:</Text>
+                    <Text style={styles.resultadoTitulo}>🤖 Asignación del Motor LogiTrack:</Text>
                     <Text style={styles.resultadoDetalle}>• Unidad Sugerida: {resultadoIA.vehiculo}</Text>
                     <Text style={styles.resultadoDetalle}>• Cotización Dinámica: ${resultadoIA.precio}</Text>
                     <Text style={[styles.resultadoDetalle, { fontStyle: 'italic', color: '#475569', marginTop: 3 }]}>
@@ -103,7 +123,7 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
 
                     <TouchableOpacity
                         style={localStyles.botonConfirmar}
-                        onPress={() => navigation.navigate('Seguimiento')}
+                        onPress={() => navigation.navigate('Seguimiento', { origen, destino })}
                     >
                         <Text style={localStyles.botonConfirmarTexto}>Confirmar y Solicitar Chofer</Text>
                     </TouchableOpacity>
@@ -114,6 +134,15 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
 }
 
 const localStyles = StyleSheet.create({
+    columnaTercio: {
+        width: '31%',
+    },
+    notaDim: {
+        fontSize: 12,
+        color: '#64748B',
+        marginTop: 12,
+        marginBottom: 2,
+    },
     botonConfirmar: {
         backgroundColor: '#10B981',
         height: 45,
