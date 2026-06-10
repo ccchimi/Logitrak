@@ -41,7 +41,7 @@ export default function AppNavigator() {
                 <Stack.Screen
                     name="SolicitudEnvio"
                     component={SolicitudEnvioScreen}
-                    options={{ title: 'Solicitar Envío' }}
+                    options={{ headerShown: false }}
                 />
 
                 <Stack.Screen

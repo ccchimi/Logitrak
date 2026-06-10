@@ -116,8 +116,6 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
     const startedRef = useRef(false);
     const typingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-    const spinValue = useRef(new Animated.Value(0)).current;
-    const spinReverseValue = useRef(new Animated.Value(0)).current;
     const pulseValue = useRef(new Animated.Value(0)).current;
     const thinkingOpacity = useRef(new Animated.Value(0.35)).current;
 
@@ -133,16 +131,6 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
 
     const currentQuestion: ChatStep | undefined = CHAT_STEPS[currentStep];
 
-    const auraRotation = spinValue.interpolate({
-        inputRange: [0, 1],
-        outputRange: ['0deg', '360deg'],
-    });
-
-    const auraReverseRotation = spinReverseValue.interpolate({
-        inputRange: [0, 1],
-        outputRange: ['360deg', '0deg'],
-    });
-
     const pulseScale = pulseValue.interpolate({
         inputRange: [0, 1],
         outputRange: [0.9, 1.18],
@@ -154,55 +142,31 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
     });
 
     useEffect(() => {
-        spinValue.setValue(0);
-        spinReverseValue.setValue(0);
-        pulseValue.setValue(0);
+    pulseValue.setValue(0);
 
-        const mainSpin = Animated.loop(
-            Animated.timing(spinValue, {
+    const pulse = Animated.loop(
+        Animated.sequence([
+            Animated.timing(pulseValue, {
                 toValue: 1,
-                duration: 1300,
-                easing: Easing.linear,
+                duration: 850,
+                easing: Easing.inOut(Easing.ease),
                 useNativeDriver: true,
-            })
-        );
-
-        const reverseSpin = Animated.loop(
-            Animated.timing(spinReverseValue, {
-                toValue: 1,
-                duration: 1900,
-                easing: Easing.linear,
+            }),
+            Animated.timing(pulseValue, {
+                toValue: 0,
+                duration: 850,
+                easing: Easing.inOut(Easing.ease),
                 useNativeDriver: true,
-            })
-        );
+            }),
+        ])
+    );
 
-        const pulse = Animated.loop(
-            Animated.sequence([
-                Animated.timing(pulseValue, {
-                    toValue: 1,
-                    duration: 700,
-                    easing: Easing.inOut(Easing.ease),
-                    useNativeDriver: true,
-                }),
-                Animated.timing(pulseValue, {
-                    toValue: 0,
-                    duration: 700,
-                    easing: Easing.inOut(Easing.ease),
-                    useNativeDriver: true,
-                }),
-            ])
-        );
+    pulse.start();
 
-        mainSpin.start();
-        reverseSpin.start();
-        pulse.start();
-
-        return () => {
-            mainSpin.stop();
-            reverseSpin.stop();
-            pulse.stop();
-        };
-    }, [spinValue, spinReverseValue, pulseValue]);
+    return () => {
+        pulse.stop();
+    };
+}, [pulseValue]);
 
     useEffect(() => {
         const thinkingAnimation = Animated.loop(
@@ -452,41 +416,9 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
                 ]}
             />
 
-            <Animated.View
-                style={[
-                    styles.boxySpinnerArcOne,
-                    {
-                        transform: [{ rotate: auraRotation }],
-                    },
-                ]}
-            />
-
-            <Animated.View
-                style={[
-                    styles.boxySpinnerArcTwo,
-                    {
-                        transform: [{ rotate: auraReverseRotation }],
-                    },
-                ]}
-            />
-
-            <Animated.View
-                style={[
-                    styles.boxyOrbitTrack,
-                    {
-                        transform: [{ rotate: auraRotation }],
-                    },
-                ]}
-            >
-                <View style={styles.boxyOrbitDot} />
-            </Animated.View>
-
-            <View style={styles.boxyLogoInner}>
-                <Text style={styles.boxyLogoText}>B</Text>
-            </View>
+            <View style={styles.boxyAuraCore} />
         </View>
     );
-
     const renderUserAvatar = () => (
         <View style={styles.userAvatar}>
             <Text style={styles.userAvatarText}>TÚ</Text>
@@ -571,6 +503,18 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
                 <View style={styles.container}>
                     <View style={styles.content}>
                         <View style={styles.headerCard}>
+                            <View style={styles.headerTopRow}>
+                                <TouchableOpacity
+                                    style={styles.backButton}
+                                    onPress={() => navigation.goBack()}
+                                    activeOpacity={0.75}
+                                    accessibilityRole="button"
+                                    accessibilityLabel="Volver atrás"
+                                >
+                                    <Text style={styles.backButtonText}>←</Text>
+                                </TouchableOpacity>
+                            </View>
+
                             <View style={styles.headerInfo}>
                                 {renderBoxyAvatar()}
 

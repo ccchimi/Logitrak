@@ -97,89 +97,41 @@ export const styles = StyleSheet.create({
         fontWeight: '600',
     },
 
-    boxyLogoWrapper: {
-        width: 64,
-        height: 64,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
+boxyLogoWrapper: {
+    width: 64,
+    height: 64,
+    alignItems: 'center',
+    justifyContent: 'center',
+},
 
-    boxyPulseGlow: {
-        position: 'absolute',
-        width: 62,
-        height: 62,
-        borderRadius: 18,
-        backgroundColor: 'rgba(34, 211, 238, 0.18)',
-        borderWidth: 1,
-        borderColor: 'rgba(251, 0, 212, 0.35)',
-        shadowColor: COLORS.cyan,
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 1,
-        shadowRadius: 22,
-        elevation: 12,
-    },
+boxyPulseGlow: {
+    position: 'absolute',
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: 'rgba(34, 211, 238, 0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(251, 0, 212, 0.38)',
+    shadowColor: COLORS.accent,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 22,
+    elevation: 12,
+},
 
-    boxySpinnerArcOne: {
-        position: 'absolute',
-        width: 58,
-        height: 58,
-        borderRadius: 17,
-        borderWidth: 3,
-        borderTopColor: COLORS.cyan,
-        borderRightColor: COLORS.cyan,
-        borderBottomColor: 'transparent',
-        borderLeftColor: 'transparent',
-    },
-
-    boxySpinnerArcTwo: {
-        position: 'absolute',
-        width: 58,
-        height: 58,
-        borderRadius: 17,
-        borderWidth: 3,
-        borderTopColor: 'transparent',
-        borderRightColor: 'transparent',
-        borderBottomColor: COLORS.pink,
-        borderLeftColor: COLORS.pink,
-    },
-
-    boxyOrbitTrack: {
-        position: 'absolute',
-        width: 62,
-        height: 62,
-        borderRadius: 19,
-        alignItems: 'center',
-    },
-
-    boxyOrbitDot: {
-        width: 7,
-        height: 7,
-        borderRadius: 4,
-        backgroundColor: COLORS.accent,
-        marginTop: -1,
-        shadowColor: COLORS.accent,
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 1,
-        shadowRadius: 8,
-        elevation: 8,
-    },
-
-    boxyLogoInner: {
-        width: 38,
-        height: 38,
-        borderRadius: 10,
-        backgroundColor: COLORS.black,
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 1,
-        borderColor: COLORS.borderStrong,
-    },
-
-    boxyLogoText: {
-        color: COLORS.accent,
-        fontSize: 18,
-        fontWeight: '900',
-    },
+boxyAuraCore: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 215, 0, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 215, 0, 0.45)',
+    shadowColor: COLORS.accent,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9,
+    shadowRadius: 16,
+    elevation: 10,
+},
 
     userAvatar: {
         width: 42,
@@ -464,4 +416,29 @@ export const styles = StyleSheet.create({
     columnaMedio: {
         width: '48%',
     },
+
+    headerTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+},
+
+backButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: COLORS.blackCard,
+    borderWidth: 1,
+    borderColor: COLORS.borderStrong,
+    alignItems: 'center',
+    justifyContent: 'center',
+},
+
+backButtonText: {
+    color: COLORS.white,
+    fontSize: 28,
+    fontWeight: '900',
+    lineHeight: 30,
+    marginTop: -2,
+},
 });
