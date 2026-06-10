@@ -40,9 +40,20 @@ export const styles = StyleSheet.create({
   navLink: { color: '#ccc', fontSize: 14, marginLeft: 28, fontFamily: FONTS.textMedium },
   navCta: {
     backgroundColor: COLORS.accent, paddingVertical: 10, paddingHorizontal: 22,
-    borderRadius: 4, marginLeft: 28,
+    borderRadius: 4, marginLeft: 28, borderWidth: 1, borderColor: COLORS.accent,
+  },
+  navCtaHover: {
+    backgroundColor: COLORS.white,
+    borderColor: COLORS.white,
+    transform: [{ scale: 1.04 }],
+    shadowColor: COLORS.accent,
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
   },
   navCtaText: { color: COLORS.black, fontSize: 14, fontFamily: FONTS.titleBold },
+  navCtaTextHover: { color: COLORS.black },
 
   // ===== HERO =====
   hero: { justifyContent: 'center' },

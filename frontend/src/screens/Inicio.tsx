@@ -3,6 +3,7 @@ import {
   Animated,
   Easing,
   ImageBackground,
+  Pressable,
   ScrollView,
   Text,
   TouchableOpacity,
@@ -142,6 +143,7 @@ export default function Inicio({ onGoLogin }: InicioProps) {
   const solWidth: DimensionValue = isMobile ? '100%' : '31%';
 
   const [faqAbierta, setFaqAbierta] = useState<number | null>(0);
+  const [loginHover, setLoginHover] = useState(false);
 
   const [sectionY, setSectionY] = useState<Record<SectionKey, number>>({
     services: 0,
@@ -233,13 +235,16 @@ export default function Inicio({ onGoLogin }: InicioProps) {
               <Text style={styles.navLink}>Planes</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={onGoLogin}>
-              <Text style={styles.navLink}>Login</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity onPress={onGoLogin} style={styles.navCta}>
-              <Text style={styles.navCtaText}>Registrarse</Text>
-            </TouchableOpacity>
+            <Pressable
+              onPress={onGoLogin}
+              onHoverIn={() => setLoginHover(true)}
+              onHoverOut={() => setLoginHover(false)}
+              style={[styles.navCta, loginHover && styles.navCtaHover]}
+            >
+              <Text style={[styles.navCtaText, loginHover && styles.navCtaTextHover]}>
+                Login | Registro
+              </Text>
+            </Pressable>
           </View>
         )}
       </View>
