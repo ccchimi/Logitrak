@@ -2,18 +2,43 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import MapViewDirections from 'react-native-maps-directions';
-import { TEMA } from '../theme/colores';
 import { calcularRumbo, type Coordenada, type PuntoRuta } from '../services/seguimientoService';
 
 const DIRECTIONS_KEY = process.env.EXPO_PUBLIC_GOOGLE_DIRECTIONS_KEY?.trim();
+
+export interface EventoMapa {
+    tipo: 'exito' | 'info' | 'alerta' | 'error';
+    titulo: string;
+    detalle?: string;
+}
 
 interface Props {
     origen: PuntoRuta;
     destino: PuntoRuta;
     chofer: string;
+    onEvento?: (evento: EventoMapa) => void;
 }
 
-export default function MapaSeguimiento({ origen, destino, chofer }: Props) {
+// Estilo nocturno alineado a la identidad negro + dorado de la app.
+const ESTILO_NOCTURNO = [
+    { elementType: 'geometry', stylers: [{ color: '#161616' }] },
+    { elementType: 'labels.text.fill', stylers: [{ color: '#8a8880' }] },
+    { elementType: 'labels.text.stroke', stylers: [{ color: '#0e0e0e' }] },
+    { featureType: 'administrative', elementType: 'geometry', stylers: [{ color: '#3a3a3a' }] },
+    { featureType: 'poi', elementType: 'labels.text.fill', stylers: [{ color: '#6e6c64' }] },
+    { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#142117' }] },
+    { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#262626' }] },
+    { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#1b1b1b' }] },
+    { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: '#9a988f' }] },
+    { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#3d3415' }] },
+    { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: '#2b2511' }] },
+    { featureType: 'road.highway', elementType: 'labels.text.fill', stylers: [{ color: '#d6b94c' }] },
+    { featureType: 'transit', elementType: 'geometry', stylers: [{ color: '#222222' }] },
+    { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0b1620' }] },
+    { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#4a5b6b' }] },
+];
+
+export default function MapaSeguimiento({ origen, destino, chofer, onEvento }: Props) {
     const mapRef = useRef<MapView>(null);
     const [rutaCoords, setRutaCoords] = useState<Coordenada[]>([]);
     const [idx, setIdx] = useState(0);
@@ -40,6 +65,7 @@ export default function MapaSeguimiento({ origen, destino, chofer }: Props) {
             ref={mapRef}
             style={{ flex: 1 }}
             provider={PROVIDER_GOOGLE}
+            customMapStyle={ESTILO_NOCTURNO}
             showsUserLocation
             showsMyLocationButton
             initialRegion={{
@@ -51,15 +77,15 @@ export default function MapaSeguimiento({ origen, destino, chofer }: Props) {
         >
             <Marker
                 coordinate={origen}
-                title="Origen"
+                title="Retiro"
                 description={origen.direccion}
-                pinColor="#16A34A"
+                pinColor="#FFD700"
             />
             <Marker
                 coordinate={destino}
-                title="Destino"
+                title="Entrega"
                 description={destino.direccion}
-                pinColor={TEMA.colores.error}
+                pinColor="#10B981"
             />
 
             {rutaCoords.length > 0 && (
@@ -71,7 +97,7 @@ export default function MapaSeguimiento({ origen, destino, chofer }: Props) {
                     rotation={rumbo}
                 >
                     <View style={estilos.coche}>
-                        <Text style={estilos.cocheEmoji}>🚗</Text>
+                        <Text style={estilos.cocheEmoji}>🚚</Text>
                     </View>
                 </Marker>
             )}
@@ -82,16 +108,26 @@ export default function MapaSeguimiento({ origen, destino, chofer }: Props) {
                     destination={destino}
                     apikey={DIRECTIONS_KEY}
                     strokeWidth={4}
-                    strokeColor={TEMA.colores.primario}
+                    strokeColor="#FFD700"
                     onReady={(resultado) => {
                         setRutaCoords(resultado.coordinates);
                         mapRef.current?.fitToCoordinates(resultado.coordinates, {
-                            edgePadding: { top: 60, right: 60, bottom: 220, left: 60 },
+                            edgePadding: { top: 80, right: 60, bottom: 260, left: 60 },
+                        });
+                        onEvento?.({
+                            tipo: 'exito',
+                            titulo: 'Ruta trazada',
+                            detalle: 'Recorrido calculado por calles con Google Directions.',
                         });
                     }}
-                    onError={(msg) =>
-                        console.warn('Error trazando la ruta (revisá la Directions API key):', msg)
-                    }
+                    onError={(msg) => {
+                        console.warn('Error trazando la ruta (revisá la Directions API key):', msg);
+                        onEvento?.({
+                            tipo: 'alerta',
+                            titulo: 'Ruta no disponible',
+                            detalle: 'No se pudo trazar la ruta por calles; se muestran los puntos.',
+                        });
+                    }}
                 />
             )}
         </MapView>
