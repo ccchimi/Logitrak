@@ -236,6 +236,141 @@ boxyAuraCore: {
         marginBottom: 14,
     },
 
+    resultadoHeaderRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: 8,
+    },
+
+    badgeConfianza: {
+        fontSize: 11,
+        fontWeight: '900',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 999,
+        overflow: 'hidden',
+    },
+
+    badgeConfianzaAlta: {
+        color: COLORS.success,
+        backgroundColor: 'rgba(16, 185, 129, 0.14)',
+    },
+
+    badgeConfianzaMedia: {
+        color: COLORS.accent,
+        backgroundColor: COLORS.accentSoft,
+    },
+
+    badgeConfianzaBaja: {
+        color: '#F87171',
+        backgroundColor: 'rgba(248, 113, 113, 0.14)',
+    },
+
+    resultadoMetaRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 10,
+        marginBottom: 12,
+    },
+
+    metaItem: {
+        backgroundColor: COLORS.blackCard,
+        borderRadius: 12,
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        flexGrow: 1,
+    },
+
+    metaLabel: {
+        color: COLORS.muted,
+        fontSize: 10,
+        fontWeight: '800',
+        textTransform: 'uppercase',
+        letterSpacing: 0.6,
+        marginBottom: 2,
+    },
+
+    metaValor: {
+        color: COLORS.white,
+        fontSize: 13,
+        fontWeight: '900',
+    },
+
+    resultadoSeccionTitulo: {
+        color: COLORS.muted,
+        fontSize: 12,
+        fontWeight: '900',
+        textTransform: 'uppercase',
+        letterSpacing: 0.7,
+        marginTop: 10,
+        marginBottom: 6,
+    },
+
+    desgloseBox: {
+        backgroundColor: COLORS.blackCard,
+        borderRadius: 14,
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+
+    desgloseLinea: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        paddingVertical: 4,
+        gap: 10,
+    },
+
+    desgloseConcepto: {
+        color: COLORS.mutedStrong,
+        fontSize: 12,
+        fontWeight: '700',
+        flex: 1,
+        lineHeight: 17,
+    },
+
+    desgloseMonto: {
+        color: COLORS.white,
+        fontSize: 12,
+        fontWeight: '900',
+    },
+
+    desgloseDescuento: {
+        color: COLORS.success,
+        fontSize: 12,
+        fontWeight: '900',
+    },
+
+    protocoloTexto: {
+        color: COLORS.cyan,
+        fontSize: 12,
+        fontWeight: '700',
+        lineHeight: 18,
+    },
+
+    advertenciaTexto: {
+        color: COLORS.accent,
+        fontSize: 12,
+        fontWeight: '700',
+        lineHeight: 18,
+    },
+
+    validezTexto: {
+        color: COLORS.muted,
+        fontSize: 11,
+        fontWeight: '700',
+        marginTop: 4,
+        marginBottom: 12,
+    },
+
     resultadoLinea: {
         marginBottom: 11,
     },
