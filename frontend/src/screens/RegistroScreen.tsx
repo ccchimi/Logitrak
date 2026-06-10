@@ -1,0 +1,170 @@
+import React, { useRef, useState } from 'react';
+import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { COLORS, styles } from './LoginStyles';
+import SpinnerFondo from '../components/SpinnerFondo';
+import { registrarUsuario, RolUsuario } from '../services/authService';
+
+export default function RegistroScreen({ navigation }: any) {
+  const nombreRef = useRef('');
+  const usuarioRef = useRef('');
+  const contrasenaRef = useRef('');
+  const confirmacionRef = useRef('');
+
+  const [rol, setRol] = useState<RolUsuario>('admin');
+  const [error, setError] = useState('');
+  const [exito, setExito] = useState('');
+
+  const manejarRegistro = () => {
+    const resultado = registrarUsuario({
+      nombreCompleto: nombreRef.current,
+      usuario: usuarioRef.current,
+      contrasena: contrasenaRef.current,
+      confirmacion: confirmacionRef.current,
+      rol,
+    });
+
+    if (!resultado.exito) {
+      setExito('');
+      setError(resultado.error);
+      return;
+    }
+
+    setError('');
+    setExito(resultado.mensaje);
+
+    setTimeout(() => navigation.navigate('Login'), 1400);
+  };
+
+  const campoTexto = (
+    label: string,
+    placeholder: string,
+    icono: string,
+    onChange: (texto: string) => void,
+    seguro = false
+  ) => (
+    <View style={styles.formGroup}>
+      <Text style={styles.label}>{label}</Text>
+
+      <View style={styles.inputContainer}>
+        <TextInput
+          style={styles.input}
+          placeholder={placeholder}
+          placeholderTextColor="rgba(255,255,255,0.35)"
+          secureTextEntry={seguro}
+          autoCapitalize={seguro ? 'none' : 'words'}
+          autoCorrect={false}
+          autoComplete="off"
+          importantForAutofill="noExcludeDescendants"
+          textContentType="none"
+          returnKeyType="done"
+          blurOnSubmit={false}
+          disableFullscreenUI
+          onChangeText={onChange}
+        />
+
+        <Text style={styles.inputIcon}>{icono}</Text>
+      </View>
+    </View>
+  );
+
+  return (
+    <LinearGradient
+      colors={[COLORS.black, '#121212']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.container}
+    >
+      <ScrollView
+        contentContainerStyle={styles.authScroll}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.circleArea}>
+          <SpinnerFondo />
+
+          <View style={styles.loginBox}>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => navigation.goBack()}
+              accessibilityLabel="Volver al login"
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Text style={styles.closeButtonText}>✕</Text>
+            </TouchableOpacity>
+
+            <Text style={styles.kicker}>Registro de cuenta</Text>
+
+            <Text style={styles.titulo}>
+              logitrak<Text style={styles.logoDot}>.</Text>
+            </Text>
+
+            <Text style={styles.subtitulo}>
+              Creá tu acceso al sistema de logística
+            </Text>
+
+            {error ? <Text style={styles.errorTexto}>{error}</Text> : null}
+            {exito ? <Text style={styles.successTexto}>{exito}</Text> : null}
+
+            {campoTexto('Nombre completo', 'Ej: Laura Méndez', '👤', (t) => { nombreRef.current = t; })}
+            {campoTexto('Usuario / Legajo', 'Ej: lmendez', '✉', (t) => { usuarioRef.current = t; })}
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Tipo de cuenta</Text>
+
+              <View style={styles.rolRow}>
+                {(['admin', 'chofer'] as const).map((opcion) => {
+                  const activo = rol === opcion;
+                  return (
+                    <TouchableOpacity
+                      key={opcion}
+                      style={[styles.rolChip, activo && styles.rolChipActive]}
+                      onPress={() => setRol(opcion)}
+                    >
+                      <Text style={[styles.rolChipText, activo && styles.rolChipTextActive]}>
+                        {opcion === 'admin' ? 'Administrador' : 'Chofer'}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            {campoTexto('Contraseña', 'Mínimo 4 caracteres', '🔒', (t) => { contrasenaRef.current = t; }, true)}
+            {campoTexto('Confirmar contraseña', 'Repetí la contraseña', '🔒', (t) => { confirmacionRef.current = t; }, true)}
+
+            <TouchableOpacity
+              activeOpacity={0.85}
+              style={styles.buttonShadow}
+              onPress={manejarRegistro}
+            >
+              <LinearGradient
+                colors={[COLORS.accent, '#f0c800']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.loginButton}
+              >
+                <Text style={styles.loginButtonText}>Crear cuenta</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.linkCentrado}
+              onPress={() => navigation.navigate('Login')}
+            >
+              <Text style={styles.linkOlvido}>
+                ¿Ya tenés cuenta? <Text style={styles.linkCrear}>Iniciar sesión</Text>
+              </Text>
+            </TouchableOpacity>
+
+            <View style={styles.hintBox}>
+              <Text style={styles.hintText}>
+                Las cuentas se guardan en memoria hasta integrar la base de datos.
+              </Text>
+            </View>
+          </View>
+        </View>
+      </ScrollView>
+    </LinearGradient>
+  );
+}

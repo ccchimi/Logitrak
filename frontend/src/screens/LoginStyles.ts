@@ -259,4 +259,100 @@ export const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 20,
   },
+
+  successTexto: {
+    color: '#34d399',
+    fontFamily: FONTS.textMedium,
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+
+  // Contenedor con scroll para pantallas de auth más largas (Registro).
+  authScroll: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  // Selector de rol (Registro).
+  rolRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+
+  rolChip: {
+    flex: 1,
+    height: 50,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  rolChipActive: {
+    borderColor: COLORS.accent,
+    backgroundColor: 'rgba(255, 215, 0, 0.12)',
+  },
+
+  rolChipText: {
+    color: COLORS.muted,
+    fontFamily: FONTS.textMedium,
+    fontSize: 13,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+
+  rolChipTextActive: {
+    color: COLORS.accent,
+  },
+
+  // Chip que muestra la cuenta encontrada en el flujo de recuperación.
+  cuentaChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: 'rgba(255, 215, 0, 0.08)',
+    borderWidth: 1,
+    borderColor: COLORS.borderAccent,
+    borderRadius: 6,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginBottom: 20,
+  },
+
+  cuentaChipAvatar: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: COLORS.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  cuentaChipAvatarText: {
+    color: COLORS.black,
+    fontFamily: FONTS.titleBold,
+    fontSize: 13,
+  },
+
+  cuentaChipNombre: {
+    color: COLORS.white,
+    fontFamily: FONTS.textMedium,
+    fontSize: 14,
+  },
+
+  cuentaChipUsuario: {
+    color: COLORS.muted,
+    fontFamily: FONTS.text,
+    fontSize: 12,
+    marginTop: 1,
+  },
+
+  linkCentrado: {
+    marginTop: 22,
+    alignItems: 'center',
+  },
 });

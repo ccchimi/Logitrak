@@ -3,6 +3,8 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import LoginScreens from '../screens/LoginScreens';
+import RegistroScreen from '../screens/RegistroScreen';
+import RecuperarScreen from '../screens/RecuperarScreen';
 import HomeScreen from '../screens/HomeScreen';
 import SolicitudEnvioScreen from '../screens/SolicitudEnvioScreen';
 import SeguimientoScreen from '../screens/SeguimientoScreen';
@@ -29,6 +31,18 @@ export default function AppNavigator() {
                 <Stack.Screen
                     name="Login"
                     component={LoginScreens}
+                    options={{ headerShown: false }}
+                />
+
+                <Stack.Screen
+                    name="Registro"
+                    component={RegistroScreen}
+                    options={{ headerShown: false }}
+                />
+
+                <Stack.Screen
+                    name="Recuperar"
+                    component={RecuperarScreen}
                     options={{ headerShown: false }}
                 />
 
@@ -68,10 +82,7 @@ export default function AppNavigator() {
                 <Stack.Screen
                     name="Chofer"
                     component={ChoferScreen}
-                    options={{
-                        title: 'Consola del Chofer',
-                        headerLeft: () => null,
-                    }}
+                    options={{ headerShown: false }}
                 />
             </Stack.Navigator>
         </NavigationContainer>

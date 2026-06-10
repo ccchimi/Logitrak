@@ -1,18 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react';
-import {
-  Animated,
-  Easing,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import React, { useRef, useState } from 'react';
+import { Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, styles } from './LoginStyles';
 import { useRootFlow } from '../navigation/RootFlowContext';
-
-const NUM_BARS = 50;
-const ACTIVE_TRAIL = 8;
+import SpinnerFondo from '../components/SpinnerFondo';
+import { iniciarSesion } from '../services/authService';
 
 export default function LoginScreens({ navigation }: any) {
   const usuarioRef = useRef('');
@@ -23,22 +15,20 @@ export default function LoginScreens({ navigation }: any) {
   const { volverAlInicio, puedeVolver } = useRootFlow();
 
   const manejarIngreso = () => {
-    const usuarioLimpio = usuarioRef.current.trim().toLowerCase();
-    const contrasenaLimpia = contrasenaRef.current.trim();
+    const resultado = iniciarSesion(usuarioRef.current, contrasenaRef.current);
 
-    if (usuarioLimpio === '' || contrasenaLimpia === '') {
-      setError('Por favor, completa todos los campos.');
+    if (!resultado.exito) {
+      setError(resultado.error);
       return;
     }
 
-    if (usuarioLimpio === 'admin' && contrasenaLimpia === '1234') {
-      setError('');
-      navigation.navigate('Home');
-    } else if (usuarioLimpio === 'chofer' && contrasenaLimpia === '1234') {
-      setError('');
-      navigation.navigate('Chofer');
+    setError('');
+
+    const { usuario } = resultado;
+    if (usuario.rol === 'admin') {
+      navigation.navigate('Home', { nombre: usuario.nombreCompleto, usuario: usuario.usuario });
     } else {
-      setError('Datos incorrectos. Prueba admin/1234 o chofer/1234.');
+      navigation.navigate('Chofer', { nombre: usuario.nombreCompleto, usuario: usuario.usuario });
     }
   };
 
@@ -128,11 +118,11 @@ export default function LoginScreens({ navigation }: any) {
           </View>
 
           <View style={styles.linksRow}>
-            <TouchableOpacity onPress={() => { /* TODO: navegar a pantalla de Registro cuando exista */ }}>
+            <TouchableOpacity onPress={() => navigation.navigate('Registro')}>
               <Text style={styles.linkCrear}>Crear cuenta</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('Recuperar')}>
               <Text style={styles.linkOlvido}>¿Olvidaste tu contraseña?</Text>
             </TouchableOpacity>
           </View>
@@ -162,77 +152,5 @@ export default function LoginScreens({ navigation }: any) {
         </View>
       </View>
     </LinearGradient>
-  );
-}
-
-function SpinnerFondo() {
-  const [activeBar, setActiveBar] = useState(0);
-  const rotateAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    const rotation = Animated.loop(
-      Animated.timing(rotateAnim, {
-        toValue: 1,
-        duration: 20000,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      })
-    );
-
-    rotation.start();
-
-    const interval = setInterval(() => {
-      setActiveBar((prev) => (prev + 1) % NUM_BARS);
-    }, 100);
-
-    return () => {
-      rotation.stop();
-      clearInterval(interval);
-    };
-  }, [rotateAnim]);
-
-  const spin = rotateAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
-
-  const estaActiva = (index: number) => {
-    const diff = (activeBar - index + NUM_BARS) % NUM_BARS;
-    return diff >= 0 && diff < ACTIVE_TRAIL;
-  };
-
-  return (
-    <Animated.View
-      pointerEvents="none"
-      style={[
-        styles.circleContainer,
-        {
-          transform: [{ rotate: spin }],
-        },
-      ]}
-    >
-      {Array.from({ length: NUM_BARS }).map((_, index) => (
-        <View
-          key={index}
-          style={[
-            styles.barWrapper,
-            {
-              transform: [
-                {
-                  rotate: `${(360 / NUM_BARS) * index}deg`,
-                },
-              ],
-            },
-          ]}
-        >
-          <View
-            style={[
-              styles.bar,
-              estaActiva(index) && styles.barActive,
-            ]}
-          />
-        </View>
-      ))}
-    </Animated.View>
   );
 }
