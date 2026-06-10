@@ -12,33 +12,27 @@ import {
     View,
 } from 'react-native';
 import { styles } from './SolicitudEnvioStyles';
-import { cotizarEnvio } from '../services/botLogisticaService';
+import {
+    analizarDireccion,
+    BOT_META,
+    Cotizacion,
+    cotizarEnvio,
+    ContextoConversacion,
+    esAfirmacion,
+    esNegacion,
+    interpretarRespuesta,
+} from '../services/botLogisticaService';
 
-type CampoEnvio = 'origen' | 'destino' | 'peso' | 'bultos' | 'largo' | 'ancho' | 'alto';
+type CampoEnvio = 'origen' | 'destino' | 'descripcion' | 'peso' | 'bultos' | 'largo' | 'ancho' | 'alto';
 
-type EnvioData = {
-    origen: string;
-    destino: string;
-    peso: string;
-    bultos: string;
-    largo: string;
-    ancho: string;
-    alto: string;
-};
-
-type ResultadoIA = {
-    vehiculo: string;
-    precio: string | number;
-    explicacion: string;
-    sla: string;
-};
+type EnvioData = Record<CampoEnvio, string>;
 
 type ChatMessage = {
     id: string;
     sender: 'bot' | 'user';
     text: string;
     kind?: 'normal' | 'thinking' | 'result';
-    result?: ResultadoIA;
+    result?: Cotizacion;
 };
 
 type ChatStep = {
@@ -49,9 +43,15 @@ type ChatStep = {
     keyboardType?: 'default' | 'numeric';
 };
 
+type ConfirmacionPendiente = {
+    field: CampoEnvio;
+    valorNormalizado: string;
+};
+
 const INITIAL_DATA: EnvioData = {
     origen: '',
     destino: '',
+    descripcion: '',
     peso: '',
     bultos: '',
     largo: '',
@@ -62,19 +62,24 @@ const INITIAL_DATA: EnvioData = {
 const CHAT_STEPS: ChatStep[] = [
     {
         field: 'origen',
-        question: 'Hola, soy Boxy. Voy a ayudarte a calcular tu envío. Primero, ¿cuál es el punto de retiro?',
+        question: `Hola, soy ${BOT_META.nombre}. Voy a ayudarte a cotizar tu envío y verifico cada dato en el momento. Primero, ¿cuál es el punto de retiro? (calle, altura y localidad)`,
         placeholder: 'Ej: Av. Rivadavia 5000, CABA',
     },
     {
         field: 'destino',
         question: 'Perfecto. Ahora decime, ¿cuál es el punto de entrega?',
-        placeholder: 'Ej: Av. Corrientes 1200, CABA',
+        placeholder: 'Ej: Av. Corrientes 1200, Rosario',
+    },
+    {
+        field: 'descripcion',
+        question: '¿Qué vas a enviar? Contame brevemente, así asigno el vehículo y los protocolos correctos.',
+        placeholder: 'Ej: una caja con repuestos, un sillón, documentos…',
     },
     {
         field: 'peso',
-        question: 'Genial. ¿Cuál es el peso total aproximado del envío en kg?',
-        placeholder: 'Ej: 8',
-        keyboardType: 'numeric',
+        question: '¿Cuál es el peso total aproximado del envío? Podés usar kg, gramos o toneladas.',
+        placeholder: 'Ej: 8,5 kg',
+        keyboardType: 'default',
     },
     {
         field: 'bultos',
@@ -84,7 +89,7 @@ const CHAT_STEPS: ChatStep[] = [
     },
     {
         field: 'largo',
-        question: 'Para mejorar la cotización por volumen, ¿cuál es el largo del bulto en cm? Si no lo sabés, podés tocar Saltar.',
+        question: 'Para afinar la cotización por volumen, ¿cuál es el largo del bulto en cm? Si no lo sabés, tocá Saltar.',
         placeholder: 'Ej: 40',
         keyboardType: 'numeric',
         optional: true,
@@ -111,6 +116,8 @@ const createId = (prefix: string) => {
     return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 };
 
+const formatearARS = (monto: number) => `$${Math.abs(monto).toLocaleString('es-AR')}`;
+
 export default function SolicitudEnvioScreen({ navigation }: any) {
     const scrollRef = useRef<ScrollView | null>(null);
     const startedRef = useRef(false);
@@ -123,11 +130,12 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
     const [currentStep, setCurrentStep] = useState(0);
     const [inputValue, setInputValue] = useState('');
     const [envioData, setEnvioData] = useState<EnvioData>(INITIAL_DATA);
+    const [confirmacion, setConfirmacion] = useState<ConfirmacionPendiente | null>(null);
 
     const [isThinking, setIsThinking] = useState(false);
     const [isBotTyping, setIsBotTyping] = useState(false);
     const [cargando, setCargando] = useState(false);
-    const [resultadoIA, setResultadoIA] = useState<ResultadoIA | null>(null);
+    const [cotizacion, setCotizacion] = useState<Cotizacion | null>(null);
 
     const currentQuestion: ChatStep | undefined = CHAT_STEPS[currentStep];
 
@@ -142,31 +150,31 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
     });
 
     useEffect(() => {
-    pulseValue.setValue(0);
+        pulseValue.setValue(0);
 
-    const pulse = Animated.loop(
-        Animated.sequence([
-            Animated.timing(pulseValue, {
-                toValue: 1,
-                duration: 850,
-                easing: Easing.inOut(Easing.ease),
-                useNativeDriver: true,
-            }),
-            Animated.timing(pulseValue, {
-                toValue: 0,
-                duration: 850,
-                easing: Easing.inOut(Easing.ease),
-                useNativeDriver: true,
-            }),
-        ])
-    );
+        const pulse = Animated.loop(
+            Animated.sequence([
+                Animated.timing(pulseValue, {
+                    toValue: 1,
+                    duration: 850,
+                    easing: Easing.inOut(Easing.ease),
+                    useNativeDriver: true,
+                }),
+                Animated.timing(pulseValue, {
+                    toValue: 0,
+                    duration: 850,
+                    easing: Easing.inOut(Easing.ease),
+                    useNativeDriver: true,
+                }),
+            ])
+        );
 
-    pulse.start();
+        pulse.start();
 
-    return () => {
-        pulse.stop();
-    };
-}, [pulseValue]);
+        return () => {
+            pulse.stop();
+        };
+    }, [pulseValue]);
 
     useEffect(() => {
         const thinkingAnimation = Animated.loop(
@@ -194,7 +202,7 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
     }, [thinkingOpacity]);
 
     const typeBotMessage = useCallback(
-        (fullText: string, kind: ChatMessage['kind'] = 'normal', result?: ResultadoIA) => {
+        (fullText: string, kind: ChatMessage['kind'] = 'normal', result?: Cotizacion) => {
             return new Promise<void>(resolve => {
                 const id = createId('bot');
 
@@ -240,7 +248,7 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
                         setIsBotTyping(false);
                         resolve();
                     }
-                }, 18);
+                }, 14);
             });
         },
         []
@@ -271,7 +279,7 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
             {
                 id,
                 sender: 'bot',
-                text: 'Pensando',
+                text: 'Analizando',
                 kind: 'thinking',
             },
         ]);
@@ -284,31 +292,46 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
         setIsThinking(false);
     }, []);
 
+    const construirContexto = (data: EnvioData): ContextoConversacion => ({
+        origen: data.origen ? analizarDireccion(data.origen) : null,
+        destino: data.destino ? analizarDireccion(data.destino) : null,
+        pesoKg: parseFloat(data.peso) || null,
+        bultos: parseInt(data.bultos, 10) || null,
+    });
+
     const procesarEnvioInteligente = async (data: EnvioData) => {
         const thinkingId = addThinkingMessage();
 
         setCargando(true);
-        setResultadoIA(null);
+        setCotizacion(null);
 
         let botText = '';
-        let resultado: ResultadoIA | undefined;
+        let resultado: Cotizacion | undefined;
 
         try {
-            const respuestaIA = await cotizarEnvio(data.peso, data.bultos, data.origen, data.destino, {
-                largo: parseFloat(data.largo) || undefined,
-                ancho: parseFloat(data.ancho) || undefined,
-                alto: parseFloat(data.alto) || undefined,
+            const respuesta = await cotizarEnvio({
+                origen: data.origen,
+                destino: data.destino,
+                pesoKg: parseFloat(data.peso),
+                bultos: parseInt(data.bultos, 10),
+                descripcionCarga: data.descripcion || undefined,
+                dimensiones: {
+                    largo: parseFloat(data.largo) || undefined,
+                    ancho: parseFloat(data.ancho) || undefined,
+                    alto: parseFloat(data.alto) || undefined,
+                },
             });
 
-            resultado = {
-                vehiculo: respuestaIA.vehiculo,
-                precio: respuestaIA.precio,
-                explicacion: respuestaIA.explicacion,
-                sla: 'Garantía: llegada en menos de 20 min al origen o cupón de descuento.',
-            };
-
-            setResultadoIA(resultado);
-            botText = 'Listo. Ya tengo una cotización inteligente para tu envío.';
+            if (respuesta.exito) {
+                resultado = respuesta.cotizacion;
+                setCotizacion(resultado);
+                botText = `Listo. Analicé ruta, carga y contexto operativo: esta es mi cotización con un ${resultado.puntajeConfianza}% de confianza.`;
+            } else {
+                const detalles = respuesta.problemas
+                    .map(p => `• ${p.mensaje}${p.sugerencia ? ` ${p.sugerencia}` : ''}`)
+                    .join('\n');
+                botText = `${respuesta.motivo}\n${detalles}\n\nTocá "Nueva cotización" para corregir los datos.`;
+            }
         } catch (_error) {
             botText = 'No pude calcular la cotización en este momento. Revisá los datos e intentá nuevamente.';
         } finally {
@@ -319,23 +342,43 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
         await typeBotMessage(botText, resultado ? 'result' : 'normal', resultado);
     };
 
-    const avanzarChat = async (nextData: EnvioData, stepIndex: number) => {
+    const avanzarChat = async (nextData: EnvioData, stepIndex: number, prefacio?: string) => {
         if (stepIndex < CHAT_STEPS.length - 1) {
             const nextStep = stepIndex + 1;
             const thinkingId = addThinkingMessage();
 
             setCurrentStep(nextStep);
 
-            await delay(750);
+            await delay(650);
 
             removeThinkingMessage(thinkingId);
-            await typeBotMessage(CHAT_STEPS[nextStep].question);
+
+            const pregunta = CHAT_STEPS[nextStep].question;
+            await typeBotMessage(prefacio ? `${prefacio}\n\n${pregunta}` : pregunta);
 
             return;
         }
 
         setCurrentStep(CHAT_STEPS.length);
+
+        if (prefacio) {
+            await typeBotMessage(prefacio);
+        }
+
         await procesarEnvioInteligente(nextData);
+    };
+
+    const commitRespuesta = async (field: CampoEnvio, valor: string, stepIndex: number, prefacio?: string) => {
+        const nextData = { ...envioData, [field]: valor };
+        setEnvioData(nextData);
+        await avanzarChat(nextData, stepIndex, prefacio);
+    };
+
+    const responderBot = async (texto: string, msDeAnalisis = 550) => {
+        const thinkingId = addThinkingMessage();
+        await delay(msDeAnalisis);
+        removeThinkingMessage(thinkingId);
+        await typeBotMessage(texto);
     };
 
     const submitAnswer = async (value: string, skipped = false) => {
@@ -347,14 +390,7 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
 
         const visibleValue = skipped ? 'Prefiero no indicarlo' : cleanValue;
 
-        const nextData = {
-            ...envioData,
-            [currentQuestion.field]: skipped ? '' : cleanValue,
-        };
-
-        setEnvioData(nextData);
         setInputValue('');
-
         setMessages(prev => [
             ...prev,
             {
@@ -364,7 +400,53 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
             },
         ]);
 
-        await avanzarChat(nextData, currentStep);
+        // ¿Estábamos esperando una confirmación del usuario?
+        if (confirmacion) {
+            if (skipped || esAfirmacion(cleanValue)) {
+                const pendiente = confirmacion;
+                setConfirmacion(null);
+                await commitRespuesta(pendiente.field, pendiente.valorNormalizado, currentStep, 'Confirmado, sigo con eso.');
+                return;
+            }
+
+            if (esNegacion(cleanValue)) {
+                setConfirmacion(null);
+                await responderBot(`Sin problema, descartado. ${currentQuestion.question}`);
+                return;
+            }
+
+            // No respondió sí/no: lo tomo como un nuevo intento para el mismo campo.
+            setConfirmacion(null);
+        }
+
+        if (skipped) {
+            await commitRespuesta(currentQuestion.field, '', currentStep);
+            return;
+        }
+
+        const interpretacion = interpretarRespuesta(
+            currentQuestion.field,
+            cleanValue,
+            construirContexto(envioData)
+        );
+
+        if (interpretacion.resultado === 'rechazado') {
+            await responderBot(interpretacion.mensajeBot);
+            return;
+        }
+
+        if (interpretacion.resultado === 'confirmar') {
+            setConfirmacion({ field: currentQuestion.field, valorNormalizado: interpretacion.valorNormalizado });
+            await responderBot(interpretacion.mensajeBot);
+            return;
+        }
+
+        await commitRespuesta(
+            currentQuestion.field,
+            interpretacion.valorNormalizado,
+            currentStep,
+            interpretacion.reconocimiento
+        );
     };
 
     const handleSend = async () => {
@@ -372,7 +454,7 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
 
         if (!currentQuestion) return;
 
-        if (!cleanValue && currentQuestion.optional) {
+        if (!cleanValue && currentQuestion.optional && !confirmacion) {
             await submitAnswer('', true);
             return;
         }
@@ -381,7 +463,7 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
     };
 
     const handleSkip = async () => {
-        if (!currentQuestion?.optional) return;
+        if (!currentQuestion?.optional || confirmacion) return;
 
         await submitAnswer('', true);
     };
@@ -396,7 +478,8 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
         setCurrentStep(0);
         setInputValue('');
         setEnvioData(INITIAL_DATA);
-        setResultadoIA(null);
+        setConfirmacion(null);
+        setCotizacion(null);
         setIsThinking(false);
         setIsBotTyping(false);
         setCargando(false);
@@ -427,33 +510,97 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
 
     const renderThinkingContent = () => (
         <Animated.Text style={[styles.thinkingText, { opacity: thinkingOpacity }]}>
-            Pensando...
+            Analizando...
         </Animated.Text>
     );
 
-    const renderResultado = (resultado: ResultadoIA) => (
+    const estiloConfianza = (nivel: Cotizacion['confianza']) =>
+        nivel === 'alta'
+            ? styles.badgeConfianzaAlta
+            : nivel === 'media'
+              ? styles.badgeConfianzaMedia
+              : styles.badgeConfianzaBaja;
+
+    const renderResultado = (resultado: Cotizacion) => (
         <View style={styles.resultadoCardChat}>
-            <Text style={styles.resultadoTitulo}>Asignación de Boxy</Text>
-
-            <View style={styles.resultadoLinea}>
-                <Text style={styles.resultadoLabel}>Unidad sugerida</Text>
-                <Text style={styles.resultadoValor}>{resultado.vehiculo}</Text>
+            <View style={styles.resultadoHeaderRow}>
+                <Text style={styles.resultadoTitulo}>Cotización de {BOT_META.nombre}</Text>
+                <Text style={[styles.badgeConfianza, estiloConfianza(resultado.confianza)]}>
+                    Confianza {resultado.confianza} · {resultado.puntajeConfianza}%
+                </Text>
             </View>
 
             <View style={styles.resultadoLinea}>
-                <Text style={styles.resultadoLabel}>Cotización dinámica</Text>
-                <Text style={styles.resultadoPrecio}>${resultado.precio}</Text>
+                <Text style={styles.resultadoLabel}>Unidad asignada</Text>
+                <Text style={styles.resultadoValor}>{resultado.vehiculo.nombre}</Text>
             </View>
+
+            <View style={styles.resultadoLinea}>
+                <Text style={styles.resultadoLabel}>Tarifa dinámica</Text>
+                <Text style={styles.resultadoPrecio}>{formatearARS(resultado.precio)}</Text>
+            </View>
+
+            <View style={styles.resultadoMetaRow}>
+                <View style={styles.metaItem}>
+                    <Text style={styles.metaLabel}>Recorrido</Text>
+                    <Text style={styles.metaValor}>
+                        {resultado.distanciaKm} km{resultado.distanciaEstimada ? ' (est.)' : ''}
+                    </Text>
+                </View>
+                <View style={styles.metaItem}>
+                    <Text style={styles.metaLabel}>Retiro en</Text>
+                    <Text style={styles.metaValor}>~{resultado.tiempos.etaRetiroMin} min</Text>
+                </View>
+                <View style={styles.metaItem}>
+                    <Text style={styles.metaLabel}>Entrega</Text>
+                    <Text style={styles.metaValor}>{resultado.tiempos.ventanaEntrega}</Text>
+                </View>
+            </View>
+
+            <Text style={styles.resultadoSeccionTitulo}>Desglose de la tarifa</Text>
+            <View style={styles.desgloseBox}>
+                {resultado.desglose.map((linea, i) => (
+                    <View key={`${linea.concepto}-${i}`} style={styles.desgloseLinea}>
+                        <Text style={styles.desgloseConcepto}>{linea.concepto}</Text>
+                        <Text style={linea.tipo === 'descuento' ? styles.desgloseDescuento : styles.desgloseMonto}>
+                            {linea.tipo === 'descuento' ? `−${formatearARS(linea.monto)}` : formatearARS(linea.monto)}
+                        </Text>
+                    </View>
+                ))}
+            </View>
+
+            {resultado.carga.requisitos.length > 0 && (
+                <>
+                    <Text style={styles.resultadoSeccionTitulo}>
+                        Protocolo — {resultado.carga.etiqueta}
+                    </Text>
+                    {resultado.carga.requisitos.map(req => (
+                        <Text key={req} style={styles.protocoloTexto}>• {req}</Text>
+                    ))}
+                </>
+            )}
+
+            {resultado.advertencias.length > 0 && (
+                <>
+                    <Text style={styles.resultadoSeccionTitulo}>A tener en cuenta</Text>
+                    {resultado.advertencias.map(adv => (
+                        <Text key={adv} style={styles.advertenciaTexto}>⚠ {adv}</Text>
+                    ))}
+                </>
+            )}
 
             <Text style={styles.resultadoExplicacion}>“{resultado.explicacion}”</Text>
             <Text style={styles.resultadoSla}>⏱️ {resultado.sla}</Text>
+            <Text style={styles.validezTexto}>
+                Tarifa válida por {resultado.validezMin} minutos · Ref. {resultado.id}
+            </Text>
 
             <TouchableOpacity
                 style={styles.botonConfirmar}
                 onPress={() =>
                     navigation.navigate('Seguimiento', {
-                        origen: envioData.origen,
-                        destino: envioData.destino,
+                        origen: resultado.origen.textoNormalizado,
+                        destino: resultado.destino.textoNormalizado,
                     })
                 }
             >
@@ -470,7 +617,7 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
                 {isBot && renderBoxyAvatar()}
 
                 <View style={[styles.messageContent, isBot ? styles.botMessageContent : styles.userMessageContent]}>
-                    <Text style={styles.messageAuthor}>{isBot ? 'Boxy' : 'Vos'}</Text>
+                    <Text style={styles.messageAuthor}>{isBot ? BOT_META.nombre : 'Vos'}</Text>
 
                     {message.kind === 'thinking' ? (
                         renderThinkingContent()
@@ -491,7 +638,9 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
     };
 
     const isComposerDisabled = isThinking || isBotTyping || cargando || !currentQuestion;
-    const isSendDisabled = isComposerDisabled || (!inputValue.trim() && !currentQuestion?.optional);
+    const isSendDisabled =
+        isComposerDisabled ||
+        (!inputValue.trim() && (confirmacion !== null || !currentQuestion?.optional));
 
     return (
         <SafeAreaView style={styles.safeArea}>
@@ -520,9 +669,9 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
 
                                 <View style={styles.headerTextBox}>
                                     <Text style={styles.headerKicker}>LogiTrack IA</Text>
-                                    <Text style={styles.headerTitle}>Boxy</Text>
+                                    <Text style={styles.headerTitle}>{BOT_META.nombre}</Text>
                                     <Text style={styles.headerSubtitle}>
-                                        Cotizá tu envío conversando con el asistente inteligente.
+                                        Asistente logístico con verificación de direcciones en tiempo real.
                                     </Text>
                                 </View>
                             </View>
@@ -540,7 +689,7 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
                         </ScrollView>
                     </View>
 
-                    {resultadoIA ? (
+                    {cotizacion ? (
                         <View style={styles.finalActions}>
                             <TouchableOpacity style={styles.restartButton} onPress={resetChat}>
                                 <Text style={styles.restartButtonText}>Nueva cotización</Text>
@@ -550,10 +699,14 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
                         <View style={styles.composerShell}>
                             <View style={styles.inputMeta}>
                                 <Text style={styles.inputLabel}>
-                                    {currentQuestion ? 'Respondé a Boxy' : 'Conversación finalizada'}
+                                    {confirmacion
+                                        ? `Confirmá el dato a ${BOT_META.nombre}`
+                                        : currentQuestion
+                                          ? `Respondé a ${BOT_META.nombre}`
+                                          : 'Conversación finalizada'}
                                 </Text>
 
-                                {currentQuestion?.optional ? (
+                                {currentQuestion?.optional && !confirmacion ? (
                                     <Text style={styles.optionalBadge}>Opcional</Text>
                                 ) : null}
                             </View>
@@ -561,12 +714,16 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
                             <View style={styles.inputRow}>
                                 <TextInput
                                     style={styles.textInput}
-                                    placeholder={currentQuestion?.placeholder || 'Escribí tu respuesta...'}
+                                    placeholder={
+                                        confirmacion
+                                            ? 'sí / no, o escribilo de nuevo'
+                                            : currentQuestion?.placeholder || 'Escribí tu respuesta...'
+                                    }
                                     placeholderTextColor="#8A8880"
                                     value={inputValue}
                                     onChangeText={setInputValue}
                                     editable={!isComposerDisabled}
-                                    keyboardType={currentQuestion?.keyboardType || 'default'}
+                                    keyboardType={confirmacion ? 'default' : currentQuestion?.keyboardType || 'default'}
                                     returnKeyType="send"
                                     onSubmitEditing={() => void handleSend()}
                                 />
@@ -583,7 +740,7 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
                                 </TouchableOpacity>
                             </View>
 
-                            {currentQuestion?.optional ? (
+                            {currentQuestion?.optional && !confirmacion ? (
                                 <TouchableOpacity
                                     style={styles.skipButton}
                                     disabled={isComposerDisabled}
