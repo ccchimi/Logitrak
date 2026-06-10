@@ -21,7 +21,7 @@ import {
     esAfirmacion,
     esNegacion,
     interpretarRespuesta,
-} from '../services/botLogisticaService';
+} from '../services/botLogistica';
 
 type CampoEnvio = 'origen' | 'destino' | 'descripcion' | 'peso' | 'bultos' | 'largo' | 'ancho' | 'alto';
 
