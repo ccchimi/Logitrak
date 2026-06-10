@@ -601,6 +601,10 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
                     navigation.navigate('Seguimiento', {
                         origen: resultado.origen.textoNormalizado,
                         destino: resultado.destino.textoNormalizado,
+                        producto: resultado.carga.descripcion,
+                        vehiculo: resultado.vehiculo.nombre,
+                        precio: resultado.precio,
+                        referencia: resultado.id,
                     })
                 }
             >

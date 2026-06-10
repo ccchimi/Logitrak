@@ -61,22 +61,19 @@ export default function AppNavigator() {
                 <Stack.Screen
                     name="Seguimiento"
                     component={SeguimientoScreen}
-                    options={{
-                        title: 'Seguimiento en Vivo',
-                        headerLeft: () => null,
-                    }}
+                    options={{ headerShown: false }}
                 />
 
                 <Stack.Screen
                     name="Perfil"
                     component={PerfilScreen}
-                    options={{ title: 'Mi Perfil - Logitrack' }}
+                    options={{ headerShown: false }}
                 />
 
                 <Stack.Screen
                     name="Historial"
                     component={HistorialScreen}
-                    options={{ title: 'Historial de Envíos' }}
+                    options={{ headerShown: false }}
                 />
 
                 <Stack.Screen

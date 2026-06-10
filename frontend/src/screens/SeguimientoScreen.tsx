@@ -1,7 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
-import { styles } from './SeguimientoStyles';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+    ActivityIndicator,
+    Animated,
+    Easing,
+    Platform,
+    ScrollView,
+    Text,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { styles, COLORS } from './SeguimientoStyles';
 import MapaSeguimiento from '../components/MapaSeguimiento';
+import { ToastStack, useToasts } from '../components/Toasts';
+import { analizarDireccion } from '../services/botLogistica';
 import {
     ORIGEN,
     DESTINO,
@@ -9,35 +21,124 @@ import {
     type PuntoRuta,
 } from '../services/seguimientoService';
 
+const SLA_TOTAL_SEG = 1200;
+
+const ETAPAS = [
+    {
+        titulo: 'Asignando chofer cercano',
+        detalle: 'Boxy está despachando la unidad óptima dentro de la red LogiTrack.',
+    },
+    {
+        titulo: 'Chofer en camino al retiro',
+        detalle: 'La unidad ya está en movimiento hacia el punto de retiro.',
+    },
+    {
+        titulo: 'Paquete en viaje al destino',
+        detalle: 'Tu carga viaja protegida con seguimiento satelital de punta a punta.',
+    },
+];
+
+/** Geocodifica con respaldo en la base geográfica del bot (centro de la localidad). */
+async function resolverPuntoNativo(texto: string): Promise<PuntoRuta | null> {
+    const punto = await geocodificarDireccion(texto);
+    if (punto) return punto;
+
+    const analisis = analizarDireccion(texto);
+    if (analisis.localidad) {
+        return {
+            latitude: analisis.localidad.lat,
+            longitude: analisis.localidad.lng,
+            direccion: texto,
+        };
+    }
+    return null;
+}
+
 export default function SeguimientoScreen({ navigation, route }: any) {
-    const [tiempoRestante, setTiempoRestante] = useState(1200);
-    const [estadoEnvio, setEstadoEnvio] = useState('Asignando Chofer Cercano...');
-    const [chofer, setChofer] = useState('Buscando en la red de Logitrack...');
+    const insets = useSafeAreaInsets();
+    const { toasts, mostrar, cerrar } = useToasts();
+
+    const origenTxt: string | undefined = route?.params?.origen;
+    const destinoTxt: string | undefined = route?.params?.destino;
+    const producto: string = route?.params?.producto ?? 'Paquete protegido LogiTrack';
+    const vehiculo: string = route?.params?.vehiculo ?? 'Unidad asignada por Boxy';
+    const precio: number | undefined = route?.params?.precio;
+    const referencia: string = route?.params?.referencia ?? 'TRK-EN-VIVO';
+
+    const [tiempoRestante, setTiempoRestante] = useState(SLA_TOTAL_SEG);
+    const [etapa, setEtapa] = useState(0);
+    const [chofer, setChofer] = useState<string | null>(null);
 
     const [origenPunto, setOrigenPunto] = useState<PuntoRuta | null>(null);
     const [destinoPunto, setDestinoPunto] = useState<PuntoRuta | null>(null);
     const [buscando, setBuscando] = useState(true);
     const [geoError, setGeoError] = useState<string | null>(null);
 
-    const origenTxt: string | undefined = route?.params?.origen;
-    const destinoTxt: string | undefined = route?.params?.destino;
+    const slaAvisadoRef = useRef(false);
+    const liveAnim = useRef(new Animated.Value(0.4)).current;
 
+    // Parpadeo del indicador EN VIVO.
     useEffect(() => {
+        const loop = Animated.loop(
+            Animated.sequence([
+                Animated.timing(liveAnim, {
+                    toValue: 1,
+                    duration: 600,
+                    easing: Easing.inOut(Easing.ease),
+                    useNativeDriver: true,
+                }),
+                Animated.timing(liveAnim, {
+                    toValue: 0.4,
+                    duration: 600,
+                    easing: Easing.inOut(Easing.ease),
+                    useNativeDriver: true,
+                }),
+            ])
+        );
+        loop.start();
+        return () => loop.stop();
+    }, [liveAnim]);
+
+    // Línea de tiempo operativa simulada + contador SLA.
+    useEffect(() => {
+        mostrar('exito', 'Seguimiento iniciado', `Orden ${referencia} confirmada en la red.`);
+
         const intervalo = setInterval(() => {
             setTiempoRestante((prev) => (prev > 0 ? prev - 1 : 0));
         }, 1000);
+
         const t1 = setTimeout(() => {
-            setEstadoEnvio('Chofer en Camino al Origen');
-            setChofer('Marcos Di Palma - Motocicleta Honda Wave');
+            setEtapa(1);
+            setChofer('Marcos Di Palma · Honda Wave 110');
+            mostrar('info', 'Chofer asignado', 'Marcos Di Palma va en camino al punto de retiro.');
         }, 4000);
-        const t2 = setTimeout(() => setEstadoEnvio('Paquete Retirado - En Viaje al Destino'), 12000);
+
+        const t2 = setTimeout(() => {
+            setEtapa(2);
+            mostrar('info', 'Paquete retirado', 'La carga ya viaja hacia el destino.');
+        }, 12000);
+
         return () => {
             clearInterval(intervalo);
             clearTimeout(t1);
             clearTimeout(t2);
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // Aviso de SLA vencido (una sola vez).
+    useEffect(() => {
+        if (tiempoRestante === 0 && !slaAvisadoRef.current) {
+            slaAvisadoRef.current = true;
+            mostrar(
+                'alerta',
+                'SLA excedido',
+                'Se acreditó un cupón de compensación en tu perfil.'
+            );
+        }
+    }, [tiempoRestante, mostrar]);
+
+    // Resolución de direcciones a coordenadas.
     useEffect(() => {
         let activo = true;
         (async () => {
@@ -54,6 +155,7 @@ export default function SeguimientoScreen({ navigation, route }: any) {
             }
 
             if (Platform.OS === 'web') {
+                // En web el propio mapa geocodifica (Google Geocoder + base del bot).
                 if (activo) {
                     setOrigenPunto({ latitude: 0, longitude: 0, direccion: origenTxt });
                     setDestinoPunto({ latitude: 0, longitude: 0, direccion: destinoTxt });
@@ -63,8 +165,8 @@ export default function SeguimientoScreen({ navigation, route }: any) {
             }
 
             const [o, d] = await Promise.all([
-                geocodificarDireccion(origenTxt),
-                geocodificarDireccion(destinoTxt),
+                resolverPuntoNativo(origenTxt),
+                resolverPuntoNativo(destinoTxt),
             ]);
             if (!activo) return;
 
@@ -92,56 +194,183 @@ export default function SeguimientoScreen({ navigation, route }: any) {
         return `${minutos.toString().padStart(2, '0')}:${segundos.toString().padStart(2, '0')}`;
     };
 
-    const estadoMapaStyle = {
-        flex: 1,
-        backgroundColor: '#E2E8F0',
-        justifyContent: 'center' as const,
-        alignItems: 'center' as const,
-        padding: 24,
-    };
+    const formatearARS = (monto: number) => `$${monto.toLocaleString('es-AR')}`;
+
+    const slaVencido = tiempoRestante === 0;
+    const progresoSla = tiempoRestante / SLA_TOTAL_SEG;
 
     return (
         <View style={styles.container}>
+            {/* MAPA A PANTALLA COMPLETA */}
             <View style={styles.mapa}>
                 {buscando ? (
-                    <View style={estadoMapaStyle}>
-                        <ActivityIndicator color="#1E3A8A" />
-                        <Text style={{ marginTop: 10, color: '#475569' }}>Localizando direcciones...</Text>
+                    <View style={styles.estadoMapa}>
+                        <ActivityIndicator color={COLORS.accent} size="large" />
+                        <Text style={styles.estadoMapaTexto}>Localizando direcciones…</Text>
                     </View>
                 ) : origenPunto && destinoPunto ? (
-                    <MapaSeguimiento origen={origenPunto} destino={destinoPunto} chofer={chofer} />
+                    <MapaSeguimiento
+                        origen={origenPunto}
+                        destino={destinoPunto}
+                        chofer={chofer ?? 'Chofer LogiTrack'}
+                        onEvento={(e) => mostrar(e.tipo, e.titulo, e.detalle)}
+                    />
                 ) : (
-                    <View style={estadoMapaStyle}>
-                        <Text style={{ fontSize: 15, color: '#B91C1C', textAlign: 'center', marginBottom: 14 }}>
+                    <View style={styles.estadoMapa}>
+                        <Text style={styles.estadoMapaError}>
                             ⚠️ {geoError ?? 'No se pudieron ubicar las direcciones.'}
                         </Text>
-                        <TouchableOpacity
-                            style={{ backgroundColor: '#1E3A8A', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 }}
-                            onPress={() => navigation.goBack()}
-                        >
-                            <Text style={{ color: '#fff', fontWeight: 'bold' }}>Volver a corregir la dirección</Text>
+                        <TouchableOpacity style={styles.botonCorregir} onPress={() => navigation.goBack()}>
+                            <Text style={styles.botonCorregirTexto}>Volver a corregir la dirección</Text>
                         </TouchableOpacity>
                     </View>
                 )}
             </View>
 
-            <View style={styles.cardSeguimiento}>
-                <Text style={styles.estadoTitulo}>{estadoEnvio}</Text>
-                <Text style={styles.choferInfo}>Transportista: {chofer}</Text>
+            {/* HEADER FLOTANTE */}
+            <View style={[styles.headerFlotante, { top: insets.top + 12 }]}>
+                <TouchableOpacity
+                    style={styles.backButton}
+                    onPress={() => navigation.navigate('Home')}
+                    accessibilityRole="button"
+                    accessibilityLabel="Volver al panel"
+                >
+                    <Text style={styles.backButtonText}>←</Text>
+                </TouchableOpacity>
 
-                <View style={styles.divisor} />
-
-                <View style={styles.slaContainer}>
-                    <Text style={styles.slaTexto}>Promesa de arribo (SLA Logitrack):</Text>
-                    <Text style={styles.contador}>{formatearTiempo(tiempoRestante)}</Text>
+                <View style={styles.liveChip}>
+                    <Animated.View style={[styles.liveDot, { opacity: liveAnim }]} />
+                    <Text style={styles.liveChipTexto}>Seguimiento en vivo</Text>
                 </View>
 
-                <TouchableOpacity
-                    style={styles.botonVolver}
-                    onPress={() => navigation.navigate('Home')}
+                <View style={styles.refChip}>
+                    <Text style={styles.refChipTexto}>{referencia}</Text>
+                </View>
+            </View>
+
+            {/* TOASTS */}
+            <ToastStack toasts={toasts} onCerrar={cerrar} topOffset={insets.top + 68} />
+
+            {/* PANEL INFERIOR */}
+            <View style={[styles.panel, { paddingBottom: insets.bottom + 14 }]}>
+                <View style={styles.panelHandle} />
+
+                <ScrollView
+                    contentContainerStyle={styles.panelContenido}
+                    showsVerticalScrollIndicator={false}
                 >
-                    <Text style={styles.botonVolverTexto}>Volver al Panel Principal</Text>
-                </TouchableOpacity>
+                    <View style={styles.stepperRow}>
+                        {ETAPAS.map((_, i) => (
+                            <View
+                                key={i}
+                                style={[styles.stepSegmento, i <= etapa && styles.stepSegmentoActivo]}
+                            />
+                        ))}
+                    </View>
+
+                    <Text style={styles.etapaKicker}>
+                        Etapa {etapa + 1} de {ETAPAS.length}
+                    </Text>
+                    <Text style={styles.estadoTitulo}>{ETAPAS[etapa].titulo}</Text>
+                    <Text style={styles.estadoDetalle}>{ETAPAS[etapa].detalle}</Text>
+
+                    {/* CHOFER */}
+                    <View style={styles.choferCard}>
+                        <View style={styles.choferAvatar}>
+                            <Text style={styles.choferAvatarTexto}>{chofer ? '🛵' : '📡'}</Text>
+                        </View>
+
+                        <View style={styles.choferTextos}>
+                            <Text style={styles.choferNombre}>
+                                {chofer ?? 'Buscando transportista…'}
+                            </Text>
+                            <Text style={styles.choferDetalle}>
+                                {chofer
+                                    ? 'Transportista homologado · Red LogiTrack'
+                                    : 'Consultando unidades disponibles en tu zona'}
+                            </Text>
+                        </View>
+
+                        {chofer ? (
+                            <View style={styles.choferEstado}>
+                                <View style={styles.choferEstadoDot} />
+                                <Text style={styles.choferEstadoTexto}>En línea</Text>
+                            </View>
+                        ) : (
+                            <ActivityIndicator color={COLORS.accent} size="small" />
+                        )}
+                    </View>
+
+                    {/* DETALLE DEL PEDIDO */}
+                    <View style={styles.pedidoCard}>
+                        <View style={styles.pedidoHeader}>
+                            <Text style={styles.pedidoTitulo}>Detalle del pedido</Text>
+                            {typeof precio === 'number' ? (
+                                <Text style={styles.pedidoPrecio}>{formatearARS(precio)}</Text>
+                            ) : null}
+                        </View>
+
+                        <Text style={styles.pedidoProducto}>{producto}</Text>
+                        <Text style={styles.pedidoVehiculo}>🚚 {vehiculo}</Text>
+
+                        <View style={styles.rutaFila}>
+                            <View style={styles.rutaDotCol}>
+                                <View style={styles.rutaDotOrigen} />
+                                <View style={styles.rutaLineaVertical} />
+                                <View style={styles.rutaDotDestino} />
+                            </View>
+
+                            <View style={styles.rutaTextos}>
+                                <Text style={styles.rutaLabel}>Retiro</Text>
+                                <Text style={styles.rutaValor}>
+                                    {origenTxt ?? ORIGEN.direccion}
+                                </Text>
+
+                                <Text style={styles.rutaLabel}>Entrega</Text>
+                                <Text style={[styles.rutaValor, { marginBottom: 0 }]}>
+                                    {destinoTxt ?? DESTINO.direccion}
+                                </Text>
+                            </View>
+                        </View>
+                    </View>
+
+                    {/* SLA */}
+                    <View style={styles.slaCard}>
+                        <View style={styles.slaTextos}>
+                            <Text style={styles.slaTitulo}>
+                                {slaVencido ? 'SLA excedido' : 'Promesa de arribo (SLA)'}
+                            </Text>
+                            <Text style={styles.slaDetalle}>
+                                {slaVencido
+                                    ? 'Se acreditó un cupón de compensación en tu perfil.'
+                                    : 'Si nos demoramos más, te compensamos con un cupón.'}
+                            </Text>
+                        </View>
+
+                        <Text style={[styles.contador, slaVencido && styles.contadorVencido]}>
+                            {formatearTiempo(tiempoRestante)}
+                        </Text>
+                    </View>
+
+                    <View style={styles.slaBarTrack}>
+                        <View
+                            style={[
+                                styles.slaBarFill,
+                                {
+                                    width: `${Math.round(progresoSla * 100)}%`,
+                                    backgroundColor: slaVencido ? COLORS.red : COLORS.accent,
+                                },
+                            ]}
+                        />
+                    </View>
+
+                    <TouchableOpacity
+                        style={styles.botonVolver}
+                        onPress={() => navigation.navigate('Home')}
+                    >
+                        <Text style={styles.botonVolverTexto}>Volver al panel principal</Text>
+                    </TouchableOpacity>
+                </ScrollView>
             </View>
         </View>
     );
