@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { styles } from './ChoferStyles';
-import { generarAlertaViajeRandom, AlertaChoferIA } from '../services/geminiService';
+import { generarAsignacionViaje, AsignacionViaje } from '../services/botLogisticaService';
 
 export default function ChoferScreen({ navigation }: any) {
     const [cargandoAlerta, setCargandoAlerta] = useState(false);
     const [tieneAlerta, setTieneAlerta] = useState(false);
     const [viajeActivo, setViajeActivo] = useState(false);
-    const [datosViaje, setDatosViaje] = useState<AlertaChoferIA | null>(null);
+    const [datosViaje, setDatosViaje] = useState<AsignacionViaje | null>(null);
     const [pasoEstado, setPasoEstado] = useState(0);
 
     const estadosChofer = [
@@ -21,7 +21,7 @@ export default function ChoferScreen({ navigation }: any) {
         setCargandoAlerta(true);
         setTieneAlerta(false);
 
-        const nuevaAlerta = await generarAlertaViajeRandom();
+        const nuevaAlerta = await generarAsignacionViaje();
 
         setDatosViaje(nuevaAlerta);
         setTieneAlerta(true);
@@ -57,7 +57,7 @@ export default function ChoferScreen({ navigation }: any) {
             {!tieneAlerta && !viajeActivo && (
                 <View style={{ alignItems: 'center', marginTop: 40 }}>
                     <Text style={{ fontSize: 16, color: '#64748B', marginBottom: 20 }}>
-                        {cargandoAlerta ? "Consultando asignaciones en la red de IA..." : "Esperando asignación automática de la IA..."}
+                        {cargandoAlerta ? "Consultando asignaciones disponibles..." : "Esperando asignación automática del sistema..."}
                     </Text>
 
                     <TouchableOpacity
@@ -76,7 +76,7 @@ export default function ChoferScreen({ navigation }: any) {
 
             {tieneAlerta && datosViaje && (
                 <View style={styles.tarjetaAlerta}>
-                    <Text style={styles.alertaTitulo}>🚨 ¡Viaje Asignado por Gemini AI!</Text>
+                    <Text style={styles.alertaTitulo}>🚨 ¡Viaje Asignado por LogiTrack!</Text>
                     <Text style={styles.alertaTexto}>• Origen: {datosViaje.origen}</Text>
                     <Text style={styles.alertaTexto}>• Destino: {datosViaje.destino}</Text>
                     <Text style={styles.alertaTexto}>• Carga: {datosViaje.carga}</Text>
