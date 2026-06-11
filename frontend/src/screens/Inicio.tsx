@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import type { DimensionValue } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { styles } from './InicioStyles';
 
 type SectionKey = 'services' | 'solutions' | 'how' | 'coverage' | 'plans';
@@ -138,12 +139,16 @@ const faqs = [
 
 export default function Inicio({ onGoLogin }: InicioProps) {
   const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
 
   const isMobile = width < 900;
   const solWidth: DimensionValue = isMobile ? '100%' : '31%';
 
+  const navH = (isMobile ? 64 : 70) + insets.top;
+
   const [faqAbierta, setFaqAbierta] = useState<number | null>(0);
   const [loginHover, setLoginHover] = useState(false);
+  const [menuAbierto, setMenuAbierto] = useState(false);
 
   const [sectionY, setSectionY] = useState<Record<SectionKey, number>>({
     services: 0,
@@ -187,14 +192,21 @@ export default function Inicio({ onGoLogin }: InicioProps) {
   });
 
   const irArriba = () => {
+    setMenuAbierto(false);
     scrollRef.current?.scrollTo({ y: 0, animated: true });
   };
 
   const irASeccion = (section: SectionKey) => {
+    setMenuAbierto(false);
     scrollRef.current?.scrollTo({
-      y: Math.max(sectionY[section] - 70, 0),
+      y: Math.max(sectionY[section] - (navH + 6), 0),
       animated: true,
     });
+  };
+
+  const irAlLogin = () => {
+    setMenuAbierto(false);
+    onGoLogin();
   };
 
   const medirSeccion = (section: SectionKey) => (event: any) => {
@@ -210,14 +222,20 @@ export default function Inicio({ onGoLogin }: InicioProps) {
     <View style={styles.root}>
       <StatusBar style="light" />
 
-      <View style={styles.nav}>
+      <View
+        style={[
+          styles.nav,
+          { height: navH, paddingTop: insets.top },
+          isMobile && styles.navM,
+        ]}
+      >
         <TouchableOpacity onPress={irArriba}>
           <Text style={styles.logo}>
             logitrak<Text style={styles.logoDot}>.</Text>
           </Text>
         </TouchableOpacity>
 
-        {!isMobile && (
+        {!isMobile ? (
           <View style={styles.navLinks}>
             <TouchableOpacity onPress={irArriba}>
               <Text style={styles.navLink}>Inicio</Text>
@@ -236,7 +254,7 @@ export default function Inicio({ onGoLogin }: InicioProps) {
             </TouchableOpacity>
 
             <Pressable
-              onPress={onGoLogin}
+              onPress={irAlLogin}
               onHoverIn={() => setLoginHover(true)}
               onHoverOut={() => setLoginHover(false)}
               style={[styles.navCta, loginHover && styles.navCtaHover]}
@@ -246,8 +264,49 @@ export default function Inicio({ onGoLogin }: InicioProps) {
               </Text>
             </Pressable>
           </View>
+        ) : (
+          <TouchableOpacity
+            style={styles.menuBtn}
+            onPress={() => setMenuAbierto((prev) => !prev)}
+            accessibilityRole="button"
+            accessibilityLabel={menuAbierto ? 'Cerrar menú' : 'Abrir menú'}
+          >
+            <Text style={styles.menuBtnText}>{menuAbierto ? '✕' : '☰'}</Text>
+          </TouchableOpacity>
         )}
       </View>
+
+      {isMobile && menuAbierto && (
+        <View style={[styles.menuPanel, { top: navH }]}>
+          <TouchableOpacity style={styles.menuLink} onPress={irArriba}>
+            <Text style={styles.menuLinkText}>Inicio</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.menuLink} onPress={() => irASeccion('services')}>
+            <Text style={styles.menuLinkText}>Por qué elegirnos</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.menuLink} onPress={() => irASeccion('solutions')}>
+            <Text style={styles.menuLinkText}>Soluciones</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.menuLink} onPress={() => irASeccion('how')}>
+            <Text style={styles.menuLinkText}>El proceso</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.menuLink} onPress={() => irASeccion('coverage')}>
+            <Text style={styles.menuLinkText}>Cobertura</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.menuLink} onPress={() => irASeccion('plans')}>
+            <Text style={styles.menuLinkText}>Planes</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.menuCta} onPress={irAlLogin}>
+            <Text style={styles.menuCtaText}>Login | Registro</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       <ScrollView
         ref={scrollRef}
@@ -263,27 +322,35 @@ export default function Inicio({ onGoLogin }: InicioProps) {
         >
           <View style={styles.heroOverlay} />
 
-          <View style={styles.heroContent}>
+          <View
+            style={[
+              styles.heroContent,
+              { paddingTop: navH + 16 },
+              isMobile && styles.heroContentM,
+            ]}
+          >
             <View style={styles.inner}>
               <Text style={styles.heroKicker}>Logística Inteligente</Text>
 
-              <Text style={styles.heroTitle}>
+              <Text style={[styles.heroTitle, isMobile && styles.heroTitleM]}>
                 Envíos{'\n'}sin <Text style={styles.accentText}>demoras.</Text>
               </Text>
 
-              <Text style={styles.heroParagraph}>
+              <Text style={[styles.heroParagraph, isMobile && styles.heroParagraphM]}>
                 Recogemos en tu puerta y entregamos en tiempo récord. Simple,
                 confiable, rápido.
               </Text>
 
-              <TouchableOpacity style={styles.heroButton} onPress={onGoLogin}>
+              <TouchableOpacity
+                style={[styles.heroButton, isMobile && styles.heroButtonM]}
+                onPress={irAlLogin}
+              >
                 <Text style={styles.heroButtonText}>Empezar ahora</Text>
               </TouchableOpacity>
             </View>
           </View>
         </ImageBackground>
 
-        {/* STATS */}
         <View style={styles.statsBand}>
           <View style={[styles.statsBar, isMobile && styles.column]}>
             {stats.map((item, index) => (
@@ -291,24 +358,25 @@ export default function Inicio({ onGoLogin }: InicioProps) {
                 key={item.label}
                 style={[
                   styles.statItem,
+                  isMobile && styles.statItemM,
                   !isMobile && index !== stats.length - 1 && styles.borderRight,
+                  isMobile && index !== stats.length - 1 && styles.statDividerM,
                 ]}
               >
-                <Text style={styles.statNum}>{item.num}</Text>
+                <Text style={[styles.statNum, isMobile && styles.statNumM]}>{item.num}</Text>
                 <Text style={styles.statLabel}>{item.label}</Text>
               </View>
             ))}
           </View>
         </View>
 
-        {/* CONFÍAN EN NOSOTROS */}
         <View style={styles.trustedStrip}>
           <View style={styles.inner}>
             <Text style={styles.trustedLabel}>Empresas que confían en Logitrak</Text>
 
             <View style={styles.trustedRow}>
               {trustedBy.map((nombre) => (
-                <Text key={nombre} style={styles.trustedItem}>
+                <Text key={nombre} style={[styles.trustedItem, isMobile && styles.trustedItemM]}>
                   {nombre}
                 </Text>
               ))}
@@ -316,12 +384,14 @@ export default function Inicio({ onGoLogin }: InicioProps) {
           </View>
         </View>
 
-        {/* FEATURES */}
-        <View style={styles.features} onLayout={medirSeccion('services')}>
+        <View
+          style={[styles.features, isMobile && styles.sectionM]}
+          onLayout={medirSeccion('services')}
+        >
           <View style={styles.inner}>
             <View style={styles.sectionHead}>
               <Text style={styles.sectionKickerDark}>Por qué elegirnos</Text>
-              <Text style={styles.sectionTitleDark}>
+              <Text style={[styles.sectionTitleDark, isMobile && styles.sectionTitleM]}>
                 Logística diseñada para moverse
               </Text>
             </View>
@@ -332,6 +402,7 @@ export default function Inicio({ onGoLogin }: InicioProps) {
                   key={item.title}
                   style={[
                     styles.featCard,
+                    isMobile && styles.fullWidthM,
                     !isMobile && index !== features.length - 1 && styles.cardDivider,
                     isMobile && styles.cardMobileMargin,
                   ]}
@@ -348,11 +419,14 @@ export default function Inicio({ onGoLogin }: InicioProps) {
         </View>
 
         {/* SOLUCIONES */}
-        <View style={styles.solutions} onLayout={medirSeccion('solutions')}>
+        <View
+          style={[styles.solutions, isMobile && styles.sectionM]}
+          onLayout={medirSeccion('solutions')}
+        >
           <View style={styles.inner}>
             <View style={styles.sectionHead}>
               <Text style={styles.sectionKickerDark}>Soluciones</Text>
-              <Text style={styles.sectionTitleDark}>
+              <Text style={[styles.sectionTitleDark, isMobile && styles.sectionTitleM]}>
                 Una operación para cada necesidad
               </Text>
               <Text style={styles.sectionIntro}>
@@ -377,17 +451,20 @@ export default function Inicio({ onGoLogin }: InicioProps) {
         </View>
 
         {/* PROCESO */}
-        <View style={styles.how} onLayout={medirSeccion('how')}>
+        <View
+          style={[styles.how, isMobile && styles.sectionM]}
+          onLayout={medirSeccion('how')}
+        >
           <View style={styles.inner}>
             <Text style={styles.sectionKickerLight}>El Proceso</Text>
-            <Text style={styles.sectionTitleLight}>
+            <Text style={[styles.sectionTitleLight, isMobile && styles.sectionTitleM]}>
               Cuatro pasos, un solo día
             </Text>
 
             <View style={[styles.steps, isMobile && styles.column]}>
               {steps.map((item) => (
-                <View key={item.num} style={styles.step}>
-                  <Text style={styles.stepNum}>{item.num}</Text>
+                <View key={item.num} style={[styles.step, isMobile && styles.stepM]}>
+                  <Text style={[styles.stepNum, isMobile && styles.stepNumM]}>{item.num}</Text>
                   <Text style={styles.stepTitle}>{item.title}</Text>
                   <Text style={styles.stepText}>{item.text}</Text>
                 </View>
@@ -397,11 +474,21 @@ export default function Inicio({ onGoLogin }: InicioProps) {
         </View>
 
         {/* COBERTURA */}
-        <View style={styles.coverage} onLayout={medirSeccion('coverage')}>
-          <View style={[styles.inner, styles.coverageInner, isMobile && styles.column]}>
-            <View style={styles.coverageLeft}>
+        <View
+          style={[styles.coverage, isMobile && styles.sectionM]}
+          onLayout={medirSeccion('coverage')}
+        >
+          <View
+            style={[
+              styles.inner,
+              styles.coverageInner,
+              isMobile && styles.column,
+              isMobile && styles.stackGapM,
+            ]}
+          >
+            <View style={[styles.coverageLeft, isMobile && styles.fullWidthM]}>
               <Text style={styles.sectionKickerLight}>Cobertura</Text>
-              <Text style={styles.sectionTitleLight}>
+              <Text style={[styles.sectionTitleLight, isMobile && styles.sectionTitleM]}>
                 Llegamos donde tu negocio crece
               </Text>
               <Text style={styles.coverageParagraph}>
@@ -409,7 +496,7 @@ export default function Inicio({ onGoLogin }: InicioProps) {
                 ciudades y localidades del interior con el mismo estándar.
               </Text>
 
-              <View style={[styles.coverageStatsRow, isMobile && styles.column]}>
+              <View style={[styles.coverageStatsRow, isMobile && styles.coverageStatsRowM]}>
                 {coverageStats.map((item) => (
                   <View key={item.label}>
                     <Text style={styles.coverageStatNum}>{item.num}</Text>
@@ -419,7 +506,7 @@ export default function Inicio({ onGoLogin }: InicioProps) {
               </View>
             </View>
 
-            <View style={styles.coverageRight}>
+            <View style={[styles.coverageRight, isMobile && styles.fullWidthM]}>
               {coverageCities.map((ciudad) => (
                 <View key={ciudad} style={styles.cityChip}>
                   <Text style={styles.cityChipText}>{ciudad}</Text>
@@ -430,11 +517,18 @@ export default function Inicio({ onGoLogin }: InicioProps) {
         </View>
 
         {/* SEGUIMIENTO EN VIVO */}
-        <View style={styles.tracking}>
-          <View style={[styles.inner, styles.trackingInner, isMobile && styles.column]}>
-            <View style={styles.trackingTextBlock}>
+        <View style={[styles.tracking, isMobile && styles.sectionM]}>
+          <View
+            style={[
+              styles.inner,
+              styles.trackingInner,
+              isMobile && styles.column,
+              isMobile && styles.stackGapM,
+            ]}
+          >
+            <View style={[styles.trackingTextBlock, isMobile && styles.fullWidthM]}>
               <Text style={styles.sectionKickerDark}>En tiempo real</Text>
-              <Text style={styles.sectionTitleDark}>
+              <Text style={[styles.sectionTitleDark, isMobile && styles.sectionTitleM]}>
                 Mirá cada paso del recorrido
               </Text>
               <Text style={styles.trackingParagraph}>
@@ -443,7 +537,7 @@ export default function Inicio({ onGoLogin }: InicioProps) {
               </Text>
             </View>
 
-            <View style={styles.trackCard}>
+            <View style={[styles.trackCard, isMobile && styles.fullWidthM]}>
               <View style={styles.trackHeaderRow}>
                 <Text style={styles.trackCode}>TRK-2026-014</Text>
                 <View style={styles.trackBadge}>
@@ -486,11 +580,11 @@ export default function Inicio({ onGoLogin }: InicioProps) {
         </View>
 
         {/* TESTIMONIOS */}
-        <View style={styles.testimonials}>
+        <View style={[styles.testimonials, isMobile && styles.sectionM]}>
           <View style={styles.inner}>
             <View style={styles.sectionHead}>
               <Text style={styles.sectionKickerDark}>Testimonios</Text>
-              <Text style={styles.sectionTitleDark}>
+              <Text style={[styles.sectionTitleDark, isMobile && styles.sectionTitleM]}>
                 Quienes ya mueven con nosotros
               </Text>
             </View>
@@ -517,11 +611,14 @@ export default function Inicio({ onGoLogin }: InicioProps) {
         </View>
 
         {/* PLANES */}
-        <View style={styles.plans} onLayout={medirSeccion('plans')}>
+        <View
+          style={[styles.plans, isMobile && styles.sectionM]}
+          onLayout={medirSeccion('plans')}
+        >
           <View style={styles.inner}>
             <View style={styles.plansHead}>
               <Text style={styles.sectionKickerLight}>Planes</Text>
-              <Text style={styles.sectionTitleLight}>
+              <Text style={[styles.sectionTitleLight, isMobile && styles.sectionTitleM]}>
                 Precios que escalan con vos
               </Text>
             </View>
@@ -530,7 +627,11 @@ export default function Inicio({ onGoLogin }: InicioProps) {
               {plans.map((plan) => (
                 <View
                   key={plan.name}
-                  style={[styles.planCard, plan.featured && styles.planCardFeatured]}
+                  style={[
+                    styles.planCard,
+                    isMobile && styles.fullWidthM,
+                    plan.featured && styles.planCardFeatured,
+                  ]}
                 >
                   {plan.featured && (
                     <View style={styles.planBadge}>
@@ -557,7 +658,7 @@ export default function Inicio({ onGoLogin }: InicioProps) {
                   ))}
 
                   <TouchableOpacity
-                    onPress={onGoLogin}
+                    onPress={irAlLogin}
                     style={[styles.planBtn, plan.featured && styles.planBtnFeatured]}
                   >
                     <Text
@@ -576,11 +677,11 @@ export default function Inicio({ onGoLogin }: InicioProps) {
         </View>
 
         {/* APP */}
-        <View style={styles.appSection}>
+        <View style={[styles.appSection, isMobile && styles.sectionM]}>
           <View style={[styles.inner, !isMobile && styles.appRow]}>
-            <View style={styles.appTextBlock}>
+            <View style={[styles.appTextBlock, isMobile && styles.appTextBlockM]}>
               <Text style={styles.sectionKickerDark}>App Logitrak</Text>
-              <Text style={styles.sectionTitleDark}>
+              <Text style={[styles.sectionTitleDark, isMobile && styles.sectionTitleM]}>
                 Todo tu negocio en tu bolsillo
               </Text>
               <Text style={styles.appParagraph}>
@@ -599,7 +700,11 @@ export default function Inicio({ onGoLogin }: InicioProps) {
             </View>
 
             <Animated.View
-              style={[styles.appVisual, { transform: [{ translateY: phoneTranslateY }] }]}
+              style={[
+                styles.appVisual,
+                isMobile && styles.appVisualM,
+                { transform: [{ translateY: phoneTranslateY }] },
+              ]}
             >
               <View style={styles.phoneMock}>
                 <View style={styles.phoneScreen}>
@@ -616,11 +721,11 @@ export default function Inicio({ onGoLogin }: InicioProps) {
         </View>
 
         {/* FAQ */}
-        <View style={styles.faq}>
+        <View style={[styles.faq, isMobile && styles.sectionM]}>
           <View style={styles.inner}>
             <View style={styles.sectionHead}>
               <Text style={styles.sectionKickerDark}>Preguntas frecuentes</Text>
-              <Text style={styles.sectionTitleDark}>
+              <Text style={[styles.sectionTitleDark, isMobile && styles.sectionTitleM]}>
                 Lo que solés querer saber
               </Text>
             </View>
@@ -649,18 +754,20 @@ export default function Inicio({ onGoLogin }: InicioProps) {
         </View>
 
         {/* CTA FINAL */}
-        <View style={styles.ctaBand}>
-          <Text style={styles.ctaTitle}>¿Listo para mover tu logística?</Text>
+        <View style={[styles.ctaBand, isMobile && styles.ctaBandM]}>
+          <Text style={[styles.ctaTitle, isMobile && styles.ctaTitleM]}>
+            ¿Listo para mover tu logística?
+          </Text>
           <Text style={styles.ctaText}>
             Creá tu cuenta en minutos y despachá tu primer envío hoy mismo.
           </Text>
-          <TouchableOpacity style={styles.ctaButton} onPress={onGoLogin}>
+          <TouchableOpacity style={styles.ctaButton} onPress={irAlLogin}>
             <Text style={styles.ctaButtonText}>Empezar ahora</Text>
           </TouchableOpacity>
         </View>
 
         {/* FOOTER */}
-        <View style={styles.footerTop}>
+        <View style={[styles.footerTop, isMobile && styles.footerPadM]}>
           <View style={[styles.footerInner, isMobile && styles.column]}>
             <View style={styles.footerBrandCol}>
               <Text style={styles.footerLogo}>
@@ -697,7 +804,13 @@ export default function Inicio({ onGoLogin }: InicioProps) {
           </View>
         </View>
 
-        <View style={styles.footerBottom}>
+        <View
+          style={[
+            styles.footerBottom,
+            isMobile && styles.footerPadM,
+            { paddingBottom: 26 + insets.bottom },
+          ]}
+        >
           <View style={[styles.footerBottomInner, isMobile && styles.column]}>
             <Text style={styles.footerText}>
               © 2026 Logitrak Systems. Todos los derechos reservados.

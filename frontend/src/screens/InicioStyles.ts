@@ -334,6 +334,76 @@ export const styles = StyleSheet.create({
   // ===== UTIL =====
   column: { flexDirection: 'column' },
 
+  // ===== MOBILE OVERRIDES =====
+  // El nav fijo recibe height/paddingTop dinámicos (safe area) desde Inicio.tsx.
+  navM: { paddingHorizontal: 20 },
+
+  menuBtn: {
+    width: 42, height: 42, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: COLORS.border,
+  },
+  menuBtnText: { color: COLORS.white, fontSize: 18, lineHeight: 22 },
+
+  menuPanel: {
+    position: 'absolute', left: 0, right: 0, zIndex: 99,
+    backgroundColor: 'rgba(14, 14, 14, 0.98)',
+    borderBottomWidth: 1, borderBottomColor: COLORS.border,
+    paddingHorizontal: 20, paddingTop: 4, paddingBottom: 20,
+  },
+  menuLink: { paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  menuLinkText: { color: '#e8e8e8', fontSize: 16, fontFamily: FONTS.textMedium },
+  menuCta: {
+    marginTop: 18, backgroundColor: COLORS.accent, borderRadius: 6,
+    paddingVertical: 14, alignItems: 'center',
+  },
+  menuCtaText: { color: COLORS.black, fontSize: 14, fontFamily: FONTS.titleBold },
+
+  // Hero
+  heroContentM: { paddingHorizontal: 20, paddingBottom: 32 },
+  heroTitleM: { fontSize: 42, lineHeight: 46 },
+  heroParagraphM: { fontSize: 16, lineHeight: 25, marginBottom: 32 },
+  heroButtonM: { alignSelf: 'stretch', alignItems: 'center' },
+
+  // Stats
+  statItemM: {
+    flexGrow: 0, flexShrink: 0, flexBasis: 'auto', width: '100%',
+    paddingVertical: 24, paddingHorizontal: 24, alignItems: 'center',
+  },
+  statDividerM: { borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  statNumM: { fontSize: 36 },
+
+  trustedItemM: { fontSize: 17, marginHorizontal: 14, marginVertical: 6 },
+
+  // Secciones: menos aire en pantallas chicas.
+  sectionM: { paddingVertical: 64, paddingHorizontal: 20 },
+  sectionTitleM: { fontSize: 30, lineHeight: 36 },
+
+  // Neutraliza flex:1 al apilar en columna (flex:0 colapsa la altura:
+  // se traduce a flex-basis 0, por eso se fija flexBasis 'auto').
+  fullWidthM: { flexGrow: 0, flexShrink: 0, flexBasis: 'auto', width: '100%' },
+  stackGapM: { gap: 32 },
+
+  // Proceso
+  stepM: { flexGrow: 0, flexShrink: 0, flexBasis: 'auto', marginRight: 0, marginBottom: 34 },
+  stepNumM: { fontSize: 48, lineHeight: 54, marginBottom: 10 },
+
+  // Cobertura
+  coverageStatsRowM: { flexDirection: 'row', flexWrap: 'wrap', gap: 24 },
+
+  // App
+  appTextBlockM: {
+    flexGrow: 0, flexShrink: 0, flexBasis: 'auto', width: '100%',
+    paddingRight: 0, marginBottom: 44,
+  },
+  appVisualM: { flexGrow: 0, flexShrink: 0, flexBasis: 'auto', width: '100%' },
+
+  // CTA final
+  ctaBandM: { paddingVertical: 64, paddingHorizontal: 20 },
+  ctaTitleM: { fontSize: 30, lineHeight: 36 },
+
+  // Footer
+  footerPadM: { paddingHorizontal: 20 },
+
   // Contenedor centrado para que el contenido no se estire en pantallas anchas.
   inner: { width: '100%', maxWidth: 1180, alignSelf: 'center' },
 

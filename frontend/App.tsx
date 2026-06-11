@@ -3,12 +3,14 @@ import React, { useRef, useState } from 'react';
 import {
   Animated,
   Easing,
-  Platform,
   StyleSheet,
   Text,
   useWindowDimensions,
   View,
 } from 'react-native';
+
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 
 import { useFonts } from 'expo-font';
 
@@ -31,7 +33,7 @@ import Inicio from './src/screens/Inicio';
 import { RootFlowProvider } from './src/navigation/RootFlowContext';
 
 export default function App() {
-  const { width, height } = useWindowDimensions();
+  const { height } = useWindowDimensions();
 
   const [fontsLoaded, fontError] = useFonts({
     Syne_400Regular,
@@ -44,8 +46,8 @@ export default function App() {
     DMSans_700Bold,
   });
 
-  const esPC = Platform.OS === 'web' && width >= 768;
-
+  // La landing (Inicio) se muestra primero en TODAS las plataformas:
+  // web, Android e iOS. Desde ahí se entra al login con la transición.
   const [mostrarApp, setMostrarApp] = useState(false);
 
   const transitionY = useRef(new Animated.Value(height)).current;
@@ -109,29 +111,33 @@ export default function App() {
   }
 
   return (
-    <View style={styles.root}>
-      {esPC && !mostrarApp ? (
-        <Inicio onGoLogin={irAlLoginReal} />
-      ) : (
-        <RootFlowProvider value={{ volverAlInicio, puedeVolver: esPC }}>
-          <AppNavigator />
-        </RootFlowProvider>
-      )}
+    <SafeAreaProvider>
+      <View style={styles.root}>
+        <StatusBar style="light" />
 
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          styles.pageTransition,
-          {
-            transform: [{ translateY: transitionY }],
-          },
-        ]}
-      >
-        <Text style={styles.transitionLogo}>
-          logitrak<Text style={styles.logoDot}>.</Text>
-        </Text>
-      </Animated.View>
-    </View>
+        {!mostrarApp ? (
+          <Inicio onGoLogin={irAlLoginReal} />
+        ) : (
+          <RootFlowProvider value={{ volverAlInicio, puedeVolver: true }}>
+            <AppNavigator />
+          </RootFlowProvider>
+        )}
+
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.pageTransition,
+            {
+              transform: [{ translateY: transitionY }],
+            },
+          ]}
+        >
+          <Text style={styles.transitionLogo}>
+            logitrak<Text style={styles.logoDot}>.</Text>
+          </Text>
+        </Animated.View>
+      </View>
+    </SafeAreaProvider>
   );
 }
 
