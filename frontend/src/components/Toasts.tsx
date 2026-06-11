@@ -14,11 +14,6 @@ const DURACION_MS = 4200;
 
 let proximoId = 1;
 
-/**
- * Hook de toasts en memoria: `mostrar()` apila una alerta que se
- * autodescarta. Renderizar `<ToastStack toasts={toasts} onCerrar={cerrar} />`
- * una sola vez por pantalla.
- */
 export function useToasts() {
     const [toasts, setToasts] = useState<ToastItem[]>([]);
     const timersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());

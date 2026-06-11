@@ -418,7 +418,6 @@ export default function Inicio({ onGoLogin }: InicioProps) {
           </View>
         </View>
 
-        {/* SOLUCIONES */}
         <View
           style={[styles.solutions, isMobile && styles.sectionM]}
           onLayout={medirSeccion('solutions')}
@@ -450,7 +449,6 @@ export default function Inicio({ onGoLogin }: InicioProps) {
           </View>
         </View>
 
-        {/* PROCESO */}
         <View
           style={[styles.how, isMobile && styles.sectionM]}
           onLayout={medirSeccion('how')}
@@ -473,7 +471,6 @@ export default function Inicio({ onGoLogin }: InicioProps) {
           </View>
         </View>
 
-        {/* COBERTURA */}
         <View
           style={[styles.coverage, isMobile && styles.sectionM]}
           onLayout={medirSeccion('coverage')}
@@ -516,7 +513,6 @@ export default function Inicio({ onGoLogin }: InicioProps) {
           </View>
         </View>
 
-        {/* SEGUIMIENTO EN VIVO */}
         <View style={[styles.tracking, isMobile && styles.sectionM]}>
           <View
             style={[
@@ -579,7 +575,6 @@ export default function Inicio({ onGoLogin }: InicioProps) {
           </View>
         </View>
 
-        {/* TESTIMONIOS */}
         <View style={[styles.testimonials, isMobile && styles.sectionM]}>
           <View style={styles.inner}>
             <View style={styles.sectionHead}>
@@ -610,7 +605,6 @@ export default function Inicio({ onGoLogin }: InicioProps) {
           </View>
         </View>
 
-        {/* PLANES */}
         <View
           style={[styles.plans, isMobile && styles.sectionM]}
           onLayout={medirSeccion('plans')}
@@ -676,7 +670,6 @@ export default function Inicio({ onGoLogin }: InicioProps) {
           </View>
         </View>
 
-        {/* APP */}
         <View style={[styles.appSection, isMobile && styles.sectionM]}>
           <View style={[styles.inner, !isMobile && styles.appRow]}>
             <View style={[styles.appTextBlock, isMobile && styles.appTextBlockM]}>
@@ -720,7 +713,6 @@ export default function Inicio({ onGoLogin }: InicioProps) {
           </View>
         </View>
 
-        {/* FAQ */}
         <View style={[styles.faq, isMobile && styles.sectionM]}>
           <View style={styles.inner}>
             <View style={styles.sectionHead}>
@@ -753,7 +745,6 @@ export default function Inicio({ onGoLogin }: InicioProps) {
           </View>
         </View>
 
-        {/* CTA FINAL */}
         <View style={[styles.ctaBand, isMobile && styles.ctaBandM]}>
           <Text style={[styles.ctaTitle, isMobile && styles.ctaTitleM]}>
             ¿Listo para mover tu logística?
@@ -766,7 +757,6 @@ export default function Inicio({ onGoLogin }: InicioProps) {
           </TouchableOpacity>
         </View>
 
-        {/* FOOTER */}
         <View style={[styles.footerTop, isMobile && styles.footerPadM]}>
           <View style={[styles.footerInner, isMobile && styles.column]}>
             <View style={styles.footerBrandCol}>

@@ -19,7 +19,6 @@ interface Props {
     onEvento?: (evento: EventoMapa) => void;
 }
 
-// Estilo nocturno alineado a la identidad negro + dorado de la app.
 const ESTILO_NOCTURNO = [
     { elementType: 'geometry', stylers: [{ color: '#161616' }] },
     { elementType: 'labels.text.fill', stylers: [{ color: '#8a8880' }] },

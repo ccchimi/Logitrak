@@ -1,12 +1,3 @@
-/**
- * Servicio de autenticación con almacenamiento EN MEMORIA.
- *
- * TEMPORAL: cuando se integre la base de datos este módulo se reemplaza por
- * llamadas al backend. Los usuarios semilla (admin/1234 y chofer/1234), las
- * cuentas registradas y los cambios de contraseña viven solo mientras la app
- * está abierta.
- */
-
 export type RolUsuario = 'admin' | 'chofer';
 
 export interface Usuario {

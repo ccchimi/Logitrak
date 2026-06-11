@@ -1,7 +1,5 @@
 import { Platform, StyleSheet } from 'react-native';
 
-// Seguimiento en vivo: mapa a pantalla completa con paneles flotantes,
-// misma identidad negro + dorado del resto de la app.
 export const COLORS = {
     bg: '#0E0E0E',
     surface: '#161616',
@@ -60,7 +58,6 @@ export const styles = StyleSheet.create({
         ...StyleSheet.absoluteFillObject,
     },
 
-    // ===== HEADER FLOTANTE =====
     headerFlotante: {
         position: 'absolute',
         left: 16,
@@ -134,7 +131,6 @@ export const styles = StyleSheet.create({
         fontFamily: FONTS.textMedium,
     },
 
-    // ===== ESTADOS DEL MAPA (cargando / error) =====
     estadoMapa: {
         flex: 1,
         backgroundColor: COLORS.bg,
@@ -173,7 +169,6 @@ export const styles = StyleSheet.create({
         fontSize: 13,
     },
 
-    // ===== PANEL INFERIOR =====
     panel: {
         position: 'absolute',
         left: 0,
@@ -204,7 +199,6 @@ export const styles = StyleSheet.create({
         paddingBottom: 10,
     },
 
-    // Stepper de progreso
     stepperRow: {
         flexDirection: 'row',
         gap: 6,
@@ -247,7 +241,6 @@ export const styles = StyleSheet.create({
         marginBottom: 14,
     },
 
-    // Chofer
     choferCard: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -315,7 +308,6 @@ export const styles = StyleSheet.create({
         fontFamily: FONTS.titleBold,
     },
 
-    // Detalle del pedido
     pedidoCard: {
         backgroundColor: COLORS.surface,
         borderWidth: 1,
@@ -413,7 +405,6 @@ export const styles = StyleSheet.create({
         marginBottom: 8,
     },
 
-    // SLA
     slaCard: {
         flexDirection: 'row',
         alignItems: 'center',
