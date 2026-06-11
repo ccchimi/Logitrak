@@ -173,6 +173,8 @@ export default function MapaSeguimiento({ origen, destino, chofer, onEvento }: P
                 styles: ESTILO_NOCTURNO,
                 disableDefaultUI: true,
                 zoomControl: true,
+                // Al centro-derecha para que el panel inferior no los tape.
+                zoomControlOptions: { position: maps.ControlPosition.RIGHT_CENTER },
                 backgroundColor: '#0E0E0E',
             });
 

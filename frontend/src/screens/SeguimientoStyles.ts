@@ -210,6 +210,14 @@ export const styles = StyleSheet.create({
         textTransform: 'uppercase',
     },
 
+    // Flecha del gesto en mobile (▴ / ▾), alineada al centro del handle.
+    panelFlecha: {
+        color: COLORS.accent,
+        fontSize: 12,
+        lineHeight: 13,
+        textAlign: 'center',
+    },
+
     // Barra compacta visible cuando el panel está minimizado.
     panelResumen: {
         flexDirection: 'row',

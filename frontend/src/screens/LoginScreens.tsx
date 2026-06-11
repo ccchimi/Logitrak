@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import {
   Keyboard,
+  Platform,
   Text,
   TextInput,
   TouchableOpacity,
@@ -43,8 +44,7 @@ export default function LoginScreens({ navigation }: any) {
     }
   };
 
-  return (
-    <TouchableWithoutFeedback accessible={false} onPress={Keyboard.dismiss}>
+  const contenido = (
       <LinearGradient
         colors={[COLORS.black, '#121212']}
         start={{ x: 0, y: 0 }}
@@ -162,6 +162,16 @@ export default function LoginScreens({ navigation }: any) {
         </View>
         </View>
       </LinearGradient>
+  );
+
+  // En web NO se envuelve con el touchable: el navegador maneja el foco solo,
+  // y el onPress del wrapper haría blur del input apenas lo clickeás.
+  if (Platform.OS === 'web') return contenido;
+
+  // En nativo, tocar cualquier zona libre minimiza el teclado.
+  return (
+    <TouchableWithoutFeedback accessible={false} onPress={Keyboard.dismiss}>
+      {contenido}
     </TouchableWithoutFeedback>
   );
 }

@@ -3,6 +3,7 @@ import {
     ActivityIndicator,
     Animated,
     Easing,
+    PanResponder,
     Platform,
     ScrollView,
     Text,
@@ -69,7 +70,20 @@ export default function SeguimientoScreen({ navigation, route }: any) {
     const [chofer, setChofer] = useState<string | null>(null);
 
     // Permite minimizar el panel inferior para ver el mapa completo.
+    // En web se alterna con un tap; en mobile deslizando el dedo.
     const [panelMinimizado, setPanelMinimizado] = useState(false);
+    const esWeb = Platform.OS === 'web';
+
+    const gestoPanel = useRef(
+        PanResponder.create({
+            onMoveShouldSetPanResponder: (_evt, gesto) =>
+                Math.abs(gesto.dy) > 12 && Math.abs(gesto.dy) > Math.abs(gesto.dx) * 1.5,
+            onPanResponderRelease: (_evt, gesto) => {
+                if (gesto.dy > 16) setPanelMinimizado(true);
+                if (gesto.dy < -16) setPanelMinimizado(false);
+            },
+        })
+    ).current;
 
     const [origenPunto, setOrigenPunto] = useState<PuntoRuta | null>(null);
     const [destinoPunto, setDestinoPunto] = useState<PuntoRuta | null>(null);
@@ -247,41 +261,67 @@ export default function SeguimientoScreen({ navigation, route }: any) {
             <ToastStack toasts={toasts} onCerrar={cerrar} topOffset={insets.top + 68} />
 
             <View style={[styles.panel, { paddingBottom: insets.bottom + 14 }]}>
-                <TouchableOpacity
-                    style={styles.panelToggle}
-                    onPress={() => setPanelMinimizado((prev) => !prev)}
-                    activeOpacity={0.7}
-                    accessibilityRole="button"
-                    accessibilityLabel={panelMinimizado ? 'Expandir panel' : 'Minimizar panel'}
-                    hitSlop={{ top: 8, bottom: 8, left: 40, right: 40 }}
-                >
-                    <View style={styles.panelHandle} />
-                    <Text style={styles.panelToggleHint}>
-                        {panelMinimizado ? '⌃  Ver detalle' : '⌄  Minimizar'}
-                    </Text>
-                </TouchableOpacity>
-
-                {panelMinimizado ? (
+                {esWeb ? (
+                    // Web: tap sobre el handle, con texto simple.
                     <TouchableOpacity
-                        style={styles.panelResumen}
-                        activeOpacity={0.8}
-                        onPress={() => setPanelMinimizado(false)}
+                        style={styles.panelToggle}
+                        onPress={() => setPanelMinimizado((prev) => !prev)}
+                        activeOpacity={0.7}
                         accessibilityRole="button"
-                        accessibilityLabel="Expandir panel de seguimiento"
+                        accessibilityLabel={panelMinimizado ? 'Expandir panel' : 'Minimizar panel'}
+                        hitSlop={{ top: 8, bottom: 8, left: 40, right: 40 }}
                     >
-                        <View style={styles.panelResumenTextos}>
-                            <Text style={styles.etapaKicker}>
-                                Etapa {etapa + 1} de {ETAPAS.length}
-                            </Text>
-                            <Text style={styles.estadoTitulo} numberOfLines={1}>
-                                {ETAPAS[etapa].titulo}
-                            </Text>
-                        </View>
-
-                        <Text style={[styles.contadorMini, slaVencido && styles.contadorVencido]}>
-                            {formatearTiempo(tiempoRestante)}
+                        <View style={styles.panelHandle} />
+                        <Text style={styles.panelToggleHint}>
+                            {panelMinimizado ? 'Ver detalle' : 'Minimizar'}
                         </Text>
                     </TouchableOpacity>
+                ) : (
+                    // Mobile: se desliza el dedo hacia arriba/abajo sobre el handle.
+                    <View style={styles.panelToggle} {...gestoPanel.panHandlers}>
+                        <View style={styles.panelHandle} />
+                        <Text style={styles.panelFlecha}>{panelMinimizado ? '▴' : '▾'}</Text>
+                    </View>
+                )}
+
+                {panelMinimizado ? (
+                    esWeb ? (
+                        <TouchableOpacity
+                            style={styles.panelResumen}
+                            activeOpacity={0.8}
+                            onPress={() => setPanelMinimizado(false)}
+                            accessibilityRole="button"
+                            accessibilityLabel="Expandir panel de seguimiento"
+                        >
+                            <View style={styles.panelResumenTextos}>
+                                <Text style={styles.etapaKicker}>
+                                    Etapa {etapa + 1} de {ETAPAS.length}
+                                </Text>
+                                <Text style={styles.estadoTitulo} numberOfLines={1}>
+                                    {ETAPAS[etapa].titulo}
+                                </Text>
+                            </View>
+
+                            <Text style={[styles.contadorMini, slaVencido && styles.contadorVencido]}>
+                                {formatearTiempo(tiempoRestante)}
+                            </Text>
+                        </TouchableOpacity>
+                    ) : (
+                        <View style={styles.panelResumen} {...gestoPanel.panHandlers}>
+                            <View style={styles.panelResumenTextos}>
+                                <Text style={styles.etapaKicker}>
+                                    Etapa {etapa + 1} de {ETAPAS.length}
+                                </Text>
+                                <Text style={styles.estadoTitulo} numberOfLines={1}>
+                                    {ETAPAS[etapa].titulo}
+                                </Text>
+                            </View>
+
+                            <Text style={[styles.contadorMini, slaVencido && styles.contadorVencido]}>
+                                {formatearTiempo(tiempoRestante)}
+                            </Text>
+                        </View>
+                    )
                 ) : (
                 <ScrollView
                     contentContainerStyle={styles.panelContenido}

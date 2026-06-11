@@ -104,7 +104,9 @@ export default function RecuperarScreen({ navigation }: any) {
       <ScrollView
         contentContainerStyle={styles.authScroll}
         keyboardShouldPersistTaps="handled"
-        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+        keyboardDismissMode={
+          Platform.OS === 'ios' ? 'interactive' : Platform.OS === 'android' ? 'on-drag' : 'none'
+        }
         showsVerticalScrollIndicator={false}
       >
         <View style={[styles.circleArea, { width: circulo, height: circulo }]}>
