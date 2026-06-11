@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     Animated,
     Easing,
+    Keyboard,
     KeyboardAvoidingView,
     Platform,
     SafeAreaView,
@@ -136,6 +137,26 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
     const [isBotTyping, setIsBotTyping] = useState(false);
     const [cargando, setCargando] = useState(false);
     const [cotizacion, setCotizacion] = useState<Cotizacion | null>(null);
+
+    // Con el teclado abierto se compacta el header y se mantiene visible
+    // el final del chat (la última pregunta del bot).
+    const [tecladoVisible, setTecladoVisible] = useState(false);
+
+    useEffect(() => {
+        const eventoMostrar = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+        const eventoOcultar = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+        const subMostrar = Keyboard.addListener(eventoMostrar, () => {
+            setTecladoVisible(true);
+            requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
+        });
+        const subOcultar = Keyboard.addListener(eventoOcultar, () => setTecladoVisible(false));
+
+        return () => {
+            subMostrar.remove();
+            subOcultar.remove();
+        };
+    }, []);
 
     const currentQuestion: ChatStep | undefined = CHAT_STEPS[currentStep];
 
@@ -646,13 +667,34 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
 
     return (
         <SafeAreaView style={styles.safeArea}>
+            {/* En Android la ventana ya se redimensiona sola con el teclado
+                (softwareKeyboardLayoutMode "resize"); usar behavior="height"
+                compensaba doble y achicaba el chat de más. */}
             <KeyboardAvoidingView
                 style={styles.keyboardAvoiding}
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
             >
                 <View style={styles.container}>
                     <View style={styles.content}>
+                        {tecladoVisible ? (
+                            <View style={styles.headerCompact}>
+                                <TouchableOpacity
+                                    style={styles.backButton}
+                                    onPress={() => navigation.goBack()}
+                                    activeOpacity={0.75}
+                                    accessibilityRole="button"
+                                    accessibilityLabel="Volver atrás"
+                                >
+                                    <Text style={styles.backButtonText}>←</Text>
+                                </TouchableOpacity>
+
+                                <View style={styles.headerCompactTextos}>
+                                    <Text style={styles.headerCompactKicker}>LogiTrack IA</Text>
+                                    <Text style={styles.headerCompactTitle}>{BOT_META.nombre}</Text>
+                                </View>
+                            </View>
+                        ) : (
                         <View style={styles.headerCard}>
                             <View style={styles.headerTopRow}>
                                 <TouchableOpacity
@@ -678,6 +720,7 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
                                 </View>
                             </View>
                         </View>
+                        )}
 
                         <ScrollView
                             ref={scrollRef}

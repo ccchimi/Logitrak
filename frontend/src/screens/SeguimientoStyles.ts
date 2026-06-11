@@ -187,12 +187,48 @@ export const styles = StyleSheet.create({
     },
 
     panelHandle: {
-        alignSelf: 'center',
         width: 44,
         height: 5,
         borderRadius: 999,
         backgroundColor: COLORS.borderStrong,
-        marginBottom: 14,
+    },
+
+    // Zona tappable del handle: minimiza/expande el panel para ver el mapa.
+    panelToggle: {
+        alignSelf: 'center',
+        alignItems: 'center',
+        gap: 6,
+        paddingVertical: 2,
+        marginBottom: 10,
+    },
+
+    panelToggleHint: {
+        color: COLORS.muted,
+        fontSize: 11,
+        fontFamily: FONTS.textMedium,
+        letterSpacing: 0.6,
+        textTransform: 'uppercase',
+    },
+
+    // Barra compacta visible cuando el panel está minimizado.
+    panelResumen: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 14,
+        paddingBottom: 4,
+    },
+
+    panelResumenTextos: {
+        flex: 1,
+    },
+
+    contadorMini: {
+        fontSize: 22,
+        fontFamily: FONTS.title,
+        color: COLORS.accent,
+        letterSpacing: 0.6,
+        fontVariant: ['tabular-nums'],
     },
 
     panelContenido: {

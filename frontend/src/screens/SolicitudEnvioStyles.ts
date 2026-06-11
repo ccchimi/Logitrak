@@ -68,6 +68,40 @@ export const styles = StyleSheet.create({
         alignItems: 'center',
     },
 
+    // Header de una línea cuando el teclado está abierto: libera pantalla
+    // para que el chat siga visible mientras se escribe.
+    headerCompact: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        backgroundColor: COLORS.blackSoft,
+        borderRadius: 18,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        marginBottom: 10,
+    },
+
+    headerCompactTextos: {
+        flex: 1,
+    },
+
+    headerCompactKicker: {
+        color: COLORS.accent,
+        fontSize: 10,
+        fontWeight: '900',
+        letterSpacing: 1.1,
+        textTransform: 'uppercase',
+    },
+
+    headerCompactTitle: {
+        color: COLORS.white,
+        fontSize: 17,
+        fontWeight: '900',
+        letterSpacing: -0.3,
+    },
+
     headerTextBox: {
         flex: 1,
         marginLeft: 14,
