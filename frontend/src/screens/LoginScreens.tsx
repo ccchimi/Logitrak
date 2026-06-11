@@ -44,7 +44,6 @@ export default function LoginScreens({ navigation }: any) {
   };
 
   return (
-    // Tocar cualquier zona libre de la pantalla minimiza el teclado.
     <TouchableWithoutFeedback accessible={false} onPress={Keyboard.dismiss}>
       <LinearGradient
         colors={[COLORS.black, '#121212']}

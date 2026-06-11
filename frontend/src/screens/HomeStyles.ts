@@ -1,7 +1,5 @@
 import { Platform, StyleSheet } from 'react-native';
 
-// Paleta corporativa: negro profundo + dorado, alineada con Login,
-// Inicio y la pantalla de Boxy (SolicitudEnvio).
 export const COLORS = {
   bg: '#0E0E0E',
   surface: '#161616',
@@ -51,7 +49,6 @@ const cardShadow = Platform.select({
 });
 
 export const styles = StyleSheet.create({
-  // ===== SHELL =====
   screen: { flex: 1, backgroundColor: COLORS.bg },
   screenRow: { flexDirection: 'row' },
   main: { flex: 1 },
@@ -301,7 +298,6 @@ export const styles = StyleSheet.create({
 
   ctaGhostText: { color: COLORS.mutedStrong, fontSize: 13, fontFamily: FONTS.textMedium },
 
-  // ===== KPIs =====
   kpiRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 14, marginBottom: 14 },
   kpiCard: {
     flexGrow: 1, flexBasis: 180, minWidth: 160,
@@ -324,7 +320,6 @@ export const styles = StyleSheet.create({
   kpiBarTrack: { height: 5, borderRadius: 999, backgroundColor: COLORS.cardDeep, overflow: 'hidden' },
   kpiBarFill: { height: 5, borderRadius: 999 },
 
-  // ===== PANELES =====
   twoCol: { flexDirection: 'row', gap: 14, marginBottom: 22 },
   panel: {
     flex: 1,
@@ -354,7 +349,6 @@ export const styles = StyleSheet.create({
   distBarTrack: { height: 6, borderRadius: 999, backgroundColor: COLORS.cardDeep, overflow: 'hidden' },
   distBarFill: { height: 6, borderRadius: 999 },
 
-  // ===== ACCESOS RÁPIDOS =====
   quickRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 14, marginBottom: 22 },
   quickCard: {
     flexGrow: 1, flexBasis: 200, minWidth: 170,
@@ -374,7 +368,6 @@ export const styles = StyleSheet.create({
   quickSub: { color: COLORS.muted, fontSize: 12, lineHeight: 17, fontFamily: FONTS.text },
   quickArrow: { color: COLORS.accent, fontSize: 14, fontFamily: FONTS.titleBold, marginTop: 12 },
 
-  // ===== FILTROS =====
   filtersRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 },
   chip: {
     flexDirection: 'row', alignItems: 'center',
@@ -387,13 +380,11 @@ export const styles = StyleSheet.create({
   chipCount: { color: COLORS.muted, fontFamily: FONTS.titleBold },
   chipCountActive: { color: COLORS.ink },
 
-  // ===== SECCIÓN =====
   sectionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 14 },
   sectionTitle: { color: COLORS.white, fontSize: 19, fontFamily: FONTS.titleBold, marginBottom: 3 },
   sectionSub: { color: COLORS.muted, fontSize: 13, fontFamily: FONTS.text },
   linkText: { color: COLORS.accent, fontSize: 13, fontFamily: FONTS.textMedium },
 
-  // ===== EMPTY STATE =====
   emptyWrap: {
     width: '100%', maxWidth: 1180,
     alignItems: 'center', paddingVertical: 48, paddingHorizontal: 20,

@@ -18,10 +18,6 @@ interface Props {
     onEvento?: (evento: EventoMapa) => void;
 }
 
-/* ------------------------------------------------------------------ */
-/* Carga única del SDK de Google Maps                                  */
-/* ------------------------------------------------------------------ */
-
 let promesaGoogleMaps: Promise<any> | null = null;
 
 function cargarGoogleMaps(clave: string): Promise<any> {
@@ -48,10 +44,6 @@ function cargarGoogleMaps(clave: string): Promise<any> {
     return promesaGoogleMaps;
 }
 
-/* ------------------------------------------------------------------ */
-/* Estilo nocturno alineado a la identidad negro + dorado              */
-/* ------------------------------------------------------------------ */
-
 const ESTILO_NOCTURNO = [
     { elementType: 'geometry', stylers: [{ color: '#161616' }] },
     { elementType: 'labels.text.fill', stylers: [{ color: '#8a8880' }] },
@@ -71,10 +63,6 @@ const ESTILO_NOCTURNO = [
 ];
 
 const PIN_PATH = 'M 0,0 C -2,-20 -10,-22 -10,-30 A 10,10 0 1,1 10,-30 C 10,-22 2,-20 0,0 z';
-
-/* ------------------------------------------------------------------ */
-/* Resolución de coordenadas (Geocoder + base geográfica del bot)      */
-/* ------------------------------------------------------------------ */
 
 interface PuntoResuelto {
     lat: number;
@@ -96,7 +84,6 @@ async function resolverPunto(geocoder: any, punto: PuntoRuta): Promise<PuntoResu
             return { lat: loc.lat(), lng: loc.lng(), etiqueta: punto.direccion, aproximado: false };
         }
     } catch (_e) {
-        // Cae al fallback con la base de conocimiento del bot.
     }
 
     const analisis = analizarDireccion(punto.direccion);
@@ -111,10 +98,6 @@ async function resolverPunto(geocoder: any, punto: PuntoRuta): Promise<PuntoResu
 
     return null;
 }
-
-/* ------------------------------------------------------------------ */
-/* Componente                                                          */
-/* ------------------------------------------------------------------ */
 
 export default function MapaSeguimiento({ origen, destino, chofer, onEvento }: Props) {
     const contenedorRef = useRef<HTMLDivElement | null>(null);
@@ -226,7 +209,6 @@ export default function MapaSeguimiento({ origen, destino, chofer, onEvento }: P
             marcadorOrigen.addListener('click', () => infoOrigen.open({ map: mapa, anchor: marcadorOrigen }));
             marcadorDestino.addListener('click', () => infoDestino.open({ map: mapa, anchor: marcadorDestino }));
 
-            // Ruta: Directions con caída elegante a línea recta geodésica.
             let ruta: Coordenada[] = [];
             let polilinea: any = null;
 
@@ -276,7 +258,6 @@ export default function MapaSeguimiento({ origen, destino, chofer, onEvento }: P
             ruta.forEach((p) => limites.extend({ lat: p.latitude, lng: p.longitude }));
             mapa.fitBounds(limites, { top: 80, right: 60, bottom: 120, left: 60 });
 
-            // Chofer animado recorriendo la ruta (como en la app nativa).
             const marcadorChofer = new maps.Marker({
                 map: mapa,
                 position: { lat: ruta[0].latitude, lng: ruta[0].longitude },

@@ -78,7 +78,6 @@ export default function HomeScreen({ navigation, route }: any) {
   const [cargando, setCargando] = useState(true);
   const [filtro, setFiltro] = useState<Filtro>('Todos');
 
-  // Ancho real de la grilla (para calcular cuántas tarjetas entran por fila).
   const [gridW, setGridW] = useState(0);
 
   useEffect(() => {
@@ -110,7 +109,6 @@ export default function HomeScreen({ navigation, route }: any) {
   const conteoPorFiltro = (f: Filtro) =>
     f === 'Todos' ? viajes.length : viajes.filter((v) => v.estado === f).length;
 
-  // Columnas responsive: hasta 4 por fila en pantallas anchas, baja según el ancho.
   const GAP = 16;
   const columnas = gridW >= 1080 ? 4 : gridW >= 800 ? 3 : gridW >= 520 ? 2 : 1;
   const anchoTarjeta =
@@ -133,7 +131,6 @@ export default function HomeScreen({ navigation, route }: any) {
     { name: 'Entregado', valor: metricas.entregados, color: ESTADO_COLORS.green },
   ];
 
-  // ===== SIDEBAR (escritorio) =====
   const Sidebar = (
     <View style={[styles.sidebar, { paddingTop: insets.top + 26 }]}>
       <View style={styles.sbBrandRow}>
@@ -188,7 +185,6 @@ export default function HomeScreen({ navigation, route }: any) {
     </View>
   );
 
-  // ===== CONTENIDO PRINCIPAL =====
   const Encabezado = (
     <View style={styles.block}>
       {/* Topbar solo en móvil/tablet (en escritorio lo cubre el sidebar) */}
@@ -219,7 +215,6 @@ export default function HomeScreen({ navigation, route }: any) {
         </>
       )}
 
-      {/* HERO */}
       <LinearGradient
         colors={['#1A1A1A', '#101010']}
         start={{ x: 0, y: 0 }}
@@ -269,7 +264,6 @@ export default function HomeScreen({ navigation, route }: any) {
         </View>
       </LinearGradient>
 
-      {/* KPIs */}
       <View style={styles.kpiRow}>
         {kpis.map((k) => {
           const prop =
@@ -302,9 +296,7 @@ export default function HomeScreen({ navigation, route }: any) {
         })}
       </View>
 
-      {/* PANELES */}
       <View style={[styles.twoCol, apilarPaneles && { flexDirection: 'column' }]}>
-        {/* Cumplimiento */}
         <View style={styles.panel}>
           <View style={styles.panelHeadRow}>
             <View style={{ flex: 1 }}>
@@ -323,7 +315,6 @@ export default function HomeScreen({ navigation, route }: any) {
           </Text>
         </View>
 
-        {/* Distribución por estado */}
         <View style={styles.panel}>
           <View style={styles.panelHeadRow}>
             <View style={{ flex: 1 }}>
@@ -357,7 +348,6 @@ export default function HomeScreen({ navigation, route }: any) {
         </View>
       </View>
 
-      {/* ACCESOS RÁPIDOS */}
       <View style={styles.quickRow}>
         {ACCESOS_RAPIDOS.map((a) => (
           <TouchableOpacity
@@ -376,7 +366,6 @@ export default function HomeScreen({ navigation, route }: any) {
         ))}
       </View>
 
-      {/* FILTROS */}
       <View style={styles.filtersRow}>
         {FILTROS.map((f) => {
           const activo = filtro === f;
@@ -397,7 +386,6 @@ export default function HomeScreen({ navigation, route }: any) {
         })}
       </View>
 
-      {/* SECCIÓN */}
       <View style={styles.sectionRow}>
         <View>
           <Text style={styles.sectionTitle}>Envíos recientes</Text>
