@@ -41,6 +41,9 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# Claude Code (config local del preview)
+.claude/launch.json
+
 # generated native folders
 /ios
 /android

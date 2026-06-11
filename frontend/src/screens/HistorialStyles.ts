@@ -1,6 +1,5 @@
 import { Platform, StyleSheet } from 'react-native';
 
-// Historial de envíos: identidad negro + dorado del resto de la app.
 export const COLORS = {
     bg: '#0E0E0E',
     surface: '#161616',
@@ -56,7 +55,6 @@ export const styles = StyleSheet.create({
         alignSelf: 'center',
     },
 
-    // ===== HEADER =====
     header: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -141,7 +139,6 @@ export const styles = StyleSheet.create({
         letterSpacing: -0.5,
     },
 
-    // ===== ÍTEM DEL HISTORIAL =====
     itemHistorial: {
         backgroundColor: COLORS.surface,
         borderWidth: 1,

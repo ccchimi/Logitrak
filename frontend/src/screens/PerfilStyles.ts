@@ -1,6 +1,5 @@
 import { Platform, StyleSheet } from 'react-native';
 
-// Perfil: identidad negro + dorado del resto de la app.
 export const COLORS = {
     bg: '#0E0E0E',
     surface: '#161616',
@@ -55,7 +54,6 @@ export const styles = StyleSheet.create({
         alignSelf: 'center',
     },
 
-    // ===== HEADER =====
     header: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -99,7 +97,6 @@ export const styles = StyleSheet.create({
         fontFamily: FONTS.title,
     },
 
-    // ===== TARJETA DE USUARIO =====
     tarjetaUsuario: {
         backgroundColor: COLORS.surface,
         borderWidth: 1,
@@ -160,7 +157,6 @@ export const styles = StyleSheet.create({
         marginBottom: 2,
     },
 
-    // ===== STATS =====
     statsRow: {
         flexDirection: 'row',
         gap: 10,
@@ -195,7 +191,6 @@ export const styles = StyleSheet.create({
         textAlign: 'center',
     },
 
-    // ===== CUPONES =====
     seccionTitulo: {
         color: COLORS.white,
         fontSize: 17,

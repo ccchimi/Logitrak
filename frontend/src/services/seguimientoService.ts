@@ -7,7 +7,6 @@ export interface PuntoRuta extends Coordenada {
     direccion: string;
 }
 
-// Punto de retiro de respaldo (si no hay ubicación real disponible) y destino.
 export const ORIGEN: PuntoRuta = {
     latitude: -34.6037,
     longitude: -58.3816,
@@ -20,8 +19,6 @@ export const DESTINO: PuntoRuta = {
     direccion: 'Av. Cabildo 2000, Belgrano, CABA',
 };
 
-// Rumbo (bearing) en grados entre dos coordenadas, para orientar el ícono del
-// coche en la dirección del movimiento (como en Uber).
 export function calcularRumbo(a: Coordenada, b: Coordenada): number {
     const rad = (d: number) => (d * Math.PI) / 180;
     const deg = (r: number) => (r * 180) / Math.PI;
@@ -33,9 +30,6 @@ export function calcularRumbo(a: Coordenada, b: Coordenada): number {
     return (deg(Math.atan2(y, x)) + 360) % 360;
 }
 
-// Geocodifica una dirección libre (cualquiera, no hardcodeada) a coordenadas
-// reales usando el geocoder nativo. Devuelve null si la dirección no existe
-// o no se pudo resolver (ej: en web, donde no está soportado).
 import * as Location from 'expo-location';
 
 export async function geocodificarDireccion(direccion: string): Promise<PuntoRuta | null> {

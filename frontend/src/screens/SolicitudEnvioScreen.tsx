@@ -400,7 +400,6 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
             },
         ]);
 
-        // ¿Estábamos esperando una confirmación del usuario?
         if (confirmacion) {
             if (skipped || esAfirmacion(cleanValue)) {
                 const pendiente = confirmacion;
@@ -415,7 +414,6 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
                 return;
             }
 
-            // No respondió sí/no: lo tomo como un nuevo intento para el mismo campo.
             setConfirmacion(null);
         }
 

@@ -27,7 +27,6 @@ export const styles = StyleSheet.create({
   scroll: { flex: 1 },
   scrollContent: { backgroundColor: COLORS.white },
 
-  // ===== NAV =====
   nav: {
     position: 'absolute', top: 0, left: 0, right: 0, zIndex: 100, height: 70,
     paddingHorizontal: 48, backgroundColor: 'rgba(14, 14, 14, 0.95)',
@@ -55,7 +54,6 @@ export const styles = StyleSheet.create({
   navCtaText: { color: COLORS.black, fontSize: 14, fontFamily: FONTS.titleBold },
   navCtaTextHover: { color: COLORS.black },
 
-  // ===== HERO =====
   hero: { justifyContent: 'center' },
   heroOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.7)' },
   heroContent: { paddingHorizontal: 48, paddingTop: 70, zIndex: 2 },
@@ -81,14 +79,12 @@ export const styles = StyleSheet.create({
     fontSize: 14, letterSpacing: 1,
   },
 
-  // ===== STATS BAR =====
   statsBar: { flexDirection: 'row', width: '100%', maxWidth: 1180, alignSelf: 'center' },
   statItem: { flex: 1, paddingVertical: 60, paddingHorizontal: 40 },
   borderRight: { borderRightWidth: 1, borderRightColor: COLORS.border },
   statNum: { fontSize: 48, color: COLORS.accent, marginBottom: 6, fontFamily: FONTS.title },
   statLabel: { color: COLORS.white, fontSize: 15, fontFamily: FONTS.text },
 
-  // ===== FRANJA "CONFÍAN EN NOSOTROS" =====
   trustedStrip: {
     backgroundColor: COLORS.black, paddingVertical: 38, paddingHorizontal: 48,
     borderTopWidth: 1, borderTopColor: COLORS.border,
@@ -105,7 +101,6 @@ export const styles = StyleSheet.create({
     letterSpacing: -0.5, fontFamily: FONTS.title,
   },
 
-  // ===== SECCIONES (encabezados reutilizables) =====
   features: { paddingVertical: 100, paddingHorizontal: 48, backgroundColor: COLORS.white },
   sectionHead: { marginBottom: 48 },
   sectionKickerDark: {
@@ -129,7 +124,6 @@ export const styles = StyleSheet.create({
     fontFamily: FONTS.text, marginTop: 4,
   },
 
-  // ===== FEATURES (Por qué elegirnos) =====
   featuresGrid: {
     flexDirection: 'row', borderWidth: 1, borderColor: COLORS.borderDark,
     borderRadius: 12, overflow: 'hidden', backgroundColor: COLORS.borderDark,
@@ -145,7 +139,6 @@ export const styles = StyleSheet.create({
   featTitle: { color: COLORS.black, fontSize: 20, marginBottom: 12, fontFamily: FONTS.titleBold },
   featText: { color: COLORS.muted, lineHeight: 24, fontSize: 15, fontFamily: FONTS.text },
 
-  // ===== SOLUCIONES =====
   solutions: { paddingVertical: 100, paddingHorizontal: 48, backgroundColor: COLORS.offwhite },
   solGrid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 40, gap: 20 },
   solCard: {
@@ -161,7 +154,6 @@ export const styles = StyleSheet.create({
   solText: { color: COLORS.muted, fontSize: 14, lineHeight: 22, marginBottom: 16, fontFamily: FONTS.text },
   solLink: { color: COLORS.black, fontSize: 13, fontFamily: FONTS.textMedium },
 
-  // ===== PROCESO (how) =====
   how: { paddingVertical: 100, paddingHorizontal: 48, backgroundColor: COLORS.black },
   steps: { flexDirection: 'row', marginTop: 60 },
   step: { flex: 1, marginRight: 40 },
@@ -172,7 +164,6 @@ export const styles = StyleSheet.create({
   stepTitle: { color: COLORS.white, fontSize: 18, marginBottom: 10, fontFamily: FONTS.titleBold },
   stepText: { color: COLORS.white, fontSize: 14, opacity: 0.6, lineHeight: 22, fontFamily: FONTS.text },
 
-  // ===== COBERTURA =====
   coverage: { paddingVertical: 100, paddingHorizontal: 48, backgroundColor: COLORS.black, borderTopWidth: 1, borderTopColor: COLORS.border },
   coverageInner: { flexDirection: 'row', alignItems: 'center', gap: 56 },
   coverageLeft: { flex: 1 },
@@ -187,7 +178,6 @@ export const styles = StyleSheet.create({
   },
   cityChipText: { color: COLORS.white, fontSize: 14, fontFamily: FONTS.textMedium },
 
-  // ===== SEGUIMIENTO EN VIVO =====
   tracking: { paddingVertical: 100, paddingHorizontal: 48, backgroundColor: COLORS.white },
   trackingInner: { flexDirection: 'row', alignItems: 'center', gap: 56 },
   trackingTextBlock: { flex: 1 },
@@ -218,7 +208,6 @@ export const styles = StyleSheet.create({
   trackLabelMuted: { color: 'rgba(255,255,255,0.4)' },
   trackTime: { color: COLORS.muted, fontSize: 12, marginTop: 2, fontFamily: FONTS.text },
 
-  // ===== TESTIMONIOS =====
   testimonials: { paddingVertical: 100, paddingHorizontal: 48, backgroundColor: COLORS.offwhite },
   testiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 20, marginTop: 40 },
   testiCard: {
@@ -236,7 +225,6 @@ export const styles = StyleSheet.create({
   testiAuthor: { color: COLORS.black, fontSize: 14, fontFamily: FONTS.titleBold },
   testiRole: { color: COLORS.muted, fontSize: 12, marginTop: 2, fontFamily: FONTS.text },
 
-  // ===== PLANES =====
   plans: { paddingVertical: 100, paddingHorizontal: 48, backgroundColor: COLORS.black },
   plansHead: { alignItems: 'center', marginBottom: 8 },
   plansGrid: { flexDirection: 'row', gap: 20, marginTop: 44, alignItems: 'stretch' },
@@ -266,7 +254,6 @@ export const styles = StyleSheet.create({
   planBtnFeatured: { backgroundColor: COLORS.accent, borderColor: COLORS.accent },
   planBtnTextFeatured: { color: COLORS.black },
 
-  // ===== APP SECTION =====
   appSection: {
     paddingVertical: 100, paddingHorizontal: 48, backgroundColor: COLORS.offwhite,
     borderTopWidth: 1, borderTopColor: COLORS.borderDark,
@@ -297,7 +284,6 @@ export const styles = StyleSheet.create({
   phoneDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.accent, marginRight: 10 },
   phoneDotMuted: { opacity: 0.3 },
 
-  // ===== FAQ =====
   faq: { paddingVertical: 100, paddingHorizontal: 48, backgroundColor: COLORS.white },
   faqList: { marginTop: 36, maxWidth: 820, alignSelf: 'center', width: '100%' },
   faqItem: { borderBottomWidth: 1, borderBottomColor: COLORS.borderDark },
@@ -308,14 +294,12 @@ export const styles = StyleSheet.create({
   faqToggle: { color: COLORS.accent, fontSize: 24, fontFamily: FONTS.title, lineHeight: 26 },
   faqAnswer: { color: COLORS.muted, fontSize: 15, lineHeight: 24, paddingBottom: 24, paddingRight: 40, fontFamily: FONTS.text },
 
-  // ===== CTA BAND =====
   ctaBand: { paddingVertical: 90, paddingHorizontal: 48, backgroundColor: COLORS.accent, alignItems: 'center' },
   ctaTitle: { color: COLORS.black, fontSize: 46, textAlign: 'center', letterSpacing: -1, marginBottom: 16, fontFamily: FONTS.title, maxWidth: 700 },
   ctaText: { color: 'rgba(0,0,0,0.7)', fontSize: 18, textAlign: 'center', marginBottom: 32, maxWidth: 560, fontFamily: FONTS.text, lineHeight: 27 },
   ctaButton: { backgroundColor: COLORS.black, paddingVertical: 16, paddingHorizontal: 44, borderRadius: 6 },
   ctaButtonText: { color: COLORS.accent, fontSize: 15, textTransform: 'uppercase', letterSpacing: 1, fontFamily: FONTS.titleBold },
 
-  // ===== FOOTER =====
   footerTop: {
     paddingHorizontal: 48, paddingTop: 70, paddingBottom: 40, backgroundColor: COLORS.black,
   },
@@ -331,7 +315,6 @@ export const styles = StyleSheet.create({
   footerLogo: { color: COLORS.white, fontSize: 24, fontFamily: FONTS.title },
   footerText: { color: COLORS.white, opacity: 0.5, fontSize: 12, fontFamily: FONTS.text },
 
-  // ===== UTIL =====
   column: { flexDirection: 'column' },
 
   // ===== MOBILE OVERRIDES =====
@@ -358,13 +341,11 @@ export const styles = StyleSheet.create({
   },
   menuCtaText: { color: COLORS.black, fontSize: 14, fontFamily: FONTS.titleBold },
 
-  // Hero
   heroContentM: { paddingHorizontal: 20, paddingBottom: 32 },
   heroTitleM: { fontSize: 42, lineHeight: 46 },
   heroParagraphM: { fontSize: 16, lineHeight: 25, marginBottom: 32 },
   heroButtonM: { alignSelf: 'stretch', alignItems: 'center' },
 
-  // Stats
   statItemM: {
     flexGrow: 0, flexShrink: 0, flexBasis: 'auto', width: '100%',
     paddingVertical: 24, paddingHorizontal: 24, alignItems: 'center',
@@ -374,40 +355,30 @@ export const styles = StyleSheet.create({
 
   trustedItemM: { fontSize: 17, marginHorizontal: 14, marginVertical: 6 },
 
-  // Secciones: menos aire en pantallas chicas.
   sectionM: { paddingVertical: 64, paddingHorizontal: 20 },
   sectionTitleM: { fontSize: 30, lineHeight: 36 },
 
-  // Neutraliza flex:1 al apilar en columna (flex:0 colapsa la altura:
-  // se traduce a flex-basis 0, por eso se fija flexBasis 'auto').
   fullWidthM: { flexGrow: 0, flexShrink: 0, flexBasis: 'auto', width: '100%' },
   stackGapM: { gap: 32 },
 
-  // Proceso
   stepM: { flexGrow: 0, flexShrink: 0, flexBasis: 'auto', marginRight: 0, marginBottom: 34 },
   stepNumM: { fontSize: 48, lineHeight: 54, marginBottom: 10 },
 
-  // Cobertura
   coverageStatsRowM: { flexDirection: 'row', flexWrap: 'wrap', gap: 24 },
 
-  // App
   appTextBlockM: {
     flexGrow: 0, flexShrink: 0, flexBasis: 'auto', width: '100%',
     paddingRight: 0, marginBottom: 44,
   },
   appVisualM: { flexGrow: 0, flexShrink: 0, flexBasis: 'auto', width: '100%' },
 
-  // CTA final
   ctaBandM: { paddingVertical: 64, paddingHorizontal: 20 },
   ctaTitleM: { fontSize: 30, lineHeight: 36 },
 
-  // Footer
   footerPadM: { paddingHorizontal: 20 },
 
-  // Contenedor centrado para que el contenido no se estire en pantallas anchas.
   inner: { width: '100%', maxWidth: 1180, alignSelf: 'center' },
 
-  // Bandas full-bleed (fondo a todo el ancho) con contenido centrado adentro.
   statsBand: { backgroundColor: COLORS.black },
   footerInner: {
     width: '100%', maxWidth: 1180, alignSelf: 'center',

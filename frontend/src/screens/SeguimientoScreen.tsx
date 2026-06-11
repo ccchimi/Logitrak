@@ -38,7 +38,6 @@ const ETAPAS = [
     },
 ];
 
-/** Geocodifica con respaldo en la base geográfica del bot (centro de la localidad). */
 async function resolverPuntoNativo(texto: string): Promise<PuntoRuta | null> {
     const punto = await geocodificarDireccion(texto);
     if (punto) return punto;
@@ -77,7 +76,6 @@ export default function SeguimientoScreen({ navigation, route }: any) {
     const slaAvisadoRef = useRef(false);
     const liveAnim = useRef(new Animated.Value(0.4)).current;
 
-    // Parpadeo del indicador EN VIVO.
     useEffect(() => {
         const loop = Animated.loop(
             Animated.sequence([
@@ -99,7 +97,6 @@ export default function SeguimientoScreen({ navigation, route }: any) {
         return () => loop.stop();
     }, [liveAnim]);
 
-    // Línea de tiempo operativa simulada + contador SLA.
     useEffect(() => {
         mostrar('exito', 'Seguimiento iniciado', `Orden ${referencia} confirmada en la red.`);
 
@@ -126,7 +123,6 @@ export default function SeguimientoScreen({ navigation, route }: any) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Aviso de SLA vencido (una sola vez).
     useEffect(() => {
         if (tiempoRestante === 0 && !slaAvisadoRef.current) {
             slaAvisadoRef.current = true;
@@ -138,7 +134,6 @@ export default function SeguimientoScreen({ navigation, route }: any) {
         }
     }, [tiempoRestante, mostrar]);
 
-    // Resolución de direcciones a coordenadas.
     useEffect(() => {
         let activo = true;
         (async () => {
@@ -201,7 +196,6 @@ export default function SeguimientoScreen({ navigation, route }: any) {
 
     return (
         <View style={styles.container}>
-            {/* MAPA A PANTALLA COMPLETA */}
             <View style={styles.mapa}>
                 {buscando ? (
                     <View style={styles.estadoMapa}>
@@ -227,7 +221,6 @@ export default function SeguimientoScreen({ navigation, route }: any) {
                 )}
             </View>
 
-            {/* HEADER FLOTANTE */}
             <View style={[styles.headerFlotante, { top: insets.top + 12 }]}>
                 <TouchableOpacity
                     style={styles.backButton}
@@ -248,10 +241,8 @@ export default function SeguimientoScreen({ navigation, route }: any) {
                 </View>
             </View>
 
-            {/* TOASTS */}
             <ToastStack toasts={toasts} onCerrar={cerrar} topOffset={insets.top + 68} />
 
-            {/* PANEL INFERIOR */}
             <View style={[styles.panel, { paddingBottom: insets.bottom + 14 }]}>
                 <View style={styles.panelHandle} />
 
@@ -274,7 +265,6 @@ export default function SeguimientoScreen({ navigation, route }: any) {
                     <Text style={styles.estadoTitulo}>{ETAPAS[etapa].titulo}</Text>
                     <Text style={styles.estadoDetalle}>{ETAPAS[etapa].detalle}</Text>
 
-                    {/* CHOFER */}
                     <View style={styles.choferCard}>
                         <View style={styles.choferAvatar}>
                             <Text style={styles.choferAvatarTexto}>{chofer ? '🛵' : '📡'}</Text>
@@ -301,7 +291,6 @@ export default function SeguimientoScreen({ navigation, route }: any) {
                         )}
                     </View>
 
-                    {/* DETALLE DEL PEDIDO */}
                     <View style={styles.pedidoCard}>
                         <View style={styles.pedidoHeader}>
                             <Text style={styles.pedidoTitulo}>Detalle del pedido</Text>
@@ -334,7 +323,6 @@ export default function SeguimientoScreen({ navigation, route }: any) {
                         </View>
                     </View>
 
-                    {/* SLA */}
                     <View style={styles.slaCard}>
                         <View style={styles.slaTextos}>
                             <Text style={styles.slaTitulo}>
