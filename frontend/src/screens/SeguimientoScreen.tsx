@@ -68,6 +68,9 @@ export default function SeguimientoScreen({ navigation, route }: any) {
     const [etapa, setEtapa] = useState(0);
     const [chofer, setChofer] = useState<string | null>(null);
 
+    // Permite minimizar el panel inferior para ver el mapa completo.
+    const [panelMinimizado, setPanelMinimizado] = useState(false);
+
     const [origenPunto, setOrigenPunto] = useState<PuntoRuta | null>(null);
     const [destinoPunto, setDestinoPunto] = useState<PuntoRuta | null>(null);
     const [buscando, setBuscando] = useState(true);
@@ -244,8 +247,42 @@ export default function SeguimientoScreen({ navigation, route }: any) {
             <ToastStack toasts={toasts} onCerrar={cerrar} topOffset={insets.top + 68} />
 
             <View style={[styles.panel, { paddingBottom: insets.bottom + 14 }]}>
-                <View style={styles.panelHandle} />
+                <TouchableOpacity
+                    style={styles.panelToggle}
+                    onPress={() => setPanelMinimizado((prev) => !prev)}
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel={panelMinimizado ? 'Expandir panel' : 'Minimizar panel'}
+                    hitSlop={{ top: 8, bottom: 8, left: 40, right: 40 }}
+                >
+                    <View style={styles.panelHandle} />
+                    <Text style={styles.panelToggleHint}>
+                        {panelMinimizado ? '⌃  Ver detalle' : '⌄  Minimizar'}
+                    </Text>
+                </TouchableOpacity>
 
+                {panelMinimizado ? (
+                    <TouchableOpacity
+                        style={styles.panelResumen}
+                        activeOpacity={0.8}
+                        onPress={() => setPanelMinimizado(false)}
+                        accessibilityRole="button"
+                        accessibilityLabel="Expandir panel de seguimiento"
+                    >
+                        <View style={styles.panelResumenTextos}>
+                            <Text style={styles.etapaKicker}>
+                                Etapa {etapa + 1} de {ETAPAS.length}
+                            </Text>
+                            <Text style={styles.estadoTitulo} numberOfLines={1}>
+                                {ETAPAS[etapa].titulo}
+                            </Text>
+                        </View>
+
+                        <Text style={[styles.contadorMini, slaVencido && styles.contadorVencido]}>
+                            {formatearTiempo(tiempoRestante)}
+                        </Text>
+                    </TouchableOpacity>
+                ) : (
                 <ScrollView
                     contentContainerStyle={styles.panelContenido}
                     showsVerticalScrollIndicator={false}
@@ -359,6 +396,7 @@ export default function SeguimientoScreen({ navigation, route }: any) {
                         <Text style={styles.botonVolverTexto}>Volver al panel principal</Text>
                     </TouchableOpacity>
                 </ScrollView>
+                )}
             </View>
         </View>
     );
