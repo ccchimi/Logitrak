@@ -686,6 +686,7 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
                             style={styles.messagesScroll}
                             contentContainerStyle={styles.messagesContent}
                             keyboardShouldPersistTaps="handled"
+                            keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
                             showsVerticalScrollIndicator={false}
                             onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
                         >

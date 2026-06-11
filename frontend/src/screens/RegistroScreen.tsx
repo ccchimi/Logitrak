@@ -1,7 +1,15 @@
 import React, { useRef, useState } from 'react';
-import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import {
+  Platform,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS, styles } from './LoginStyles';
+import { COLORS, styles, tamanosAuth } from './LoginStyles';
 import SpinnerFondo from '../components/SpinnerFondo';
 import { registrarUsuario, RolUsuario } from '../services/authService';
 
@@ -10,6 +18,9 @@ export default function RegistroScreen({ navigation }: any) {
   const usuarioRef = useRef('');
   const contrasenaRef = useRef('');
   const confirmacionRef = useRef('');
+
+  const { width } = useWindowDimensions();
+  const { circulo, caja } = tamanosAuth(width);
 
   const [rol, setRol] = useState<RolUsuario>('admin');
   const [error, setError] = useState('');
@@ -58,7 +69,6 @@ export default function RegistroScreen({ navigation }: any) {
           importantForAutofill="noExcludeDescendants"
           textContentType="none"
           returnKeyType="done"
-          blurOnSubmit={false}
           disableFullscreenUI
           onChangeText={onChange}
         />
@@ -78,12 +88,13 @@ export default function RegistroScreen({ navigation }: any) {
       <ScrollView
         contentContainerStyle={styles.authScroll}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.circleArea}>
+        <View style={[styles.circleArea, { width: circulo, height: circulo }]}>
           <SpinnerFondo />
 
-          <View style={styles.loginBox}>
+          <View style={[styles.loginBox, { width: caja }]}>
             <TouchableOpacity
               style={styles.closeButton}
               onPress={() => navigation.goBack()}

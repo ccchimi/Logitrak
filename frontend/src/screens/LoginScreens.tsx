@@ -1,7 +1,15 @@
 import React, { useRef, useState } from 'react';
-import { Text, TextInput, TouchableOpacity, View } from 'react-native';
+import {
+  Keyboard,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS, styles } from './LoginStyles';
+import { COLORS, styles, tamanosAuth } from './LoginStyles';
 import { useRootFlow } from '../navigation/RootFlowContext';
 import SpinnerFondo from '../components/SpinnerFondo';
 import { iniciarSesion } from '../services/authService';
@@ -9,6 +17,9 @@ import { iniciarSesion } from '../services/authService';
 export default function LoginScreens({ navigation }: any) {
   const usuarioRef = useRef('');
   const contrasenaRef = useRef('');
+
+  const { width } = useWindowDimensions();
+  const { circulo, caja } = tamanosAuth(width);
 
   const [error, setError] = useState('');
 
@@ -33,16 +44,18 @@ export default function LoginScreens({ navigation }: any) {
   };
 
   return (
-    <LinearGradient
-      colors={[COLORS.black, '#121212']}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={styles.container}
-    >
-      <View style={styles.circleArea}>
+    // Tocar cualquier zona libre de la pantalla minimiza el teclado.
+    <TouchableWithoutFeedback accessible={false} onPress={Keyboard.dismiss}>
+      <LinearGradient
+        colors={[COLORS.black, '#121212']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.container}
+      >
+        <View style={[styles.circleArea, { width: circulo, height: circulo }]}>
         <SpinnerFondo />
 
-        <View style={styles.loginBox}>
+        <View style={[styles.loginBox, { width: caja }]}>
           {puedeVolver && (
             <TouchableOpacity
               style={styles.closeButton}
@@ -80,7 +93,6 @@ export default function LoginScreens({ navigation }: any) {
                 importantForAutofill="noExcludeDescendants"
                 textContentType="none"
                 returnKeyType="done"
-                blurOnSubmit={false}
                 disableFullscreenUI
                 onChangeText={(texto) => {
                   usuarioRef.current = texto;
@@ -106,7 +118,6 @@ export default function LoginScreens({ navigation }: any) {
                 importantForAutofill="noExcludeDescendants"
                 textContentType="none"
                 returnKeyType="done"
-                blurOnSubmit={false}
                 disableFullscreenUI
                 onChangeText={(texto) => {
                   contrasenaRef.current = texto;
@@ -150,7 +161,8 @@ export default function LoginScreens({ navigation }: any) {
             </Text>
           </View>
         </View>
-      </View>
-    </LinearGradient>
+        </View>
+      </LinearGradient>
+    </TouchableWithoutFeedback>
   );
 }

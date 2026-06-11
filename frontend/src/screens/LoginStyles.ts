@@ -2,8 +2,17 @@ import { Dimensions, StyleSheet } from 'react-native';
 
 const { width } = Dimensions.get('window');
 
+// Valores iniciales (fallback). Las pantallas recalculan estos tamaños en
+// render con useWindowDimensions + tamanosAuth para reaccionar a rotación,
+// split-screen o resize en web.
 const CIRCLE_SIZE = Math.min(width * 1.45, 760);
 const LOGIN_WIDTH = Math.min(width - 40, 450);
+
+// Tamaños responsivos del área de auth (círculo del spinner + caja del form).
+export const tamanosAuth = (anchoVentana: number) => ({
+  circulo: Math.min(anchoVentana * 1.45, 760),
+  caja: Math.min(anchoVentana - 40, 450),
+});
 
 export const COLORS = {
   black: '#0e0e0e',
@@ -41,18 +50,19 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
+  // El spinner llena el circleArea del padre, así hereda el tamaño responsivo.
   circleContainer: {
     position: 'absolute',
-    width: CIRCLE_SIZE,
-    height: CIRCLE_SIZE,
+    width: '100%',
+    height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
   },
 
   barWrapper: {
     position: 'absolute',
-    width: CIRCLE_SIZE,
-    height: CIRCLE_SIZE,
+    width: '100%',
+    height: '100%',
     alignItems: 'center',
   },
 
