@@ -15,7 +15,7 @@ const ADMINS = [
 ];
 
 async function asegurarBaseDeDatos() {
-    const nombre = process.env.PGDATABASE || 'logitrack';
+    const nombre = process.env.PGDATABASE || 'logitrak';
     const cliente = new pg.Client({ database: 'postgres' });
     await cliente.connect();
     try {
