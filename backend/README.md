@@ -17,7 +17,7 @@ npm install
 npm run dev      # con recarga automática (o: npm start)
 ```
 
-Al arrancar, el servidor crea la base `logitrack` si no existe, aplica el
+Al arrancar, el servidor crea la base `logitrak` si no existe, aplica el
 esquema (`src/db/schema.sql`) y siembra los 3 administradores. La API queda en
 `http://localhost:4000`.
 
@@ -31,9 +31,9 @@ Database → `+` → Data Source → PostgreSQL:
 | Port     | `5432`      |
 | User     | `postgres`  |
 | Password | `logitrack` |
-| Database | `logitrack` |
+| Database | `logitrak`  |
 
-URL JDBC: `jdbc:postgresql://localhost:5432/logitrack`
+URL JDBC: `jdbc:postgresql://localhost:5432/logitrak`
 
 ## Endpoints
 
