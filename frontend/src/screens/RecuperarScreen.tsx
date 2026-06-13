@@ -28,7 +28,7 @@ export default function RecuperarScreen({ navigation }: any) {
   const [error, setError] = useState('');
   const [exito, setExito] = useState('');
 
-  const manejarBusqueda = () => {
+  const manejarBusqueda = async () => {
     const usuario = usuarioRef.current.trim().toLowerCase();
 
     if (!usuario) {
@@ -36,7 +36,7 @@ export default function RecuperarScreen({ navigation }: any) {
       return;
     }
 
-    if (!existeUsuario(usuario)) {
+    if (!(await existeUsuario(usuario))) {
       setError('No encontramos una cuenta con ese usuario.');
       return;
     }
@@ -46,8 +46,8 @@ export default function RecuperarScreen({ navigation }: any) {
     setPaso('nueva');
   };
 
-  const manejarRestablecer = () => {
-    const resultado = restablecerContrasena(
+  const manejarRestablecer = async () => {
+    const resultado = await restablecerContrasena(
       usuarioVerificado,
       nuevaRef.current,
       confirmacionRef.current
@@ -192,7 +192,7 @@ export default function RecuperarScreen({ navigation }: any) {
                   </View>
                 </View>
 
-                {campoContrasena('Nueva contraseña', 'Mínimo 4 caracteres', (t) => { nuevaRef.current = t; })}
+                {campoContrasena('Nueva contraseña', 'Mínimo 8 caracteres', (t) => { nuevaRef.current = t; })}
                 {campoContrasena('Confirmar contraseña', 'Repetí la contraseña', (t) => { confirmacionRef.current = t; })}
 
                 <TouchableOpacity
@@ -223,7 +223,7 @@ export default function RecuperarScreen({ navigation }: any) {
 
             <View style={styles.hintBox}>
               <Text style={styles.hintText}>
-                Cuando exista la base de datos, este paso enviará un correo de verificación.
+                Por seguridad, las cuentas de administrador no se restablecen desde acá.
               </Text>
             </View>
           </View>

@@ -11,7 +11,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, styles, tamanosAuth } from './LoginStyles';
 import SpinnerFondo from '../components/SpinnerFondo';
-import { registrarUsuario, RolUsuario } from '../services/authService';
+import { registrarUsuario } from '../services/authService';
 
 export default function RegistroScreen({ navigation }: any) {
   const nombreRef = useRef('');
@@ -22,18 +22,21 @@ export default function RegistroScreen({ navigation }: any) {
   const { width } = useWindowDimensions();
   const { circulo, caja } = tamanosAuth(width);
 
-  const [rol, setRol] = useState<RolUsuario>('admin');
   const [error, setError] = useState('');
   const [exito, setExito] = useState('');
+  const [cargando, setCargando] = useState(false);
 
-  const manejarRegistro = () => {
-    const resultado = registrarUsuario({
+  const manejarRegistro = async () => {
+    if (cargando) return;
+    setCargando(true);
+
+    const resultado = await registrarUsuario({
       nombreCompleto: nombreRef.current,
       usuario: usuarioRef.current,
       contrasena: contrasenaRef.current,
       confirmacion: confirmacionRef.current,
-      rol,
     });
+    setCargando(false);
 
     if (!resultado.exito) {
       setExito('');
@@ -122,28 +125,7 @@ export default function RegistroScreen({ navigation }: any) {
             {campoTexto('Nombre completo', 'Ej: Laura Méndez', '👤', (t) => { nombreRef.current = t; })}
             {campoTexto('Usuario / Legajo', 'Ej: lmendez', '✉', (t) => { usuarioRef.current = t; })}
 
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Tipo de cuenta</Text>
-
-              <View style={styles.rolRow}>
-                {(['admin', 'chofer'] as const).map((opcion) => {
-                  const activo = rol === opcion;
-                  return (
-                    <TouchableOpacity
-                      key={opcion}
-                      style={[styles.rolChip, activo && styles.rolChipActive]}
-                      onPress={() => setRol(opcion)}
-                    >
-                      <Text style={[styles.rolChipText, activo && styles.rolChipTextActive]}>
-                        {opcion === 'admin' ? 'Administrador' : 'Chofer'}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-
-            {campoTexto('Contraseña', 'Mínimo 4 caracteres', '🔒', (t) => { contrasenaRef.current = t; }, true)}
+            {campoTexto('Contraseña', 'Mínimo 8 caracteres', '🔒', (t) => { contrasenaRef.current = t; }, true)}
             {campoTexto('Confirmar contraseña', 'Repetí la contraseña', '🔒', (t) => { confirmacionRef.current = t; }, true)}
 
             <TouchableOpacity
@@ -157,7 +139,7 @@ export default function RegistroScreen({ navigation }: any) {
                 end={{ x: 1, y: 0 }}
                 style={styles.loginButton}
               >
-                <Text style={styles.loginButtonText}>Crear cuenta</Text>
+                <Text style={styles.loginButtonText}>{cargando ? 'Creando cuenta…' : 'Crear cuenta'}</Text>
               </LinearGradient>
             </TouchableOpacity>
 
@@ -172,7 +154,8 @@ export default function RegistroScreen({ navigation }: any) {
 
             <View style={styles.hintBox}>
               <Text style={styles.hintText}>
-                Las cuentas se guardan en memoria hasta integrar la base de datos.
+                Te registrás como cliente. ¿Querés manejar con nosotros? Postulate
+                como chofer desde tu panel una vez dentro.
               </Text>
             </View>
           </View>

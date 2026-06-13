@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ActivityIndicator, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { styles, COLORS } from './ChoferStyles';
 import { generarAsignacionViaje, AsignacionViaje, PrioridadViaje } from '../services/botLogistica';
+import { cerrarSesion } from '../services/authService';
 
 const ETIQUETA_PRIORIDAD: Record<PrioridadViaje, string> = {
     alta: 'PRIORIDAD ALTA',
@@ -17,8 +18,14 @@ const ESTADOS_CHOFER = [
 ];
 
 export default function ChoferScreen({ navigation, route }: any) {
-    const nombre: string = route?.params?.nombre ?? 'Marcos Di Palma';
+    const nombre: string = route?.params?.nombre ?? 'Chofer LogiTrack';
+    const codigo: string | null = route?.params?.codigo ?? null;
     const primerNombre = nombre.split(' ')[0];
+
+    const salir = () => {
+        cerrarSesion();
+        navigation.navigate('Login');
+    };
 
     const [cargandoAlerta, setCargandoAlerta] = useState(false);
     const [tieneAlerta, setTieneAlerta] = useState(false);
@@ -112,7 +119,7 @@ export default function ChoferScreen({ navigation, route }: any) {
                         </View>
                     </View>
 
-                    <TouchableOpacity style={styles.botonSalir} onPress={() => navigation.navigate('Login')}>
+                    <TouchableOpacity style={styles.botonSalir} onPress={salir}>
                         <Text style={styles.botonSalirTexto}>Salir</Text>
                     </TouchableOpacity>
                 </View>
@@ -120,7 +127,9 @@ export default function ChoferScreen({ navigation, route }: any) {
                 <View style={styles.saludoBlock}>
                     <Text style={styles.eyebrow}>Consola de transportista</Text>
                     <Text style={styles.saludo}>Hola, {primerNombre} 👋</Text>
-                    <Text style={styles.subtitulo}>Unidad homologada · Red LogiTrack</Text>
+                    <Text style={styles.subtitulo}>
+                        {codigo ? `ID ${codigo} · Red LogiTrack` : 'Unidad homologada · Red LogiTrack'}
+                    </Text>
                 </View>
 
                 <View style={styles.estadoStrip}>

@@ -11,6 +11,7 @@ import SeguimientoScreen from '../screens/SeguimientoScreen';
 import PerfilScreen from '../screens/PerfilScreen';
 import HistorialScreen from '../screens/HistorialScreen';
 import ChoferScreen from '../screens/ChoferScreen';
+import TrabajaConNosotrosScreen from '../screens/TrabajaConNosotrosScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -79,6 +80,12 @@ export default function AppNavigator() {
                 <Stack.Screen
                     name="Chofer"
                     component={ChoferScreen}
+                    options={{ headerShown: false }}
+                />
+
+                <Stack.Screen
+                    name="TrabajaConNosotros"
+                    component={TrabajaConNosotrosScreen}
                     options={{ headerShown: false }}
                 />
             </Stack.Navigator>

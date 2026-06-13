@@ -23,11 +23,16 @@ export default function LoginScreens({ navigation }: any) {
   const { circulo, caja } = tamanosAuth(width);
 
   const [error, setError] = useState('');
+  const [cargando, setCargando] = useState(false);
 
   const { volverAlInicio, puedeVolver } = useRootFlow();
 
-  const manejarIngreso = () => {
-    const resultado = iniciarSesion(usuarioRef.current, contrasenaRef.current);
+  const manejarIngreso = async () => {
+    if (cargando) return;
+    setCargando(true);
+
+    const resultado = await iniciarSesion(usuarioRef.current, contrasenaRef.current);
+    setCargando(false);
 
     if (!resultado.exito) {
       setError(resultado.error);
@@ -37,10 +42,19 @@ export default function LoginScreens({ navigation }: any) {
     setError('');
 
     const { usuario } = resultado;
-    if (usuario.rol === 'admin') {
-      navigation.navigate('Home', { nombre: usuario.nombreCompleto, usuario: usuario.usuario });
+    if (usuario.rol === 'chofer') {
+      navigation.navigate('Chofer', {
+        nombre: usuario.nombreCompleto,
+        usuario: usuario.usuario,
+        codigo: usuario.chofer?.codigo ?? null,
+      });
     } else {
-      navigation.navigate('Chofer', { nombre: usuario.nombreCompleto, usuario: usuario.usuario });
+      // Admin y cliente comparten el panel; el rol define qué acciones ven.
+      navigation.navigate('Home', {
+        nombre: usuario.nombreCompleto,
+        usuario: usuario.usuario,
+        rol: usuario.rol,
+      });
     }
   };
 
@@ -149,14 +163,14 @@ export default function LoginScreens({ navigation }: any) {
               style={styles.loginButton}
             >
               <Text style={styles.loginButtonText}>
-                Ingresar al sistema
+                {cargando ? 'Ingresando…' : 'Ingresar al sistema'}
               </Text>
             </LinearGradient>
           </TouchableOpacity>
 
           <View style={styles.hintBox}>
             <Text style={styles.hintText}>
-              Usuarios de prueba: admin / 1234 · chofer / 1234
+              ¿No tenés cuenta? Registrate como cliente y empezá a enviar.
             </Text>
           </View>
         </View>

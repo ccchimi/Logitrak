@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { styles, COLORS, ESTADO_COLORS } from './HomeStyles';
 import { obtenerViajesActivos, Viaje } from '../services/viajesService';
+import { cerrarSesion } from '../services/authService';
 import TarjetaViaje from '../components/TarjetaViaje';
 
 type Filtro = 'Todos' | 'En Viaje' | 'Pendiente' | 'Entregado';
@@ -69,7 +70,15 @@ export default function HomeScreen({ navigation, route }: any) {
 
   const nombre: string = route?.params?.nombre ?? 'Admin';
   const usuario: string = route?.params?.usuario ?? 'admin';
+  const rol: 'admin' | 'cliente' = route?.params?.rol ?? 'admin';
+  const esCliente = rol === 'cliente';
+  const etiquetaRol = esCliente ? 'Cliente' : 'Administrador';
   const primerNombre = nombre.split(' ')[0];
+
+  const salir = () => {
+    cerrarSesion();
+    navigation.navigate('Login');
+  };
 
   const esEscritorio = width >= 1000;
   const apilarPaneles = width < 1280;
@@ -175,11 +184,11 @@ export default function HomeScreen({ navigation, route }: any) {
         </View>
         <View>
           <Text style={styles.sbUserName}>{primerNombre}</Text>
-          <Text style={styles.sbUserMail}>@{usuario} · Administrador</Text>
+          <Text style={styles.sbUserMail}>@{usuario} · {etiquetaRol}</Text>
         </View>
       </View>
 
-      <TouchableOpacity style={styles.sbSalir} onPress={() => navigation.navigate('Login')}>
+      <TouchableOpacity style={styles.sbSalir} onPress={salir}>
         <Text style={styles.sbSalirText}>Cerrar sesión</Text>
       </TouchableOpacity>
     </View>
@@ -196,11 +205,11 @@ export default function HomeScreen({ navigation, route }: any) {
                 logitrak<Text style={styles.mDot}>.</Text>
               </Text>
               <View style={styles.mRolePill}>
-                <Text style={styles.mRolePillText}>ADMIN</Text>
+                <Text style={styles.mRolePillText}>{esCliente ? 'CLIENTE' : 'ADMIN'}</Text>
               </View>
             </View>
 
-            <TouchableOpacity style={styles.mSalir} onPress={() => navigation.navigate('Login')}>
+            <TouchableOpacity style={styles.mSalir} onPress={salir}>
               <Text style={styles.mSalirText}>Salir</Text>
             </TouchableOpacity>
           </View>
@@ -261,6 +270,15 @@ export default function HomeScreen({ navigation, route }: any) {
           <TouchableOpacity style={styles.ctaGhost} onPress={() => navigation.navigate('Historial')}>
             <Text style={styles.ctaGhostText}>🗂  Historial</Text>
           </TouchableOpacity>
+
+          {esCliente && (
+            <TouchableOpacity
+              style={styles.ctaGhost}
+              onPress={() => navigation.navigate('TrabajaConNosotros')}
+            >
+              <Text style={styles.ctaGhostText}>🚚  Trabajá con nosotros</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </LinearGradient>
 

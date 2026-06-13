@@ -1,45 +1,44 @@
-export type RolUsuario = 'admin' | 'chofer';
+import {
+    cerrarSesion as limpiarSesion,
+    guardarSesion,
+    llamarApi,
+    obtenerUsuarioSesion,
+    RolUsuario,
+    UsuarioSesion,
+} from './api';
 
-export interface Usuario {
-    usuario: string;
-    contrasena: string;
-    rol: RolUsuario;
-    nombreCompleto: string;
-}
+export type { RolUsuario, UsuarioSesion };
+export { obtenerUsuarioSesion };
 
 export type ResultadoSesion =
-    | { exito: true; usuario: Usuario }
+    | { exito: true; usuario: UsuarioSesion }
     | { exito: false; error: string };
 
 export type ResultadoOperacion =
     | { exito: true; mensaje: string }
     | { exito: false; error: string };
 
-const usuarios: Usuario[] = [
-    { usuario: 'admin', contrasena: '1234', rol: 'admin', nombreCompleto: 'Administrador LogiTrack' },
-    { usuario: 'chofer', contrasena: '1234', rol: 'chofer', nombreCompleto: 'Marcos Di Palma' },
-];
-
-function buscarUsuario(usuario: string): Usuario | undefined {
-    const limpio = usuario.trim().toLowerCase();
-    return usuarios.find((u) => u.usuario === limpio);
-}
-
-export function existeUsuario(usuario: string): boolean {
-    return !!buscarUsuario(usuario);
-}
-
-export function iniciarSesion(usuario: string, contrasena: string): ResultadoSesion {
+export async function iniciarSesion(usuario: string, contrasena: string): Promise<ResultadoSesion> {
     if (!usuario.trim() || !contrasena.trim()) {
         return { exito: false, error: 'Por favor, completá todos los campos.' };
     }
 
-    const encontrado = buscarUsuario(usuario);
-    if (!encontrado || encontrado.contrasena !== contrasena.trim()) {
-        return { exito: false, error: 'Usuario o contraseña incorrectos.' };
-    }
+    const r = await llamarApi<{ exito: true; token: string; usuario: UsuarioSesion }>(
+        '/api/auth/login',
+        { metodo: 'POST', cuerpo: { usuario, contrasena } }
+    );
 
-    return { exito: true, usuario: encontrado };
+    if (!r.exito) return { exito: false, error: (r as any).error ?? 'No se pudo iniciar sesión.' };
+
+    guardarSesion(r.token, r.usuario);
+    return { exito: true, usuario: r.usuario };
+}
+
+export async function existeUsuario(usuario: string): Promise<boolean> {
+    const r = await llamarApi<{ exito: true; existe: boolean }>(
+        `/api/auth/existe/${encodeURIComponent(usuario.trim().toLowerCase())}`
+    );
+    return r.exito && (r as any).existe === true;
 }
 
 export interface DatosRegistro {
@@ -47,59 +46,34 @@ export interface DatosRegistro {
     usuario: string;
     contrasena: string;
     confirmacion: string;
-    rol: RolUsuario;
 }
 
-export function registrarUsuario(datos: DatosRegistro): ResultadoOperacion {
-    const nombre = datos.nombreCompleto.trim();
-    const usuario = datos.usuario.trim().toLowerCase();
-
-    if (nombre.length < 3) {
-        return { exito: false, error: 'Ingresá tu nombre completo.' };
-    }
-    if (!/^[a-z0-9._-]{3,20}$/.test(usuario)) {
-        return {
-            exito: false,
-            error: 'El usuario debe tener entre 3 y 20 caracteres (letras, números, punto, guión).',
-        };
-    }
-    if (existeUsuario(usuario)) {
-        return { exito: false, error: `El usuario "${usuario}" ya está registrado.` };
-    }
-    if (datos.contrasena.length < 4) {
-        return { exito: false, error: 'La contraseña debe tener al menos 4 caracteres.' };
-    }
-    if (datos.contrasena !== datos.confirmacion) {
-        return { exito: false, error: 'Las contraseñas no coinciden.' };
-    }
-
-    usuarios.push({
-        usuario,
-        contrasena: datos.contrasena,
-        rol: datos.rol,
-        nombreCompleto: nombre,
+// Todo registro crea una cuenta de cliente. Los admins se siembran por
+// sistema y chofer se llega con la postulación verificada (choferesService).
+export async function registrarUsuario(datos: DatosRegistro): Promise<ResultadoOperacion> {
+    const r = await llamarApi<{ exito: true; mensaje: string }>('/api/auth/registro', {
+        metodo: 'POST',
+        cuerpo: datos,
     });
 
-    return { exito: true, mensaje: `Cuenta creada. Ya podés ingresar como "${usuario}".` };
+    if (!r.exito) return { exito: false, error: (r as any).error ?? 'No se pudo crear la cuenta.' };
+    return { exito: true, mensaje: r.mensaje };
 }
 
-export function restablecerContrasena(
+export async function restablecerContrasena(
     usuario: string,
     nueva: string,
     confirmacion: string
-): ResultadoOperacion {
-    const encontrado = buscarUsuario(usuario);
+): Promise<ResultadoOperacion> {
+    const r = await llamarApi<{ exito: true; mensaje: string }>('/api/auth/recuperar', {
+        metodo: 'POST',
+        cuerpo: { usuario, nueva, confirmacion },
+    });
 
-    if (!encontrado) {
-        return { exito: false, error: 'No encontramos una cuenta con ese usuario.' };
-    }
-    if (nueva.length < 4) {
-        return { exito: false, error: 'La nueva contraseña debe tener al menos 4 caracteres.' };
-    }
-    if (nueva !== confirmacion) {
-        return { exito: false, error: 'Las contraseñas no coinciden.' };
-    }
+    if (!r.exito) return { exito: false, error: (r as any).error ?? 'No se pudo restablecer la contraseña.' };
+    return { exito: true, mensaje: r.mensaje };
+}
 
-    encontrado.contrasena = nueva;
-    return { exito: true, mensaje: 'Contraseña actualizada. Ya podés iniciar sesión.' };
+export function cerrarSesion() {
+    limpiarSesion();
 }
