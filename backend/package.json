@@ -1,0 +1,22 @@
+{
+  "name": "logitrack-backend",
+  "version": "1.0.0",
+  "description": "API de LogiTrack: autenticación con roles, choferes y datos de logística sobre PostgreSQL.",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "db:init": "node src/db/init.js --standalone"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.4.1",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.13.1"
+  },
+  "private": true
+}
