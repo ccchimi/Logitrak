@@ -5,6 +5,11 @@ import { pool } from './db/pool.js';
 import { inicializarBaseDeDatos } from './db/init.js';
 import { rutasAuth } from './rutas/auth.js';
 import { rutasChoferes } from './rutas/choferes.js';
+import { rutasCotizaciones } from './rutas/cotizaciones.js';
+import { rutasEnvios } from './rutas/envios.js';
+import { rutasAsignaciones } from './rutas/asignaciones.js';
+import { rutasCupones } from './rutas/cupones.js';
+import { rutasPerfil } from './rutas/perfil.js';
 
 const app = express();
 
@@ -22,6 +27,11 @@ app.get('/api/salud', async (_req, res) => {
 
 app.use('/api/auth', rutasAuth);
 app.use('/api/choferes', rutasChoferes);
+app.use('/api/cotizaciones', rutasCotizaciones);
+app.use('/api/envios', rutasEnvios);
+app.use('/api/asignaciones', rutasAsignaciones);
+app.use('/api/cupones', rutasCupones);
+app.use('/api/perfil', rutasPerfil);
 
 app.use((_req, res) => {
     res.status(404).json({ exito: false, error: 'Ruta no encontrada.' });
