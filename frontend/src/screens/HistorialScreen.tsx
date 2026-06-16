@@ -1,6 +1,7 @@
-import React from 'react';
-import { FlatList, SafeAreaView, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, FlatList, SafeAreaView, Text, TouchableOpacity, View } from 'react-native';
 import { styles } from './HistorialStyles';
+import { Envio, listarEnvios } from '../services/enviosService';
 
 interface OrdenPasada {
     id: string;
@@ -12,18 +13,46 @@ interface OrdenPasada {
     precio: number;
 }
 
-const HISTORIAL_MOCK: OrdenPasada[] = [
-    { id: 'h1', codigo: 'LOG-2026-941', fecha: '04/06/2026', origen: 'Caballito', destino: 'Flores', vehiculoIA: 'Motomensajería', precio: 1500 },
-    { id: 'h2', codigo: 'LOG-2026-882', fecha: '01/06/2026', origen: 'Parque Chacabuco', destino: 'CABA Centro', vehiculoIA: 'Utilitario liviano', precio: 4200 },
-    { id: 'h3', codigo: 'LOG-2026-815', fecha: '29/05/2026', origen: 'Palermo', destino: 'Vicente López', vehiculoIA: 'Motomensajería', precio: 2350 },
-    { id: 'h4', codigo: 'LOG-2026-710', fecha: '25/05/2026', origen: 'La Plata', destino: 'CABA', vehiculoIA: 'Camión de carga pesada', precio: 12800 },
-    { id: 'h5', codigo: 'LOG-2026-688', fecha: '21/05/2026', origen: 'Quilmes', destino: 'Avellaneda', vehiculoIA: 'Utilitario liviano', precio: 5650 },
-];
-
 const formatearARS = (monto: number) => `$${monto.toLocaleString('es-AR')}`;
 
+function formatearFecha(iso: string | null): string {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    const dia = d.getDate().toString().padStart(2, '0');
+    const mes = (d.getMonth() + 1).toString().padStart(2, '0');
+    return `${dia}/${mes}/${d.getFullYear()}`;
+}
+
+function mapearOrden(e: Envio): OrdenPasada {
+    return {
+        id: String(e.id),
+        codigo: e.codigo,
+        fecha: formatearFecha(e.entregadoEn ?? e.creadoEn),
+        origen: e.origen,
+        destino: e.destino,
+        vehiculoIA: e.vehiculoNombre ?? 'Unidad asignada',
+        precio: Number(e.precio) || 0,
+    };
+}
+
 export default function HistorialScreen({ navigation }: any) {
-    const totalGastado = HISTORIAL_MOCK.reduce((acc, o) => acc + o.precio, 0);
+    const [ordenes, setOrdenes] = useState<OrdenPasada[]>([]);
+    const [cargando, setCargando] = useState(true);
+
+    useEffect(() => {
+        let activo = true;
+        listarEnvios('entregado').then((envios) => {
+            if (!activo) return;
+            setOrdenes(envios.map(mapearOrden));
+            setCargando(false);
+        });
+        return () => {
+            activo = false;
+        };
+    }, []);
+
+    const totalGastado = ordenes.reduce((acc, o) => acc + o.precio, 0);
 
     const Encabezado = (
         <>
@@ -46,7 +75,7 @@ export default function HistorialScreen({ navigation }: any) {
             <View style={styles.resumenRow}>
                 <View style={styles.resumenCaja}>
                     <Text style={styles.resumenLabel}>Envíos completados</Text>
-                    <Text style={styles.resumenValor}>{HISTORIAL_MOCK.length}</Text>
+                    <Text style={styles.resumenValor}>{ordenes.length}</Text>
                 </View>
                 <View style={styles.resumenCaja}>
                     <Text style={styles.resumenLabel}>Inversión total</Text>
@@ -64,10 +93,27 @@ export default function HistorialScreen({ navigation }: any) {
         <SafeAreaView style={styles.safeArea}>
             <View style={styles.container}>
                 <FlatList
-                    data={HISTORIAL_MOCK}
+                    data={ordenes}
                     keyExtractor={(item) => item.id}
                     contentContainerStyle={styles.listContent}
                     ListHeaderComponent={Encabezado}
+                    ListEmptyComponent={
+                        cargando ? (
+                            <View style={{ paddingVertical: 48, alignItems: 'center' }}>
+                                <ActivityIndicator color="#FFD700" />
+                            </View>
+                        ) : (
+                            <View style={{ paddingVertical: 48, alignItems: 'center', paddingHorizontal: 24 }}>
+                                <Text style={{ fontSize: 40, marginBottom: 12 }}>🗂️</Text>
+                                <Text style={[styles.titulo, { fontSize: 18, textAlign: 'center' }]}>
+                                    Todavía no hay envíos entregados
+                                </Text>
+                                <Text style={[styles.resumenLabel, { textAlign: 'center', marginTop: 8 }]}>
+                                    Cuando completes tu primer envío con Boxy, vas a verlo acá.
+                                </Text>
+                            </View>
+                        )
+                    }
                     renderItem={({ item }) => (
                         <View style={styles.itemHistorial}>
                             <View style={styles.fila}>

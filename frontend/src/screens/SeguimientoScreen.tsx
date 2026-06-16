@@ -21,6 +21,10 @@ import {
     geocodificarDireccion,
     type PuntoRuta,
 } from '../services/seguimientoService';
+import { agregarEvento } from '../services/enviosService';
+import { emitirCupon } from '../services/cuponesService';
+
+const CHOFER_SIMULADO = 'Marcos Di Palma · Honda Wave 110';
 
 const SLA_TOTAL_SEG = 1200;
 
@@ -64,6 +68,8 @@ export default function SeguimientoScreen({ navigation, route }: any) {
     const vehiculo: string = route?.params?.vehiculo ?? 'Unidad asignada por Boxy';
     const precio: number | undefined = route?.params?.precio;
     const referencia: string = route?.params?.referencia ?? 'TRK-EN-VIVO';
+    // Código del envío real en la base; si no vino, el seguimiento es solo visual.
+    const envioCodigo: string | null = route?.params?.envioCodigo ?? null;
 
     const [tiempoRestante, setTiempoRestante] = useState(SLA_TOTAL_SEG);
     const [etapa, setEtapa] = useState(0);
@@ -123,13 +129,28 @@ export default function SeguimientoScreen({ navigation, route }: any) {
 
         const t1 = setTimeout(() => {
             setEtapa(1);
-            setChofer('Marcos Di Palma · Honda Wave 110');
+            setChofer(CHOFER_SIMULADO);
             mostrar('info', 'Chofer asignado', 'Marcos Di Palma va en camino al punto de retiro.');
+            if (envioCodigo) {
+                void agregarEvento(envioCodigo, {
+                    tipo: 'asignado',
+                    titulo: 'Chofer asignado',
+                    detalle: 'Marcos Di Palma va en camino al punto de retiro.',
+                    choferNombre: CHOFER_SIMULADO,
+                });
+            }
         }, 4000);
 
         const t2 = setTimeout(() => {
             setEtapa(2);
             mostrar('info', 'Paquete retirado', 'La carga ya viaja hacia el destino.');
+            if (envioCodigo) {
+                void agregarEvento(envioCodigo, {
+                    tipo: 'retirado',
+                    titulo: 'Paquete retirado',
+                    detalle: 'La carga ya viaja hacia el destino.',
+                });
+            }
         }, 12000);
 
         return () => {
@@ -148,8 +169,21 @@ export default function SeguimientoScreen({ navigation, route }: any) {
                 'SLA excedido',
                 'Se acreditó un cupón de compensación en tu perfil.'
             );
+            // Dejamos registro del incumplimiento y emitimos el cupón real.
+            if (envioCodigo) {
+                void agregarEvento(envioCodigo, {
+                    tipo: 'sla_excedido',
+                    titulo: 'SLA excedido',
+                    detalle: 'Se acreditó un cupón de compensación al cliente.',
+                });
+                void emitirCupon({
+                    descuentoPct: 15,
+                    motivo: 'Compensación: el envío excedió su SLA de arribo.',
+                    envioCodigo,
+                });
+            }
         }
-    }, [tiempoRestante, mostrar]);
+    }, [tiempoRestante, mostrar, envioCodigo]);
 
     useEffect(() => {
         let activo = true;

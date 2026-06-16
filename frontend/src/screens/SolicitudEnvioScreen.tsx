@@ -23,6 +23,11 @@ import {
     esNegacion,
     interpretarRespuesta,
 } from '../services/botLogistica';
+import { guardarCotizacion } from '../services/cotizacionesService';
+import { crearEnvio } from '../services/enviosService';
+
+// El contador de SLA del seguimiento dura 20 minutos; lo persistimos igual.
+const SLA_ENVIO_MIN = 20;
 
 type CampoEnvio = 'origen' | 'destino' | 'descripcion' | 'peso' | 'bultos' | 'largo' | 'ancho' | 'alto';
 
@@ -137,6 +142,7 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
     const [isBotTyping, setIsBotTyping] = useState(false);
     const [cargando, setCargando] = useState(false);
     const [cotizacion, setCotizacion] = useState<Cotizacion | null>(null);
+    const [confirmando, setConfirmando] = useState(false);
 
     // Con el teclado abierto se compacta el header y se mantiene visible
     // el final del chat (la última pregunta del bot).
@@ -346,6 +352,13 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
             if (respuesta.exito) {
                 resultado = respuesta.cotizacion;
                 setCotizacion(resultado);
+                // Persistimos la cotización ni bien se emite (best-effort).
+                void guardarCotizacion(resultado, {
+                    bultos: parseInt(data.bultos, 10) || undefined,
+                    largoCm: parseFloat(data.largo) || undefined,
+                    anchoCm: parseFloat(data.ancho) || undefined,
+                    altoCm: parseFloat(data.alto) || undefined,
+                });
                 botText = `Listo. Analicé ruta, carga y contexto operativo: esta es mi cotización con un ${resultado.puntajeConfianza}% de confianza.`;
             } else {
                 const detalles = respuesta.problemas
@@ -487,6 +500,46 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
         await submitAnswer('', true);
     };
 
+    // Confirma la cotización: crea el envío en la base y abre el seguimiento
+    // con el código real (TRK-...). Si el backend no responde, sigue en modo
+    // simulación con la referencia de la cotización.
+    const confirmarYSolicitar = async (resultado: Cotizacion) => {
+        if (confirmando) return;
+        setConfirmando(true);
+
+        const envio = await crearEnvio({
+            cotizacionCodigo: resultado.id,
+            origen: resultado.origen.textoNormalizado || resultado.origen.textoOriginal,
+            destino: resultado.destino.textoNormalizado || resultado.destino.textoOriginal,
+            origenLat: resultado.origen.localidad?.lat ?? null,
+            origenLng: resultado.origen.localidad?.lng ?? null,
+            destinoLat: resultado.destino.localidad?.lat ?? null,
+            destinoLng: resultado.destino.localidad?.lng ?? null,
+            descripcionCarga: resultado.carga.descripcion || null,
+            categoriaCarga: resultado.carga.categoria,
+            pesoKg: resultado.pesoRealKg,
+            bultos: parseInt(envioData.bultos, 10) || null,
+            vehiculoId: resultado.vehiculo.id,
+            vehiculoNombre: resultado.vehiculo.nombre,
+            distanciaKm: resultado.distanciaKm,
+            precio: resultado.precio,
+            moneda: resultado.moneda,
+            slaMin: SLA_ENVIO_MIN,
+        });
+
+        setConfirmando(false);
+
+        navigation.navigate('Seguimiento', {
+            envioCodigo: envio?.codigo ?? null,
+            origen: resultado.origen.textoNormalizado,
+            destino: resultado.destino.textoNormalizado,
+            producto: resultado.carga.descripcion,
+            vehiculo: resultado.vehiculo.nombre,
+            precio: resultado.precio,
+            referencia: envio?.codigo ?? resultado.id,
+        });
+    };
+
     const resetChat = () => {
         if (typingTimerRef.current) {
             clearInterval(typingTimerRef.current);
@@ -616,18 +669,12 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
 
             <TouchableOpacity
                 style={styles.botonConfirmar}
-                onPress={() =>
-                    navigation.navigate('Seguimiento', {
-                        origen: resultado.origen.textoNormalizado,
-                        destino: resultado.destino.textoNormalizado,
-                        producto: resultado.carga.descripcion,
-                        vehiculo: resultado.vehiculo.nombre,
-                        precio: resultado.precio,
-                        referencia: resultado.id,
-                    })
-                }
+                disabled={confirmando}
+                onPress={() => void confirmarYSolicitar(resultado)}
             >
-                <Text style={styles.botonConfirmarTexto}>Confirmar y Solicitar Chofer</Text>
+                <Text style={styles.botonConfirmarTexto}>
+                    {confirmando ? 'Registrando envío…' : 'Confirmar y Solicitar Chofer'}
+                </Text>
             </TouchableOpacity>
         </View>
     );
