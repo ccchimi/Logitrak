@@ -1,3 +1,5 @@
+import { Envio, EstadoEnvio, listarEnvios } from './enviosService';
+
 export interface Viaje {
     id: string;
     codigo: string;
@@ -7,17 +9,35 @@ export interface Viaje {
     fecha: string;
 }
 
+// La base maneja 5 estados; el panel los agrupa en los 3 que muestran las
+// tarjetas y los filtros (asignado y cancelado caen en "Pendiente").
+function estadoVisible(estado: EstadoEnvio): Viaje['estado'] {
+    if (estado === 'en_viaje') return 'En Viaje';
+    if (estado === 'entregado') return 'Entregado';
+    return 'Pendiente';
+}
+
+function formatearFecha(iso: string): string {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    const dia = d.getDate().toString().padStart(2, '0');
+    const mes = (d.getMonth() + 1).toString().padStart(2, '0');
+    return `${dia}/${mes}/${d.getFullYear()}`;
+}
+
+function mapearEnvio(e: Envio): Viaje {
+    return {
+        id: String(e.id),
+        codigo: e.codigo,
+        destino: `${e.origen} → ${e.destino}`,
+        estado: estadoVisible(e.estado),
+        chofer: e.choferNombre ?? 'Sin asignar',
+        fecha: formatearFecha(e.creadoEn),
+    };
+}
+
+// Envíos reales del usuario logueado (cliente: los suyos; admin: todos).
 export const obtenerViajesActivos = async (): Promise<Viaje[]> => {
-    return [
-        { id: '1', codigo: 'TRK-2026-001', destino: 'Buenos Aires -> Rosario', estado: 'En Viaje', chofer: 'Carlos Pérez', fecha: '08/06/2026' },
-        { id: '2', codigo: 'TRK-2026-002', destino: 'Córdoba -> Mendoza', estado: 'Pendiente', chofer: 'Mariano Gómez', fecha: '09/06/2026' },
-        { id: '3', codigo: 'TRK-2026-003', destino: 'Mar del Plata -> CABA', estado: 'Entregado', chofer: 'Juan Rodriguez', fecha: '07/06/2026' },
-        { id: '4', codigo: 'TRK-2026-004', destino: 'Rosario -> Santa Fe', estado: 'En Viaje', chofer: 'Lucía Fernández', fecha: '09/06/2026' },
-        { id: '5', codigo: 'TRK-2026-005', destino: 'Salta -> Tucumán', estado: 'Pendiente', chofer: 'Diego Martínez', fecha: '10/06/2026' },
-        { id: '6', codigo: 'TRK-2026-006', destino: 'CABA -> La Plata', estado: 'Entregado', chofer: 'Sofía Romero', fecha: '06/06/2026' },
-        { id: '7', codigo: 'TRK-2026-007', destino: 'Neuquén -> Bahía Blanca', estado: 'En Viaje', chofer: 'Martín Suárez', fecha: '09/06/2026' },
-        { id: '8', codigo: 'TRK-2026-008', destino: 'Mendoza -> San Juan', estado: 'Pendiente', chofer: 'Carolina Ríos', fecha: '11/06/2026' },
-        { id: '9', codigo: 'TRK-2026-009', destino: 'Córdoba -> CABA', estado: 'Entregado', chofer: 'Andrés López', fecha: '05/06/2026' },
-        { id: '10', codigo: 'TRK-2026-010', destino: 'La Plata -> Mar del Plata', estado: 'En Viaje', chofer: 'Valentina Díaz', fecha: '10/06/2026' },
-    ];
+    const envios = await listarEnvios();
+    return envios.map(mapearEnvio);
 };
