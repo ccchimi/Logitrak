@@ -3,6 +3,12 @@ import { ActivityIndicator, SafeAreaView, ScrollView, Text, TouchableOpacity, Vi
 import { styles, COLORS } from './ChoferStyles';
 import { generarAsignacionViaje, AsignacionViaje, PrioridadViaje } from '../services/botLogistica';
 import { cerrarSesion } from '../services/authService';
+import {
+    registrarAsignacion,
+    aceptarAsignacion,
+    rechazarAsignacion,
+    completarAsignacion,
+} from '../services/asignacionesService';
 
 const ETIQUETA_PRIORIDAD: Record<PrioridadViaje, string> = {
     alta: 'PRIORIDAD ALTA',
@@ -43,6 +49,8 @@ export default function ChoferScreen({ navigation, route }: any) {
             const nuevaAlerta = await generarAsignacionViaje();
             setDatosViaje(nuevaAlerta);
             setTieneAlerta(true);
+            // Registramos la oferta en la base (best-effort).
+            void registrarAsignacion(nuevaAlerta);
         } catch (_error) {
             setErrorAsignacion('No hay asignaciones disponibles en este momento. Volvé a intentar en unos minutos.');
         } finally {
@@ -51,12 +59,14 @@ export default function ChoferScreen({ navigation, route }: any) {
     };
 
     const aceptarViaje = () => {
+        if (datosViaje) void aceptarAsignacion(datosViaje.id);
         setTieneAlerta(false);
         setViajeActivo(true);
         setPasoEstado(0);
     };
 
     const rechazarViaje = () => {
+        if (datosViaje) void rechazarAsignacion(datosViaje.id);
         setTieneAlerta(false);
         setDatosViaje(null);
     };
@@ -65,6 +75,8 @@ export default function ChoferScreen({ navigation, route }: any) {
         if (pasoEstado < ESTADOS_CHOFER.length - 1) {
             setPasoEstado(pasoEstado + 1);
         } else {
+            // Último paso: el viaje se entregó, cerramos la asignación.
+            if (datosViaje) void completarAsignacion(datosViaje.id);
             setViajeActivo(false);
             setDatosViaje(null);
         }

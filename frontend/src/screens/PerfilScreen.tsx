@@ -1,33 +1,49 @@
-import React from 'react';
-import { FlatList, SafeAreaView, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, FlatList, SafeAreaView, Text, TouchableOpacity, View } from 'react-native';
 import { styles } from './PerfilStyles';
+import { obtenerUsuarioSesion } from '../services/authService';
+import { obtenerResumenPerfil, ResumenPerfil } from '../services/perfilService';
+import { Cupon, listarCupones } from '../services/cuponesService';
 
-interface Cupon {
-    id: string;
-    codigo: string;
-    descuento: string;
-    motivo: string;
-}
-
-const CUPONES_MOCK: Cupon[] = [
-    { id: 'c1', codigo: 'SLA-INCUMP-054', descuento: '25% OFF', motivo: 'Compensación: demora de arribo de 8 min excedida.' },
-    { id: 'c2', codigo: 'SLA-INCUMP-102', descuento: '15% OFF', motivo: 'Compensación: demora por congestión de tráfico pesado.' },
-];
+const ETIQUETA_CUENTA: Record<string, string> = {
+    admin: 'Cuenta Administrador',
+    cliente: 'Cuenta Cliente',
+    chofer: 'Cuenta Chofer',
+};
 
 export default function PerfilScreen({ navigation }: any) {
-    const usuarioInfo = {
-        nombre: 'Franco Schimizzi',
-        cuenta: 'Cuenta Empresa (B2B)',
-        legajo: 'LEG-99421',
-        email: 'franco.schimizzi@logitrack.com',
-    };
+    const sesion = obtenerUsuarioSesion();
+    const [resumen, setResumen] = useState<ResumenPerfil | null>(null);
+    const [cupones, setCupones] = useState<Cupon[]>([]);
+    const [cargando, setCargando] = useState(true);
 
-    const iniciales = usuarioInfo.nombre
-        .split(' ')
-        .map((p) => p.charAt(0))
-        .slice(0, 2)
-        .join('')
-        .toUpperCase();
+    useEffect(() => {
+        let activo = true;
+        Promise.all([obtenerResumenPerfil(), listarCupones()]).then(([r, c]) => {
+            if (!activo) return;
+            setResumen(r);
+            setCupones(c);
+            setCargando(false);
+        });
+        return () => {
+            activo = false;
+        };
+    }, []);
+
+    const nombre = resumen?.nombreCompleto ?? sesion?.nombreCompleto ?? 'Mi cuenta';
+    const usuario = resumen?.usuario ?? sesion?.usuario ?? '';
+    const rol = resumen?.rol ?? sesion?.rol ?? 'cliente';
+
+    const iniciales = useMemo(
+        () =>
+            nombre
+                .split(' ')
+                .map((p) => p.charAt(0))
+                .slice(0, 2)
+                .join('')
+                .toUpperCase(),
+        [nombre]
+    );
 
     const Encabezado = (
         <>
@@ -52,28 +68,30 @@ export default function PerfilScreen({ navigation }: any) {
                     <Text style={styles.avatarTexto}>{iniciales}</Text>
                 </View>
 
-                <Text style={styles.nombre}>{usuarioInfo.nombre}</Text>
+                <Text style={styles.nombre}>{nombre}</Text>
 
                 <View style={styles.cuentaPill}>
-                    <Text style={styles.cuentaPillTexto}>{usuarioInfo.cuenta}</Text>
+                    <Text style={styles.cuentaPillTexto}>{ETIQUETA_CUENTA[rol] ?? 'Cuenta'}</Text>
                 </View>
 
-                <Text style={styles.detalle}>Legajo: {usuarioInfo.legajo}</Text>
-                <Text style={styles.detalle}>{usuarioInfo.email}</Text>
+                {usuario ? <Text style={styles.detalle}>Usuario: @{usuario}</Text> : null}
+                <Text style={styles.detalle}>
+                    Miembro desde {resumen?.clienteDesde ?? new Date().getFullYear()}
+                </Text>
             </View>
 
             <View style={styles.statsRow}>
                 <View style={styles.statCaja}>
-                    <Text style={styles.statValor}>27</Text>
+                    <Text style={styles.statValor}>{cargando ? '—' : resumen?.enviosTotales ?? 0}</Text>
                     <Text style={styles.statLabel}>Envíos totales</Text>
                 </View>
                 <View style={styles.statCaja}>
-                    <Text style={styles.statValor}>{CUPONES_MOCK.length}</Text>
+                    <Text style={styles.statValor}>{cargando ? '—' : resumen?.cuponesActivos ?? cupones.length}</Text>
                     <Text style={styles.statLabel}>Cupones activos</Text>
                 </View>
                 <View style={styles.statCaja}>
-                    <Text style={styles.statValor}>2024</Text>
-                    <Text style={styles.statLabel}>Cliente desde</Text>
+                    <Text style={styles.statValor}>{cargando ? '—' : resumen?.enviosEntregados ?? 0}</Text>
+                    <Text style={styles.statLabel}>Entregados</Text>
                 </View>
             </View>
 
@@ -88,15 +106,28 @@ export default function PerfilScreen({ navigation }: any) {
         <SafeAreaView style={styles.safeArea}>
             <View style={styles.container}>
                 <FlatList
-                    data={CUPONES_MOCK}
-                    keyExtractor={(item) => item.id}
+                    data={cupones}
+                    keyExtractor={(item) => String(item.id)}
                     contentContainerStyle={styles.listContent}
                     ListHeaderComponent={Encabezado}
+                    ListEmptyComponent={
+                        cargando ? (
+                            <View style={{ paddingVertical: 32, alignItems: 'center' }}>
+                                <ActivityIndicator color="#FFD700" />
+                            </View>
+                        ) : (
+                            <View style={{ paddingVertical: 24, alignItems: 'center', paddingHorizontal: 24 }}>
+                                <Text style={[styles.seccionSub, { textAlign: 'center' }]}>
+                                    No tenés cupones por ahora. Aparecen solos si un envío excede su SLA.
+                                </Text>
+                            </View>
+                        )
+                    }
                     renderItem={({ item }) => (
                         <View style={styles.tarjetaCupon}>
                             <View style={styles.cuponHeader}>
                                 <Text style={styles.cuponCodigo}>CÓDIGO: {item.codigo}</Text>
-                                <Text style={styles.cuponDescuento}>{item.descuento}</Text>
+                                <Text style={styles.cuponDescuento}>{item.descuentoPct}% OFF</Text>
                             </View>
                             <Text style={styles.cuponMotivo}>{item.motivo}</Text>
                         </View>
