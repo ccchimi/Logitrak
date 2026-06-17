@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import bcrypt from 'bcryptjs';
 import pg from 'pg';
-import { pool } from './pool.js';
+import { pool, configuracionSsl } from './pool.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -14,9 +14,6 @@ const ADMINS = [
     { usuario: 'claukev', contrasena: 'claukev' },
 ];
 
-// Catálogo de flota. Espeja la FLOTA del motor del bot
-// (frontend/src/services/botLogistica/conocimiento.ts) para que el envío y la
-// asignación puedan referenciar una unidad real por su id.
 const VEHICULOS = [
     { id: 'moto',       nombre: 'Motomensajería',          maxKg: 6,     maxBultos: 2,   maxVolumenDm3: 45,    tarifaBase: 1900,  porKg: 130, porBulto: 160, porKm: 95,  velocidadMediaKmh: 32, capacidades: [] },
     { id: 'utilitario', nombre: 'Utilitario liviano',      maxKg: 350,   maxBultos: 15,  maxVolumenDm3: 2500,  tarifaBase: 4300,  porKg: 85,  porBulto: 120, porKm: 140, velocidadMediaKmh: 38, capacidades: ['cadena_frio'] },
@@ -26,7 +23,10 @@ const VEHICULOS = [
 
 async function asegurarBaseDeDatos() {
     const nombre = process.env.PGDATABASE || 'logitrak';
-    const cliente = new pg.Client({ database: 'postgres' });
+    // Nos conectamos a la base de mantenimiento 'postgres' para crear la nuestra
+    // si no existe. En Azure podés crearla desde el portal/CLI: si ya existe,
+    // este paso simplemente la detecta y no hace nada.
+    const cliente = new pg.Client({ database: 'postgres', ssl: configuracionSsl() });
     await cliente.connect();
     try {
         const existe = await cliente.query(
