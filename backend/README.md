@@ -35,8 +35,64 @@ npm run dev      # con recarga automática (o: npm start)
 ```
 
 Al arrancar, el servidor crea la base `logitrak` si no existe, aplica el
-esquema (`src/db/schema.sql`) y siembra los 3 administradores. La API queda en
-`http://localhost:4000`.
+esquema (`src/db/schema.sql`) y siembra los 3 administradores y la flota. La API
+queda en `http://localhost:4000`.
+
+## Migrar la base a Azure (PostgreSQL Flexible Server)
+
+El backend funciona igual contra Postgres local o Azure: solo cambian las
+variables de entorno. Azure exige TLS, que se activa con `PGSSLMODE=require`.
+
+**1. Crear el servidor** (por CLI; o el equivalente en el portal de Azure):
+
+```bash
+az postgres flexible-server create \
+  --name logitrak-db \
+  --resource-group <tu-grupo> \
+  --location brazilsouth \
+  --admin-user logitrakadmin \
+  --admin-password '<password-fuerte>' \
+  --tier Burstable --sku-name Standard_B1ms \
+  --storage-size 32 --version 16 \
+  --public-access <tu-IP-publica>
+```
+
+> No hay región en Argentina; `brazilsouth` es la más cercana (~30–50 ms).
+> `--public-access <tu-IP>` abre el firewall a tu IP. Desde el portal:
+> *Networking → Firewall rules → Add current client IP*.
+
+**2. (Opcional) Crear la base** — el backend la crea solo al arrancar, pero
+también podés hacerlo a mano:
+
+```bash
+az postgres flexible-server db create \
+  --resource-group <tu-grupo> --server-name logitrak-db --database-name logitrak
+```
+
+**3. Apuntar el `.env`** a Azure (ver la "Opción B" en `.env.example`):
+
+```ini
+PGHOST=logitrak-db.postgres.database.azure.com
+PGPORT=5432
+PGUSER=logitrakadmin
+PGPASSWORD=<password-fuerte>
+PGDATABASE=logitrak
+PGSSLMODE=require
+```
+
+**4. Inicializar y arrancar:**
+
+```bash
+npm run db:init   # aplica el esquema y siembra admins + flota en Azure
+npm run dev
+```
+
+No hace falta migrar datos: el esquema y los seeds (admins + flota) se crean
+solos en el primer arranque. Si más adelante tenés datos productivos, usá
+`pg_dump`/`pg_restore`.
+
+> **Si ves un error de certificado** al conectar, poné `PGSSL_INSECURE=true` en
+> el `.env` para destrabar (salta la verificación del CA; OK en desarrollo).
 
 ## Conexión desde IntelliJ (Database tool)
 
