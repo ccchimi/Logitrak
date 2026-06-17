@@ -4,8 +4,6 @@ import { autenticar } from '../middleware/auth.js';
 
 export const rutasPerfil = Router();
 
-// Resumen de la cuenta para la pantalla de Perfil: envíos del cliente,
-// cupones activos y año de alta. Se calcula sobre datos reales de la base.
 rutasPerfil.get('/resumen', autenticar, async (req, res) => {
     const id = req.usuario.id;
 

@@ -17,7 +17,6 @@ function publicar(fila) {
     };
 }
 
-// Lista los cupones de compensación del cliente logueado.
 rutasCupones.get('/', autenticar, async (req, res) => {
     const { rows } = await consultar(
         'SELECT * FROM cupones WHERE cliente_id = $1 ORDER BY creado_en DESC LIMIT 100',
@@ -26,8 +25,6 @@ rutasCupones.get('/', autenticar, async (req, res) => {
     return res.json({ exito: true, cupones: rows.map(publicar) });
 });
 
-// Emite un cupón (por ejemplo, al exceder el SLA de un envío). Idempotente
-// por envío: si ya hay uno para ese envío, lo devuelve en lugar de duplicar.
 rutasCupones.post('/', autenticar, async (req, res) => {
     const b = req.body ?? {};
     const descuentoPct = Number(b.descuentoPct);

@@ -4,7 +4,6 @@ import { autenticar, exigirRol } from '../middleware/auth.js';
 
 export const rutasCotizaciones = Router();
 
-// Convierte a número o devuelve null (para columnas numéricas opcionales).
 function num(v) {
     const n = Number(v);
     return Number.isFinite(n) ? n : null;
@@ -33,8 +32,6 @@ function publicar(fila) {
     };
 }
 
-// Guarda una cotización emitida por Boxy. La cara del cliente envía el snapshot
-// completo de la Cotizacion (en 'detalle') más las columnas para consultar.
 rutasCotizaciones.post('/', autenticar, exigirRol('cliente', 'admin'), async (req, res) => {
     const b = req.body ?? {};
     const codigo = (b.codigo || '').trim();
@@ -73,7 +70,6 @@ rutasCotizaciones.post('/', autenticar, exigirRol('cliente', 'admin'), async (re
             ]
         );
 
-        // Si ya existía (mismo código), la devolvemos igual para que sea idempotente.
         const fila = rows[0]
             ?? (await consultar('SELECT * FROM cotizaciones WHERE codigo = $1', [codigo])).rows[0];
 
@@ -84,7 +80,6 @@ rutasCotizaciones.post('/', autenticar, exigirRol('cliente', 'admin'), async (re
     }
 });
 
-// Lista las cotizaciones del usuario (admin ve todas).
 rutasCotizaciones.get('/', autenticar, async (req, res) => {
     const esAdmin = req.usuario.rol === 'admin';
     const { rows } = await consultar(

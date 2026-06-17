@@ -41,7 +41,6 @@ async function choferIdDe(usuarioId) {
     return rows[0]?.id ?? null;
 }
 
-// Registra una oferta de viaje generada para el chofer (estado 'ofrecida').
 rutasAsignaciones.post('/', autenticar, exigirRol('chofer'), async (req, res) => {
     const b = req.body ?? {};
     const codigo = (b.codigo || '').trim();
@@ -88,7 +87,6 @@ rutasAsignaciones.post('/', autenticar, exigirRol('chofer'), async (req, res) =>
     }
 });
 
-// Cambia el estado de una asignación del chofer logueado.
 async function transicionar(req, res, nuevoEstado) {
     const choferId = await choferIdDe(req.usuario.id);
     if (!choferId) {
@@ -117,7 +115,6 @@ rutasAsignaciones.post('/:codigo/completar', autenticar, exigirRol('chofer'), (r
     transicionar(req, res, 'completada')
 );
 
-// Historial de asignaciones del chofer logueado.
 rutasAsignaciones.get('/', autenticar, exigirRol('chofer'), async (req, res) => {
     const choferId = await choferIdDe(req.usuario.id);
     if (!choferId) {

@@ -9,8 +9,6 @@ function num(v) {
     return Number.isFinite(n) ? n : null;
 }
 
-// Cada tipo de evento de seguimiento define a qué estado lleva el envío.
-// Los que no figuran (p. ej. 'sla_excedido') no alteran el estado.
 const ESTADO_POR_EVENTO = {
     creado: 'pendiente',
     asignado: 'asignado',
@@ -70,14 +68,11 @@ function publicarEvento(fila) {
     };
 }
 
-// Resuelve el id de chofer del usuario logueado (o null si no es chofer).
 async function choferIdDe(usuarioId) {
     const { rows } = await consultar('SELECT id FROM choferes WHERE usuario_id = $1', [usuarioId]);
     return rows[0]?.id ?? null;
 }
 
-// Confirma una cotización y crea el envío (estado pendiente) con su primer
-// evento de seguimiento. Todo en una transacción.
 rutasEnvios.post('/', autenticar, async (req, res) => {
     const b = req.body ?? {};
     const origen = (b.origen || '').trim();
@@ -92,7 +87,6 @@ rutasEnvios.post('/', autenticar, async (req, res) => {
     try {
         await cliente.query('BEGIN');
 
-        // Vincular y confirmar la cotización de origen, si vino.
         let cotizacionId = num(b.cotizacionId);
         if (!cotizacionId && b.cotizacionCodigo) {
             const r = await cliente.query(
@@ -145,7 +139,6 @@ rutasEnvios.post('/', autenticar, async (req, res) => {
     }
 });
 
-// Métricas para el panel (KPIs). Se calcula sobre el alcance del usuario.
 rutasEnvios.get('/metricas', autenticar, async (req, res) => {
     const esAdmin = req.usuario.rol === 'admin';
     const choferId = esAdmin ? null : await choferIdDe(req.usuario.id);
@@ -186,7 +179,6 @@ rutasEnvios.get('/metricas', autenticar, async (req, res) => {
     });
 });
 
-// Lista de envíos según el rol. Filtro opcional por estado (?estado=entregado).
 rutasEnvios.get('/', autenticar, async (req, res) => {
     const esAdmin = req.usuario.rol === 'admin';
     const choferId = esAdmin ? null : await choferIdDe(req.usuario.id);
@@ -217,7 +209,6 @@ rutasEnvios.get('/', autenticar, async (req, res) => {
     return res.json({ exito: true, envios: rows.map(publicar) });
 });
 
-// Detalle de un envío + su línea de tiempo de seguimiento.
 rutasEnvios.get('/:codigo', autenticar, async (req, res) => {
     const { rows } = await consultar('SELECT * FROM envios WHERE codigo = $1', [req.params.codigo]);
     const envio = rows[0];
@@ -240,7 +231,6 @@ rutasEnvios.get('/:codigo', autenticar, async (req, res) => {
     return res.json({ exito: true, envio: publicar(envio), eventos: ev.rows.map(publicarEvento) });
 });
 
-// Agrega un evento de seguimiento y transiciona el estado del envío.
 rutasEnvios.post('/:codigo/eventos', autenticar, async (req, res) => {
     const b = req.body ?? {};
     const tipo = (b.tipo || '').trim();
