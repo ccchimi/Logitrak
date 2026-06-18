@@ -1,10 +1,3 @@
-/**
- * Despachador inteligente de viajes para la consola del chofer.
- * Genera asignaciones realistas de forma procedural (sin listas fijas de
- * direcciones) y las tasa con el mismo motor de precios que ve el cliente,
- * de modo que tarifa, distancia y requisitos sean siempre consistentes.
- */
-
 import { BANCO_VIAS, CATEGORIAS_CARGA, CONFIG_OPERATIVA, FLOTA, LOCALIDADES } from './conocimiento';
 import { distanciaHaversineKm } from './direcciones';
 import { cotizarSync } from './tarifas';
@@ -40,10 +33,6 @@ function elegirPonderado<T>(items: readonly T[], peso: (item: T) => number): T {
     return items[items.length - 1];
 }
 
-/* ------------------------------------------------------------------ */
-/* Generación procedural de puntos y cargas                            */
-/* ------------------------------------------------------------------ */
-
 function generarDireccion(localidad: Localidad): string {
     const banco = BANCO_VIAS[localidad.id] ?? BANCO_VIAS.generico;
     const { via, alturaMax } = elegir(banco);
@@ -52,7 +41,6 @@ function generarDireccion(localidad: Localidad): string {
 }
 
 function elegirDestino(origen: Localidad): Localidad {
-    // 55% de los viajes son urbanos; el resto prefiere plazas cercanas.
     if (Math.random() < 0.55) return origen;
 
     const candidatas = LOCALIDADES.filter((l) => l.id !== origen.id);
@@ -82,17 +70,11 @@ const PRIORIDAD_POR_CATEGORIA: Partial<Record<CategoriaCargaId, PrioridadViaje>>
     voluminoso: 'media',
 };
 
-/* ------------------------------------------------------------------ */
-/* Recomendación del bot                                               */
-/* ------------------------------------------------------------------ */
-
 function evaluarRentabilidad(
     pagoChofer: number,
     distanciaKm: number,
     vehiculoId: (typeof FLOTA)[number]['id']
 ): RecomendacionBot {
-    // Referencia: lo que cobraría el chofer por el viaje "pelado" de esa
-    // unidad en ese tramo (base + km), sin recargos ni ajuste de demanda.
     const vehiculo = FLOTA.find((v) => v.id === vehiculoId) ?? FLOTA[1];
     const referencia =
         (vehiculo.tarifaBase + distanciaKm * vehiculo.porKm) * CONFIG_OPERATIVA.comisionChofer;
@@ -117,20 +99,10 @@ function evaluarRentabilidad(
     };
 }
 
-/* ------------------------------------------------------------------ */
-/* API pública                                                         */
-/* ------------------------------------------------------------------ */
 
-/**
- * Genera una asignación de viaje tasada por el motor de cotización.
- * Reintenta internamente si la combinación generada no fuera operable
- * (no debería ocurrir, pero el motor manda).
- */
 export function generarAsignacionViaje(): Promise<AsignacionViaje> {
     const asignacion = (() => {
         for (let intento = 0; intento < 4; intento++) {
-            // El volumen de despachos sigue al tamaño de la plaza (radio urbano),
-            // matizado por su demanda; no a su costo logístico.
             const origenLoc = elegirPonderado(LOCALIDADES, (l) => l.radioKm ** 2 * l.indiceDemanda);
             const destinoLoc = elegirDestino(origenLoc);
 

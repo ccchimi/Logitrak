@@ -14,7 +14,6 @@ import { rutasPerfil } from './rutas/perfil.js';
 const app = express();
 
 app.use(cors());
-// 6 MB para dar lugar a la selfie de verificación de identidad (base64).
 app.use(express.json({ limit: '6mb' }));
 
 app.get('/api/salud', async (_req, res) => {

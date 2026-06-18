@@ -49,7 +49,6 @@ export default function LoginScreens({ navigation }: any) {
         codigo: usuario.chofer?.codigo ?? null,
       });
     } else {
-      // Admin y cliente comparten el panel; el rol define qué acciones ven.
       navigation.navigate('Home', {
         nombre: usuario.nombreCompleto,
         usuario: usuario.usuario,
@@ -178,11 +177,9 @@ export default function LoginScreens({ navigation }: any) {
       </LinearGradient>
   );
 
-  // En web NO se envuelve con el touchable: el navegador maneja el foco solo,
-  // y el onPress del wrapper haría blur del input apenas lo clickeás.
+
   if (Platform.OS === 'web') return contenido;
 
-  // En nativo, tocar cualquier zona libre minimiza el teclado.
   return (
     <TouchableWithoutFeedback accessible={false} onPress={Keyboard.dismiss}>
       {contenido}

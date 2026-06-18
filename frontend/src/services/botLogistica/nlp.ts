@@ -1,9 +1,3 @@
-/**
- * Núcleo de procesamiento de lenguaje del bot.
- * No depende de servicios externos: todo el análisis es local y determinístico.
- */
-
-/** Pasa a minúsculas, quita acentos y colapsa espacios. */
 export function normalizar(texto: string): string {
     return texto
         .toLowerCase()
@@ -19,7 +13,6 @@ export function tokenizar(texto: string): string[] {
         .filter(Boolean);
 }
 
-/** Distancia de Levenshtein clásica (costo 1 por inserción/borrado/sustitución). */
 export function levenshtein(a: string, b: string): number {
     if (a === b) return 0;
     if (!a.length) return b.length;
@@ -39,7 +32,6 @@ export function levenshtein(a: string, b: string): number {
     return fila[b.length];
 }
 
-/** Similitud 0–1 basada en Levenshtein, robusta a strings de distinto largo. */
 export function similitud(a: string, b: string): number {
     const na = normalizar(a);
     const nb = normalizar(b);
@@ -78,11 +70,6 @@ export interface NumeroExtraido {
     unidadDetectada: string | null;
 }
 
-/**
- * Extrae una cantidad de un texto libre: acepta dígitos con coma o punto
- * decimal, números escritos en palabras y unidades ("8,5 kg", "dos cajas",
- * "media tonelada", "40cm").
- */
 export function extraerNumero(texto: string, dominio?: DominioUnidad): NumeroExtraido | null {
     const limpio = normalizar(texto).replace(/(\d)\s*,\s*(\d)/g, '$1.$2');
 
@@ -130,16 +117,11 @@ const PLACEHOLDERS = [
     'lorem ipsum', 'direccion', 'calle falsa',
 ];
 
-/** Detecta si un texto es un placeholder típico de prueba ("test", "asd", "calle falsa 123"). */
 export function esTextoDePrueba(texto: string): boolean {
     const n = normalizar(texto).replace(/\d+/g, '').trim();
     return PLACEHOLDERS.some((p) => n === p || (p.length > 3 && n.includes(p)));
 }
 
-/**
- * Heurística de "texto inventado": tecleo al azar, secuencias de teclado,
- * caracteres repetidos o palabras sin estructura silábica plausible.
- */
 export function esTextoIlegible(texto: string): boolean {
     const n = normalizar(texto);
     const letras = n.replace(/[^a-zñ]/g, '');
@@ -183,7 +165,6 @@ export function esNegacion(texto: string): boolean {
     return NEGACIONES.includes(n) || /^no[, ]/.test(n);
 }
 
-/** Hash estable (FNV-1a) para elegir variantes de fraseo de forma determinística. */
 export function hashTexto(texto: string): number {
     let hash = 0x811c9dc5;
     for (let i = 0; i < texto.length; i++) {
@@ -193,7 +174,6 @@ export function hashTexto(texto: string): number {
     return hash >>> 0;
 }
 
-/** Elige una variante de una lista en función de un texto semilla. */
 export function elegirVariante<T>(variantes: readonly T[], semilla: string): T {
     return variantes[hashTexto(semilla) % variantes.length];
 }

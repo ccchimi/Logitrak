@@ -196,7 +196,6 @@ export default function HomeScreen({ navigation, route }: any) {
 
   const Encabezado = (
     <View style={styles.block}>
-      {/* Topbar solo en móvil/tablet (en escritorio lo cubre el sidebar) */}
       {!esEscritorio && (
         <>
           <View style={[styles.mTop, { marginTop: insets.top + 8 }]}>

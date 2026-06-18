@@ -1,9 +1,3 @@
-/**
- * Inteligencia de direcciones: parsea texto libre, lo contrasta contra la
- * base de conocimiento geográfico y emite un veredicto de veracidad con
- * puntaje, problemas detectados y una versión normalizada.
- */
-
 import { CONFIG_OPERATIVA, LOCALIDADES, TIPOS_VIA } from './conocimiento';
 import { esTextoDePrueba, esTextoIlegible, normalizar, similitud } from './nlp';
 import {
@@ -29,7 +23,6 @@ function capitalizar(texto: string): string {
         .join(' ');
 }
 
-/** Resuelve la localidad mencionada en el texto, tolerando errores de tipeo. */
 export function resolverLocalidad(texto: string): { localidad: Localidad; corregida: boolean } | null {
     const n = ` ${normalizar(texto)} `;
 
@@ -41,7 +34,6 @@ export function resolverLocalidad(texto: string): { localidad: Localidad; correg
         }
     }
 
-    // Segunda pasada: similitud por segmento (separado por comas) para typos.
     const segmentos = normalizar(texto)
         .split(',')
         .map((s) => s.trim())
@@ -68,13 +60,8 @@ function extraerComponentes(texto: string): ComponentesDireccion {
     const cpa = n.match(/\b[a-z]\d{4}[a-z]{3}\b/);
     const cpPrefijo = n.match(/\bc\.?p\.?\s*:?\s*(\d{4})\b/);
     const codigoPostal = cpa ? cpa[0].toUpperCase() : cpPrefijo ? cpPrefijo[1] : null;
-
     const piso = n.match(/\b(?:piso\s*\d+|\d+\s*[°º]\s*(?:piso)?|dpto\.?\s*[a-z0-9]|depto\.?\s*[a-z0-9]|departamento\s*[a-z0-9])\b/);
     const pisoDepto = piso ? piso[0] : null;
-
-    // El primer segmento (antes de la primera coma) suele ser "vía + altura".
-    // Se analiza palabra por palabra sobre el texto ORIGINAL para conservar
-    // mayúsculas, acentos y la ñ en el nombre de la vía.
     const palabras = texto
         .split(',')[0]
         .split(/\s+/)
@@ -146,10 +133,6 @@ function construirNormalizada(
     return partes.join(', ');
 }
 
-/**
- * Analiza una dirección escrita por el usuario y dictamina cuán verosímil es.
- * No inventa datos: todo lo que afirma sale del texto o de la base geográfica.
- */
 export function analizarDireccion(textoOriginal: string): AnalisisDireccion {
     const problemas: ProblemaDeteccion[] = [];
     const texto = textoOriginal.trim();
@@ -293,7 +276,6 @@ export function analizarDireccion(textoOriginal: string): AnalisisDireccion {
     };
 }
 
-/** Determina si dos direcciones analizadas apuntan al mismo punto. */
 export function esMismaDireccion(a: AnalisisDireccion, b: AnalisisDireccion): boolean {
     if (
         a.componentes.nombreVia &&
@@ -308,7 +290,6 @@ export function esMismaDireccion(a: AnalisisDireccion, b: AnalisisDireccion): bo
     return similitud(a.textoNormalizado, b.textoNormalizado) >= 0.92;
 }
 
-/** Distancia geodésica (haversine) en km entre dos localidades. */
 export function distanciaHaversineKm(a: Localidad, b: Localidad): number {
     const R = 6371;
     const rad = (g: number) => (g * Math.PI) / 180;
@@ -326,11 +307,6 @@ export interface EstimacionDistancia {
     detalle: string;
 }
 
-/**
- * Estima la distancia vial entre dos direcciones analizadas.
- * Usa coordenadas reales cuando ambas localidades se resolvieron; si no,
- * cae a estimaciones urbanas conservadoras y lo deja explícito.
- */
 export function estimarDistancia(origen: AnalisisDireccion, destino: AnalisisDireccion): EstimacionDistancia {
     const { factorRuta, distanciaUrbanaPorDefectoKm } = CONFIG_OPERATIVA;
 

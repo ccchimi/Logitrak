@@ -1,7 +1,5 @@
 import { NativeModules, Platform } from 'react-native';
-
 export type RolUsuario = 'admin' | 'cliente' | 'chofer';
-
 export interface UsuarioSesion {
     id: number;
     usuario: string;
@@ -11,9 +9,6 @@ export interface UsuarioSesion {
 }
 
 const PUERTO_API = 4000;
-
-// En dispositivos y emuladores, el backend corre en la misma máquina que
-// Metro: sacamos el host de la URL del bundle para no hardcodear IPs.
 function hostDeMetro(): string | null {
     const scriptURL: string | undefined = (NativeModules as any)?.SourceCode?.scriptURL;
     if (!scriptURL) return null;

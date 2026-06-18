@@ -9,8 +9,6 @@ export interface AsignacionGuardada {
     estado: EstadoAsignacion;
 }
 
-// Persiste una oferta de viaje generada por el despachador (estado 'ofrecida').
-// Best-effort: la consola del chofer sigue operando aunque falle la red.
 export async function registrarAsignacion(viaje: AsignacionViaje): Promise<AsignacionGuardada | null> {
     const cuerpo = {
         codigo: viaje.id,

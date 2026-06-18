@@ -1,8 +1,3 @@
-/**
- * Clasificador de cargas: a partir de la descripción libre del usuario,
- * infiere la categoría operativa, los protocolos de manejo y el recargo.
- */
-
 import { CATEGORIAS_CARGA } from './conocimiento';
 import { normalizar, tokenizar } from './nlp';
 import { NivelConfianza, PerfilCarga } from './types';
@@ -13,11 +8,6 @@ function nivelDesdePuntaje(puntaje: number): NivelConfianza {
     return 'baja';
 }
 
-/**
- * Clasifica una descripción de carga contra la taxonomía del bot.
- * El puntaje refleja cuánta evidencia léxica hay: más indicadores
- * coincidentes ⇒ más confianza en los protocolos sugeridos.
- */
 export function clasificarCarga(descripcion: string): PerfilCarga {
     const texto = normalizar(descripcion);
     const tokens = new Set(tokenizar(descripcion));
@@ -34,7 +24,6 @@ export function clasificarCarga(descripcion: string): PerfilCarga {
             } else if (tokens.has(indicador)) {
                 evidencia += 2;
             } else if (indicador.length >= 5 && texto.includes(indicador)) {
-                // Coincidencia por raíz: "refrigerados" activa "refrigerado".
                 evidencia += 1;
             }
         }

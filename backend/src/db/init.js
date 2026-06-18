@@ -23,9 +23,6 @@ const VEHICULOS = [
 
 async function asegurarBaseDeDatos() {
     const nombre = process.env.PGDATABASE || 'logitrak';
-    // Nos conectamos a la base de mantenimiento 'postgres' para crear la nuestra
-    // si no existe. En Azure podés crearla desde el portal/CLI: si ya existe,
-    // este paso simplemente la detecta y no hace nada.
     const cliente = new pg.Client({ database: 'postgres', ssl: configuracionSsl() });
     await cliente.connect();
     try {

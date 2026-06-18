@@ -186,7 +186,6 @@ rutasEnvios.get('/', autenticar, async (req, res) => {
     const cond = [];
     const params = [];
     if (esAdmin) {
-        // sin filtro de propietario
     } else if (choferId) {
         params.push(choferId);
         cond.push(`chofer_id = $${params.length}`);

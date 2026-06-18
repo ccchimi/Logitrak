@@ -1,16 +1,3 @@
-/**
- * Lectura y verificación del DNI argentino a partir del código PDF417 del dorso.
- *
- * El PDF417 codifica, sin conexión, los datos oficiales separados por "@":
- *   tramite@apellido@nombre@sexo@dni@ejemplar@fechaNac@fechaEmision
- * (hay variantes de orden según la generación de la tarjeta, así que el parser
- * cae a una heurística por formato del dato cuando el orden estándar no encaja).
- *
- * Esto reemplaza la consulta a RENAPER: probamos que la tarjeta codifica datos
- * consistentes y que coinciden con lo que tipeó el usuario. No prueba la
- * autenticidad contra el registro oficial (eso requeriría convenio con el SID).
- */
-
 export interface DniEscaneado {
     tramite: string | null;
     apellido: string | null;
@@ -20,7 +7,6 @@ export interface DniEscaneado {
     ejemplar: string | null;
     fechaNacimiento: string | null;
     fechaEmision: string | null;
-    /** Texto crudo del código, tal cual lo leyó la cámara. */
     raw: string;
 }
 
@@ -28,7 +14,6 @@ const ES_DNI = /^\d{7,8}$/;
 const ES_SEXO = /^[MF]$/i;
 const ES_FECHA = /^\d{2}\/\d{2}\/\d{4}$/;
 
-/** Mayúsculas, sin acentos y con espacios colapsados, para comparar nombres. */
 export function normalizarTexto(valor: string): string {
     return valor
         .normalize('NFD')
@@ -38,15 +23,10 @@ export function normalizarTexto(valor: string): string {
         .trim();
 }
 
-/** Solo dígitos (los DNI a veces vienen tipeados con puntos). */
 export function soloDigitos(valor: string): string {
     return (valor || '').replace(/\D/g, '');
 }
 
-/**
- * Parsea el contenido de un PDF417 de DNI. Devuelve null si el texto no parece
- * un DNI (por si la cámara lee otro código de barras).
- */
 export function parsearDniPdf417(raw: string): DniEscaneado | null {
     if (!raw || !raw.includes('@')) return null;
 
@@ -58,8 +38,6 @@ export function parsearDniPdf417(raw: string): DniEscaneado | null {
         dni: null, ejemplar: null, fechaNacimiento: null, fechaEmision: null, raw,
     };
 
-    // Formato estándar del DNI tarjeta nuevo (dorso):
-    // [0]=tramite [1]=apellido [2]=nombre [3]=sexo [4]=dni [5]=ejemplar [6]=nac [7]=emision
     if (ES_DNI.test(partes[4] ?? '') && ES_SEXO.test(partes[3] ?? '')) {
         return {
             ...base,
@@ -74,13 +52,11 @@ export function parsearDniPdf417(raw: string): DniEscaneado | null {
         };
     }
 
-    // Heurística de respaldo: ubicamos cada dato por su formato.
     const dni = partes.find((p) => ES_DNI.test(p)) ?? null;
     if (!dni) return null;
 
     const sexo = (partes.find((p) => ES_SEXO.test(p)) ?? '').toUpperCase();
     const fechas = partes.filter((p) => ES_FECHA.test(p));
-    // Los textos alfabéticos largos son apellido y nombre (en ese orden típico).
     const textos = partes.filter((p) => /[A-Za-zÁÉÍÓÚÑáéíóúñ]{2,}/.test(p) && !ES_FECHA.test(p));
 
     return {
@@ -97,14 +73,9 @@ export function parsearDniPdf417(raw: string): DniEscaneado | null {
 export interface ResultadoCruce {
     ok: boolean;
     problemas: string[];
-    /** Nombre completo reconstruido desde el DNI (apellido + nombre). */
     nombreDelDni: string | null;
 }
 
-/**
- * Cruza los datos escaneados contra lo que tipeó el usuario: el DNI debe ser
- * idéntico y el nombre tipeado debe contener el apellido y el primer nombre.
- */
 export function verificarCruce(
     escaneado: DniEscaneado,
     ingresado: { nombreCompleto: string; dni: string }

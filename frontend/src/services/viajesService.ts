@@ -9,8 +9,6 @@ export interface Viaje {
     fecha: string;
 }
 
-// La base maneja 5 estados; el panel los agrupa en los 3 que muestran las
-// tarjetas y los filtros (asignado y cancelado caen en "Pendiente").
 function estadoVisible(estado: EstadoEnvio): Viaje['estado'] {
     if (estado === 'en_viaje') return 'En Viaje';
     if (estado === 'entregado') return 'Entregado';
@@ -36,7 +34,6 @@ function mapearEnvio(e: Envio): Viaje {
     };
 }
 
-// Envíos reales del usuario logueado (cliente: los suyos; admin: todos).
 export const obtenerViajesActivos = async (): Promise<Viaje[]> => {
     const envios = await listarEnvios();
     return envios.map(mapearEnvio);

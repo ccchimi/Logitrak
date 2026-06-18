@@ -49,7 +49,6 @@ export default function ChoferScreen({ navigation, route }: any) {
             const nuevaAlerta = await generarAsignacionViaje();
             setDatosViaje(nuevaAlerta);
             setTieneAlerta(true);
-            // Registramos la oferta en la base (best-effort).
             void registrarAsignacion(nuevaAlerta);
         } catch (_error) {
             setErrorAsignacion('No hay asignaciones disponibles en este momento. Volvé a intentar en unos minutos.');
@@ -75,7 +74,6 @@ export default function ChoferScreen({ navigation, route }: any) {
         if (pasoEstado < ESTADOS_CHOFER.length - 1) {
             setPasoEstado(pasoEstado + 1);
         } else {
-            // Último paso: el viaje se entregó, cerramos la asignación.
             if (datosViaje) void completarAsignacion(datosViaje.id);
             setViajeActivo(false);
             setDatosViaje(null);
@@ -120,7 +118,6 @@ export default function ChoferScreen({ navigation, route }: any) {
     return (
         <SafeAreaView style={styles.safeArea}>
             <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-                {/* HEADER */}
                 <View style={styles.header}>
                     <View style={styles.brandRow}>
                         <Text style={styles.logo}>

@@ -1,9 +1,3 @@
-/**
- * Motor de cotización dinámica. Nada del precio está fijo de antemano:
- * combina peso facturable, distancia estimada por coordenadas, categoría de
- * carga, franja horaria, día de la semana y demanda de cada plaza.
- */
-
 import { clasificarCarga } from './cargas';
 import { CONFIG_OPERATIVA, FLOTA } from './conocimiento';
 import { analizarDireccion, esMismaDireccion, estimarDistancia } from './direcciones';
@@ -31,10 +25,6 @@ function generarId(prefijo: string): string {
     const azar = Math.random().toString(36).slice(2, 6).toUpperCase();
     return `${prefijo}-${Date.now().toString(36).toUpperCase()}-${azar}`;
 }
-
-/* ------------------------------------------------------------------ */
-/* Factores de contexto (hora, día, demanda)                           */
-/* ------------------------------------------------------------------ */
 
 export function calcularFactoresContexto(
     fecha: Date,
@@ -70,10 +60,6 @@ export function calcularFactoresContexto(
         multiplicadorDemanda,
     };
 }
-
-/* ------------------------------------------------------------------ */
-/* Selección de vehículo por scoring                                   */
-/* ------------------------------------------------------------------ */
 
 interface SeleccionVehiculo {
     vehiculo: VehiculoFlota;
@@ -120,10 +106,6 @@ export function seleccionarVehiculo(
     return mejor;
 }
 
-/* ------------------------------------------------------------------ */
-/* Estimación de tiempos                                               */
-/* ------------------------------------------------------------------ */
-
 function formatearHora(fecha: Date): string {
     const h = fecha.getHours().toString().padStart(2, '0');
     const m = fecha.getMinutes().toString().padStart(2, '0');
@@ -156,20 +138,11 @@ export function estimarTiempos(
     return { etaRetiroMin, tiempoViajeMin, ventanaEntrega };
 }
 
-/* ------------------------------------------------------------------ */
-/* Cotización                                                          */
-/* ------------------------------------------------------------------ */
-
 function redondear(monto: number): number {
     const { redondeoARS } = CONFIG_OPERATIVA;
     return Math.round(monto / redondeoARS) * redondeoARS;
 }
 
-/**
- * Núcleo sincrónico de cotización. Lo usa tanto la cara del cliente
- * (cotizarEnvio) como el generador de asignaciones del chofer, para que
- * ambos lados de la operación compartan la misma lógica de precios.
- */
 export function cotizarSync(solicitud: SolicitudCotizacion): RespuestaCotizacion {
     const fecha = solicitud.fecha ?? new Date();
     const { limites } = CONFIG_OPERATIVA;
@@ -404,10 +377,6 @@ export function cotizarSync(solicitud: SolicitudCotizacion): RespuestaCotizacion
     return { exito: true, cotizacion };
 }
 
-/**
- * Cara pública de la cotización. La latencia simula el ciclo de inferencia
- * del motor y evita respuestas instantáneas poco creíbles en la UI.
- */
 export function cotizarEnvio(solicitud: SolicitudCotizacion): Promise<RespuestaCotizacion> {
     const respuesta = cotizarSync(solicitud);
     const latenciaMs = 500 + Math.random() * 500;

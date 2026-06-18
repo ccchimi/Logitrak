@@ -25,14 +25,10 @@ const COLORS = {
 };
 
 export interface ResultadoEscaneo {
-    /** Texto crudo del PDF417, que el backend re-verifica. */
     dniEscaneado: string;
     datos: DniEscaneado;
-    /** Selfie en base64 (sin el prefijo data:), o null si no se pudo tomar. */
     selfieBase64: string | null;
-    /** Foto del frente del DNI en base64, para el match facial (Tier 3). */
     dniFrenteBase64: string | null;
-    /** true si pasó la prueba de vida on-device; false si no estaba disponible. */
     livenessOk: boolean;
 }
 
@@ -128,8 +124,6 @@ export default function EscanerIdentidad({ visible, nombreCompleto, dni, onCance
         }
     };
 
-    // Captura una foto para el gesto actual y la valida con ML Kit. Si el módulo
-    // nativo no está disponible (Expo Go / web), cae a selfie simple sin liveness.
     const capturarGesto = async () => {
         if (fase !== 'liveness' || ocupado) return;
         setOcupado(true);
@@ -149,7 +143,6 @@ export default function EscanerIdentidad({ visible, nombreCompleto, dni, onCance
             return;
         }
 
-        // La primera captura del paso es la que guardamos como selfie.
         if (gestoIdx === 0) selfieRef.current = foto.base64 ?? null;
 
         let resultado;
@@ -160,7 +153,6 @@ export default function EscanerIdentidad({ visible, nombreCompleto, dni, onCance
             });
             resultado = evaluarGesto(SECUENCIA_LIVENESS[gestoIdx].gesto, desdeMlKit(caras as any));
         } catch {
-            // Detector no disponible: completamos con la selfie, sin liveness.
             setOcupado(false);
             finalizar(false);
             return;

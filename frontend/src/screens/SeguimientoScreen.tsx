@@ -68,15 +68,10 @@ export default function SeguimientoScreen({ navigation, route }: any) {
     const vehiculo: string = route?.params?.vehiculo ?? 'Unidad asignada por Boxy';
     const precio: number | undefined = route?.params?.precio;
     const referencia: string = route?.params?.referencia ?? 'TRK-EN-VIVO';
-    // Código del envío real en la base; si no vino, el seguimiento es solo visual.
     const envioCodigo: string | null = route?.params?.envioCodigo ?? null;
-
     const [tiempoRestante, setTiempoRestante] = useState(SLA_TOTAL_SEG);
     const [etapa, setEtapa] = useState(0);
     const [chofer, setChofer] = useState<string | null>(null);
-
-    // Permite minimizar el panel inferior para ver el mapa completo.
-    // En web se alterna con un tap; en mobile deslizando el dedo.
     const [panelMinimizado, setPanelMinimizado] = useState(false);
     const esWeb = Platform.OS === 'web';
 
@@ -158,7 +153,6 @@ export default function SeguimientoScreen({ navigation, route }: any) {
             clearTimeout(t1);
             clearTimeout(t2);
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     useEffect(() => {
@@ -169,7 +163,6 @@ export default function SeguimientoScreen({ navigation, route }: any) {
                 'SLA excedido',
                 'Se acreditó un cupón de compensación en tu perfil.'
             );
-            // Dejamos registro del incumplimiento y emitimos el cupón real.
             if (envioCodigo) {
                 void agregarEvento(envioCodigo, {
                     tipo: 'sla_excedido',
@@ -201,7 +194,6 @@ export default function SeguimientoScreen({ navigation, route }: any) {
             }
 
             if (Platform.OS === 'web') {
-                // En web el propio mapa geocodifica (Google Geocoder + base del bot).
                 if (activo) {
                     setOrigenPunto({ latitude: 0, longitude: 0, direccion: origenTxt });
                     setDestinoPunto({ latitude: 0, longitude: 0, direccion: destinoTxt });
@@ -296,7 +288,6 @@ export default function SeguimientoScreen({ navigation, route }: any) {
 
             <View style={[styles.panel, { paddingBottom: insets.bottom + 14 }]}>
                 {esWeb ? (
-                    // Web: tap sobre el handle, con texto simple.
                     <TouchableOpacity
                         style={styles.panelToggle}
                         onPress={() => setPanelMinimizado((prev) => !prev)}

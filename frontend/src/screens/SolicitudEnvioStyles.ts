@@ -68,8 +68,6 @@ export const styles = StyleSheet.create({
         alignItems: 'center',
     },
 
-    // Header de una línea cuando el teclado está abierto: libera pantalla
-    // para que el chat siga visible mientras se escribe.
     headerCompact: {
         flexDirection: 'row',
         alignItems: 'center',

@@ -22,8 +22,6 @@ export interface NuevoCupon {
     envioCodigo?: string;
 }
 
-// Emite un cupón de compensación (p. ej. al exceder el SLA). Idempotente por
-// envío en el backend, así que reintentar no genera duplicados.
 export async function emitirCupon(datos: NuevoCupon): Promise<Cupon | null> {
     const r = await llamarApi<{ exito: true; cupon: Cupon }>('/api/cupones', {
         metodo: 'POST',

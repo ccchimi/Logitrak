@@ -24,8 +24,6 @@ function generarCodigo() {
     return `CH-${codigo}`;
 }
 
-// Guarda la selfie (base64) en backend/uploads/choferes/<codigo>.jpg y devuelve
-// la ruta relativa para registrar en la base. Devuelve null si no vino selfie.
 async function guardarSelfie(codigo, base64) {
     if (!base64) return null;
     const limpio = base64.replace(/^data:image\/\w+;base64,/, '');
@@ -70,9 +68,6 @@ rutasChoferes.post('/postulacion', autenticar, exigirRol('cliente'), async (req,
         return res.status(422).json({ exito: false, error: verificacion.motivo });
     }
 
-    // Match facial 1:1 (Tier 3): compara selfie vs frente del DNI. Por defecto
-    // solo registra el score; bloquea únicamente si FACE_MATCH_REQUERIDO=true y
-    // el runtime/modelos están disponibles. El frente del DNI no se persiste.
     let faceMatchScore = null;
     const match = await compararCaras(base64ABuffer(selfieBase64), base64ABuffer(dniFrenteBase64));
     if (match.disponible && match.caraDetectada) {

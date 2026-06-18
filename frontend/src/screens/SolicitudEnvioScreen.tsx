@@ -26,13 +26,10 @@ import {
 import { guardarCotizacion } from '../services/cotizacionesService';
 import { crearEnvio } from '../services/enviosService';
 
-// El contador de SLA del seguimiento dura 20 minutos; lo persistimos igual.
 const SLA_ENVIO_MIN = 20;
 
 type CampoEnvio = 'origen' | 'destino' | 'descripcion' | 'peso' | 'bultos' | 'largo' | 'ancho' | 'alto';
-
 type EnvioData = Record<CampoEnvio, string>;
-
 type ChatMessage = {
     id: string;
     sender: 'bot' | 'user';
@@ -500,9 +497,6 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
         await submitAnswer('', true);
     };
 
-    // Confirma la cotización: crea el envío en la base y abre el seguimiento
-    // con el código real (TRK-...). Si el backend no responde, sigue en modo
-    // simulación con la referencia de la cotización.
     const confirmarYSolicitar = async (resultado: Cotizacion) => {
         if (confirmando) return;
         setConfirmando(true);
@@ -714,9 +708,6 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
 
     return (
         <SafeAreaView style={styles.safeArea}>
-            {/* En Android la ventana ya se redimensiona sola con el teclado
-                (softwareKeyboardLayoutMode "resize"); usar behavior="height"
-                compensaba doble y achicaba el chat de más. */}
             <KeyboardAvoidingView
                 style={styles.keyboardAvoiding}
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}

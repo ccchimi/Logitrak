@@ -82,7 +82,6 @@ export interface DatosNuevoEnvio {
     slaMin?: number | null;
 }
 
-// Confirma una cotización y crea el envío (lo persiste con su primer evento).
 export async function crearEnvio(datos: DatosNuevoEnvio): Promise<Envio | null> {
     const r = await llamarApi<{ exito: true; envio: Envio }>('/api/envios', {
         metodo: 'POST',
@@ -117,7 +116,6 @@ export interface NuevoEvento {
     choferNombre?: string;
 }
 
-// Registra un evento de seguimiento; el backend transiciona el estado del envío.
 export async function agregarEvento(
     codigo: string,
     evento: NuevoEvento

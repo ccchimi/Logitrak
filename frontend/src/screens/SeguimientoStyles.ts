@@ -193,7 +193,6 @@ export const styles = StyleSheet.create({
         backgroundColor: COLORS.borderStrong,
     },
 
-    // Zona tappable del handle: minimiza/expande el panel para ver el mapa.
     panelToggle: {
         alignSelf: 'center',
         alignItems: 'center',
@@ -210,7 +209,6 @@ export const styles = StyleSheet.create({
         textTransform: 'uppercase',
     },
 
-    // Flecha del gesto en mobile (▴ / ▾), alineada al centro del handle.
     panelFlecha: {
         color: COLORS.accent,
         fontSize: 12,
@@ -218,7 +216,6 @@ export const styles = StyleSheet.create({
         textAlign: 'center',
     },
 
-    // Barra compacta visible cuando el panel está minimizado.
     panelResumen: {
         flexDirection: 'row',
         alignItems: 'center',

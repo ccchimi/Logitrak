@@ -48,8 +48,6 @@ export interface DatosRegistro {
     confirmacion: string;
 }
 
-// Todo registro crea una cuenta de cliente. Los admins se siembran por
-// sistema y chofer se llega con la postulación verificada (choferesService).
 export async function registrarUsuario(datos: DatosRegistro): Promise<ResultadoOperacion> {
     const r = await llamarApi<{ exito: true; mensaje: string }>('/api/auth/registro', {
         metodo: 'POST',

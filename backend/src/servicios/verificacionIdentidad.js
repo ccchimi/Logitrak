@@ -1,13 +1,3 @@
-// Verificación de identidad del alta de chofer.
-//
-// Reemplaza la consulta a RENAPER (que requiere convenio/SID) por una
-// verificación OFFLINE: se lee el código PDF417 del dorso del DNI argentino y
-// se cruzan sus datos contra lo que tipeó el usuario. El cliente ya hace este
-// cruce para dar feedback, pero acá se vuelve a validar de forma autoritativa.
-//
-// Si algún día hay credenciales reales de RENAPER (RENAPER_API_URL/_KEY en el
-// .env), verificarIdentidad usa esa vía en su lugar.
-
 const hayCredencialesReales = () =>
     Boolean(process.env.RENAPER_API_URL && process.env.RENAPER_API_KEY);
 
@@ -28,7 +18,6 @@ function soloDigitos(valor) {
     return (valor || '').replace(/\D/g, '');
 }
 
-// Parser del PDF417 del DNI (espeja frontend/src/services/dniService.ts).
 export function parsearDniPdf417(raw) {
     if (!raw || !raw.includes('@')) return null;
     const partes = raw.split('@').map((p) => p.trim());
@@ -106,8 +95,6 @@ function verificarOffline({ nombreCompleto, dni, dniEscaneado, escaneoFacialOk, 
         return { aprobada: false, motivo: 'Tenés que tomarte la selfie para completar la verificación.' };
     }
 
-    // La prueba de vida (Tier 2) solo se exige si está activada por configuración,
-    // así el alta sigue funcionando en Expo Go / web (donde no hay ML Kit nativo).
     if (process.env.LIVENESS_REQUERIDO === 'true' && livenessOk !== true) {
         return { aprobada: false, motivo: 'No pudimos confirmar la prueba de vida. Repetí los gestos frente a la cámara.' };
     }
@@ -116,8 +103,6 @@ function verificarOffline({ nombreCompleto, dni, dniEscaneado, escaneoFacialOk, 
 }
 
 async function llamarApiReal(_datos) {
-    // TODO (requiere convenio con RENAPER/SID): armar la request real y mapear
-    // la respuesta a { aprobada, motivo }.
     throw new Error('Integración real con RENAPER aún no implementada.');
 }
 

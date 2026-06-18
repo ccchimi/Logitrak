@@ -8,8 +8,6 @@ export interface CotizacionGuardada {
     estado: string;
 }
 
-// Datos del envío que no viajan dentro de la Cotizacion del motor (bultos,
-// dimensiones y valor declarado los tiene la pantalla, no el cálculo).
 export interface EntradaEnvio {
     bultos?: number;
     largoCm?: number;
@@ -18,8 +16,6 @@ export interface EntradaEnvio {
     valorDeclarado?: number;
 }
 
-// Persiste una cotización emitida por Boxy. Es best-effort: si falla, la UI
-// sigue funcionando (la cotización ya se mostró), solo no queda registrada.
 export async function guardarCotizacion(
     cotizacion: Cotizacion,
     entrada: EntradaEnvio = {}

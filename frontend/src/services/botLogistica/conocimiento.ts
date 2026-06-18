@@ -1,15 +1,4 @@
-/**
- * Base de conocimiento del motor logístico.
- * Es la "memoria de largo plazo" del bot: geografía verificable, flota
- * disponible, taxonomía de cargas y parámetros tarifarios. La lógica que
- * razona sobre estos datos vive en los demás módulos.
- */
-
 import { CategoriaCarga, Localidad, VehiculoFlota } from './types';
-
-/* ------------------------------------------------------------------ */
-/* Geografía verificable (coordenadas reales aproximadas)              */
-/* ------------------------------------------------------------------ */
 
 export const LOCALIDADES: readonly Localidad[] = [
     { id: 'caba', nombre: 'CABA', provincia: 'CABA', lat: -34.6037, lng: -58.3816, radioKm: 11, indiceDemanda: 1.1, alias: ['caba', 'capital federal', 'capital', 'ciudad autonoma de buenos aires', 'ciudad de buenos aires', 'baires', 'bs as', 'bsas', 'buenos aires'] },
@@ -58,14 +47,12 @@ export const LOCALIDADES: readonly Localidad[] = [
     { id: 'ushuaia', nombre: 'Ushuaia', provincia: 'Tierra del Fuego', lat: -54.8019, lng: -68.303, radioKm: 4, indiceDemanda: 1.12, alias: ['ushuaia'] },
 ];
 
-/** Tipos de vía reconocidos al parsear direcciones. */
 export const TIPOS_VIA: readonly string[] = [
     'avenida', 'av', 'avda', 'calle', 'ruta', 'rn', 'rp', 'camino', 'pasaje',
     'pje', 'diagonal', 'diag', 'boulevard', 'bulevar', 'bv', 'autopista', 'au',
     'peatonal', 'costanera',
 ];
 
-/** Banco de vías reales frecuentes, usado por el generador de viajes. */
 export const BANCO_VIAS: Record<string, readonly { via: string; alturaMax: number }[]> = {
     caba: [
         { via: 'Av. Rivadavia', alturaMax: 11500 },
@@ -92,10 +79,6 @@ export const BANCO_VIAS: Record<string, readonly { via: string; alturaMax: numbe
         { via: 'Calle España', alturaMax: 2000 },
     ],
 };
-
-/* ------------------------------------------------------------------ */
-/* Taxonomía de cargas                                                 */
-/* ------------------------------------------------------------------ */
 
 export const CATEGORIAS_CARGA: readonly CategoriaCarga[] = [
     {
@@ -190,10 +173,6 @@ export const CATEGORIAS_CARGA: readonly CategoriaCarga[] = [
     },
 ];
 
-/* ------------------------------------------------------------------ */
-/* Flota                                                               */
-/* ------------------------------------------------------------------ */
-
 export const FLOTA: readonly VehiculoFlota[] = [
     {
         id: 'moto',
@@ -249,10 +228,6 @@ export const FLOTA: readonly VehiculoFlota[] = [
     },
 ];
 
-/* ------------------------------------------------------------------ */
-/* Parámetros tarifarios y operativos                                  */
-/* ------------------------------------------------------------------ */
-
 export const CONFIG_OPERATIVA = {
     /** Divisor estándar IATA-like para peso volumétrico (cm³/kg). */
     divisorVolumetrico: 5000,
@@ -280,13 +255,11 @@ export const CONFIG_OPERATIVA = {
         dimensionMaxCm: 600,
         alturaCalleMax: 30000,
     },
-    /** Recargos por franja horaria (se evalúan con la hora local del dispositivo). */
     franjasHorarias: [
         { desde: 7, hasta: 10, nombre: 'pico matutino', multiplicador: 1.12 },
         { desde: 17, hasta: 20, nombre: 'pico vespertino', multiplicador: 1.15 },
         { desde: 22, hasta: 24, nombre: 'nocturno', multiplicador: 1.25 },
         { desde: 0, hasta: 6, nombre: 'nocturno', multiplicador: 1.25 },
     ],
-    /** Multiplicadores por día de la semana (0 = domingo). */
     multiplicadorPorDia: [1.18, 1, 1, 1, 1, 1.05, 1.08] as readonly number[],
 } as const;

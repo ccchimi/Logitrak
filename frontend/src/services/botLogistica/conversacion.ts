@@ -1,9 +1,3 @@
-/**
- * Capa conversacional del bot: interpreta cada respuesta del usuario en el
- * chat, valida en tiempo real y decide si acepta el dato, pide confirmación
- * o lo rechaza con una explicación accionable.
- */
-
 import { clasificarCarga } from './cargas';
 import { CONFIG_OPERATIVA } from './conocimiento';
 import { analizarDireccion, esMismaDireccion } from './direcciones';
@@ -226,10 +220,6 @@ function interpretarDimension(campo: 'largo' | 'ancho' | 'alto', texto: string):
     };
 }
 
-/**
- * Punto único de entrada de la NLU conversacional: interpreta la respuesta
- * del usuario para el campo en curso, con el contexto ya acumulado.
- */
 export function interpretarRespuesta(
     campo: CampoConversacion,
     texto: string,

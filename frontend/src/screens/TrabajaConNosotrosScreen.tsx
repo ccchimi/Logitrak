@@ -33,9 +33,6 @@ export default function TrabajaConNosotrosScreen({ navigation }: any) {
   const [enviando, setEnviando] = useState(false);
 
   const verificado = escaneoResultado !== null;
-
-  // Verificación real: escanea el PDF417 del DNI y toma una selfie. El cruce de
-  // datos lo hace dniService en el momento y el backend lo re-valida.
   const abrirEscaner = () => {
     setError('');
     if (nombreRef.current.trim().length < 5) {
