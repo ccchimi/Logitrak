@@ -523,7 +523,9 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
 
         setConfirmando(false);
 
-        navigation.navigate('Seguimiento', {
+        // Datos que el seguimiento necesita; los pasamos a través del pago para
+        // que, una vez aprobado, la pantalla de pago navegue al seguimiento.
+        const seguimiento = {
             envioCodigo: envio?.codigo ?? null,
             origen: resultado.origen.textoNormalizado,
             destino: resultado.destino.textoNormalizado,
@@ -531,6 +533,20 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
             vehiculo: resultado.vehiculo.nombre,
             precio: resultado.precio,
             referencia: envio?.codigo ?? resultado.id,
+        };
+
+        // Sin envío persistido no hay nada para cobrar (modo offline): vamos
+        // directo al seguimiento como antes.
+        if (!envio?.codigo) {
+            navigation.navigate('Seguimiento', seguimiento);
+            return;
+        }
+
+        navigation.navigate('Pago', {
+            envioCodigo: envio.codigo,
+            monto: resultado.precio,
+            moneda: resultado.moneda,
+            seguimiento,
         });
     };
 
