@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import {
-  ActivityIndicator,
+  KeyboardAvoidingView,
   Platform,
   ScrollView,
   Text,
@@ -13,8 +13,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, styles, tamanosAuth } from './LoginStyles';
 import SpinnerFondo from '../components/SpinnerFondo';
 import { postularChofer } from '../services/choferesService';
-
-type EstadoEscaneo = 'pendiente' | 'escaneando' | 'listo';
+import EscanerIdentidad, { ResultadoEscaneo } from '../components/EscanerIdentidad';
+import { soloDigitos } from '../services/dniService';
 
 export default function TrabajaConNosotrosScreen({ navigation }: any) {
   const nombreRef = useRef('');
@@ -26,17 +26,33 @@ export default function TrabajaConNosotrosScreen({ navigation }: any) {
   const { width } = useWindowDimensions();
   const { circulo, caja } = tamanosAuth(width);
 
-  const [escaneo, setEscaneo] = useState<EstadoEscaneo>('pendiente');
+  const [mostrarEscaner, setMostrarEscaner] = useState(false);
+  const [escaneoResultado, setEscaneoResultado] = useState<ResultadoEscaneo | null>(null);
   const [error, setError] = useState('');
   const [exito, setExito] = useState('');
   const [enviando, setEnviando] = useState(false);
 
-  // Captura facial simulada: cuando exista el convenio con RENAPER, acá se
-  // abre la cámara y se manda la biometría real (ver backend/servicios/renaper.js).
-  const realizarEscaneo = () => {
-    if (escaneo !== 'pendiente') return;
-    setEscaneo('escaneando');
-    setTimeout(() => setEscaneo('listo'), 1800);
+  const verificado = escaneoResultado !== null;
+
+  // Verificación real: escanea el PDF417 del DNI y toma una selfie. El cruce de
+  // datos lo hace dniService en el momento y el backend lo re-valida.
+  const abrirEscaner = () => {
+    setError('');
+    if (nombreRef.current.trim().length < 5) {
+      setError('Primero ingresá tu nombre completo como figura en el DNI.');
+      return;
+    }
+    if (soloDigitos(dniRef.current).length < 7) {
+      setError('Primero ingresá tu número de DNI (sin puntos).');
+      return;
+    }
+    setMostrarEscaner(true);
+  };
+
+  const completarEscaneo = (resultado: ResultadoEscaneo) => {
+    setEscaneoResultado(resultado);
+    setMostrarEscaner(false);
+    setError('');
   };
 
   const manejarEnvio = async () => {
@@ -50,7 +66,11 @@ export default function TrabajaConNosotrosScreen({ navigation }: any) {
       telefono: telefonoRef.current,
       domicilio: domicilioRef.current,
       dni: dniRef.current,
-      escaneoFacialOk: escaneo === 'listo',
+      escaneoFacialOk: verificado,
+      dniEscaneado: escaneoResultado?.dniEscaneado,
+      selfieBase64: escaneoResultado?.selfieBase64 ?? null,
+      dniFrenteBase64: escaneoResultado?.dniFrenteBase64 ?? null,
+      livenessOk: escaneoResultado?.livenessOk,
     });
     setEnviando(false);
 
@@ -109,6 +129,10 @@ export default function TrabajaConNosotrosScreen({ navigation }: any) {
       end={{ x: 1, y: 1 }}
       style={styles.container}
     >
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoiding}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
       <ScrollView
         contentContainerStyle={styles.authScroll}
         keyboardShouldPersistTaps="handled"
@@ -117,8 +141,16 @@ export default function TrabajaConNosotrosScreen({ navigation }: any) {
         }
         showsVerticalScrollIndicator={false}
       >
-        <View style={[styles.circleArea, { width: circulo, height: circulo }]}>
-          <SpinnerFondo />
+        <View style={[styles.authStage, { minHeight: circulo }]}>
+          <View
+            pointerEvents="none"
+            style={[
+              styles.authCircle,
+              { width: circulo, height: circulo, marginTop: -circulo / 2, marginLeft: -circulo / 2 },
+            ]}
+          >
+            <SpinnerFondo />
+          </View>
 
           <View style={[styles.loginBox, { width: caja }]}>
             <TouchableOpacity
@@ -137,8 +169,8 @@ export default function TrabajaConNosotrosScreen({ navigation }: any) {
             </Text>
 
             <Text style={styles.subtitulo}>
-              Sumate como chofer: verificamos tu identidad contra RENAPER y te
-              damos tu ID único de transportista.
+              Sumate como chofer: escaneás tu DNI y una selfie para verificar tu
+              identidad y te damos tu ID único de transportista.
             </Text>
 
             {error ? <Text style={styles.errorTexto}>{error}</Text> : null}
@@ -154,17 +186,13 @@ export default function TrabajaConNosotrosScreen({ navigation }: any) {
               <Text style={styles.label}>Verificación de identidad</Text>
 
               <TouchableOpacity
-                style={[styles.rolChip, escaneo === 'listo' && styles.rolChipActive]}
-                onPress={realizarEscaneo}
-                disabled={escaneo !== 'pendiente'}
+                style={[styles.rolChip, verificado && styles.rolChipActive]}
+                onPress={abrirEscaner}
+                disabled={verificado}
               >
-                {escaneo === 'escaneando' ? (
-                  <ActivityIndicator color={COLORS.accent} />
-                ) : (
-                  <Text style={[styles.rolChipText, escaneo === 'listo' && styles.rolChipTextActive]}>
-                    {escaneo === 'listo' ? '✓ Escaneo facial completado' : '🤳 Realizar escaneo facial'}
-                  </Text>
-                )}
+                <Text style={[styles.rolChipText, verificado && styles.rolChipTextActive]}>
+                  {verificado ? '✓ Identidad verificada (DNI + selfie)' : '🪪 Escanear DNI y tomar selfie'}
+                </Text>
               </TouchableOpacity>
             </View>
 
@@ -187,13 +215,22 @@ export default function TrabajaConNosotrosScreen({ navigation }: any) {
 
             <View style={styles.hintBox}>
               <Text style={styles.hintText}>
-                Tus datos se almacenan de forma segura y la identidad se valida
-                contra RENAPER antes de habilitarte como chofer.
+                Verificamos tu identidad leyendo el código del dorso de tu DNI y
+                cruzándolo con tus datos. Tu selfie se guarda de forma segura.
               </Text>
             </View>
           </View>
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
+
+      <EscanerIdentidad
+        visible={mostrarEscaner}
+        nombreCompleto={nombreRef.current}
+        dni={dniRef.current}
+        onCancelar={() => setMostrarEscaner(false)}
+        onCompletar={completarEscaneo}
+      />
     </LinearGradient>
   );
 }

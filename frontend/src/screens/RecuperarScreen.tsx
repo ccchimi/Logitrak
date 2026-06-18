@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import {
+  KeyboardAvoidingView,
   Platform,
   ScrollView,
   Text,
@@ -101,6 +102,10 @@ export default function RecuperarScreen({ navigation }: any) {
       end={{ x: 1, y: 1 }}
       style={styles.container}
     >
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoiding}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
       <ScrollView
         contentContainerStyle={styles.authScroll}
         keyboardShouldPersistTaps="handled"
@@ -109,8 +114,16 @@ export default function RecuperarScreen({ navigation }: any) {
         }
         showsVerticalScrollIndicator={false}
       >
-        <View style={[styles.circleArea, { width: circulo, height: circulo }]}>
-          <SpinnerFondo />
+        <View style={[styles.authStage, { minHeight: circulo }]}>
+          <View
+            pointerEvents="none"
+            style={[
+              styles.authCircle,
+              { width: circulo, height: circulo, marginTop: -circulo / 2, marginLeft: -circulo / 2 },
+            ]}
+          >
+            <SpinnerFondo />
+          </View>
 
           <View style={[styles.loginBox, { width: caja }]}>
             <TouchableOpacity
@@ -229,6 +242,7 @@ export default function RecuperarScreen({ navigation }: any) {
           </View>
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
     </LinearGradient>
   );
 }

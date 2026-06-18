@@ -279,6 +279,30 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
+  // ---- Layout mobile para formularios largos (Registro, Recuperar, Trabajá) ----
+  // No se tocan circleArea/authScroll/loginBox para no afectar el Login. En estas
+  // pantallas el círculo va de fondo ABSOLUTO (siempre redondo) y la tarjeta
+  // fluye y define la altura, así el contenido entra y scrollea con el teclado.
+  keyboardAvoiding: {
+    flex: 1,
+    width: '100%',
+  },
+
+  authStage: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 24,
+  },
+
+  authCircle: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
   rolRow: {
     flexDirection: 'row',
     gap: 10,
