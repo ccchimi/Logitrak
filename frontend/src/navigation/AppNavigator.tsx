@@ -7,6 +7,7 @@ import RegistroScreen from '../screens/RegistroScreen';
 import RecuperarScreen from '../screens/RecuperarScreen';
 import HomeScreen from '../screens/HomeScreen';
 import SolicitudEnvioScreen from '../screens/SolicitudEnvioScreen';
+import PagoScreen from '../screens/PagoScreen';
 import SeguimientoScreen from '../screens/SeguimientoScreen';
 import PerfilScreen from '../screens/PerfilScreen';
 import HistorialScreen from '../screens/HistorialScreen';
@@ -56,6 +57,12 @@ export default function AppNavigator() {
                 <Stack.Screen
                     name="SolicitudEnvio"
                     component={SolicitudEnvioScreen}
+                    options={{ headerShown: false }}
+                />
+
+                <Stack.Screen
+                    name="Pago"
+                    component={PagoScreen}
                     options={{ headerShown: false }}
                 />
 
