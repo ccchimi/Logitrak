@@ -27,9 +27,20 @@ CREATE TABLE IF NOT EXISTS choferes (
     -- 'simulado' hasta tener convenio/credenciales reales de RENAPER.
     renaper_modo         VARCHAR(10)  NOT NULL DEFAULT 'simulado'
                          CHECK (renaper_modo IN ('simulado', 'real')),
+    -- Método con el que se verificó la identidad: 'pdf417' (lectura del DNI) o 'real'.
+    metodo_verificacion  VARCHAR(12),
+    -- Ruta de la selfie de verificación guardada en el server.
+    selfie_path          VARCHAR(300),
     verificado_en        TIMESTAMPTZ,
     creado_en            TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
+
+-- Columnas agregadas después del alta inicial de la tabla (idempotente: aplica
+-- a bases ya creadas, p. ej. la de Azure, sin recrear nada).
+ALTER TABLE choferes ADD COLUMN IF NOT EXISTS metodo_verificacion VARCHAR(12);
+ALTER TABLE choferes ADD COLUMN IF NOT EXISTS selfie_path          VARCHAR(300);
+ALTER TABLE choferes ADD COLUMN IF NOT EXISTS liveness_ok          BOOLEAN;
+ALTER TABLE choferes ADD COLUMN IF NOT EXISTS face_match_score     NUMERIC(5,4);
 
 -- Auditoría de accesos: queda registro de cada intento de login.
 CREATE TABLE IF NOT EXISTS auditoria_accesos (
