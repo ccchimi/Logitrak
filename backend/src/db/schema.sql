@@ -213,3 +213,54 @@ CREATE INDEX IF NOT EXISTS idx_envios_estado           ON envios (estado);
 CREATE INDEX IF NOT EXISTS idx_envio_eventos_envio     ON envio_eventos (envio_id, creado_en);
 CREATE INDEX IF NOT EXISTS idx_asignaciones_chofer     ON asignaciones (chofer_id, generada_en DESC);
 CREATE INDEX IF NOT EXISTS idx_cupones_cliente         ON cupones (cliente_id, creado_en DESC);
+
+-- ====================================================================
+-- Pagos / facturación del envío. Un envío se cobra una vez; el pago
+-- referencia el envío y guarda el método (Mercado Pago, MODO o tarjeta),
+-- su estado y el comprobante emitido al aprobarse. El procesamiento de
+-- tarjeta es SIMULADO (no toca ninguna pasarela): nunca se persiste el
+-- número completo, solo la marca y los últimos 4 dígitos.
+-- ====================================================================
+
+CREATE SEQUENCE IF NOT EXISTS pagos_codigo_seq;
+CREATE SEQUENCE IF NOT EXISTS comprobantes_seq;
+
+CREATE TABLE IF NOT EXISTS pagos (
+    id              SERIAL PRIMARY KEY,
+    codigo          VARCHAR(24)   UNIQUE NOT NULL
+                    DEFAULT ('PAY-' || to_char(now(), 'YYYY') || '-'
+                             || lpad(nextval('pagos_codigo_seq')::text, 6, '0')),
+    envio_id        INTEGER       NOT NULL REFERENCES envios(id) ON DELETE CASCADE,
+    cliente_id      INTEGER       NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    metodo          VARCHAR(12)   NOT NULL
+                    CHECK (metodo IN ('mercadopago', 'modo', 'tarjeta')),
+    monto           NUMERIC(14,2) NOT NULL,
+    moneda          VARCHAR(3)    NOT NULL DEFAULT 'ARS',
+    estado          VARCHAR(12)   NOT NULL DEFAULT 'pendiente'
+                    CHECK (estado IN ('pendiente', 'aprobado', 'rechazado', 'cancelado', 'expirado')),
+    -- 'sandbox' hasta tener credenciales reales de la pasarela; 'real' cuando
+    -- el pago lo confirma Mercado Pago / MODO de verdad.
+    modo_proc       VARCHAR(10)   NOT NULL DEFAULT 'sandbox'
+                    CHECK (modo_proc IN ('sandbox', 'real')),
+    -- Solo para tarjeta: marca + últimos 4 (NUNCA el PAN completo) + cuotas.
+    tarjeta_marca   VARCHAR(20),
+    tarjeta_ultimos VARCHAR(4),
+    cuotas          INTEGER,
+    -- Referencias de la pasarela para reconciliar contra el webhook:
+    -- preference_id de MP / intención de MODO, y luego el payment id real.
+    referencia_ext  VARCHAR(120),
+    pago_ext_id     VARCHAR(120),
+    -- Comprobante emitido al aprobarse el pago (COMP-AAAA-NNNNNN).
+    comprobante     VARCHAR(24),
+    detalle         JSONB,
+    creado_en       TIMESTAMPTZ   NOT NULL DEFAULT now(),
+    actualizado_en  TIMESTAMPTZ   NOT NULL DEFAULT now(),
+    pagado_en       TIMESTAMPTZ
+);
+
+-- Estado de cobro del envío, denormalizado para listarlo sin join.
+ALTER TABLE envios ADD COLUMN IF NOT EXISTS estado_pago VARCHAR(10) NOT NULL DEFAULT 'pendiente'
+    CHECK (estado_pago IN ('pendiente', 'pagado', 'rechazado'));
+
+CREATE INDEX IF NOT EXISTS idx_pagos_envio   ON pagos (envio_id);
+CREATE INDEX IF NOT EXISTS idx_pagos_cliente ON pagos (cliente_id, creado_en DESC);

@@ -9,6 +9,7 @@ import { rutasCotizaciones } from './rutas/cotizaciones.js';
 import { rutasEnvios } from './rutas/envios.js';
 import { rutasAsignaciones } from './rutas/asignaciones.js';
 import { rutasCupones } from './rutas/cupones.js';
+import { rutasPagos } from './rutas/pagos.js';
 import { rutasPerfil } from './rutas/perfil.js';
 
 const app = express();
@@ -31,6 +32,7 @@ app.use('/api/cotizaciones', rutasCotizaciones);
 app.use('/api/envios', rutasEnvios);
 app.use('/api/asignaciones', rutasAsignaciones);
 app.use('/api/cupones', rutasCupones);
+app.use('/api/pagos', rutasPagos);
 app.use('/api/perfil', rutasPerfil);
 
 app.use((_req, res) => {
