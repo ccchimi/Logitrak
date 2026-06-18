@@ -143,9 +143,28 @@ URL JDBC: `jdbc:postgresql://localhost:5432/logitrak`
   pasó la verificación de identidad. Recibe un ID público único (p. ej. `CH-7F3K9Q`),
   que es lo único que ve el cliente junto a su nombre completo.
 
-## RENAPER
+## Verificación de identidad (alta de chofer)
 
-Aun sin buildear.
+RENAPER requiere convenio/SID, así que el alta verifica identidad **offline**, en
+tres capas. Las dos avanzadas vienen **registradas pero sin exigir** por defecto,
+para no romper Expo Go / web.
+
+| Tier | Qué hace | Estado por defecto | Para exigirlo |
+|------|----------|--------------------|---------------|
+| 1 · PDF417 | Lee el código del dorso del DNI y lo cruza con los datos tipeados + guarda la selfie. | **Activo y obligatorio.** | — |
+| 2 · Liveness | Gestos (sonrisa + giro) validados on-device con ML Kit. | Se registra (`liveness_ok`). | `LIVENESS_REQUERIDO=true` + **dev build** de la app (`expo run:android`); ML Kit no corre en Expo Go. |
+| 3 · Match facial | Compara la selfie con la foto del frente del DNI (face-api). | Se registra el score (`face_match_score`); degrada solo si falta runtime. | `FACE_MATCH_REQUERIDO=true` + runtime y modelos (abajo). |
+
+**Activar el match facial (Tier 3):**
+
+1. Usar **Node LTS (20/22)** e instalar el runtime nativo: `npm install @tensorflow/tfjs-node`.
+2. Descargar los pesos a `backend/models` (`ssdMobilenetv1`, `faceLandmark68Net`,
+   `faceRecognitionNet`) desde https://github.com/vladmandic/face-api/tree/master/model
+   (o setear `FACE_MODELS_DIR`).
+3. `FACE_MATCH_REQUERIDO=true` en el `.env`.
+
+Si el runtime o los modelos no están, el match se saltea (score nulo) y el alta
+sigue funcionando: nunca bloquea por una dependencia ausente.
 
 ## Seguridad implementada
 
