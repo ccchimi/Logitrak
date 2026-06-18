@@ -174,15 +174,16 @@ sigue funcionando: nunca bloquea por una dependencia ausente.
 
 ## Pagos / facturación
 
-El envío se cobra una vez confirmado. Como el resto del proyecto, el cobro es
-**sandbox-first**: funciona sin credenciales y se "paga" desde la app; con
-credenciales reales delega en la pasarela. Al aprobarse, se emite un
-**comprobante** (`COMP-AAAA-NNNNNN`) y el envío pasa a `estado_pago = 'pagado'`.
+El envío se cobra una vez confirmado. **Mercado Pago y MODO son integraciones
+reales** (delegan en la pasarela cuando hay credenciales); sin credenciales, el
+checkout por QR cae a un modo sandbox que se aprueba desde la app. La **tarjeta
+es siempre simulada**. Al aprobarse, se emite un **comprobante**
+(`COMP-AAAA-NNNNNN`) y el envío pasa a `estado_pago = 'pagado'`.
 
 | Método | Cómo funciona | Real con… |
 |--------|---------------|-----------|
-| **Mercado Pago** (Checkout Pro) | Crea una preferencia y devuelve el `init_point` + QR. El QR es interoperable, así que **MODO también puede escanearlo**. | `MP_ACCESS_TOKEN` + `PUBLIC_API_URL` (webhook). |
-| **MODO** (QR/deeplink) | Genera un deeplink `modo://` y su QR; abre la app de MODO. | `MODO_API_URL` + `MODO_API_KEY`. |
+| **Mercado Pago** (Checkout Pro) | SDK oficial `mercadopago`: crea una preferencia real, devuelve el `init_point` + QR y confirma por webhook/polling. El QR es interoperable, así que **MODO también puede escanearlo**. | `MP_ACCESS_TOKEN` + `PUBLIC_API_URL` (webhook). |
+| **MODO** (e-commerce QR) | Auth + creación de intención de pago contra la API de MODO; confirma por webhook/polling. | `MODO_API_URL` + `MODO_CLIENT_ID` + `MODO_CLIENT_SECRET`. |
 | **Tarjeta** déb/créd | Procesador **simulado**: valida Luhn, marca, vencimiento y CVV; guarda solo marca + últimos 4, **nunca el PAN**. | — (siempre simulado). |
 
 > **Por qué la tarjeta es simulada:** cobrar tarjetas reales exige certificación
@@ -194,8 +195,14 @@ credenciales reales delega en la pasarela. Al aprobarse, se emite un
 > prueba `4000 0000 0000 0002` se **rechaza** para demostrar el camino de error.
 > Transferencias bancarias: **no soportadas** a propósito.
 
-Activar Mercado Pago real: poné el `MP_ACCESS_TOKEN`, exponé el backend con
-ngrok y seteá `PUBLIC_API_URL` con esa URL para que MP pueda llamar al webhook.
+**Activar Mercado Pago real:** poné el `MP_ACCESS_TOKEN`, exponé el backend con
+ngrok y seteá `PUBLIC_API_URL` para que MP pueda llamar al webhook.
+
+**Activar MODO real:** completá `MODO_API_URL` + `MODO_CLIENT_ID` +
+`MODO_CLIENT_SECRET`. Como la documentación de MODO está detrás de login, en
+`src/servicios/pagos/modo.js` los endpoints y nombres de campo están marcados
+con `[DOC]`: confirmá cada uno contra tu doc de MODO (o fijalos por env:
+`MODO_TOKEN_URL`, `MODO_INTENTION_URL`, `MODO_STATUS_URL`, `MODO_STORE_ID`).
 
 ## Seguridad implementada
 

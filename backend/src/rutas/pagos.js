@@ -3,7 +3,7 @@ import { consultar, pool } from '../db/pool.js';
 import { autenticar } from '../middleware/auth.js';
 import { generarQrDataUrl } from '../servicios/pagos/qr.js';
 import { mpHabilitado, crearPreferenciaMp, consultarPagoMp } from '../servicios/pagos/mercadoPago.js';
-import { modoHabilitado, crearIntencionModo } from '../servicios/pagos/modo.js';
+import { modoHabilitado, crearIntencionModo, consultarIntencionModo } from '../servicios/pagos/modo.js';
 import { procesarTarjeta } from '../servicios/pagos/tarjeta.js';
 
 export const rutasPagos = Router();
@@ -237,6 +237,19 @@ rutasPagos.post('/:codigo/confirmar', autenticar, async (req, res) => {
     }
 });
 
+// Página de retorno de Checkout Pro (back_urls de Mercado Pago). MP redirige
+// acá el navegador al terminar; el estado real lo confirma el webhook. Va antes
+// de GET /:codigo para que no la capture como si "retorno" fuese un código.
+rutasPagos.get('/retorno', (_req, res) => {
+    res.set('Content-Type', 'text/html; charset=utf-8').send(
+        `<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1">
+         <body style="font-family:system-ui;background:#0E0E0E;color:#fff;display:grid;place-items:center;height:100vh;margin:0;text-align:center">
+           <div><h2 style="color:#FFD700">LogiTrack</h2>
+           <p>Listo. Ya podés volver a la app para ver el seguimiento de tu envío.</p></div>
+         </body>`
+    );
+});
+
 // Estado de un pago (polling del checkout). En modo real consulta Mercado Pago.
 rutasPagos.get('/:codigo', autenticar, async (req, res) => {
     const { rows } = await consultar('SELECT * FROM pagos WHERE codigo = $1', [req.params.codigo]);
@@ -255,6 +268,17 @@ rutasPagos.get('/:codigo', autenticar, async (req, res) => {
             try {
                 await cliente.query('BEGIN');
                 pago = await aprobarPago(cliente, pago.id, { pagoExtId: pago.pago_ext_id, detalle: mp.raw });
+                await cliente.query('COMMIT');
+            } catch { await cliente.query('ROLLBACK'); } finally { cliente.release(); }
+        }
+    } else if (pago.estado === 'pendiente' && pago.modo_proc === 'real' &&
+        pago.metodo === 'modo' && pago.referencia_ext) {
+        const m = await consultarIntencionModo(pago.referencia_ext).catch(() => null);
+        if (m?.estado === 'approved') {
+            const cliente = await pool.connect();
+            try {
+                await cliente.query('BEGIN');
+                pago = await aprobarPago(cliente, pago.id, { detalle: m.raw });
                 await cliente.query('COMMIT');
             } catch { await cliente.query('ROLLBACK'); } finally { cliente.release(); }
         }
@@ -317,5 +341,30 @@ rutasPagos.post('/webhook/mercadopago', async (req, res) => {
     return res.sendStatus(200);
 });
 
-// Webhook de MODO (sin auth). Stub: solo se usa cuando MODO real está configurado.
-rutasPagos.post('/webhook/modo', async (_req, res) => res.sendStatus(200));
+// Webhook de MODO (sin auth). Reconcilia la intención real contra MODO.
+// [DOC] El nombre del campo del id en el payload se confirma con tu doc de MODO.
+rutasPagos.post('/webhook/modo', async (req, res) => {
+    try {
+        const intencionId = req.body?.id || req.body?.payment_request_id || req.query?.id;
+        if (intencionId) {
+            const m = await consultarIntencionModo(String(intencionId)).catch(() => null);
+            if (m?.externalReference) {
+                const { rows } = await consultar('SELECT * FROM pagos WHERE codigo = $1', [m.externalReference]);
+                const pago = rows[0];
+                if (pago && pago.estado === 'pendiente' && m.estado === 'approved') {
+                    const cliente = await pool.connect();
+                    try {
+                        await cliente.query('BEGIN');
+                        await aprobarPago(cliente, pago.id, { detalle: m.raw });
+                        await cliente.query('COMMIT');
+                    } catch { await cliente.query('ROLLBACK'); } finally { cliente.release(); }
+                } else if (pago && m.estado === 'rejected') {
+                    await consultar(`UPDATE pagos SET estado = 'rechazado', actualizado_en = now() WHERE id = $1`, [pago.id]);
+                }
+            }
+        }
+    } catch (e) {
+        console.error('Webhook MODO:', e.message);
+    }
+    return res.sendStatus(200);
+});
