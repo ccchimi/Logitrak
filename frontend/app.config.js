@@ -20,5 +20,12 @@ export default ({ config }) => ({
           'Permitir a LogiTrack acceder a tu ubicación para el seguimiento de envíos en tiempo real.',
       },
     ],
+    [
+      'expo-camera',
+      {
+        cameraPermission:
+          'Permitir a LogiTrack usar la cámara para escanear tu DNI y tomar la selfie de verificación de identidad.',
+      },
+    ],
   ],
 });

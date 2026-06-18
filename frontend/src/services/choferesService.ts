@@ -7,6 +7,14 @@ export interface DatosPostulacion {
     domicilio: string;
     dni: string;
     escaneoFacialOk: boolean;
+    /** Texto crudo del PDF417 del DNI; el backend lo re-verifica contra los datos. */
+    dniEscaneado?: string;
+    /** Selfie en base64 (sin prefijo data:), para guardar y el match facial. */
+    selfieBase64?: string | null;
+    /** Foto del frente del DNI en base64, para el match facial 1:1 (Tier 3). */
+    dniFrenteBase64?: string | null;
+    /** Resultado del chequeo de vida on-device (Tier 2). */
+    livenessOk?: boolean;
 }
 
 export type ResultadoPostulacion =
