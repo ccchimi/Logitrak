@@ -133,6 +133,12 @@ URL JDBC: `jdbc:postgresql://localhost:5432/logitrak`
 | GET    | `/api/asignaciones`               | Historial de asignaciones del chofer                 |
 | GET    | `/api/cupones`                    | Cupones de compensación del cliente                  |
 | POST   | `/api/cupones`                    | Emite un cupón (p. ej. por SLA excedido)             |
+| POST   | `/api/pagos/checkout`             | Inicia el pago por QR/deeplink (Mercado Pago o MODO) |
+| POST   | `/api/pagos/tarjeta`              | Cobra con tarjeta déb/créd (procesador simulado)     |
+| POST   | `/api/pagos/:codigo/confirmar`    | Confirma un pago sandbox ("ya pagué")                |
+| GET    | `/api/pagos/:codigo`              | Estado del pago (polling del checkout)               |
+| GET    | `/api/pagos`                      | Pagos del cliente (`?envio=` opcional; admin: todos) |
+| POST   | `/api/pagos/webhook/mercadopago`  | Webhook de Mercado Pago (sin auth)                   |
 | GET    | `/api/perfil/resumen`             | Resumen de la cuenta para la pantalla de Perfil      |
 
 ## Roles
@@ -165,6 +171,31 @@ para no romper Expo Go / web.
 
 Si el runtime o los modelos no están, el match se saltea (score nulo) y el alta
 sigue funcionando: nunca bloquea por una dependencia ausente.
+
+## Pagos / facturación
+
+El envío se cobra una vez confirmado. Como el resto del proyecto, el cobro es
+**sandbox-first**: funciona sin credenciales y se "paga" desde la app; con
+credenciales reales delega en la pasarela. Al aprobarse, se emite un
+**comprobante** (`COMP-AAAA-NNNNNN`) y el envío pasa a `estado_pago = 'pagado'`.
+
+| Método | Cómo funciona | Real con… |
+|--------|---------------|-----------|
+| **Mercado Pago** (Checkout Pro) | Crea una preferencia y devuelve el `init_point` + QR. El QR es interoperable, así que **MODO también puede escanearlo**. | `MP_ACCESS_TOKEN` + `PUBLIC_API_URL` (webhook). |
+| **MODO** (QR/deeplink) | Genera un deeplink `modo://` y su QR; abre la app de MODO. | `MODO_API_URL` + `MODO_API_KEY`. |
+| **Tarjeta** déb/créd | Procesador **simulado**: valida Luhn, marca, vencimiento y CVV; guarda solo marca + últimos 4, **nunca el PAN**. | — (siempre simulado). |
+
+> **Por qué la tarjeta es simulada:** cobrar tarjetas reales exige certificación
+> PCI-DSS y un adquirente, fuera del alcance del proyecto. Para producción se
+> reemplaza `servicios/pagos/tarjeta.js` por un gateway que tokenice la tarjeta
+> en el cliente, sin que el número toque nunca este backend.
+>
+> En sandbox, una tarjeta con número válido (Luhn) se **aprueba**; el PAN de
+> prueba `4000 0000 0000 0002` se **rechaza** para demostrar el camino de error.
+> Transferencias bancarias: **no soportadas** a propósito.
+
+Activar Mercado Pago real: poné el `MP_ACCESS_TOKEN`, exponé el backend con
+ngrok y seteá `PUBLIC_API_URL` con esa URL para que MP pueda llamar al webhook.
 
 ## Seguridad implementada
 
