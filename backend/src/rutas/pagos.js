@@ -46,8 +46,6 @@ async function buscarEnvioDelCliente(codigo, usuario) {
     return { envio };
 }
 
-// Aprueba un pago (cualquier método) dentro de una transacción: marca el pago,
-// emite el comprobante (idempotente) y deja el envío como 'pagado'.
 async function aprobarPago(cliente, pagoId, extra = {}) {
     const { rows } = await cliente.query(
         `UPDATE pagos SET
@@ -70,9 +68,6 @@ async function aprobarPago(cliente, pagoId, extra = {}) {
     return pago;
 }
 
-// Inicia el checkout por QR/deeplink (Mercado Pago o MODO). En modo real delega
-// en la pasarela; en sandbox devuelve un deeplink propio y el pago se confirma
-// luego con POST /:codigo/confirmar.
 rutasPagos.post('/checkout', autenticar, async (req, res) => {
     const b = req.body ?? {};
     const metodo = (b.metodo || '').trim();
@@ -144,7 +139,6 @@ rutasPagos.post('/checkout', autenticar, async (req, res) => {
     });
 });
 
-// Pago con tarjeta de débito/crédito SIN pasarela (procesamiento simulado).
 rutasPagos.post('/tarjeta', autenticar, async (req, res) => {
     const b = req.body ?? {};
     const envioCodigo = (b.envioCodigo || '').trim();
@@ -205,8 +199,6 @@ rutasPagos.post('/tarjeta', autenticar, async (req, res) => {
     }
 });
 
-// Confirma un pago sandbox (botón "Ya pagué / Simular pago" del checkout QR).
-// En modo real la confirmación llega por webhook, no por acá.
 rutasPagos.post('/:codigo/confirmar', autenticar, async (req, res) => {
     const { rows } = await consultar('SELECT * FROM pagos WHERE codigo = $1', [req.params.codigo]);
     const pago = rows[0];
@@ -237,9 +229,6 @@ rutasPagos.post('/:codigo/confirmar', autenticar, async (req, res) => {
     }
 });
 
-// Página de retorno de Checkout Pro (back_urls de Mercado Pago). MP redirige
-// acá el navegador al terminar; el estado real lo confirma el webhook. Va antes
-// de GET /:codigo para que no la capture como si "retorno" fuese un código.
 rutasPagos.get('/retorno', (_req, res) => {
     res.set('Content-Type', 'text/html; charset=utf-8').send(
         `<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -250,7 +239,6 @@ rutasPagos.get('/retorno', (_req, res) => {
     );
 });
 
-// Estado de un pago (polling del checkout). En modo real consulta Mercado Pago.
 rutasPagos.get('/:codigo', autenticar, async (req, res) => {
     const { rows } = await consultar('SELECT * FROM pagos WHERE codigo = $1', [req.params.codigo]);
     let pago = rows[0];
@@ -287,7 +275,6 @@ rutasPagos.get('/:codigo', autenticar, async (req, res) => {
     return res.json({ exito: true, pago: publicar(pago) });
 });
 
-// Listado de pagos del usuario (admin: todos). Filtro opcional por envío.
 rutasPagos.get('/', autenticar, async (req, res) => {
     const envioCodigo = (req.query.envio || '').toString().trim();
     const params = [];
@@ -311,7 +298,6 @@ rutasPagos.get('/', autenticar, async (req, res) => {
     return res.json({ exito: true, pagos: rows.map(publicar) });
 });
 
-// Webhook de Mercado Pago (sin auth). Reconcilia el pago real contra MP.
 rutasPagos.post('/webhook/mercadopago', async (req, res) => {
     try {
         const tipo = req.body?.type || req.query?.type || req.query?.topic;
@@ -337,12 +323,9 @@ rutasPagos.post('/webhook/mercadopago', async (req, res) => {
     } catch (e) {
         console.error('Webhook Mercado Pago:', e.message);
     }
-    // Siempre 200 para que MP no reintente indefinidamente.
     return res.sendStatus(200);
 });
 
-// Webhook de MODO (sin auth). Reconcilia la intención real contra MODO.
-// [DOC] El nombre del campo del id en el payload se confirma con tu doc de MODO.
 rutasPagos.post('/webhook/modo', async (req, res) => {
     try {
         const intencionId = req.body?.id || req.body?.payment_request_id || req.query?.id;

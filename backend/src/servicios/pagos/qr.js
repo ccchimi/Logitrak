@@ -1,8 +1,3 @@
-// Genera un QR como data URL (PNG en base64) para mostrarlo en la app sin
-// agregar dependencias nativas al frontend. Si el paquete `qrcode` no está
-// instalado, degrada a null y la UI muestra el deeplink en texto: nunca rompe
-// el flujo de pago por una dependencia ausente.
-
 let qrcodeModulo;
 let intentado = false;
 

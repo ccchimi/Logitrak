@@ -1,22 +1,9 @@
-// Procesamiento de tarjeta de débito/crédito SIN pasarela (no toca Mercado
-// Pago ni ningún servicio externo). Es un procesador SIMULADO: validamos el
-// formato (Luhn, marca, vencimiento, CVV) y NUNCA persistimos el número
-// completo (solo marca + últimos 4). El resultado es determinístico para poder
-// demostrar aprobaciones y rechazos sin manejar datos PCI reales.
-//
-// Procesar tarjetas de verdad exige certificación PCI-DSS y un adquirente; eso
-// queda fuera de alcance. Para producción, reemplazar este módulo por un
-// gateway (Mercado Pago, Decidir/Payway, etc.) tokenizando la tarjeta en el
-// cliente, sin que el PAN toque jamás este backend.
-
 const MARCAS = [
     { marca: 'visa',       re: /^4\d{12}(\d{3})?$/ },
     { marca: 'mastercard', re: /^(5[1-5]\d{14}|2(2[2-9]\d{12}|[3-6]\d{13}|7[01]\d{12}|720\d{12}))$/ },
     { marca: 'amex',       re: /^3[47]\d{13}$/ },
 ];
 
-// PAN de prueba que SIEMPRE se rechaza (clásico "tarjeta rechazada"), para
-// poder demostrar el camino de error en la demo.
 const PAN_RECHAZADO = new Set(['4000000000000002']);
 
 export function soloDigitos(valor) {
@@ -28,7 +15,6 @@ export function detectarMarca(numero) {
     return MARCAS.find((m) => m.re.test(n))?.marca ?? null;
 }
 
-// Algoritmo de Luhn: descarta números mal tipeados antes de "cobrar".
 export function luhnValido(numero) {
     const n = soloDigitos(numero);
     if (n.length < 13) return false;
@@ -57,7 +43,7 @@ export function vencimientoValido(vencimiento) {
     if (anio < 100) anio += 2000;
 
     const ahora = new Date();
-    const fin = new Date(anio, mes, 0, 23, 59, 59); // último día del mes de vencimiento
+    const fin = new Date(anio, mes, 0, 23, 59, 59);
     return fin >= ahora;
 }
 

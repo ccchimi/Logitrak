@@ -47,7 +47,6 @@ export const styles = StyleSheet.create({
         paddingBottom: 48,
     },
 
-    // Header
     header: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -82,7 +81,6 @@ export const styles = StyleSheet.create({
         fontWeight: '800',
     },
 
-    // Resumen del importe
     montoCard: {
         backgroundColor: COLORS.card,
         borderRadius: 20,
@@ -117,7 +115,6 @@ export const styles = StyleSheet.create({
         marginBottom: 12,
     },
 
-    // Selector de método
     metodoCard: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -157,7 +154,6 @@ export const styles = StyleSheet.create({
         fontSize: 22,
     },
 
-    // Panel genérico (checkout / form / resultado)
     panel: {
         backgroundColor: COLORS.card,
         borderRadius: 20,
@@ -198,7 +194,6 @@ export const styles = StyleSheet.create({
         marginBottom: 14,
     },
 
-    // QR
     qrWrapper: {
         alignSelf: 'center',
         backgroundColor: COLORS.white,
@@ -230,7 +225,6 @@ export const styles = StyleSheet.create({
         lineHeight: 19,
     },
 
-    // Botones
     botonPrimario: {
         backgroundColor: COLORS.accent,
         borderRadius: 14,
@@ -272,7 +266,6 @@ export const styles = StyleSheet.create({
         fontSize: 13,
     },
 
-    // Formulario de tarjeta
     inputLabel: {
         color: COLORS.mutedStrong,
         fontSize: 12,
@@ -342,7 +335,6 @@ export const styles = StyleSheet.create({
         textAlign: 'center',
     },
 
-    // Resultado aprobado
     exitoIcono: {
         alignSelf: 'center',
         width: 64,

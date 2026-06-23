@@ -29,7 +29,6 @@ export interface CheckoutPago {
     expiraEnMin: number;
 }
 
-// Inicia el checkout por QR/deeplink (Mercado Pago o MODO).
 export async function iniciarCheckout(
     envioCodigo: string,
     metodo: 'mercadopago' | 'modo'
@@ -56,8 +55,6 @@ export interface ResultadoTarjeta {
     pago: Pago | null;
 }
 
-// Cobra con tarjeta (procesador simulado del backend). Devuelve siempre un
-// resultado con motivo, incluso cuando el pago se rechaza.
 export async function pagarConTarjeta(
     envioCodigo: string,
     datos: DatosTarjeta
@@ -75,7 +72,6 @@ export async function pagarConTarjeta(
     };
 }
 
-// Confirma un pago sandbox (botón "Ya pagué / Simular pago" del checkout QR).
 export async function confirmarPagoSandbox(codigo: string): Promise<Pago | null> {
     const r = await llamarApi<{ exito: true; pago: Pago }>(
         `/api/pagos/${encodeURIComponent(codigo)}/confirmar`,
@@ -84,7 +80,6 @@ export async function confirmarPagoSandbox(codigo: string): Promise<Pago | null>
     return r.exito ? r.pago : null;
 }
 
-// Estado actual del pago (para el polling del checkout por QR).
 export async function obtenerPago(codigo: string): Promise<Pago | null> {
     const r = await llamarApi<{ exito: true; pago: Pago }>(
         `/api/pagos/${encodeURIComponent(codigo)}`,

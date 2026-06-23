@@ -141,8 +141,6 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
     const [cotizacion, setCotizacion] = useState<Cotizacion | null>(null);
     const [confirmando, setConfirmando] = useState(false);
 
-    // Con el teclado abierto se compacta el header y se mantiene visible
-    // el final del chat (la última pregunta del bot).
     const [tecladoVisible, setTecladoVisible] = useState(false);
 
     useEffect(() => {
@@ -349,7 +347,6 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
             if (respuesta.exito) {
                 resultado = respuesta.cotizacion;
                 setCotizacion(resultado);
-                // Persistimos la cotización ni bien se emite (best-effort).
                 void guardarCotizacion(resultado, {
                     bultos: parseInt(data.bultos, 10) || undefined,
                     largoCm: parseFloat(data.largo) || undefined,
@@ -523,8 +520,6 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
 
         setConfirmando(false);
 
-        // Datos que el seguimiento necesita; los pasamos a través del pago para
-        // que, una vez aprobado, la pantalla de pago navegue al seguimiento.
         const seguimiento = {
             envioCodigo: envio?.codigo ?? null,
             origen: resultado.origen.textoNormalizado,
@@ -535,8 +530,6 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
             referencia: envio?.codigo ?? resultado.id,
         };
 
-        // Sin envío persistido no hay nada para cobrar (modo offline): vamos
-        // directo al seguimiento como antes.
         if (!envio?.codigo) {
             navigation.navigate('Seguimiento', seguimiento);
             return;

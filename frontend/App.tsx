@@ -46,8 +46,6 @@ export default function App() {
     DMSans_700Bold,
   });
 
-  // La landing (Inicio) se muestra primero en TODAS las plataformas:
-  // web, Android e iOS. Desde ahí se entra al login con la transición.
   const [mostrarApp, setMostrarApp] = useState(false);
 
   const transitionY = useRef(new Animated.Value(height)).current;
@@ -76,8 +74,6 @@ export default function App() {
     });
   };
 
-  // Vuelve desde la app (p. ej. el Login) a la landing (Index),
-  // reutilizando la misma transicion pero al reves.
   const volverAlInicio = () => {
     transitionY.setValue(height);
 

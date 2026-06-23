@@ -302,7 +302,6 @@ export default function SeguimientoScreen({ navigation, route }: any) {
                         </Text>
                     </TouchableOpacity>
                 ) : (
-                    // Mobile: se desliza el dedo hacia arriba/abajo sobre el handle.
                     <View style={styles.panelToggle} {...gestoPanel.panHandlers}>
                         <View style={styles.panelHandle} />
                         <Text style={styles.panelFlecha}>{panelMinimizado ? '▴' : '▾'}</Text>

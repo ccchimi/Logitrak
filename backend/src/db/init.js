@@ -62,9 +62,6 @@ async function sembrarVehiculos() {
 }
 
 export async function inicializarBaseDeDatos() {
-    // La base ya existe en Supabase; solo aplicamos el esquema (idempotente) y
-    // sembramos admins + flota. Todo el equipo apunta al mismo proyecto, así que
-    // el primer arranque la deja lista y los siguientes son no-ops.
     await aplicarEsquema();
     await sembrarAdmins();
     await sembrarVehiculos();

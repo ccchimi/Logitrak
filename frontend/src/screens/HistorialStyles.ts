@@ -98,7 +98,6 @@ export const styles = StyleSheet.create({
         fontFamily: FONTS.title,
     },
 
-    // ===== RESUMEN =====
     resumenRow: {
         flexDirection: 'row',
         gap: 10,

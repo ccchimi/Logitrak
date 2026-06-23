@@ -53,7 +53,6 @@ export default function EscanerIdentidad({ visible, nombreCompleto, dni, onCance
     const camRef = useRef<CameraView>(null);
     const selfieRef = useRef<string | null>(null);
     const dniFrenteRef = useRef<string | null>(null);
-    // Evita que onBarcodeScanned dispare muchas veces seguidas con el mismo código.
     const lockRef = useRef(false);
 
     const reiniciar = () => {

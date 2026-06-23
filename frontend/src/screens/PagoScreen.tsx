@@ -62,7 +62,6 @@ export default function PagoScreen({ navigation, route }: any) {
     const [pago, setPago] = useState<Pago | null>(null);
     const [procesando, setProcesando] = useState(false);
 
-    // Formulario de tarjeta
     const [numero, setNumero] = useState('');
     const [titular, setTitular] = useState('');
     const [vencimiento, setVencimiento] = useState('');
@@ -72,7 +71,6 @@ export default function PagoScreen({ navigation, route }: any) {
     const aprobado = pago?.estado === 'aprobado';
     const marcaUI = detectarMarcaUI(numero);
 
-    // Polling del estado del pago mientras se espera el escaneo del QR.
     useEffect(() => {
         if (!pago || pago.metodo === 'tarjeta' || pago.estado !== 'pendiente') return;
 
@@ -87,7 +85,6 @@ export default function PagoScreen({ navigation, route }: any) {
         return () => clearInterval(id);
     }, [pago?.codigo, pago?.estado, pago?.metodo]);
 
-    // Feedback al aprobarse.
     const yaAviso = useRef(false);
     useEffect(() => {
         if (aprobado && !yaAviso.current) {

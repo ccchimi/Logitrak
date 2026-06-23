@@ -333,7 +333,6 @@ export default function MapaSeguimiento({ origen, destino, chofer, onEvento }: P
             limpiezaRef.current?.();
             limpiezaRef.current = null;
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [origen.direccion, destino.direccion, origen.latitude, destino.latitude]);
 
     return (

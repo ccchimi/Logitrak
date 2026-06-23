@@ -244,7 +244,6 @@ export const styles = StyleSheet.create({
         letterSpacing: 0.4,
     },
 
-    // ===== TARJETA DE OFERTA =====
     ofertaCard: {
         backgroundColor: COLORS.surface,
         borderWidth: 1,
@@ -302,7 +301,6 @@ export const styles = StyleSheet.create({
         marginBottom: 16,
     },
 
-    // Ruta origen → destino
     rutaBox: {
         backgroundColor: COLORS.cardDeep,
         borderWidth: 1,
@@ -367,7 +365,6 @@ export const styles = StyleSheet.create({
         marginBottom: 10,
     },
 
-    // Carga
     cargaTexto: {
         color: COLORS.mutedStrong,
         fontSize: 13,

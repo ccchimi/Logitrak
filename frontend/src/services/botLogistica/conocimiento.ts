@@ -229,25 +229,15 @@ export const FLOTA: readonly VehiculoFlota[] = [
 ];
 
 export const CONFIG_OPERATIVA = {
-    /** Divisor estándar IATA-like para peso volumétrico (cm³/kg). */
     divisorVolumetrico: 5000,
-    /** El precio final se redondea a múltiplos de este valor. */
     redondeoARS: 50,
-    /** Factor ruta: la distancia real vial supera a la geodésica. */
     factorRuta: 1.25,
-    /** Distancia asumida cuando no se puede resolver ninguna localidad. */
     distanciaUrbanaPorDefectoKm: 8,
-    /** Peajes estimados por cada 50 km de tramo interurbano. */
     peajeCada50KmARS: 950,
-    /** Umbral a partir del cual un viaje se considera interurbano. */
     umbralInterurbanoKm: 50,
-    /** Porcentaje del seguro sobre el valor declarado. */
     seguroPctValorDeclarado: 0.012,
-    /** Porción de la tarifa que cobra el transportista. */
     comisionChofer: 0.78,
-    /** Minutos de validez de una cotización emitida. */
     validezCotizacionMin: 15,
-    /** Límites duros de la operación. */
     limites: {
         pesoMinKg: 0.05,
         pesoMaxKg: 12000,

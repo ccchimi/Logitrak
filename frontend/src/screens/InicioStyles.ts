@@ -317,8 +317,6 @@ export const styles = StyleSheet.create({
 
   column: { flexDirection: 'column' },
 
-  // ===== MOBILE OVERRIDES =====
-  // El nav fijo recibe height/paddingTop dinámicos (safe area) desde Inicio.tsx.
   navM: { paddingHorizontal: 20 },
 
   menuBtn: {

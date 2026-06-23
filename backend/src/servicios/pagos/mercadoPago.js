@@ -1,11 +1,3 @@
-// Integración REAL con Mercado Pago (Checkout Pro) usando el SDK oficial
-// `mercadopago` (v3). Con MP_ACCESS_TOKEN crea una preferencia y delega el cobro
-// en MP; el estado lo confirma el webhook (o el polling consulta el pago real).
-// Sin token, mpHabilitado() devuelve false y la ruta cae al modo sandbox.
-//
-// Docs: https://www.mercadopago.com.ar/developers/es/docs/sdks-library/server-side
-//       https://www.npmjs.com/package/mercadopago
-
 import { MercadoPagoConfig, Preference, Payment } from 'mercadopago';
 
 let clienteMp = null;
@@ -14,7 +6,6 @@ export function mpHabilitado() {
     return Boolean(process.env.MP_ACCESS_TOKEN);
 }
 
-// Cliente perezoso: se crea una sola vez, recién cuando hay token.
 function obtenerCliente() {
     if (!mpHabilitado()) return null;
     if (!clienteMp) {
@@ -26,8 +17,6 @@ function obtenerCliente() {
     return clienteMp;
 }
 
-// Crea la preferencia de Checkout Pro y devuelve el init_point (URL a la que
-// lleva el QR) + el id de preferencia. Devuelve null si no hay token (sandbox).
 export async function crearPreferenciaMp({ pago, envio, baseUrl }) {
     const cliente = obtenerCliente();
     if (!cliente) return null;
@@ -63,8 +52,6 @@ export async function crearPreferenciaMp({ pago, envio, baseUrl }) {
     };
 }
 
-// Consulta el estado de un pago real en Mercado Pago (usado por el webhook y el
-// polling). Mapea el status de MP a nuestro vocabulario.
 export async function consultarPagoMp(pagoExtId) {
     const cliente = obtenerCliente();
     if (!cliente || !pagoExtId) return null;
@@ -73,7 +60,7 @@ export async function consultarPagoMp(pagoExtId) {
         const payment = new Payment(cliente);
         const data = await payment.get({ id: pagoExtId });
         return {
-            estado: data.status, // approved | pending | rejected | ...
+            estado: data.status,
             externalReference: data.external_reference,
             raw: data,
         };

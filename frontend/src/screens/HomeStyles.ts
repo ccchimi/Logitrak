@@ -69,7 +69,6 @@ export const styles = StyleSheet.create({
 
   block: { width: '100%', maxWidth: 1180 },
 
-  // ===== SIDEBAR (escritorio) =====
   sidebar: {
     width: 268,
     backgroundColor: COLORS.surface,
@@ -195,7 +194,6 @@ export const styles = StyleSheet.create({
   },
   sbSalirText: { color: COLORS.mutedStrong, fontSize: 13, fontFamily: FONTS.textMedium },
 
-  // ===== TOPBAR MÓVIL =====
   mTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -222,7 +220,6 @@ export const styles = StyleSheet.create({
   },
   mChipText: { color: COLORS.mutedStrong, fontSize: 13, fontFamily: FONTS.textMedium },
 
-  // ===== HERO =====
   hero: {
     borderRadius: 26,
     borderWidth: 1,

@@ -1,5 +1,3 @@
--- Esquema de logitrak.
-
 CREATE TABLE IF NOT EXISTS usuarios (
     id              SERIAL PRIMARY KEY,
     usuario         VARCHAR(20)  UNIQUE NOT NULL,
@@ -12,7 +10,6 @@ CREATE TABLE IF NOT EXISTS usuarios (
 
 CREATE TABLE IF NOT EXISTS choferes (
     id                   SERIAL PRIMARY KEY,
-    -- ID público del chofer: es lo único (junto al nombre) que ve el cliente.
     codigo               VARCHAR(12)  UNIQUE NOT NULL,
     usuario_id           INTEGER      UNIQUE NOT NULL
                          REFERENCES usuarios(id) ON DELETE CASCADE,
@@ -24,25 +21,19 @@ CREATE TABLE IF NOT EXISTS choferes (
     escaneo_facial_ok    BOOLEAN      NOT NULL DEFAULT FALSE,
     verificacion_renaper VARCHAR(10)  NOT NULL DEFAULT 'pendiente'
                          CHECK (verificacion_renaper IN ('pendiente', 'aprobada', 'rechazada')),
-    -- 'simulado' hasta tener convenio/credenciales reales de RENAPER.
     renaper_modo         VARCHAR(10)  NOT NULL DEFAULT 'simulado'
                          CHECK (renaper_modo IN ('simulado', 'real')),
-    -- Método con el que se verificó la identidad: 'pdf417' (lectura del DNI) o 'real'.
     metodo_verificacion  VARCHAR(12),
-    -- Ruta de la selfie de verificación guardada en el server.
     selfie_path          VARCHAR(300),
     verificado_en        TIMESTAMPTZ,
     creado_en            TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
 
--- Columnas agregadas después del alta inicial de la tabla (idempotente: aplica
--- a bases ya creadas, p. ej. la de Supabase, sin recrear nada).
 ALTER TABLE choferes ADD COLUMN IF NOT EXISTS metodo_verificacion VARCHAR(12);
 ALTER TABLE choferes ADD COLUMN IF NOT EXISTS selfie_path          VARCHAR(300);
 ALTER TABLE choferes ADD COLUMN IF NOT EXISTS liveness_ok          BOOLEAN;
 ALTER TABLE choferes ADD COLUMN IF NOT EXISTS face_match_score     NUMERIC(5,4);
 
--- Auditoría de accesos: queda registro de cada intento de login.
 CREATE TABLE IF NOT EXISTS auditoria_accesos (
     id         SERIAL PRIMARY KEY,
     usuario    VARCHAR(20)  NOT NULL,
@@ -53,15 +44,9 @@ CREATE TABLE IF NOT EXISTS auditoria_accesos (
     fecha      TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
 
--- ====================================================================
--- Circuito operativo: catálogo de flota, cotizaciones, envíos,
--- seguimiento, asignaciones a choferes y cupones de compensación.
--- ====================================================================
 
--- Catálogo de la flota. Espeja la FLOTA del motor del bot (conocimiento.ts)
--- para que envíos, cotizaciones y asignaciones referencien una unidad real.
 CREATE TABLE IF NOT EXISTS vehiculos (
-    id                  VARCHAR(20)  PRIMARY KEY,  -- 'moto','utilitario','furgon','camion'
+    id                  VARCHAR(20)  PRIMARY KEY,
     nombre              VARCHAR(60)   NOT NULL,
     max_kg              NUMERIC(10,2) NOT NULL,
     max_bultos          INTEGER       NOT NULL,
@@ -74,11 +59,9 @@ CREATE TABLE IF NOT EXISTS vehiculos (
     capacidades         TEXT[]        NOT NULL DEFAULT '{}'
 );
 
--- Cada cotización que emite Boxy. El snapshot completo de la Cotizacion del
--- motor queda en 'detalle' (JSONB); las columnas sueltas son para consultar.
 CREATE TABLE IF NOT EXISTS cotizaciones (
     id                 SERIAL PRIMARY KEY,
-    codigo             VARCHAR(40)   UNIQUE NOT NULL,        -- COT-XXXX del motor
+    codigo             VARCHAR(40)   UNIQUE NOT NULL,
     cliente_id         INTEGER       REFERENCES usuarios(id) ON DELETE SET NULL,
     origen             VARCHAR(200)  NOT NULL,
     destino            VARCHAR(200)  NOT NULL,
@@ -106,11 +89,8 @@ CREATE TABLE IF NOT EXISTS cotizaciones (
     emitida_en         TIMESTAMPTZ   NOT NULL DEFAULT now()
 );
 
--- Código público de seguimiento del envío: TRK-AAAA-NNNNNN.
 CREATE SEQUENCE IF NOT EXISTS envios_codigo_seq;
 
--- El envío es el corazón del circuito: nace cuando el cliente confirma una
--- cotización y atraviesa los estados pendiente → asignado → en_viaje → entregado.
 CREATE TABLE IF NOT EXISTS envios (
     id                SERIAL PRIMARY KEY,
     codigo            VARCHAR(24)   UNIQUE NOT NULL
@@ -144,7 +124,6 @@ CREATE TABLE IF NOT EXISTS envios (
     entregado_en      TIMESTAMPTZ
 );
 
--- Línea de tiempo del seguimiento: un evento por cada cambio de estado o hito.
 CREATE TABLE IF NOT EXISTS envio_eventos (
     id        SERIAL PRIMARY KEY,
     envio_id  INTEGER      NOT NULL REFERENCES envios(id) ON DELETE CASCADE,
@@ -158,11 +137,9 @@ CREATE TABLE IF NOT EXISTS envio_eventos (
     creado_en TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
 
--- Asignación de viaje ofrecida a un chofer (consola del transportista).
--- Puede estar ligada a un envío real o ser una oferta del despachador.
 CREATE TABLE IF NOT EXISTS asignaciones (
     id                 SERIAL PRIMARY KEY,
-    codigo             VARCHAR(40)   UNIQUE NOT NULL,        -- VJ-XXXX del motor
+    codigo             VARCHAR(40)   UNIQUE NOT NULL,
     chofer_id          INTEGER       NOT NULL REFERENCES choferes(id) ON DELETE CASCADE,
     envio_id           INTEGER       REFERENCES envios(id) ON DELETE SET NULL,
     origen             VARCHAR(200)  NOT NULL,
@@ -187,7 +164,6 @@ CREATE TABLE IF NOT EXISTS asignaciones (
     respondida_en      TIMESTAMPTZ
 );
 
--- Cupón de compensación emitido automáticamente al exceder el SLA de un envío.
 CREATE SEQUENCE IF NOT EXISTS cupones_codigo_seq;
 
 CREATE TABLE IF NOT EXISTS cupones (
@@ -214,13 +190,6 @@ CREATE INDEX IF NOT EXISTS idx_envio_eventos_envio     ON envio_eventos (envio_i
 CREATE INDEX IF NOT EXISTS idx_asignaciones_chofer     ON asignaciones (chofer_id, generada_en DESC);
 CREATE INDEX IF NOT EXISTS idx_cupones_cliente         ON cupones (cliente_id, creado_en DESC);
 
--- ====================================================================
--- Pagos / facturación del envío. Un envío se cobra una vez; el pago
--- referencia el envío y guarda el método (Mercado Pago, MODO o tarjeta),
--- su estado y el comprobante emitido al aprobarse. El procesamiento de
--- tarjeta es SIMULADO (no toca ninguna pasarela): nunca se persiste el
--- número completo, solo la marca y los últimos 4 dígitos.
--- ====================================================================
 
 CREATE SEQUENCE IF NOT EXISTS pagos_codigo_seq;
 CREATE SEQUENCE IF NOT EXISTS comprobantes_seq;
@@ -238,19 +207,13 @@ CREATE TABLE IF NOT EXISTS pagos (
     moneda          VARCHAR(3)    NOT NULL DEFAULT 'ARS',
     estado          VARCHAR(12)   NOT NULL DEFAULT 'pendiente'
                     CHECK (estado IN ('pendiente', 'aprobado', 'rechazado', 'cancelado', 'expirado')),
-    -- 'sandbox' hasta tener credenciales reales de la pasarela; 'real' cuando
-    -- el pago lo confirma Mercado Pago / MODO de verdad.
     modo_proc       VARCHAR(10)   NOT NULL DEFAULT 'sandbox'
                     CHECK (modo_proc IN ('sandbox', 'real')),
-    -- Solo para tarjeta: marca + últimos 4 (NUNCA el PAN completo) + cuotas.
     tarjeta_marca   VARCHAR(20),
     tarjeta_ultimos VARCHAR(4),
     cuotas          INTEGER,
-    -- Referencias de la pasarela para reconciliar contra el webhook:
-    -- preference_id de MP / intención de MODO, y luego el payment id real.
     referencia_ext  VARCHAR(120),
     pago_ext_id     VARCHAR(120),
-    -- Comprobante emitido al aprobarse el pago (COMP-AAAA-NNNNNN).
     comprobante     VARCHAR(24),
     detalle         JSONB,
     creado_en       TIMESTAMPTZ   NOT NULL DEFAULT now(),
@@ -258,7 +221,6 @@ CREATE TABLE IF NOT EXISTS pagos (
     pagado_en       TIMESTAMPTZ
 );
 
--- Estado de cobro del envío, denormalizado para listarlo sin join.
 ALTER TABLE envios ADD COLUMN IF NOT EXISTS estado_pago VARCHAR(10) NOT NULL DEFAULT 'pendiente'
     CHECK (estado_pago IN ('pendiente', 'pagado', 'rechazado'));
 
