@@ -1,6 +1,6 @@
 # Logitrak — Backend
 
-API en Node.js + Express sobre PostgreSQL. Maneja autenticación con roles
+API en Node.js + Express sobre PostgreSQL (Supabase). Maneja autenticación con roles
 (`admin`, `cliente`, `chofer`), postulación a chofer con verificación de
 identidad, auditoría de accesos y **todo el circuito operativo**: cotizaciones,
 envíos, seguimiento, asignaciones a choferes y cupones de compensación.
@@ -24,8 +24,9 @@ El esquema (`src/db/schema.sql`) persiste el circuito completo:
 ## Requisitos
 
 - Node.js 20+
-- Acceso a un PostgreSQL: local en `localhost:5432` (servicio de Windows) **o**
-  Azure Database for PostgreSQL (Flexible Server). Ver "Migrar la base a Azure".
+- Acceso al proyecto de **Supabase** del equipo (PostgreSQL gestionado). Todos
+  comparten el mismo proyecto, así que comparten datos. Ver "Base de datos en
+  Supabase".
 
 ## Cómo correrlo
 
@@ -36,84 +37,63 @@ cp .env.example .env   # (Windows PowerShell: copy .env.example .env)
 npm run dev            # con recarga automática (o: npm start)
 ```
 
-**Antes del primer arranque, editá el `.env`** y completá las credenciales de
-PostgreSQL (`PGHOST`, `PGUSER`, `PGPASSWORD`, …). Sin un `.env`, `pg` cae a
-`localhost` y el arranque falla con `ECONNREFUSED`. El archivo está en
-`.gitignore`, así que tus credenciales no se commitean.
+**Antes del primer arranque, editá el `.env`** y pegá el `DATABASE_URL` del
+proyecto de Supabase (ver abajo). Sin un `DATABASE_URL` válido, el arranque falla
+al conectar. El archivo está en `.gitignore`, así que tus credenciales no se
+commitean.
 
-Al arrancar, el servidor crea la base `logitrak` si no existe, aplica el
-esquema (`src/db/schema.sql`) y siembra los 3 administradores y la flota. La API
-queda en `http://localhost:4000` (o el `PORT` que definas).
+Al arrancar, el servidor aplica el esquema (`src/db/schema.sql`, idempotente) y
+siembra los 3 administradores y la flota. La API queda en
+`http://localhost:4000` (o el `PORT` que definas).
 
-## Migrar la base a Azure (PostgreSQL Flexible Server)
+## Base de datos en Supabase
 
-El backend funciona igual contra Postgres local o Azure: solo cambian las
-variables de entorno. Azure exige TLS, que se activa con `PGSSLMODE=require`.
+El backend usa un único connection string (`DATABASE_URL`); todo el equipo apunta
+al **mismo proyecto de Supabase**, así que comparten datos en tiempo real.
 
-**1. Crear el servidor** (por CLI; o el equivalente en el portal de Azure):
+**1. Conseguir el connection string** (lo hace una persona; el resto lo reutiliza):
 
-```bash
-az postgres flexible-server create \
-  --name logitrak-db \
-  --resource-group <tu-grupo> \
-  --location brazilsouth \
-  --admin-user logitrakadmin \
-  --admin-password '<password-fuerte>' \
-  --tier Burstable --sku-name Standard_B1ms \
-  --storage-size 32 --version 16 \
-  --public-access <tu-IP-publica>
+En el panel de Supabase → botón **Connect** → pestaña **Connection string** /
+ORMs. Copiá el del **Session pooler** (soporta IPv4 y las conexiones persistentes
+del backend) y reemplazá `[TU-PASSWORD]` por la contraseña de la base del proyecto:
+
+```
+postgresql://postgres.tu-ref:[TU-PASSWORD]@aws-0-<region>.pooler.supabase.com:5432/postgres
 ```
 
-> No hay región en Argentina; `brazilsouth` es la más cercana (~30–50 ms).
-> `--public-access <tu-IP>` abre el firewall a tu IP. Desde el portal:
-> *Networking → Firewall rules → Add current client IP*.
-
-**2. (Opcional) Crear la base** — el backend la crea solo al arrancar, pero
-también podés hacerlo a mano:
-
-```bash
-az postgres flexible-server db create \
-  --resource-group <tu-grupo> --server-name logitrak-db --database-name logitrak
-```
-
-**3. Apuntar el `.env`** a Azure (ver la "Opción B" en `.env.example`):
+**2. Apuntar el `.env`:**
 
 ```ini
-PGHOST=logitrak-db.postgres.database.azure.com
-PGPORT=5432
-PGUSER=logitrakadmin
-PGPASSWORD=<password-fuerte>
-PGDATABASE=logitrak
-PGSSLMODE=require
+DATABASE_URL=postgresql://postgres.tu-ref:TU-PASSWORD@aws-0-us-east-1.pooler.supabase.com:5432/postgres
 ```
 
-**4. Inicializar y arrancar:**
+**3. Inicializar y arrancar:**
 
 ```bash
-npm run db:init   # aplica el esquema y siembra admins + flota en Azure
+npm run db:init   # aplica el esquema y siembra admins + flota en Supabase
 npm run dev
 ```
 
 No hace falta migrar datos: el esquema y los seeds (admins + flota) se crean
-solos en el primer arranque. Si más adelante tenés datos productivos, usá
-`pg_dump`/`pg_restore`.
+solos en el primer arranque. El TLS va activo por defecto; si vieras un error de
+certificado del pooler, ya queda destrabado (no se valida el CA salvo que pongas
+`PGSSL_STRICT=true`). Si más adelante tenés datos productivos en otra base, usá
+`pg_dump`/`pg_restore` (o el SQL Editor de Supabase) para volcarlos.
 
-> **Si ves un error de certificado** al conectar, poné `PGSSL_INSECURE=true` en
-> el `.env` para destrabar (salta la verificación del CA; OK en desarrollo).
+## Conexión desde un cliente de base de datos (IntelliJ / DBeaver / VS Code)
 
-## Conexión desde IntelliJ (Database tool)
+Usá los datos del connection string del Session pooler de Supabase:
 
-Database → `+` → Data Source → PostgreSQL:
+| Campo    | Valor                                            |
+|----------|--------------------------------------------------|
+| Host     | `aws-0-<region>.pooler.supabase.com`             |
+| Port     | `5432`                                           |
+| User     | `postgres.tu-ref`                                |
+| Password | la contraseña de la base del proyecto            |
+| Database | `postgres`                                       |
+| SSL/TLS  | requerido (`sslmode=require`)                    |
 
-| Campo    | Valor       |
-|----------|-------------|
-| Host     | `localhost` |
-| Port     | `5432`      |
-| User     | `postgres`  |
-| Password | `logitrack` |
-| Database | `logitrak`  |
-
-URL JDBC: `jdbc:postgresql://localhost:5432/logitrak`
+URL JDBC: `jdbc:postgresql://aws-0-<region>.pooler.supabase.com:5432/postgres?sslmode=require`
 
 ## Endpoints
 

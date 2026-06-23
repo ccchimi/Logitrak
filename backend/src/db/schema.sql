@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS choferes (
 );
 
 -- Columnas agregadas después del alta inicial de la tabla (idempotente: aplica
--- a bases ya creadas, p. ej. la de Azure, sin recrear nada).
+-- a bases ya creadas, p. ej. la de Supabase, sin recrear nada).
 ALTER TABLE choferes ADD COLUMN IF NOT EXISTS metodo_verificacion VARCHAR(12);
 ALTER TABLE choferes ADD COLUMN IF NOT EXISTS selfie_path          VARCHAR(300);
 ALTER TABLE choferes ADD COLUMN IF NOT EXISTS liveness_ok          BOOLEAN;

@@ -1,7 +1,7 @@
 {
   "name": "logitrack-backend",
   "version": "1.0.0",
-  "description": "API de LogiTrack: autenticación con roles, choferes y datos de logística sobre PostgreSQL.",
+  "description": "API de LogiTrack: autenticación con roles, choferes y datos de logística sobre PostgreSQL (Supabase).",
   "type": "module",
   "main": "src/index.js",
   "scripts": {
