@@ -29,6 +29,9 @@
     "@types/react": "~19.1.10",
     "typescript": "~5.9.2"
   },
+  "overrides": {
+    "react-native": "0.81.5"
+  },
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
