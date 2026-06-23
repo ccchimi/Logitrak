@@ -125,7 +125,7 @@ rutasEnvios.post('/', autenticar, async (req, res) => {
         await cliente.query(
             `INSERT INTO envio_eventos (envio_id, tipo, titulo, detalle)
              VALUES ($1, 'creado', 'Pedido confirmado', $2)`,
-            [envio.id, `Orden ${envio.codigo} registrada en la red LogiTrack.`]
+            [envio.id, `Orden ${envio.codigo} registrada en la red logitrak.`]
         );
 
         await cliente.query('COMMIT');

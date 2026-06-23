@@ -737,7 +737,7 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
                                 </TouchableOpacity>
 
                                 <View style={styles.headerCompactTextos}>
-                                    <Text style={styles.headerCompactKicker}>LogiTrack IA</Text>
+                                    <Text style={styles.headerCompactKicker}>logitrak IA</Text>
                                     <Text style={styles.headerCompactTitle}>{BOT_META.nombre}</Text>
                                 </View>
                             </View>
@@ -759,7 +759,7 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
                                 {renderBoxyAvatar()}
 
                                 <View style={styles.headerTextBox}>
-                                    <Text style={styles.headerKicker}>LogiTrack IA</Text>
+                                    <Text style={styles.headerKicker}>logitrak IA</Text>
                                     <Text style={styles.headerTitle}>{BOT_META.nombre}</Text>
                                     <Text style={styles.headerSubtitle}>
                                         Asistente logístico con verificación de direcciones en tiempo real.

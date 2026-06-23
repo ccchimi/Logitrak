@@ -49,7 +49,7 @@ const puerto = Number(process.env.PORT) || 4000;
 inicializarBaseDeDatos()
     .then(() => {
         app.listen(puerto, () => {
-            console.log(`API de LogiTrack escuchando en http://localhost:${puerto}`);
+            console.log(`API de logitrak escuchando en http://localhost:${puerto}`);
         });
     })
     .catch((e) => {

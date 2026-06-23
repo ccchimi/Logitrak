@@ -84,7 +84,7 @@ seguimiento, …) habla con la API a través del cliente común `services/api.ts
 
 - Node.js 20+
 - App **Expo Go** (para probar en el teléfono) o un emulador Android / iOS
-- Una instancia de la API de LogiTrack corriendo y alcanzable desde el
+- Una instancia de la API de Logitrak corriendo y alcanzable desde el
   dispositivo
 
 ## Configuración (`.env`)

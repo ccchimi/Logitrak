@@ -165,7 +165,7 @@ export default function PagoScreen({ navigation, route }: any) {
                 <Text style={styles.backButtonText}>←</Text>
             </TouchableOpacity>
             <View>
-                <Text style={styles.headerKicker}>LogiTrack · Pago</Text>
+                <Text style={styles.headerKicker}>logitrak · Pago</Text>
                 <Text style={styles.headerTitle}>Pagá tu envío</Text>
             </View>
         </View>

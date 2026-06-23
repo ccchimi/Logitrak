@@ -24,7 +24,7 @@ const ESTADOS_CHOFER = [
 ];
 
 export default function ChoferScreen({ navigation, route }: any) {
-    const nombre: string = route?.params?.nombre ?? 'Chofer LogiTrack';
+    const nombre: string = route?.params?.nombre ?? 'Chofer logitrak.';
     const codigo: string | null = route?.params?.codigo ?? null;
     const primerNombre = nombre.split(' ')[0];
 
@@ -137,7 +137,7 @@ export default function ChoferScreen({ navigation, route }: any) {
                     <Text style={styles.eyebrow}>Consola de transportista</Text>
                     <Text style={styles.saludo}>Hola, {primerNombre} 👋</Text>
                     <Text style={styles.subtitulo}>
-                        {codigo ? `ID ${codigo} · Red LogiTrack` : 'Unidad homologada · Red LogiTrack'}
+                        {codigo ? `ID ${codigo} · Red logitrak.` : 'Unidad homologada · Red logitrak.'}
                     </Text>
                 </View>
 
@@ -184,7 +184,7 @@ export default function ChoferScreen({ navigation, route }: any) {
                 {tieneAlerta && datosViaje && (
                     <View style={styles.ofertaCard}>
                         <View style={styles.ofertaHeader}>
-                            <Text style={styles.ofertaTitulo}>🚨 Viaje asignado por LogiTrack</Text>
+                            <Text style={styles.ofertaTitulo}>🚨 Viaje asignado por logitrak.</Text>
                             <Text style={[styles.badgePrioridad, estiloPrioridad(datosViaje.prioridad)]}>
                                 {ETIQUETA_PRIORIDAD[datosViaje.prioridad]}
                             </Text>

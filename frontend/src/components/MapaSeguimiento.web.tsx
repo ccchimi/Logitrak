@@ -26,7 +26,7 @@ function cargarGoogleMaps(clave: string): Promise<any> {
     if (promesaGoogleMaps) return promesaGoogleMaps;
 
     promesaGoogleMaps = new Promise((resolve, reject) => {
-        const nombreCallback = '__logitrackMapsListo';
+        const nombreCallback = '__logitrakMapsListo';
         w[nombreCallback] = () => resolve(w.google.maps);
 
         const script = document.createElement('script');

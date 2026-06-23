@@ -31,7 +31,7 @@ const SLA_TOTAL_SEG = 1200;
 const ETAPAS = [
     {
         titulo: 'Asignando chofer cercano',
-        detalle: 'Boxy está despachando la unidad óptima dentro de la red LogiTrack.',
+        detalle: 'Boxy está despachando la unidad óptima dentro de la red logitrak.',
     },
     {
         titulo: 'Chofer en camino al retiro',
@@ -64,7 +64,7 @@ export default function SeguimientoScreen({ navigation, route }: any) {
 
     const origenTxt: string | undefined = route?.params?.origen;
     const destinoTxt: string | undefined = route?.params?.destino;
-    const producto: string = route?.params?.producto ?? 'Paquete protegido LogiTrack';
+    const producto: string = route?.params?.producto ?? 'Paquete protegido logitrak.';
     const vehiculo: string = route?.params?.vehiculo ?? 'Unidad asignada por Boxy';
     const precio: number | undefined = route?.params?.precio;
     const referencia: string = route?.params?.referencia ?? 'TRK-EN-VIVO';
@@ -249,7 +249,7 @@ export default function SeguimientoScreen({ navigation, route }: any) {
                     <MapaSeguimiento
                         origen={origenPunto}
                         destino={destinoPunto}
-                        chofer={chofer ?? 'Chofer LogiTrack'}
+                        chofer={chofer ?? 'Chofer logitrak.'}
                         onEvento={(e) => mostrar(e.tipo, e.titulo, e.detalle)}
                     />
                 ) : (
@@ -377,7 +377,7 @@ export default function SeguimientoScreen({ navigation, route }: any) {
                             </Text>
                             <Text style={styles.choferDetalle}>
                                 {chofer
-                                    ? 'Transportista homologado · Red LogiTrack'
+                                    ? 'Transportista homologado · Red logitrak.'
                                     : 'Consultando unidades disponibles en tu zona'}
                             </Text>
                         </View>

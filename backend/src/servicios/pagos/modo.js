@@ -57,7 +57,7 @@ export async function crearIntencionModo({ pago, envio, baseUrl }) {
             amount: Number(pago.monto),
             currency: pago.moneda || 'ARS',
             external_reference: pago.codigo,
-            description: `Envío LogiTrack ${envio.codigo}`,
+            description: `Envío logitrak ${envio.codigo}`,
             store_id: process.env.MODO_STORE_ID || undefined,
             callback_url: `${baseUrl}/api/pagos/webhook/modo`,
         }),

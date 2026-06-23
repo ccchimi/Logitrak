@@ -108,7 +108,7 @@ rutasPagos.post('/checkout', autenticar, async (req, res) => {
                 deeplink = pref.initPoint;
                 referenciaExt = pref.preferenceId;
             } else {
-                deeplink = `logitrack://pago/mercadopago/${pago.codigo}`;
+                deeplink = `logitrak://pago/mercadopago/${pago.codigo}`;
                 url = `${baseUrl}/api/pagos/${pago.codigo}`;
             }
         } else {
@@ -233,7 +233,7 @@ rutasPagos.get('/retorno', (_req, res) => {
     res.set('Content-Type', 'text/html; charset=utf-8').send(
         `<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1">
          <body style="font-family:system-ui;background:#0E0E0E;color:#fff;display:grid;place-items:center;height:100vh;margin:0;text-align:center">
-           <div><h2 style="color:#FFD700">LogiTrack</h2>
+           <div><h2 style="color:#FFD700">logitrak.</h2>
            <p>Listo. Ya podés volver a la app para ver el seguimiento de tu envío.</p></div>
          </body>`
     );

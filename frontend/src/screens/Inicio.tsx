@@ -128,7 +128,7 @@ const faqs = [
     a: 'Sí. Operamos en 23 provincias y más de 850 localidades, con centros de distribución en los principales nodos logísticos del país.',
   },
   {
-    q: '¿Puedo integrar Logitrak con mi tienda?',
+    q: '¿Puedo integrar logitrak con mi tienda?',
     a: 'Con el plan Pyme o superior accedés a nuestra API para integrar tu e-commerce o ERP en minutos, sin desarrollo a medida.',
   },
   {
@@ -372,7 +372,7 @@ export default function Inicio({ onGoLogin }: InicioProps) {
 
         <View style={styles.trustedStrip}>
           <View style={styles.inner}>
-            <Text style={styles.trustedLabel}>Empresas que confían en Logitrak</Text>
+            <Text style={styles.trustedLabel}>Empresas que confían en logitrak.</Text>
 
             <View style={styles.trustedRow}>
               {trustedBy.map((nombre) => (
@@ -673,7 +673,7 @@ export default function Inicio({ onGoLogin }: InicioProps) {
         <View style={[styles.appSection, isMobile && styles.sectionM]}>
           <View style={[styles.inner, !isMobile && styles.appRow]}>
             <View style={[styles.appTextBlock, isMobile && styles.appTextBlockM]}>
-              <Text style={styles.sectionKickerDark}>App Logitrak</Text>
+              <Text style={styles.sectionKickerDark}>App logitrak.</Text>
               <Text style={[styles.sectionTitleDark, isMobile && styles.sectionTitleM]}>
                 Todo tu negocio en tu bolsillo
               </Text>
@@ -803,7 +803,7 @@ export default function Inicio({ onGoLogin }: InicioProps) {
         >
           <View style={[styles.footerBottomInner, isMobile && styles.column]}>
             <Text style={styles.footerText}>
-              © 2026 Logitrak Systems. Todos los derechos reservados.
+              © 2026 logitrak Systems. Todos los derechos reservados.
             </Text>
             <Text style={styles.footerText}>
               Hecho en Argentina 🇦🇷

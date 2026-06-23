@@ -62,4 +62,4 @@ npm start                   # escaneá el QR con Expo Go o elegí plataforma
 
 ---
 
-© 2026 LogiTrack. Todos los derechos reservados.
+© 2026 Logitrak. Todos los derechos reservados.

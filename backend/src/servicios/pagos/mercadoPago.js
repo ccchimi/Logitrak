@@ -27,7 +27,7 @@ export async function crearPreferenciaMp({ pago, envio, baseUrl }) {
             items: [
                 {
                     id: envio.codigo,
-                    title: `Envío LogiTrack ${envio.codigo}`,
+                    title: `Envío logitrak ${envio.codigo}`,
                     description: `${envio.origen} → ${envio.destino}`,
                     quantity: 1,
                     currency_id: pago.moneda || 'ARS',

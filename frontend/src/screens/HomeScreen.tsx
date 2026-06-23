@@ -167,7 +167,7 @@ export default function HomeScreen({ navigation, route }: any) {
       })}
 
       <View style={styles.sbBoxyCard}>
-        <Text style={styles.sbBoxyKicker}>LogiTrack IA</Text>
+        <Text style={styles.sbBoxyKicker}>logitrak IA</Text>
         <Text style={styles.sbBoxyText}>
           Boxy cotiza tus envíos verificando direcciones y carga en tiempo real.
         </Text>

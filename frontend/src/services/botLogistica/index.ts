@@ -1,7 +1,7 @@
 export const BOT_META = {
     nombre: 'Boxy',
     version: '2.0.0',
-    motor: 'LogiTrack Inference Engine (on-device)',
+    motor: 'logitrak Inference Engine (on-device)',
 } as const;
 
 export * from './types';
