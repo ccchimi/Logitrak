@@ -1,6 +1,6 @@
-# LogiTrack
+# Logitrak
 
-**LogiTrack es una plataforma de logística de última milla** que conecta a quien
+**Logitrak es una plataforma de logística de última milla** que conecta a quien
 necesita enviar algo con la flota que puede llevarlo, sin fricción: el cliente
 cotiza conversando con un asistente, paga, sigue su envío en un mapa en tiempo
 real y recibe una compensación automática si no cumplimos el plazo prometido.
