@@ -39,19 +39,19 @@ interna, no se crea desde la app).
 
 | Carpeta | Qué es | Tecnología |
 |---------|--------|------------|
-| [`backend/`](backend/README.md) | API REST: auth con roles, cotizaciones, envíos, asignaciones, pagos, cupones y verificación de identidad. | Node.js · Express · PostgreSQL |
+| [`backend/`](backend/README.md) | API REST: auth con roles, cotizaciones, envíos, asignaciones, pagos, cupones y verificación de identidad. | Node.js · Express · PostgreSQL (Supabase) |
 | [`frontend/`](frontend/README.md) | App multiplataforma con Boxy, mapa de seguimiento, pago y alta de chofer. | Expo · React Native · TypeScript |
 
 Cada carpeta tiene su propio README con el detalle de cómo configurarla y
-correrla. El recorrido típico es: **levantar el `backend`** (PostgreSQL local o
-Azure) y luego **correr el `frontend`** apuntándolo a esa API.
+correrla. El recorrido típico es: **levantar el `backend`** (apuntado al proyecto
+de Supabase del equipo) y luego **correr el `frontend`** apuntándolo a esa API.
 
 ## Puesta en marcha rápida
 
 ```bash
 # 1) Backend
 cd backend && npm install
-cp .env.example .env        # completá las credenciales de PostgreSQL
+cp .env.example .env        # pegá el DATABASE_URL del proyecto de Supabase
 npm run dev                 # API en http://localhost:4000
 
 # 2) Frontend (en otra terminal)

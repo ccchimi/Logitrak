@@ -3,8 +3,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import bcrypt from 'bcryptjs';
-import pg from 'pg';
-import { pool, configuracionSsl } from './pool.js';
+import { pool } from './pool.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -20,24 +19,6 @@ const VEHICULOS = [
     { id: 'furgon',     nombre: 'Furgón mediano',          maxKg: 1500,  maxBultos: 40,  maxVolumenDm3: 9000,  tarifaBase: 7800,  porKg: 70,  porBulto: 100, porKm: 185, velocidadMediaKmh: 42, capacidades: ['cadena_frio', 'carga_voluminosa'] },
     { id: 'camion',     nombre: 'Camión de carga pesada',  maxKg: 12000, maxBultos: 200, maxVolumenDm3: 45000, tarifaBase: 14500, porKg: 55,  porBulto: 85,  porKm: 260, velocidadMediaKmh: 58, capacidades: ['cadena_frio', 'carga_voluminosa', 'mercancia_peligrosa'] },
 ];
-
-async function asegurarBaseDeDatos() {
-    const nombre = process.env.PGDATABASE || 'logitrak';
-    const cliente = new pg.Client({ database: 'postgres', ssl: configuracionSsl() });
-    await cliente.connect();
-    try {
-        const existe = await cliente.query(
-            'SELECT 1 FROM pg_database WHERE datname = $1',
-            [nombre]
-        );
-        if (existe.rowCount === 0) {
-            await cliente.query(`CREATE DATABASE ${nombre}`);
-            console.log(`Base de datos "${nombre}" creada.`);
-        }
-    } finally {
-        await cliente.end();
-    }
-}
 
 async function aplicarEsquema() {
     const sql = readFileSync(join(__dirname, 'schema.sql'), 'utf8');
@@ -81,7 +62,9 @@ async function sembrarVehiculos() {
 }
 
 export async function inicializarBaseDeDatos() {
-    await asegurarBaseDeDatos();
+    // La base ya existe en Supabase; solo aplicamos el esquema (idempotente) y
+    // sembramos admins + flota. Todo el equipo apunta al mismo proyecto, así que
+    // el primer arranque la deja lista y los siguientes son no-ops.
     await aplicarEsquema();
     await sembrarAdmins();
     await sembrarVehiculos();
