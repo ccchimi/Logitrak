@@ -1,4 +1,4 @@
-# LogiTrack — Backend
+# Logitrak — Backend
 
 API en Node.js + Express sobre PostgreSQL. Maneja autenticación con roles
 (`admin`, `cliente`, `chofer`), postulación a chofer con verificación de
