@@ -24,19 +24,26 @@ El esquema (`src/db/schema.sql`) persiste el circuito completo:
 ## Requisitos
 
 - Node.js 20+
-- PostgreSQL corriendo en `localhost:5432` (instalado como servicio de Windows)
+- Acceso a un PostgreSQL: local en `localhost:5432` (servicio de Windows) **o**
+  Azure Database for PostgreSQL (Flexible Server). Ver "Migrar la base a Azure".
 
 ## Cómo correrlo
 
 ```bash
 cd backend
 npm install
-npm run dev      # con recarga automática (o: npm start)
+cp .env.example .env   # (Windows PowerShell: copy .env.example .env)
+npm run dev            # con recarga automática (o: npm start)
 ```
+
+**Antes del primer arranque, editá el `.env`** y completá las credenciales de
+PostgreSQL (`PGHOST`, `PGUSER`, `PGPASSWORD`, …). Sin un `.env`, `pg` cae a
+`localhost` y el arranque falla con `ECONNREFUSED`. El archivo está en
+`.gitignore`, así que tus credenciales no se commitean.
 
 Al arrancar, el servidor crea la base `logitrak` si no existe, aplica el
 esquema (`src/db/schema.sql`) y siembra los 3 administradores y la flota. La API
-queda en `http://localhost:4000`.
+queda en `http://localhost:4000` (o el `PORT` que definas).
 
 ## Migrar la base a Azure (PostgreSQL Flexible Server)
 
