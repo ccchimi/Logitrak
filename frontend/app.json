@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "frontend",
-    "slug": "frontend",
+    "name": "logitrak",
+    "slug": "logitrak",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -31,8 +31,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "c70e6df0-9054-4450-8d17-57854cba7c27"
+        "projectId": "5c89527c-9367-4a70-8ae8-5a3815f33e97"
       }
-    }
+    },
+    "owner": "ccchimi"
   }
 }
