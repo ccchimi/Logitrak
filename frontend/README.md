@@ -1,6 +1,6 @@
-# LogiTrack — App (Frontend)
+# Logitrak — App (Frontend)
 
-App de **LogiTrack** construida con **Expo + React Native (TypeScript)**. Un solo
+App de **Logitrak** construida con **Expo + React Native (TypeScript)**. Un solo
 código corre en **web, Android e iOS**: el cliente cotiza un envío conversando
 con **Boxy** (el asistente de logística on-device), paga, sigue su pedido en un
 mapa en tiempo real y, si quiere, se postula como chofer con verificación de
