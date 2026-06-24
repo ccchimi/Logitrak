@@ -1,0 +1,49 @@
+# ============================================
+#  .gitignore raíz - Logitrak
+#  (backend/ y frontend/ tienen su propio .gitignore adicional)
+# ============================================
+
+# --- IDEs y editores ---
+# JetBrains (WebStorm, IntelliJ, PyCharm, etc.)
+.idea/
+*.iml
+# VS Code (config local del usuario; se deja .vscode/ ignorado por defecto)
+.vscode/
+*.code-workspace
+
+# --- Sistema operativo ---
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+# Linux
+*~
+.directory
+
+# --- Variables de entorno (nunca subir secretos) ---
+.env
+.env.local
+.env.*.local
+*.local.env
+
+# --- Dependencias ---
+node_modules/
+
+# --- Logs ---
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# --- Archivos temporales / varios ---
+*.tmp
+*.temp
+.cache/
