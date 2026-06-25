@@ -11,7 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { styles, COLORS, ESTADO_COLORS } from './HomeStyles';
 import { obtenerViajesActivos, Viaje } from '../services/viajesService';
-import { cerrarSesion } from '../services/authService';
+import { cerrarSesion, obtenerUsuarioSesion } from '../services/authService';
 import TarjetaViaje from '../components/TarjetaViaje';
 
 type Filtro = 'Todos' | 'En Viaje' | 'Pendiente' | 'Entregado';
@@ -68,9 +68,14 @@ export default function HomeScreen({ navigation, route }: any) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
 
-  const nombre: string = route?.params?.nombre ?? 'Admin';
-  const usuario: string = route?.params?.usuario ?? 'admin';
-  const rol: 'admin' | 'cliente' = route?.params?.rol ?? 'admin';
+  // La sesión es la fuente de verdad: se guarda al loguear y no se pierde entre
+  // pantallas. Los params son solo un respaldo (p. ej. primer render tras login).
+  // Nunca defaulteamos a 'admin': si no hay sesión, asumimos 'cliente'.
+  const sesion = obtenerUsuarioSesion();
+  const nombre: string = sesion?.nombreCompleto ?? route?.params?.nombre ?? 'Usuario';
+  const usuario: string = sesion?.usuario ?? route?.params?.usuario ?? '';
+  const rol: 'admin' | 'cliente' =
+    (sesion?.rol ?? route?.params?.rol ?? 'cliente') === 'admin' ? 'admin' : 'cliente';
   const esCliente = rol === 'cliente';
   const etiquetaRol = esCliente ? 'Cliente' : 'Administrador';
   const primerNombre = nombre.split(' ')[0];
