@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ActivityIndicator, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { styles, COLORS } from './ChoferStyles';
 import { generarAsignacionViaje, AsignacionViaje, PrioridadViaje } from '../services/botLogistica';
-import { cerrarSesion } from '../services/authService';
+import { cerrarSesion, obtenerUsuarioSesion } from '../services/authService';
 import {
     registrarAsignacion,
     aceptarAsignacion,
@@ -24,8 +24,11 @@ const ESTADOS_CHOFER = [
 ];
 
 export default function ChoferScreen({ navigation, route }: any) {
-    const nombre: string = route?.params?.nombre ?? 'Chofer logitrak.';
-    const codigo: string | null = route?.params?.codigo ?? null;
+    // La sesión es la fuente de verdad y no se pierde entre pantallas; los
+    // params quedan solo como respaldo del primer render tras el login.
+    const sesion = obtenerUsuarioSesion();
+    const nombre: string = sesion?.nombreCompleto ?? route?.params?.nombre ?? 'Chofer logitrak.';
+    const codigo: string | null = sesion?.chofer?.codigo ?? route?.params?.codigo ?? null;
     const primerNombre = nombre.split(' ')[0];
 
     const salir = () => {
