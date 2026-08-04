@@ -16,6 +16,8 @@ interface Props {
     destino: PuntoRuta;
     chofer: string;
     onEvento?: (evento: EventoMapa) => void;
+    // Modo miniatura: mapa reducido y no interactivo para el preview del panel.
+    compacto?: boolean;
 }
 
 let promesaGoogleMaps: Promise<any> | null = null;
@@ -99,7 +101,7 @@ async function resolverPunto(geocoder: any, punto: PuntoRuta): Promise<PuntoResu
     return null;
 }
 
-export default function MapaSeguimiento({ origen, destino, chofer, onEvento }: Props) {
+export default function MapaSeguimiento({ origen, destino, chofer, onEvento, compacto = false }: Props) {
     const contenedorRef = useRef<HTMLDivElement | null>(null);
     const limpiezaRef = useRef<(() => void) | null>(null);
     const eventoRef = useRef(onEvento);
@@ -172,8 +174,11 @@ export default function MapaSeguimiento({ origen, destino, chofer, onEvento }: P
                 zoom: 12,
                 styles: ESTILO_NOCTURNO,
                 disableDefaultUI: true,
-                zoomControl: true,
+                zoomControl: !compacto,
                 zoomControlOptions: { position: maps.ControlPosition.RIGHT_CENTER },
+                gestureHandling: compacto ? 'none' : 'auto',
+                keyboardShortcuts: !compacto,
+                clickableIcons: !compacto,
                 backgroundColor: '#0E0E0E',
             });
 
@@ -257,7 +262,10 @@ export default function MapaSeguimiento({ origen, destino, chofer, onEvento }: P
 
             const limites = new maps.LatLngBounds();
             ruta.forEach((p) => limites.extend({ lat: p.latitude, lng: p.longitude }));
-            mapa.fitBounds(limites, { top: 80, right: 60, bottom: 120, left: 60 });
+            mapa.fitBounds(
+                limites,
+                compacto ? { top: 26, right: 22, bottom: 26, left: 22 } : { top: 80, right: 60, bottom: 120, left: 60 }
+            );
 
             const marcadorChofer = new maps.Marker({
                 map: mapa,
@@ -333,7 +341,7 @@ export default function MapaSeguimiento({ origen, destino, chofer, onEvento }: P
             limpiezaRef.current?.();
             limpiezaRef.current = null;
         };
-    }, [origen.direccion, destino.direccion, origen.latitude, destino.latitude]);
+    }, [origen.direccion, destino.direccion, origen.latitude, destino.latitude, compacto]);
 
     return (
         <View style={estilos.contenedor}>
@@ -341,8 +349,8 @@ export default function MapaSeguimiento({ origen, destino, chofer, onEvento }: P
 
             {estado === 'cargando' && (
                 <View style={estilos.overlay}>
-                    <ActivityIndicator color="#FFD700" size="large" />
-                    <Text style={estilos.overlayTexto}>Cargando mapa satelital…</Text>
+                    <ActivityIndicator color="#FFD700" size={compacto ? 'small' : 'large'} />
+                    {!compacto && <Text style={estilos.overlayTexto}>Cargando mapa satelital…</Text>}
                 </View>
             )}
 

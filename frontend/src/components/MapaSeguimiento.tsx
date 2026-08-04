@@ -17,6 +17,9 @@ interface Props {
     destino: PuntoRuta;
     chofer: string;
     onEvento?: (evento: EventoMapa) => void;
+    // Modo miniatura no interactiva (preview del panel). Sólo lo consume la
+    // versión web; en nativo se acepta para mantener la firma pero se ignora.
+    compacto?: boolean;
 }
 
 const ESTILO_NOCTURNO = [
