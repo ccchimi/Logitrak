@@ -62,10 +62,12 @@ export const styles = StyleSheet.create({
   cardsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    alignItems: 'stretch',
     columnGap: 16,
+    rowGap: 16,
     width: '100%',
   },
-  cell: {},
+  cell: { alignSelf: 'stretch' },
 
   block: { width: '100%', maxWidth: 1180 },
 
@@ -381,6 +383,112 @@ export const styles = StyleSheet.create({
   sectionTitle: { color: COLORS.white, fontSize: 19, fontFamily: FONTS.titleBold, marginBottom: 3 },
   sectionSub: { color: COLORS.muted, fontSize: 13, fontFamily: FONTS.text },
   linkText: { color: COLORS.accent, fontSize: 13, fontFamily: FONTS.textMedium },
+
+  // ---- Rediseño: hero liviano ----
+  heroLite: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    flexWrap: 'wrap',
+    gap: 18,
+    paddingBottom: 22,
+    marginBottom: 22,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  heroLiteLeft: { flex: 1, minWidth: 240 },
+  heroLiteActions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10 },
+  subline: { color: COLORS.muted, fontSize: 14, fontFamily: FONTS.text, marginTop: 8 },
+  sublineDot: { color: 'rgba(255,255,255,0.34)' },
+
+  // ---- Rediseño: cinta de KPIs ----
+  ribbon: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 18,
+    backgroundColor: COLORS.surface,
+    overflow: 'hidden',
+    marginBottom: 24,
+  },
+  stat: { flexGrow: 1, flexBasis: 150, minWidth: 128, paddingVertical: 16, paddingHorizontal: 18 },
+  statDivider: { borderLeftWidth: 1, borderLeftColor: COLORS.border },
+  statKRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  statDot: { width: 7, height: 7, borderRadius: 4 },
+  statK: {
+    fontSize: 10.5, letterSpacing: 1, textTransform: 'uppercase',
+    color: COLORS.muted, fontFamily: FONTS.textMedium,
+  },
+  statV: {
+    fontSize: 28, fontFamily: FONTS.title, color: COLORS.white,
+    letterSpacing: -0.8, marginTop: 8, fontVariant: ['tabular-nums'],
+  },
+  statVAccent: { color: COLORS.accent },
+  statS: { fontSize: 11, color: 'rgba(255,255,255,0.34)', fontFamily: FONTS.text, marginTop: 3 },
+  statBar: { height: 5, borderRadius: 999, backgroundColor: COLORS.cardDeep, overflow: 'hidden', marginTop: 10 },
+  statBarFill: { height: 5, borderRadius: 999, backgroundColor: COLORS.accent },
+
+  // ---- Rediseño: split envíos + rail ----
+  contentRow: { flexDirection: 'row', gap: 22, alignItems: 'flex-start', width: '100%' },
+  mainCol: { flex: 1, minWidth: 0 },
+  rail: { width: 322, gap: 16 },
+  railStack: { width: '100%', gap: 16, marginTop: 8 },
+
+  railPanel: {
+    borderWidth: 1, borderColor: COLORS.border, borderRadius: 18,
+    backgroundColor: COLORS.surface, overflow: 'hidden',
+  },
+  railTitle: { color: COLORS.white, fontSize: 14, fontFamily: FONTS.titleBold },
+
+  liveBand: { height: 132, overflow: 'hidden', backgroundColor: '#0E0E0E' },
+  liveTag: {
+    position: 'absolute', top: 12, left: 12, flexDirection: 'row', alignItems: 'center', gap: 7,
+    backgroundColor: 'rgba(10,10,11,0.82)', borderWidth: 1, borderColor: COLORS.borderStrong,
+    borderRadius: 999, paddingHorizontal: 11, paddingVertical: 6,
+  },
+  liveTagDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: COLORS.red },
+  liveTagText: {
+    color: COLORS.white, fontSize: 10.5, fontFamily: FONTS.titleBold,
+    letterSpacing: 0.6, textTransform: 'uppercase',
+  },
+  liveRoute: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 26, marginTop: 14 },
+  liveDotO: { width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.accent },
+  liveDotMid: {
+    width: 15, height: 15, borderRadius: 8, backgroundColor: COLORS.red,
+    borderWidth: 3, borderColor: '#0A0A0B',
+  },
+  liveDotD: { width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.green },
+  liveLine: { flex: 1, height: 2.5, borderRadius: 2, backgroundColor: COLORS.accent },
+  liveLineDim: { flex: 1, height: 2.5, borderRadius: 2, backgroundColor: 'rgba(255,215,0,0.28)' },
+  liveBody: { padding: 16 },
+  liveTitle: { color: COLORS.white, fontSize: 14, fontFamily: FONTS.titleBold, fontVariant: ['tabular-nums'] },
+  liveSub: { color: COLORS.muted, fontSize: 12, fontFamily: FONTS.text, marginTop: 3 },
+  liveEtaRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginTop: 13, paddingTop: 13, borderTopWidth: 1, borderTopColor: COLORS.border,
+  },
+  liveEtaLabel: {
+    color: COLORS.muted, fontSize: 10.5, textTransform: 'uppercase',
+    letterSpacing: 1, fontFamily: FONTS.textMedium,
+  },
+  liveEtaValue: { color: COLORS.accent, fontSize: 18, fontFamily: FONTS.title, fontVariant: ['tabular-nums'] },
+
+  railDist: { padding: 17 },
+  railDistTitle: { color: COLORS.white, fontSize: 14, fontFamily: FONTS.titleBold, marginBottom: 14 },
+
+  railBoxy: {
+    padding: 18, borderRadius: 18, borderWidth: 1, borderColor: COLORS.borderAccent,
+    backgroundColor: COLORS.card,
+  },
+  railBoxyKicker: {
+    color: COLORS.accent, fontSize: 10, letterSpacing: 2, textTransform: 'uppercase',
+    fontFamily: FONTS.textMedium, marginBottom: 8,
+  },
+  railBoxyTitle: { color: COLORS.white, fontSize: 15, fontFamily: FONTS.titleBold, marginBottom: 6 },
+  railBoxyText: { color: COLORS.muted, fontSize: 12.5, lineHeight: 18, fontFamily: FONTS.text, marginBottom: 14 },
+  railBoxyBtn: { backgroundColor: COLORS.accent, borderRadius: 11, paddingVertical: 11, alignItems: 'center' },
+  railBoxyBtnText: { color: COLORS.ink, fontSize: 12.5, fontFamily: FONTS.titleBold },
 
   emptyWrap: {
     width: '100%', maxWidth: 1180,
