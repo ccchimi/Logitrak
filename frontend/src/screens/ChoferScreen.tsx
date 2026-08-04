@@ -1,5 +1,13 @@
-import React, { useState } from 'react';
-import { ActivityIndicator, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+    ActivityIndicator,
+    SafeAreaView,
+    ScrollView,
+    Text,
+    TouchableOpacity,
+    useWindowDimensions,
+    View,
+} from 'react-native';
 import { styles, COLORS } from './ChoferStyles';
 import { generarAsignacionViaje, AsignacionViaje, PrioridadViaje } from '../services/botLogistica';
 import { cerrarSesion, obtenerUsuarioSesion } from '../services/authService';
@@ -8,6 +16,9 @@ import {
     aceptarAsignacion,
     rechazarAsignacion,
     completarAsignacion,
+    listarAsignaciones,
+    AsignacionRegistro,
+    EstadoAsignacion,
 } from '../services/asignacionesService';
 
 const ETIQUETA_PRIORIDAD: Record<PrioridadViaje, string> = {
@@ -23,6 +34,49 @@ const ESTADOS_CHOFER = [
     '¡Envío entregado con éxito!',
 ];
 
+const ESTADO_ACTIVIDAD: Record<EstadoAsignacion, { texto: string; color: string }> = {
+    completada: { texto: 'Entregado', color: COLORS.green },
+    aceptada: { texto: 'En curso', color: COLORS.accent },
+    ofrecida: { texto: 'Ofrecido', color: COLORS.amber },
+    rechazada: { texto: 'Rechazado', color: COLORS.red },
+    expirada: { texto: 'Expiró', color: COLORS.muted },
+};
+
+const DIA_MS = 24 * 60 * 60 * 1000;
+
+function esMismoDia(iso: string | null): boolean {
+    if (!iso) return false;
+    const d = new Date(iso);
+    const hoy = new Date();
+    return (
+        d.getDate() === hoy.getDate() &&
+        d.getMonth() === hoy.getMonth() &&
+        d.getFullYear() === hoy.getFullYear()
+    );
+}
+
+function dentroDeDias(iso: string | null, dias: number): boolean {
+    if (!iso) return false;
+    const t = new Date(iso).getTime();
+    if (Number.isNaN(t)) return false;
+    return Date.now() - t <= dias * DIA_MS;
+}
+
+function fechaCorta(iso: string | null): string {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    if (esMismoDia(iso)) {
+        return `Hoy ${d.getHours().toString().padStart(2, '0')}:${d
+            .getMinutes()
+            .toString()
+            .padStart(2, '0')}`;
+    }
+    return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1)
+        .toString()
+        .padStart(2, '0')}`;
+}
+
 export default function ChoferScreen({ navigation, route }: any) {
     // La sesión es la fuente de verdad y no se pierde entre pantallas; los
     // params quedan solo como respaldo del primer render tras el login.
@@ -30,6 +84,9 @@ export default function ChoferScreen({ navigation, route }: any) {
     const nombre: string = sesion?.nombreCompleto ?? route?.params?.nombre ?? 'Chofer logitrak.';
     const codigo: string | null = sesion?.chofer?.codigo ?? route?.params?.codigo ?? null;
     const primerNombre = nombre.split(' ')[0];
+
+    const { width } = useWindowDimensions();
+    const esAncho = width >= 720;
 
     const salir = () => {
         cerrarSesion();
@@ -42,6 +99,48 @@ export default function ChoferScreen({ navigation, route }: any) {
     const [datosViaje, setDatosViaje] = useState<AsignacionViaje | null>(null);
     const [pasoEstado, setPasoEstado] = useState(0);
     const [errorAsignacion, setErrorAsignacion] = useState<string | null>(null);
+
+    const [historial, setHistorial] = useState<AsignacionRegistro[]>([]);
+    const [cargandoHistorial, setCargandoHistorial] = useState(true);
+
+    const cargarHistorial = useCallback(async () => {
+        const datos = await listarAsignaciones();
+        setHistorial(datos);
+        setCargandoHistorial(false);
+    }, []);
+
+    useEffect(() => {
+        void cargarHistorial();
+    }, [cargarHistorial]);
+
+    const metricas = useMemo(() => {
+        const completadas = historial.filter((a) => a.estado === 'completada');
+        const gananciaHoy = completadas
+            .filter((a) => esMismoDia(a.respondidaEn))
+            .reduce((acc, a) => acc + (a.pagoChofer ?? 0), 0);
+        const viajesHoy = completadas.filter((a) => esMismoDia(a.respondidaEn)).length;
+        const gananciaSemana = completadas
+            .filter((a) => dentroDeDias(a.respondidaEn, 7))
+            .reduce((acc, a) => acc + (a.pagoChofer ?? 0), 0);
+
+        const respondidas = historial.filter(
+            (a) => a.estado === 'aceptada' || a.estado === 'completada' || a.estado === 'rechazada'
+        ).length;
+        const aceptadas = historial.filter(
+            (a) => a.estado === 'aceptada' || a.estado === 'completada'
+        ).length;
+        const tasaAceptacion = respondidas > 0 ? Math.round((aceptadas / respondidas) * 100) : null;
+
+        return {
+            gananciaHoy,
+            viajesHoy,
+            gananciaSemana,
+            tasaAceptacion,
+            totalCompletados: completadas.length,
+        };
+    }, [historial]);
+
+    const actividadReciente = useMemo(() => historial.slice(0, 5), [historial]);
 
     const dispararAsignacionInteligente = async () => {
         setCargandoAlerta(true);
@@ -61,14 +160,14 @@ export default function ChoferScreen({ navigation, route }: any) {
     };
 
     const aceptarViaje = () => {
-        if (datosViaje) void aceptarAsignacion(datosViaje.id);
+        if (datosViaje) void aceptarAsignacion(datosViaje.id).then(cargarHistorial);
         setTieneAlerta(false);
         setViajeActivo(true);
         setPasoEstado(0);
     };
 
     const rechazarViaje = () => {
-        if (datosViaje) void rechazarAsignacion(datosViaje.id);
+        if (datosViaje) void rechazarAsignacion(datosViaje.id).then(cargarHistorial);
         setTieneAlerta(false);
         setDatosViaje(null);
     };
@@ -77,7 +176,7 @@ export default function ChoferScreen({ navigation, route }: any) {
         if (pasoEstado < ESTADOS_CHOFER.length - 1) {
             setPasoEstado(pasoEstado + 1);
         } else {
-            if (datosViaje) void completarAsignacion(datosViaje.id);
+            if (datosViaje) void completarAsignacion(datosViaje.id).then(cargarHistorial);
             setViajeActivo(false);
             setDatosViaje(null);
         }
@@ -147,6 +246,40 @@ export default function ChoferScreen({ navigation, route }: any) {
                 <View style={styles.estadoStrip}>
                     <View style={[styles.estadoStripDot, { backgroundColor: estadoOperativo.color }]} />
                     <Text style={styles.estadoStripTexto}>{estadoOperativo.texto}</Text>
+                </View>
+
+                <View style={styles.kpiGrid}>
+                    {[
+                        {
+                            label: 'Ganancia de hoy',
+                            valor: formatearARS(metricas.gananciaHoy),
+                            destacado: true,
+                            sub: `${metricas.viajesHoy} viaje${metricas.viajesHoy === 1 ? '' : 's'} hoy`,
+                        },
+                        {
+                            label: 'Esta semana',
+                            valor: formatearARS(metricas.gananciaSemana),
+                            sub: 'Últimos 7 días',
+                        },
+                        {
+                            label: 'Entregas totales',
+                            valor: String(metricas.totalCompletados),
+                            sub: 'Completadas',
+                        },
+                        {
+                            label: 'Aceptación',
+                            valor: metricas.tasaAceptacion === null ? '—' : `${metricas.tasaAceptacion}%`,
+                            sub: 'De tus ofertas',
+                        },
+                    ].map((k) => (
+                        <View key={k.label} style={[styles.kpiCard, esAncho && styles.kpiCardAncho]}>
+                            <Text style={styles.kpiLabel}>{k.label}</Text>
+                            <Text style={[styles.kpiValor, k.destacado && styles.kpiValorDestacado]}>
+                                {cargandoHistorial ? '—' : k.valor}
+                            </Text>
+                            <Text style={styles.kpiSub}>{k.sub}</Text>
+                        </View>
+                    ))}
                 </View>
 
                 {!tieneAlerta && !viajeActivo && (
@@ -320,6 +453,53 @@ export default function ChoferScreen({ navigation, route }: any) {
                         </TouchableOpacity>
                     </View>
                 )}
+
+                <View style={styles.actividadSeccion}>
+                    <View style={styles.actividadHeader}>
+                        <Text style={styles.actividadTitulo}>Actividad reciente</Text>
+                        {cargandoHistorial ? <ActivityIndicator color={COLORS.muted} size="small" /> : null}
+                    </View>
+
+                    {!cargandoHistorial && actividadReciente.length === 0 ? (
+                        <View style={styles.actividadVacia}>
+                            <Text style={styles.actividadVaciaTexto}>
+                                Todavía no registrás viajes. Cuando aceptes tu primera asignación,
+                                vas a ver acá tu historial y tus ganancias.
+                            </Text>
+                        </View>
+                    ) : (
+                        actividadReciente.map((a) => {
+                            const meta = ESTADO_ACTIVIDAD[a.estado];
+                            return (
+                                <View key={a.id} style={styles.actividadFila}>
+                                    <View style={[styles.actividadDot, { backgroundColor: meta.color }]} />
+                                    <View style={styles.actividadTextos}>
+                                        <Text style={styles.actividadRuta} numberOfLines={1}>
+                                            {a.origen} → {a.destino}
+                                        </Text>
+                                        <Text style={styles.actividadMeta} numberOfLines={1}>
+                                            <Text style={{ color: meta.color }}>{meta.texto}</Text>
+                                            {a.descripcionCarga ? ` · ${a.descripcionCarga}` : ''}
+                                            {a.respondidaEn || a.generadaEn
+                                                ? ` · ${fechaCorta(a.respondidaEn ?? a.generadaEn)}`
+                                                : ''}
+                                        </Text>
+                                    </View>
+                                    {typeof a.pagoChofer === 'number' ? (
+                                        <Text
+                                            style={[
+                                                styles.actividadPago,
+                                                a.estado === 'completada' && styles.actividadPagoOk,
+                                            ]}
+                                        >
+                                            {formatearARS(a.pagoChofer)}
+                                        </Text>
+                                    ) : null}
+                                </View>
+                            );
+                        })
+                    )}
+                </View>
             </ScrollView>
         </SafeAreaView>
     );
