@@ -182,8 +182,25 @@ export const styles = StyleSheet.create({
         borderColor: COLORS.borderStrong,
         paddingHorizontal: 20,
         paddingTop: 14,
-        maxHeight: '62%',
+        maxHeight: '54%',
         ...panelShadow,
+    },
+
+    // Desktop: tarjeta flotante lateral en vez de bottom-sheet a todo el ancho.
+    panelDesktop: {
+        left: undefined,
+        bottom: undefined,
+        right: 20,
+        width: 384,
+        maxWidth: '38%',
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        borderBottomLeftRadius: 24,
+        borderBottomRightRadius: 24,
+        borderWidth: 1,
+        borderBottomWidth: 1,
+        maxHeight: '82%',
+        paddingHorizontal: 22,
     },
 
     panelHandle: {
