@@ -167,6 +167,139 @@ export const styles = StyleSheet.create({
         letterSpacing: 0.6,
     },
 
+    kpiGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 10,
+        marginBottom: 20,
+    },
+
+    kpiCard: {
+        flexGrow: 1,
+        flexBasis: '46%',
+        minWidth: 140,
+        backgroundColor: COLORS.surface,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        borderRadius: 18,
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+    },
+
+    kpiCardAncho: {
+        flexBasis: '22%',
+    },
+
+    kpiLabel: {
+        color: COLORS.muted,
+        fontSize: 11,
+        fontFamily: FONTS.textMedium,
+        textTransform: 'uppercase',
+        letterSpacing: 0.8,
+        marginBottom: 8,
+    },
+
+    kpiValor: {
+        color: COLORS.white,
+        fontSize: 24,
+        fontFamily: FONTS.title,
+        letterSpacing: -0.6,
+    },
+
+    kpiValorDestacado: {
+        color: COLORS.accent,
+    },
+
+    kpiSub: {
+        color: COLORS.muted,
+        fontSize: 11,
+        fontFamily: FONTS.text,
+        marginTop: 4,
+    },
+
+    actividadSeccion: {
+        marginTop: 24,
+    },
+
+    actividadHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 12,
+    },
+
+    actividadTitulo: {
+        color: COLORS.white,
+        fontSize: 17,
+        fontFamily: FONTS.titleBold,
+    },
+
+    actividadVacia: {
+        backgroundColor: COLORS.surface,
+        borderWidth: 1,
+        borderColor: COLORS.borderStrong,
+        borderStyle: 'dashed',
+        borderRadius: 18,
+        padding: 20,
+    },
+
+    actividadVaciaTexto: {
+        color: COLORS.muted,
+        fontSize: 13,
+        lineHeight: 20,
+        fontFamily: FONTS.text,
+        textAlign: 'center',
+    },
+
+    actividadFila: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        backgroundColor: COLORS.surface,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        borderRadius: 16,
+        paddingHorizontal: 14,
+        paddingVertical: 12,
+        marginBottom: 8,
+    },
+
+    actividadDot: {
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        flexShrink: 0,
+    },
+
+    actividadTextos: {
+        flex: 1,
+        minWidth: 0,
+    },
+
+    actividadRuta: {
+        color: COLORS.white,
+        fontSize: 14,
+        fontFamily: FONTS.titleBold,
+        marginBottom: 2,
+    },
+
+    actividadMeta: {
+        color: COLORS.muted,
+        fontSize: 12,
+        fontFamily: FONTS.textMedium,
+    },
+
+    actividadPago: {
+        color: COLORS.mutedStrong,
+        fontSize: 14,
+        fontFamily: FONTS.titleBold,
+        flexShrink: 0,
+    },
+
+    actividadPagoOk: {
+        color: COLORS.green,
+    },
+
     idleCard: {
         backgroundColor: COLORS.surface,
         borderWidth: 1,
