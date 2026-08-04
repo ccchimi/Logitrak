@@ -8,6 +8,7 @@ import {
     ScrollView,
     Text,
     TouchableOpacity,
+    useWindowDimensions,
     View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -60,6 +61,8 @@ async function resolverPuntoNativo(texto: string): Promise<PuntoRuta | null> {
 
 export default function SeguimientoScreen({ navigation, route }: any) {
     const insets = useSafeAreaInsets();
+    const { width } = useWindowDimensions();
+    const esDesktop = width >= 1000;
     const { toasts, mostrar, cerrar } = useToasts();
 
     const origenTxt: string | undefined = route?.params?.origen;
@@ -72,7 +75,9 @@ export default function SeguimientoScreen({ navigation, route }: any) {
     const [tiempoRestante, setTiempoRestante] = useState(SLA_TOTAL_SEG);
     const [etapa, setEtapa] = useState(0);
     const [chofer, setChofer] = useState<string | null>(null);
-    const [panelMinimizado, setPanelMinimizado] = useState(false);
+    // En mobile el panel arranca colapsado para no tapar el mapa; en desktop
+    // vive como tarjeta lateral y arranca expandido.
+    const [panelMinimizado, setPanelMinimizado] = useState(() => width < 1000);
     const esWeb = Platform.OS === 'web';
 
     const gestoPanel = useRef(
@@ -286,7 +291,14 @@ export default function SeguimientoScreen({ navigation, route }: any) {
 
             <ToastStack toasts={toasts} onCerrar={cerrar} topOffset={insets.top + 68} />
 
-            <View style={[styles.panel, { paddingBottom: insets.bottom + 14 }]}>
+            <View
+                style={[
+                    styles.panel,
+                    esDesktop
+                        ? [styles.panelDesktop, { top: insets.top + 76, paddingBottom: 16 }]
+                        : { paddingBottom: insets.bottom + 14 },
+                ]}
+            >
                 {esWeb ? (
                     <TouchableOpacity
                         style={styles.panelToggle}
