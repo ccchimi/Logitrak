@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
+  Platform,
   View,
   Text,
   ScrollView,
+  StyleSheet,
   TouchableOpacity,
   useWindowDimensions,
 } from 'react-native';
@@ -13,6 +15,7 @@ import { styles, COLORS, ESTADO_COLORS } from './HomeStyles';
 import { obtenerViajesActivos, Viaje } from '../services/viajesService';
 import { cerrarSesion, obtenerUsuarioSesion } from '../services/authService';
 import TarjetaViaje from '../components/TarjetaViaje';
+import MapaSeguimiento from '../components/MapaSeguimiento';
 
 type Filtro = 'Todos' | 'En Viaje' | 'Pendiente' | 'Entregado';
 
@@ -25,28 +28,7 @@ const NAV = [
   { label: 'Perfil', icon: '👤', ruta: 'Perfil' },
 ];
 
-const ACCESOS_RAPIDOS = [
-  {
-    icono: '🤖',
-    titulo: 'Cotizar con Boxy',
-    sub: 'El asistente IA verifica direcciones y arma la tarifa.',
-    ruta: 'SolicitudEnvio',
-  },
-  {
-    icono: '🛰️',
-    titulo: 'Seguimiento en vivo',
-    sub: 'Mapa en tiempo real de las unidades en tránsito.',
-    ruta: 'Seguimiento',
-  },
-  {
-    icono: '🗂️',
-    titulo: 'Historial completo',
-    sub: 'Auditá todos los envíos despachados por el sistema.',
-    ruta: 'Historial',
-  },
-];
-
-const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+const DIAS =['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const MESES = [
   'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
   'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
@@ -86,7 +68,7 @@ export default function HomeScreen({ navigation, route }: any) {
   };
 
   const esEscritorio = width >= 1000;
-  const apilarPaneles = width < 1280;
+  const railAlLado = width >= 1120;
 
   const [viajes, setViajes] = useState<Viaje[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -123,6 +105,22 @@ export default function HomeScreen({ navigation, route }: any) {
   const conteoPorFiltro = (f: Filtro) =>
     f === 'Todos' ? viajes.length : viajes.filter((v) => v.estado === f).length;
 
+  const viajeVivo = useMemo(
+    () => viajes.find((v) => v.estado === 'En Viaje') ?? null,
+    [viajes]
+  );
+
+  // El destino del viaje viene como "origen → destino"; lo separamos para
+  // alimentar el mini-mapa real (Google Maps) del rail.
+  const rutaVivo = useMemo(() => {
+    if (!viajeVivo) return null;
+    const partes = viajeVivo.destino.split('→').map((s) => s.trim());
+    if (partes.length < 2 || !partes[0] || !partes[1]) return null;
+    return { origen: partes[0], destino: partes[1] };
+  }, [viajeVivo]);
+
+  const esWeb = Platform.OS === 'web';
+
   const GAP = 16;
   const columnas = gridW >= 1080 ? 4 : gridW >= 800 ? 3 : gridW >= 520 ? 2 : 1;
   const anchoTarjeta =
@@ -132,11 +130,11 @@ export default function HomeScreen({ navigation, route }: any) {
     if (ruta !== 'Home') navigation.navigate(ruta);
   };
 
-  const kpis = [
-    { label: 'Total envíos', valor: metricas.total, color: ESTADO_COLORS.accent, icono: '📦', sub: 'En el sistema' },
-    { label: 'En viaje', valor: metricas.enViaje, color: ESTADO_COLORS.blue, icono: '🚚', sub: 'En tránsito ahora' },
-    { label: 'Pendientes', valor: metricas.pendientes, color: ESTADO_COLORS.amber, icono: '⏳', sub: 'Por despachar' },
-    { label: 'Entregados', valor: metricas.entregados, color: ESTADO_COLORS.green, icono: '✅', sub: 'Completados' },
+  const stats: { label: string; valor: number; sub: string; dot?: string }[] = [
+    { label: 'Total envíos', valor: metricas.total, sub: 'En el sistema' },
+    { label: 'En viaje', valor: metricas.enViaje, sub: 'En tránsito ahora', dot: ESTADO_COLORS.blue },
+    { label: 'Pendientes', valor: metricas.pendientes, sub: 'Por despachar', dot: ESTADO_COLORS.amber },
+    { label: 'Entregados', valor: metricas.entregados, sub: 'Completados', dot: ESTADO_COLORS.green },
   ];
 
   const distribucion = [
@@ -170,16 +168,6 @@ export default function HomeScreen({ navigation, route }: any) {
           </TouchableOpacity>
         );
       })}
-
-      <View style={styles.sbBoxyCard}>
-        <Text style={styles.sbBoxyKicker}>logitrak IA</Text>
-        <Text style={styles.sbBoxyText}>
-          Boxy cotiza tus envíos verificando direcciones y carga en tiempo real.
-        </Text>
-        <TouchableOpacity style={styles.sbBoxyBtn} onPress={() => irA('SolicitudEnvio')}>
-          <Text style={styles.sbBoxyBtnText}>Cotizar ahora</Text>
-        </TouchableOpacity>
-      </View>
 
       <View style={styles.sbSpacer} />
 
@@ -228,30 +216,37 @@ export default function HomeScreen({ navigation, route }: any) {
         </>
       )}
 
-      <LinearGradient
-        colors={['#1A1A1A', '#101010']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[styles.hero, esEscritorio && { marginTop: insets.top + 12 }]}
-      >
-        <View style={styles.heroRow}>
-          <View style={{ flex: 1, minWidth: 240 }}>
-            <Text style={styles.eyebrow}>Panel de operaciones</Text>
-            <Text style={styles.greeting}>
-              {obtenerSaludo()}, {primerNombre}
-            </Text>
-            <Text style={styles.dateText}>{obtenerFechaHoy()}</Text>
-          </View>
-
-          <View style={styles.heroRight}>
-            <View style={styles.statusPill}>
-              <View style={styles.statusDot} />
-              <Text style={styles.statusText}>Operativa en línea</Text>
-            </View>
-          </View>
+      <View style={[styles.heroLite, esEscritorio && { marginTop: insets.top + 12 }]}>
+        <View style={styles.heroLiteLeft}>
+          <Text style={styles.eyebrow}>Panel de operaciones</Text>
+          <Text style={styles.greeting}>
+            {obtenerSaludo()}, {primerNombre}
+          </Text>
+          <Text style={styles.subline}>
+            {obtenerFechaHoy()}
+            {'   '}
+            <Text style={styles.sublineDot}>·</Text>
+            {'   '}
+            {cargando ? '—' : metricas.total}{' '}
+            {metricas.total === 1 ? 'envío activo' : 'envíos activos'}
+          </Text>
         </View>
 
-        <View style={styles.heroActions}>
+        <View style={styles.heroLiteActions}>
+          <View style={styles.statusPill}>
+            <View style={styles.statusDot} />
+            <Text style={styles.statusText}>Operativa en línea</Text>
+          </View>
+
+          {esCliente && (
+            <TouchableOpacity
+              style={styles.ctaGhost}
+              onPress={() => navigation.navigate('TrabajaConNosotros')}
+            >
+              <Text style={styles.ctaGhostText}>🚚  Trabajá con nosotros</Text>
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity
             activeOpacity={0.85}
             style={styles.ctaPrimary}
@@ -266,128 +261,36 @@ export default function HomeScreen({ navigation, route }: any) {
               <Text style={styles.ctaPrimaryText}>＋  Nuevo envío con Boxy</Text>
             </LinearGradient>
           </TouchableOpacity>
-
-          <TouchableOpacity style={styles.ctaGhost} onPress={() => navigation.navigate('Seguimiento')}>
-            <Text style={styles.ctaGhostText}>🛰️  Seguimiento en vivo</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.ctaGhost} onPress={() => navigation.navigate('Historial')}>
-            <Text style={styles.ctaGhostText}>🗂  Historial</Text>
-          </TouchableOpacity>
-
-          {esCliente && (
-            <TouchableOpacity
-              style={styles.ctaGhost}
-              onPress={() => navigation.navigate('TrabajaConNosotros')}
-            >
-              <Text style={styles.ctaGhostText}>🚚  Trabajá con nosotros</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </LinearGradient>
-
-      <View style={styles.kpiRow}>
-        {kpis.map((k) => {
-          const prop =
-            k.label === 'Total envíos'
-              ? 1
-              : metricas.total > 0
-              ? k.valor / metricas.total
-              : 0;
-
-          return (
-            <View key={k.label} style={styles.kpiCard}>
-              <View style={styles.kpiTopRow}>
-                <Text style={styles.kpiLabel}>{k.label}</Text>
-                <View style={[styles.kpiIconChip, { backgroundColor: `${k.color}1E` }]}>
-                  <Text style={styles.kpiIconText}>{k.icono}</Text>
-                </View>
-              </View>
-              <Text style={styles.kpiValue}>{cargando ? '—' : k.valor}</Text>
-              <Text style={styles.kpiSub}>{k.sub}</Text>
-              <View style={styles.kpiBarTrack}>
-                <View
-                  style={[
-                    styles.kpiBarFill,
-                    { backgroundColor: k.color, width: `${Math.round(prop * 100)}%` },
-                  ]}
-                />
-              </View>
-            </View>
-          );
-        })}
-      </View>
-
-      <View style={[styles.twoCol, apilarPaneles && { flexDirection: 'column' }]}>
-        <View style={styles.panel}>
-          <View style={styles.panelHeadRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.panelTitle}>Tasa de cumplimiento</Text>
-              <Text style={styles.panelSub}>
-                Envíos entregados sobre el total registrado.
-              </Text>
-            </View>
-            <Text style={styles.panelPct}>{metricas.cumplimiento}%</Text>
-          </View>
-          <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: `${metricas.cumplimiento}%` }]} />
-          </View>
-          <Text style={styles.panelFootNote}>
-            {metricas.entregados} de {metricas.total} envíos completados sin incidencias.
-          </Text>
-        </View>
-
-        <View style={styles.panel}>
-          <View style={styles.panelHeadRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.panelTitle}>Distribución por estado</Text>
-              <Text style={styles.panelSub}>Cómo se reparten tus envíos hoy.</Text>
-            </View>
-          </View>
-
-          {distribucion.map((d) => {
-            const prop = metricas.total > 0 ? d.valor / metricas.total : 0;
-            return (
-              <View key={d.name} style={styles.distRow}>
-                <View style={styles.distLabelRow}>
-                  <View style={styles.distLabel}>
-                    <View style={[styles.distDot, { backgroundColor: d.color }]} />
-                    <Text style={styles.distName}>{d.name}</Text>
-                  </View>
-                  <Text style={styles.distCount}>{d.valor}</Text>
-                </View>
-                <View style={styles.distBarTrack}>
-                  <View
-                    style={[
-                      styles.distBarFill,
-                      { backgroundColor: d.color, width: `${Math.round(prop * 100)}%` },
-                    ]}
-                  />
-                </View>
-              </View>
-            );
-          })}
         </View>
       </View>
 
-      <View style={styles.quickRow}>
-        {ACCESOS_RAPIDOS.map((a) => (
-          <TouchableOpacity
-            key={a.titulo}
-            style={styles.quickCard}
-            activeOpacity={0.8}
-            onPress={() => irA(a.ruta)}
-          >
-            <View style={styles.quickIconChip}>
-              <Text style={styles.quickIcon}>{a.icono}</Text>
+      <View style={styles.ribbon}>
+        {stats.map((s, i) => (
+          <View key={s.label} style={[styles.stat, i > 0 && styles.statDivider]}>
+            <View style={styles.statKRow}>
+              {s.dot ? <View style={[styles.statDot, { backgroundColor: s.dot }]} /> : null}
+              <Text style={styles.statK}>{s.label}</Text>
             </View>
-            <Text style={styles.quickTitle}>{a.titulo}</Text>
-            <Text style={styles.quickSub}>{a.sub}</Text>
-            <Text style={styles.quickArrow}>Abrir →</Text>
-          </TouchableOpacity>
+            <Text style={styles.statV}>{cargando ? '—' : s.valor}</Text>
+            <Text style={styles.statS}>{s.sub}</Text>
+          </View>
         ))}
-      </View>
 
+        <View style={[styles.stat, styles.statDivider]}>
+          <Text style={styles.statK}>Cumplimiento</Text>
+          <Text style={[styles.statV, styles.statVAccent]}>
+            {cargando ? '—' : `${metricas.cumplimiento}%`}
+          </Text>
+          <View style={styles.statBar}>
+            <View style={[styles.statBarFill, { width: `${metricas.cumplimiento}%` }]} />
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+
+  const SeccionEnvios = (
+    <>
       <View style={styles.filtersRow}>
         {FILTROS.map((f) => {
           const activo = filtro === f;
@@ -422,6 +325,125 @@ export default function HomeScreen({ navigation, route }: any) {
           <Text style={styles.linkText}>Ver historial →</Text>
         </TouchableOpacity>
       </View>
+
+      <View
+        style={styles.cardsGrid}
+        onLayout={(e) => setGridW(e.nativeEvent.layout.width)}
+      >
+        {viajesFiltrados.length === 0 && !cargando ? (
+          <View style={styles.emptyWrap}>
+            <Text style={styles.emptyIcon}>🗂️</Text>
+            <Text style={styles.emptyTitle}>Sin envíos en esta vista</Text>
+            <Text style={styles.emptyText}>
+              No hay envíos con el estado “{filtro}”. Probá con otro filtro o
+              creá un envío nuevo.
+            </Text>
+          </View>
+        ) : (
+          viajesFiltrados.map((item) => (
+            <View key={item.id} style={[styles.cell, { width: anchoTarjeta ?? '100%' }]}>
+              <TarjetaViaje viaje={item} />
+            </View>
+          ))
+        )}
+      </View>
+    </>
+  );
+
+  const renderRail = (stack: boolean) => (
+    <View style={stack ? styles.railStack : styles.rail}>
+      {viajeVivo && (
+        <TouchableOpacity
+          activeOpacity={0.85}
+          style={styles.railPanel}
+          onPress={() =>
+            navigation.navigate('Seguimiento', { referencia: viajeVivo.codigo })
+          }
+        >
+          <View style={styles.liveBand}>
+            {esWeb && rutaVivo ? (
+              <View style={StyleSheet.absoluteFill} pointerEvents="none">
+                <MapaSeguimiento
+                  compacto
+                  chofer={viajeVivo.chofer}
+                  origen={{ latitude: 0, longitude: 0, direccion: rutaVivo.origen }}
+                  destino={{ latitude: 0, longitude: 0, direccion: rutaVivo.destino }}
+                />
+              </View>
+            ) : (
+              <LinearGradient
+                colors={['#16181C', '#101215']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={[StyleSheet.absoluteFill, { justifyContent: 'center' }]}
+              >
+                <View style={styles.liveRoute}>
+                  <View style={styles.liveDotO} />
+                  <View style={styles.liveLine} />
+                  <View style={styles.liveDotMid} />
+                  <View style={styles.liveLineDim} />
+                  <View style={styles.liveDotD} />
+                </View>
+              </LinearGradient>
+            )}
+
+            <View style={styles.liveTag}>
+              <View style={styles.liveTagDot} />
+              <Text style={styles.liveTagText}>En vivo</Text>
+            </View>
+          </View>
+          <View style={styles.liveBody}>
+            <Text style={styles.liveTitle}>{viajeVivo.codigo}</Text>
+            <Text style={styles.liveSub} numberOfLines={1}>
+              {viajeVivo.chofer}
+            </Text>
+            <View style={styles.liveEtaRow}>
+              <Text style={styles.liveEtaLabel}>Arribo estimado</Text>
+              <Text style={styles.liveEtaValue}>19:57</Text>
+            </View>
+          </View>
+        </TouchableOpacity>
+      )}
+
+      <View style={[styles.railPanel, styles.railDist]}>
+        <Text style={styles.railDistTitle}>Distribución por estado</Text>
+        {distribucion.map((d) => {
+          const prop = metricas.total > 0 ? d.valor / metricas.total : 0;
+          return (
+            <View key={d.name} style={styles.distRow}>
+              <View style={styles.distLabelRow}>
+                <View style={styles.distLabel}>
+                  <View style={[styles.distDot, { backgroundColor: d.color }]} />
+                  <Text style={styles.distName}>{d.name}</Text>
+                </View>
+                <Text style={styles.distCount}>{d.valor}</Text>
+              </View>
+              <View style={styles.distBarTrack}>
+                <View
+                  style={[
+                    styles.distBarFill,
+                    { backgroundColor: d.color, width: `${Math.round(prop * 100)}%` },
+                  ]}
+                />
+              </View>
+            </View>
+          );
+        })}
+      </View>
+
+      <View style={styles.railBoxy}>
+        <Text style={styles.railBoxyKicker}>🤖 logitrak IA</Text>
+        <Text style={styles.railBoxyTitle}>Cotizá con Boxy</Text>
+        <Text style={styles.railBoxyText}>
+          El asistente verifica direcciones y arma la tarifa en tiempo real.
+        </Text>
+        <TouchableOpacity
+          style={styles.railBoxyBtn}
+          onPress={() => navigation.navigate('SolicitudEnvio')}
+        >
+          <Text style={styles.railBoxyBtnText}>Cotizar ahora</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
@@ -437,30 +459,17 @@ export default function HomeScreen({ navigation, route }: any) {
           {Encabezado}
 
           <View style={styles.block}>
-            <View
-              style={styles.cardsGrid}
-              onLayout={(e) => setGridW(e.nativeEvent.layout.width)}
-            >
-              {viajesFiltrados.length === 0 && !cargando ? (
-                <View style={styles.emptyWrap}>
-                  <Text style={styles.emptyIcon}>🗂️</Text>
-                  <Text style={styles.emptyTitle}>Sin envíos en esta vista</Text>
-                  <Text style={styles.emptyText}>
-                    No hay envíos con el estado “{filtro}”. Probá con otro filtro o
-                    creá un envío nuevo.
-                  </Text>
-                </View>
-              ) : (
-                viajesFiltrados.map((item) => (
-                  <View
-                    key={item.id}
-                    style={[styles.cell, { width: anchoTarjeta ?? '100%' }]}
-                  >
-                    <TarjetaViaje viaje={item} />
-                  </View>
-                ))
-              )}
-            </View>
+            {railAlLado ? (
+              <View style={styles.contentRow}>
+                <View style={styles.mainCol}>{SeccionEnvios}</View>
+                {renderRail(false)}
+              </View>
+            ) : (
+              <>
+                {SeccionEnvios}
+                {renderRail(true)}
+              </>
+            )}
           </View>
         </ScrollView>
       </View>
