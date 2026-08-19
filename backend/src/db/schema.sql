@@ -25,12 +25,14 @@ CREATE TABLE IF NOT EXISTS choferes (
                          CHECK (renaper_modo IN ('simulado', 'real')),
     metodo_verificacion  VARCHAR(12),
     selfie_path          VARCHAR(300),
+    dni_frente_path      VARCHAR(300),
     verificado_en        TIMESTAMPTZ,
     creado_en            TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
 
 ALTER TABLE choferes ADD COLUMN IF NOT EXISTS metodo_verificacion VARCHAR(12);
 ALTER TABLE choferes ADD COLUMN IF NOT EXISTS selfie_path          VARCHAR(300);
+ALTER TABLE choferes ADD COLUMN IF NOT EXISTS dni_frente_path      VARCHAR(300);
 ALTER TABLE choferes ADD COLUMN IF NOT EXISTS liveness_ok          BOOLEAN;
 ALTER TABLE choferes ADD COLUMN IF NOT EXISTS face_match_score     NUMERIC(5,4);
 

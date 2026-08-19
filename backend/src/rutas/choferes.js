@@ -7,6 +7,11 @@ import { consultar, pool } from '../db/pool.js';
 import { autenticar, exigirRol, firmarToken } from '../middleware/auth.js';
 import { verificarIdentidad } from '../servicios/verificacionIdentidad.js';
 import { compararCaras } from '../servicios/faceMatch.js';
+import {
+    almacenamientoDisponible,
+    subirImagen,
+    urlFirmada,
+} from '../servicios/almacenamiento.js';
 
 function base64ABuffer(valor) {
     if (typeof valor !== 'string' || !valor) return null;
@@ -24,13 +29,19 @@ function generarCodigo() {
     return `CH-${codigo}`;
 }
 
-async function guardarSelfie(codigo, base64) {
-    if (!base64) return null;
-    const limpio = base64.replace(/^data:image\/\w+;base64,/, '');
-    const dir = join(__dirname, '..', '..', 'uploads', 'choferes');
+async function guardarImagenChofer(codigo, tipo, base64) {
+    const buffer = base64ABuffer(base64);
+    if (!buffer) return null;
+
+    const ruta = `choferes/${codigo}/${tipo}.jpg`;
+    if (almacenamientoDisponible()) {
+        return subirImagen(ruta, buffer, 'image/jpeg');
+    }
+
+    const dir = join(__dirname, '..', '..', 'uploads', 'choferes', codigo);
     await mkdir(dir, { recursive: true });
-    await writeFile(join(dir, `${codigo}.jpg`), Buffer.from(limpio, 'base64'));
-    return `uploads/choferes/${codigo}.jpg`;
+    await writeFile(join(dir, `${tipo}.jpg`), buffer);
+    return `uploads/choferes/${codigo}/${tipo}.jpg`;
 }
 
 rutasChoferes.post('/postulacion', autenticar, exigirRol('cliente'), async (req, res) => {
@@ -88,17 +99,18 @@ rutasChoferes.post('/postulacion', autenticar, exigirRol('cliente'), async (req,
             codigo = generarCodigo();
         }
 
-        const selfiePath = await guardarSelfie(codigo, selfieBase64);
+        const selfiePath = await guardarImagenChofer(codigo, 'selfie', selfieBase64);
+        const dniFrentePath = await guardarImagenChofer(codigo, 'dni-frente', dniFrenteBase64);
 
         await cliente.query(
             `INSERT INTO choferes
                  (codigo, usuario_id, nombre_completo, email, telefono, domicilio, dni,
                   escaneo_facial_ok, verificacion_renaper, renaper_modo, metodo_verificacion,
-                  selfie_path, liveness_ok, face_match_score, verificado_en)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'aprobada', $9, $10, $11, $12, $13, now())`,
+                  selfie_path, dni_frente_path, liveness_ok, face_match_score, verificado_en)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'aprobada', $9, $10, $11, $12, $13, $14, now())`,
             [codigo, req.usuario.id, nombreCompleto, email, telefono, domicilio, dni,
              escaneoFacialOk, verificacion.modo === 'real' ? 'real' : 'simulado',
-             verificacion.modo, selfiePath, livenessOk, faceMatchScore]
+             verificacion.modo, selfiePath, dniFrentePath, livenessOk, faceMatchScore]
         );
 
         const actualizado = await cliente.query(
@@ -129,4 +141,23 @@ rutasChoferes.post('/postulacion', autenticar, exigirRol('cliente'), async (req,
     } finally {
         cliente.release();
     }
+});
+
+rutasChoferes.get('/:codigo/documentos', autenticar, exigirRol('admin'), async (req, res) => {
+    const codigo = (req.params.codigo || '').trim().toUpperCase();
+    const { rows } = await consultar(
+        'SELECT selfie_path, dni_frente_path FROM choferes WHERE codigo = $1',
+        [codigo]
+    );
+    if (rows.length === 0) {
+        return res.status(404).json({ exito: false, error: 'No existe un chofer con ese código.' });
+    }
+    const { selfie_path, dni_frente_path } = rows[0];
+    return res.json({
+        exito: true,
+        documentos: {
+            selfie: await urlFirmada(selfie_path),
+            dniFrente: await urlFirmada(dni_frente_path),
+        },
+    });
 });

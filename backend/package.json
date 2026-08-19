@@ -10,6 +10,7 @@
     "db:init": "node src/db/init.js --standalone"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.112.3",
     "@vladmandic/face-api": "^1.7.15",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
