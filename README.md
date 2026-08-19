@@ -60,6 +60,18 @@ cp .env.example .env        # fijá EXPO_PUBLIC_API_URL a la IP LAN de tu backen
 npm start                   # escaneá el QR con Expo Go o elegí plataforma
 ```
 
+## Deploy
+
+| Parte | Dónde | Cómo |
+|-------|-------|------|
+| Backend | **Render** — `https://logitrak.onrender.com` | Web Service Node, auto-deploy desde `main`. Variables en el panel (Environment). |
+| Base de datos | **Supabase** (PostgreSQL) | Gestionada; el esquema se aplica solo al arrancar el backend. |
+| Fotos de verificación | **Supabase Storage** | Bucket privado `verificacion-identidad` (selfie + frente del DNI). |
+| App mobile | **EAS Build** (Expo) | Perfiles development / preview / production. |
+
+El backend en Render está en plan **Free**, que se duerme por inactividad (~50 s
+de demora en el primer request); para producción conviene un plan always-on.
+
 ---
 
 © 2026 Logitrak. Todos los derechos reservados.

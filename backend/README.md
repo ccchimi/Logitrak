@@ -46,6 +46,23 @@ Al arrancar, el servidor aplica el esquema (`src/db/schema.sql`, idempotente) y
 siembra los 3 administradores y la flota. La API queda en
 `http://localhost:4000` (o el `PORT` que definas).
 
+## Deploy en producción (Render)
+
+El backend está deployado como **Web Service** en Render
+(`https://logitrak.onrender.com`), con **auto-deploy** desde la rama `main`.
+
+- **Build:** `npm install` · **Start:** `npm start`.
+- Las variables **no** salen del `.env` (que no se versiona): se cargan en el
+  panel del servicio → **Environment**. Ahí van `DATABASE_URL`, `JWT_SECRET`,
+  `PUBLIC_API_URL` (la URL pública de Render) y las tres `SUPABASE_*` de Storage.
+  **No** definas `PORT`: Render lo inyecta.
+- Como el esquema se aplica al arrancar (idempotente), las columnas nuevas se
+  migran solas en el próximo deploy.
+
+> **Plan Free:** la instancia hace *spin down* por inactividad y el primer
+> request puede demorar ~50 s, lo que puede afectar los webhooks de pago. Para
+> producción real, un plan pago (always-on) lo resuelve.
+
 ## Base de datos en Supabase
 
 El backend usa un único connection string (`DATABASE_URL`); todo el equipo apunta
@@ -106,6 +123,7 @@ URL JDBC: `jdbc:postgresql://aws-0-<region>.pooler.supabase.com:5432/postgres?ss
 | POST   | `/api/auth/recuperar`             | Restablece contraseña (no permitido para admins)     |
 | GET    | `/api/auth/perfil`                | Datos del usuario logueado (requiere token)          |
 | POST   | `/api/choferes/postulacion`       | Postula a un cliente como chofer (requiere token)    |
+| GET    | `/api/choferes/:codigo/documentos` | Selfie + frente del DNI (URLs firmadas; solo admin)  |
 | POST   | `/api/cotizaciones`               | Guarda una cotización emitida por Boxy               |
 | GET    | `/api/cotizaciones`               | Lista cotizaciones del usuario (admin: todas)        |
 | POST   | `/api/envios`                     | Confirma una cotización y crea el envío              |
@@ -158,6 +176,27 @@ para no romper Expo Go / web.
 
 Si el runtime o los modelos no están, el match se saltea (score nulo) y el alta
 sigue funcionando: nunca bloquea por una dependencia ausente.
+
+### Dónde se guardan las fotos
+
+La selfie y la foto del frente del DNI se suben a **Supabase Storage**, en un
+bucket **privado** (`verificacion-identidad` por defecto). En la base solo se
+persiste la ruta interna del objeto (`selfie_path`, `dni_frente_path`); para
+revisarlas, `GET /api/choferes/:codigo/documentos` (solo admin) devuelve **URLs
+firmadas** temporales, así el bucket nunca queda expuesto.
+
+Configuralo en el `.env` (y en Render → Environment):
+
+| Variable | Qué es |
+|----------|--------|
+| `SUPABASE_URL` | URL base del proyecto, **sin** `/rest/v1` (p. ej. `https://tu-ref.supabase.co`). |
+| `SUPABASE_SERVICE_ROLE_KEY` | Clave `service_role` (secreta, **solo backend**). |
+| `SUPABASE_BUCKET` | Nombre del bucket privado (por defecto `verificacion-identidad`). |
+
+Creá el bucket privado antes del primer uso. Si estas variables quedan vacías,
+las imágenes caen al disco local: sirve en desarrollo, pero **en Render el disco
+es efímero y se borrarían en cada deploy**, así que en producción son
+obligatorias.
 
 ## Pagos / facturación
 
