@@ -9,7 +9,6 @@ export interface AsignacionGuardada {
     estado: EstadoAsignacion;
 }
 
-// Registro completo tal como lo devuelve GET /api/asignaciones (historial del chofer).
 export interface AsignacionRegistro {
     id: number;
     codigo: string;

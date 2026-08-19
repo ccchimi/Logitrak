@@ -75,8 +75,6 @@ export default function SeguimientoScreen({ navigation, route }: any) {
     const [tiempoRestante, setTiempoRestante] = useState(SLA_TOTAL_SEG);
     const [etapa, setEtapa] = useState(0);
     const [chofer, setChofer] = useState<string | null>(null);
-    // En mobile el panel arranca colapsado para no tapar el mapa; en desktop
-    // vive como tarjeta lateral y arranca expandido.
     const [panelMinimizado, setPanelMinimizado] = useState(() => width < 1000);
     const esWeb = Platform.OS === 'web';
 

@@ -50,9 +50,6 @@ export default function HomeScreen({ navigation, route }: any) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
 
-  // La sesión es la fuente de verdad: se guarda al loguear y no se pierde entre
-  // pantallas. Los params son solo un respaldo (p. ej. primer render tras login).
-  // Nunca defaulteamos a 'admin': si no hay sesión, asumimos 'cliente'.
   const sesion = obtenerUsuarioSesion();
   const nombre: string = sesion?.nombreCompleto ?? route?.params?.nombre ?? 'Usuario';
   const usuario: string = sesion?.usuario ?? route?.params?.usuario ?? '';
@@ -110,8 +107,6 @@ export default function HomeScreen({ navigation, route }: any) {
     [viajes]
   );
 
-  // El destino del viaje viene como "origen → destino"; lo separamos para
-  // alimentar el mini-mapa real (Google Maps) del rail.
   const rutaVivo = useMemo(() => {
     if (!viajeVivo) return null;
     const partes = viajeVivo.destino.split('→').map((s) => s.trim());

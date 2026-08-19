@@ -78,8 +78,6 @@ function fechaCorta(iso: string | null): string {
 }
 
 export default function ChoferScreen({ navigation, route }: any) {
-    // La sesión es la fuente de verdad y no se pierde entre pantallas; los
-    // params quedan solo como respaldo del primer render tras el login.
     const sesion = obtenerUsuarioSesion();
     const nombre: string = sesion?.nombreCompleto ?? route?.params?.nombre ?? 'Chofer logitrak.';
     const codigo: string | null = sesion?.chofer?.codigo ?? route?.params?.codigo ?? null;

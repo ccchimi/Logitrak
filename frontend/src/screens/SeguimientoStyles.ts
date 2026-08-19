@@ -186,7 +186,6 @@ export const styles = StyleSheet.create({
         ...panelShadow,
     },
 
-    // Desktop: tarjeta flotante lateral en vez de bottom-sheet a todo el ancho.
     panelDesktop: {
         left: undefined,
         bottom: undefined,

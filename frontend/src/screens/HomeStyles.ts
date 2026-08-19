@@ -384,7 +384,6 @@ export const styles = StyleSheet.create({
   sectionSub: { color: COLORS.muted, fontSize: 13, fontFamily: FONTS.text },
   linkText: { color: COLORS.accent, fontSize: 13, fontFamily: FONTS.textMedium },
 
-  // ---- Rediseño: hero liviano ----
   heroLite: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -401,7 +400,6 @@ export const styles = StyleSheet.create({
   subline: { color: COLORS.muted, fontSize: 14, fontFamily: FONTS.text, marginTop: 8 },
   sublineDot: { color: 'rgba(255,255,255,0.34)' },
 
-  // ---- Rediseño: cinta de KPIs ----
   ribbon: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -429,7 +427,6 @@ export const styles = StyleSheet.create({
   statBar: { height: 5, borderRadius: 999, backgroundColor: COLORS.cardDeep, overflow: 'hidden', marginTop: 10 },
   statBarFill: { height: 5, borderRadius: 999, backgroundColor: COLORS.accent },
 
-  // ---- Rediseño: split envíos + rail ----
   contentRow: { flexDirection: 'row', gap: 22, alignItems: 'flex-start', width: '100%' },
   mainCol: { flex: 1, minWidth: 0 },
   rail: { width: 322, gap: 16 },

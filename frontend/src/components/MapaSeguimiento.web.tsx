@@ -16,7 +16,6 @@ interface Props {
     destino: PuntoRuta;
     chofer: string;
     onEvento?: (evento: EventoMapa) => void;
-    // Modo miniatura: mapa reducido y no interactivo para el preview del panel.
     compacto?: boolean;
 }
 
