@@ -12,7 +12,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import { styles, COLORS } from './PagoStyles';
+import { styles, COLORS } from '../styles/PagoStyles';
 import { ToastStack, useToasts } from '../components/Toasts';
 import {
     iniciarCheckout,

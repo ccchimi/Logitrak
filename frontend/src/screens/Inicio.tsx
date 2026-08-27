@@ -13,7 +13,7 @@ import {
 import type { DimensionValue } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { styles } from './InicioStyles';
+import { styles } from '../styles/InicioStyles';
 
 type SectionKey = 'services' | 'solutions' | 'how' | 'coverage' | 'plans';
 

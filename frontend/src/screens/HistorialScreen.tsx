@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, SafeAreaView, Text, TouchableOpacity, View } from 'react-native';
-import { styles } from './HistorialStyles';
+import { styles } from '../styles/HistorialStyles';
 import { Envio, listarEnvios } from '../services/enviosService';
 
 interface OrdenPasada {

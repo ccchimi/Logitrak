@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, SafeAreaView, Text, TouchableOpacity, View } from 'react-native';
-import { styles } from './PerfilStyles';
+import { styles } from '../styles/PerfilStyles';
 import { obtenerUsuarioSesion } from '../services/authService';
 import { obtenerResumenPerfil, ResumenPerfil } from '../services/perfilService';
 import { Cupon, listarCupones } from '../services/cuponesService';

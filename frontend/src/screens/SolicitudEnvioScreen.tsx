@@ -12,7 +12,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import { styles } from './SolicitudEnvioStyles';
+import { styles } from '../styles/SolicitudEnvioStyles';
 import {
     analizarDireccion,
     BOT_META,

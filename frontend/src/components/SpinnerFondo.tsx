@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, View } from 'react-native';
-import { styles } from '../screens/LoginStyles';
+import { styles } from '../styles/LoginStyles';
 
 const NUM_BARS = 50;
 const ACTIVE_TRAIL = 8;

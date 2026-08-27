@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS, styles, tamanosAuth } from './LoginStyles';
+import { COLORS, styles, tamanosAuth } from '../styles/LoginStyles';
 import { useRootFlow } from '../navigation/RootFlowContext';
 import SpinnerFondo from '../components/SpinnerFondo';
 import { iniciarSesion } from '../services/authService';
