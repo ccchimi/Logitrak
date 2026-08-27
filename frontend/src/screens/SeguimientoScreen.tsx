@@ -12,7 +12,7 @@ import {
     View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { styles, COLORS } from './SeguimientoStyles';
+import { styles, COLORS } from '../styles/SeguimientoStyles';
 import MapaSeguimiento from '../components/MapaSeguimiento';
 import { ToastStack, useToasts } from '../components/Toasts';
 import { analizarDireccion } from '../services/botLogistica';
@@ -22,17 +22,15 @@ import {
     geocodificarDireccion,
     type PuntoRuta,
 } from '../services/seguimientoService';
-import { agregarEvento } from '../services/enviosService';
+import { agregarEvento, obtenerEnvio } from '../services/enviosService';
 import { emitirCupon } from '../services/cuponesService';
-
-const CHOFER_SIMULADO = 'Marcos Di Palma · Honda Wave 110';
 
 const SLA_TOTAL_SEG = 1200;
 
 const ETAPAS = [
     {
-        titulo: 'Asignando chofer cercano',
-        detalle: 'Boxy está despachando la unidad óptima dentro de la red logitrak.',
+        titulo: 'Buscando transportista',
+        detalle: 'Tu envío está publicado en la red logitrak. Un chofer va a tomarlo en breve.',
     },
     {
         titulo: 'Chofer en camino al retiro',
@@ -42,7 +40,20 @@ const ETAPAS = [
         titulo: 'Paquete en viaje al destino',
         detalle: 'Tu carga viaja protegida con seguimiento satelital de punta a punta.',
     },
+    {
+        titulo: 'Envío entregado',
+        detalle: 'La carga fue entregada en el destino. ¡Gracias por elegir logitrak!',
+    },
 ];
+
+const ETAPA_POR_ESTADO: Record<string, number> = {
+    pendiente: 0,
+    asignado: 1,
+    en_viaje: 2,
+    entregado: 3,
+};
+
+const INTERVALO_SONDEO_MS = 5000;
 
 async function resolverPuntoNativo(texto: string): Promise<PuntoRuta | null> {
     const punto = await geocodificarDireccion(texto);
@@ -75,6 +86,7 @@ export default function SeguimientoScreen({ navigation, route }: any) {
     const [tiempoRestante, setTiempoRestante] = useState(SLA_TOTAL_SEG);
     const [etapa, setEtapa] = useState(0);
     const [chofer, setChofer] = useState<string | null>(null);
+    const [choferDetalle, setChoferDetalle] = useState<string | null>(null);
     const [panelMinimizado, setPanelMinimizado] = useState(() => width < 1000);
     const esWeb = Platform.OS === 'web';
 
@@ -125,38 +137,54 @@ export default function SeguimientoScreen({ navigation, route }: any) {
             setTiempoRestante((prev) => (prev > 0 ? prev - 1 : 0));
         }, 1000);
 
-        const t1 = setTimeout(() => {
-            setEtapa(1);
-            setChofer(CHOFER_SIMULADO);
-            mostrar('info', 'Chofer asignado', 'Marcos Di Palma va en camino al punto de retiro.');
-            if (envioCodigo) {
-                void agregarEvento(envioCodigo, {
-                    tipo: 'asignado',
-                    titulo: 'Chofer asignado',
-                    detalle: 'Marcos Di Palma va en camino al punto de retiro.',
-                    choferNombre: CHOFER_SIMULADO,
-                });
-            }
-        }, 4000);
+        return () => clearInterval(intervalo);
+    }, []);
 
-        const t2 = setTimeout(() => {
-            setEtapa(2);
-            mostrar('info', 'Paquete retirado', 'La carga ya viaja hacia el destino.');
-            if (envioCodigo) {
-                void agregarEvento(envioCodigo, {
-                    tipo: 'retirado',
-                    titulo: 'Paquete retirado',
-                    detalle: 'La carga ya viaja hacia el destino.',
-                });
+    useEffect(() => {
+        if (!envioCodigo) return;
+
+        let activo = true;
+        let etapaPrevia = -1;
+
+        const sondear = async () => {
+            const datos = await obtenerEnvio(envioCodigo);
+            if (!activo || !datos) return;
+
+            const { envio } = datos;
+            const nuevaEtapa = ETAPA_POR_ESTADO[envio.estado] ?? 0;
+            setEtapa(nuevaEtapa);
+
+            if (envio.choferNombre) {
+                setChofer(envio.choferNombre);
+                setChoferDetalle(
+                    [envio.choferVehiculo, envio.choferCodigo].filter(Boolean).join(' · ') || null
+                );
             }
-        }, 12000);
+
+            if (etapaPrevia !== -1 && nuevaEtapa !== etapaPrevia) {
+                if (nuevaEtapa === 1 && envio.choferNombre) {
+                    mostrar(
+                        'info',
+                        'Chofer asignado',
+                        `${envio.choferNombre} va en camino en ${envio.choferVehiculo ?? 'su unidad'}.`
+                    );
+                } else if (nuevaEtapa === 2) {
+                    mostrar('info', 'Paquete retirado', 'La carga ya viaja hacia el destino.');
+                } else if (nuevaEtapa === 3) {
+                    mostrar('exito', 'Envío entregado', 'La carga llegó a destino.');
+                }
+            }
+            etapaPrevia = nuevaEtapa;
+        };
+
+        void sondear();
+        const id = setInterval(sondear, INTERVALO_SONDEO_MS);
 
         return () => {
-            clearInterval(intervalo);
-            clearTimeout(t1);
-            clearTimeout(t2);
+            activo = false;
+            clearInterval(id);
         };
-    }, []);
+    }, [envioCodigo, mostrar]);
 
     useEffect(() => {
         if (tiempoRestante === 0 && !slaAvisadoRef.current) {
@@ -387,8 +415,8 @@ export default function SeguimientoScreen({ navigation, route }: any) {
                             </Text>
                             <Text style={styles.choferDetalle}>
                                 {chofer
-                                    ? 'Transportista homologado · Red logitrak.'
-                                    : 'Consultando unidades disponibles en tu zona'}
+                                    ? choferDetalle ?? 'Transportista homologado · Red logitrak.'
+                                    : 'Esperando que un chofer tome tu envío'}
                             </Text>
                         </View>
 

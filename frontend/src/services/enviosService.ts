@@ -21,6 +21,10 @@ export interface Envio {
     cotizacionId: number | null;
     choferId: number | null;
     choferNombre: string | null;
+    choferCodigo: string | null;
+    choferTelefono: string | null;
+    choferVehiculoId: string | null;
+    choferVehiculo: string | null;
     origen: string;
     destino: string;
     origenLat: number | null;

@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -10,11 +10,12 @@ import {
   View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS, styles, tamanosAuth } from './LoginStyles';
+import { COLORS, styles, tamanosAuth } from '../styles/LoginStyles';
 import SpinnerFondo from '../components/SpinnerFondo';
 import { postularChofer } from '../services/choferesService';
 import EscanerIdentidad, { ResultadoEscaneo } from '../components/EscanerIdentidad';
 import { soloDigitos } from '../services/dniService';
+import { listarVehiculos, VehiculoFlota } from '../services/vehiculosService';
 
 export default function TrabajaConNosotrosScreen({ navigation }: any) {
   const nombreRef = useRef('');
@@ -31,6 +32,12 @@ export default function TrabajaConNosotrosScreen({ navigation }: any) {
   const [error, setError] = useState('');
   const [exito, setExito] = useState('');
   const [enviando, setEnviando] = useState(false);
+  const [flota, setFlota] = useState<VehiculoFlota[]>([]);
+  const [vehiculoId, setVehiculoId] = useState<string | null>(null);
+
+  useEffect(() => {
+    void (async () => setFlota(await listarVehiculos()))();
+  }, []);
 
   const verificado = escaneoResultado !== null;
   const abrirEscaner = () => {
@@ -54,10 +61,15 @@ export default function TrabajaConNosotrosScreen({ navigation }: any) {
 
   const manejarEnvio = async () => {
     if (enviando) return;
+    if (!vehiculoId) {
+      setError('Elegí el vehículo con el que vas a trabajar.');
+      return;
+    }
     setEnviando(true);
     setError('');
 
     const resultado = await postularChofer({
+      vehiculoId,
       nombreCompleto: nombreRef.current,
       email: emailRef.current,
       telefono: telefonoRef.current,
@@ -178,6 +190,28 @@ export default function TrabajaConNosotrosScreen({ navigation }: any) {
             {campoTexto('Teléfono', 'Ej: 11 5555 6666', '📞', (t) => { telefonoRef.current = t; }, 'phone-pad')}
             {campoTexto('Domicilio de residencia', 'Calle, número, localidad', '🏠', (t) => { domicilioRef.current = t; })}
             {campoTexto('DNI (sin puntos)', 'Ej: 34567890', '🪪', (t) => { dniRef.current = t; }, 'numeric')}
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>¿Con qué vehículo vas a trabajar?</Text>
+
+              {flota.map((v) => (
+                <TouchableOpacity
+                  key={v.id}
+                  style={[styles.rolChip, vehiculoId === v.id && styles.rolChipActive]}
+                  onPress={() => {
+                    setVehiculoId(v.id);
+                    setError('');
+                  }}
+                >
+                  <Text
+                    style={[styles.rolChipText, vehiculoId === v.id && styles.rolChipTextActive]}
+                  >
+                    {vehiculoId === v.id ? '✓ ' : ''}
+                    {v.nombre} · hasta {v.maxKg} kg y {v.maxBultos} bultos
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
 
             <View style={styles.formGroup}>
               <Text style={styles.label}>Verificación de identidad</Text>

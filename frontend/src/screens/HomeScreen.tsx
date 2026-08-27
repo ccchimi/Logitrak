@@ -11,7 +11,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { styles, COLORS, ESTADO_COLORS } from './HomeStyles';
+import { styles, COLORS, ESTADO_COLORS } from '../styles/HomeStyles';
 import { obtenerViajesActivos, Viaje } from '../services/viajesService';
 import { cerrarSesion, obtenerUsuarioSesion } from '../services/authService';
 import TarjetaViaje from '../components/TarjetaViaje';
@@ -398,6 +398,7 @@ export default function HomeScreen({ navigation, route }: any) {
             <Text style={styles.liveTitle}>{viajeVivo.codigo}</Text>
             <Text style={styles.liveSub} numberOfLines={1}>
               {viajeVivo.chofer}
+              {viajeVivo.vehiculo ? ` · ${viajeVivo.vehiculo}` : ''}
             </Text>
             <View style={styles.liveEtaRow}>
               <Text style={styles.liveEtaLabel}>Arribo estimado</Text>

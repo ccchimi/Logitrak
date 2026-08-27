@@ -11,6 +11,7 @@ import { rutasAsignaciones } from './rutas/asignaciones.js';
 import { rutasCupones } from './rutas/cupones.js';
 import { rutasPagos } from './rutas/pagos.js';
 import { rutasPerfil } from './rutas/perfil.js';
+import { rutasVehiculos } from './rutas/vehiculos.js';
 
 const app = express();
 
@@ -34,6 +35,7 @@ app.use('/api/asignaciones', rutasAsignaciones);
 app.use('/api/cupones', rutasCupones);
 app.use('/api/pagos', rutasPagos);
 app.use('/api/perfil', rutasPerfil);
+app.use('/api/vehiculos', rutasVehiculos);
 
 app.use((_req, res) => {
     res.status(404).json({ exito: false, error: 'Ruta no encontrada.' });

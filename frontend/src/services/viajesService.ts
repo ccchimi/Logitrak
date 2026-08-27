@@ -6,6 +6,8 @@ export interface Viaje {
     destino: string;
     estado: 'En Viaje' | 'Entregado' | 'Pendiente';
     chofer: string;
+    choferCodigo: string | null;
+    vehiculo: string | null;
     fecha: string;
 }
 
@@ -30,6 +32,8 @@ function mapearEnvio(e: Envio): Viaje {
         destino: `${e.origen} → ${e.destino}`,
         estado: estadoVisible(e.estado),
         chofer: e.choferNombre ?? 'Sin asignar',
+        choferCodigo: e.choferCodigo,
+        vehiculo: e.choferVehiculo ?? e.vehiculoNombre,
         fecha: formatearFecha(e.creadoEn),
     };
 }

@@ -24,6 +24,16 @@ const TIPOS_EVENTO = new Set([
     'en_viaje', 'entregado', 'sla_excedido', 'cancelado',
 ]);
 
+const SELECT_ENVIO = `
+    SELECT e.*,
+           c.codigo        AS chofer_codigo,
+           c.telefono      AS chofer_telefono,
+           cv.id           AS chofer_vehiculo_id,
+           cv.nombre       AS chofer_vehiculo_nombre
+    FROM envios e
+    LEFT JOIN choferes c   ON c.id = e.chofer_id
+    LEFT JOIN vehiculos cv ON cv.id = c.vehiculo_id`;
+
 function publicar(fila) {
     return {
         id: fila.id,
@@ -32,6 +42,10 @@ function publicar(fila) {
         cotizacionId: fila.cotizacion_id,
         choferId: fila.chofer_id,
         choferNombre: fila.chofer_nombre,
+        choferCodigo: fila.chofer_codigo ?? null,
+        choferTelefono: fila.chofer_telefono ?? null,
+        choferVehiculoId: fila.chofer_vehiculo_id ?? null,
+        choferVehiculo: fila.chofer_vehiculo_nombre ?? null,
         origen: fila.origen,
         destino: fila.destino,
         origenLat: num(fila.origen_lat),
@@ -189,28 +203,28 @@ rutasEnvios.get('/', autenticar, async (req, res) => {
     if (esAdmin) {
     } else if (choferId) {
         params.push(choferId);
-        cond.push(`chofer_id = $${params.length}`);
+        cond.push(`e.chofer_id = $${params.length}`);
     } else {
         params.push(req.usuario.id);
-        cond.push(`cliente_id = $${params.length}`);
+        cond.push(`e.cliente_id = $${params.length}`);
     }
 
     const estado = (req.query.estado || '').toString().trim();
     if (estado) {
         params.push(estado);
-        cond.push(`estado = $${params.length}`);
+        cond.push(`e.estado = $${params.length}`);
     }
 
     const where = cond.length ? `WHERE ${cond.join(' AND ')}` : '';
     const { rows } = await consultar(
-        `SELECT * FROM envios ${where} ORDER BY creado_en DESC LIMIT 200`,
+        `${SELECT_ENVIO} ${where} ORDER BY e.creado_en DESC LIMIT 200`,
         params
     );
     return res.json({ exito: true, envios: rows.map(publicar) });
 });
 
 rutasEnvios.get('/:codigo', autenticar, async (req, res) => {
-    const { rows } = await consultar('SELECT * FROM envios WHERE codigo = $1', [req.params.codigo]);
+    const { rows } = await consultar(`${SELECT_ENVIO} WHERE e.codigo = $1`, [req.params.codigo]);
     const envio = rows[0];
     if (!envio) {
         return res.status(404).json({ exito: false, error: 'Envío no encontrado.' });
@@ -243,7 +257,7 @@ rutasEnvios.post('/:codigo/eventos', autenticar, async (req, res) => {
         return res.status(400).json({ exito: false, error: 'El evento necesita un título.' });
     }
 
-    const { rows } = await consultar('SELECT * FROM envios WHERE codigo = $1', [req.params.codigo]);
+    const { rows } = await consultar(`${SELECT_ENVIO} WHERE e.codigo = $1`, [req.params.codigo]);
     const envio = rows[0];
     if (!envio) {
         return res.status(404).json({ exito: false, error: 'Envío no encontrado.' });

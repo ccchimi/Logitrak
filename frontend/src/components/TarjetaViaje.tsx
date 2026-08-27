@@ -70,6 +70,7 @@ export default function TarjetaViaje({ viaje }: TarjetaProps) {
                     <Text style={styles.footerLabel}>Chofer</Text>
                     <Text style={styles.footerText} numberOfLines={2}>
                         {viaje.chofer}
+                        {viaje.vehiculo ? ` · ${viaje.vehiculo}` : ''}
                     </Text>
                 </View>
 

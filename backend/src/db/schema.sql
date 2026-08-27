@@ -35,6 +35,7 @@ ALTER TABLE choferes ADD COLUMN IF NOT EXISTS selfie_path          VARCHAR(300);
 ALTER TABLE choferes ADD COLUMN IF NOT EXISTS dni_frente_path      VARCHAR(300);
 ALTER TABLE choferes ADD COLUMN IF NOT EXISTS liveness_ok          BOOLEAN;
 ALTER TABLE choferes ADD COLUMN IF NOT EXISTS face_match_score     NUMERIC(5,4);
+ALTER TABLE choferes ADD COLUMN IF NOT EXISTS vehiculo_id          VARCHAR(20);
 
 CREATE TABLE IF NOT EXISTS auditoria_accesos (
     id         SERIAL PRIMARY KEY,
@@ -60,6 +61,17 @@ CREATE TABLE IF NOT EXISTS vehiculos (
     velocidad_media_kmh NUMERIC(6,2)  NOT NULL,
     capacidades         TEXT[]        NOT NULL DEFAULT '{}'
 );
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'choferes_vehiculo_id_fkey'
+    ) THEN
+        ALTER TABLE choferes
+            ADD CONSTRAINT choferes_vehiculo_id_fkey
+            FOREIGN KEY (vehiculo_id) REFERENCES vehiculos(id);
+    END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS cotizaciones (
     id                 SERIAL PRIMARY KEY,
@@ -228,3 +240,9 @@ ALTER TABLE envios ADD COLUMN IF NOT EXISTS estado_pago VARCHAR(10) NOT NULL DEF
 
 CREATE INDEX IF NOT EXISTS idx_pagos_envio   ON pagos (envio_id);
 CREATE INDEX IF NOT EXISTS idx_pagos_cliente ON pagos (cliente_id, creado_en DESC);
+
+CREATE INDEX IF NOT EXISTS idx_envios_disponibles
+    ON envios (estado, estado_pago, creado_en)
+    WHERE chofer_id IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_asignaciones_envio ON asignaciones (envio_id);

@@ -55,6 +55,7 @@ rutasChoferes.post('/postulacion', autenticar, exigirRol('cliente'), async (req,
     const selfieBase64 = typeof req.body?.selfieBase64 === 'string' ? req.body.selfieBase64 : null;
     const dniFrenteBase64 = typeof req.body?.dniFrenteBase64 === 'string' ? req.body.dniFrenteBase64 : null;
     const livenessOk = typeof req.body?.livenessOk === 'boolean' ? req.body.livenessOk : null;
+    const vehiculoId = (req.body?.vehiculoId || '').trim();
 
     if (nombreCompleto.length < 5) {
         return res.status(400).json({ exito: false, error: 'Ingresá tu nombre completo como figura en el DNI.' });
@@ -67,6 +68,14 @@ rutasChoferes.post('/postulacion', autenticar, exigirRol('cliente'), async (req,
     }
     if (domicilio.length < 6) {
         return res.status(400).json({ exito: false, error: 'Ingresá tu domicilio de residencia completo.' });
+    }
+
+    if (!vehiculoId) {
+        return res.status(400).json({ exito: false, error: 'Elegí el vehículo con el que vas a trabajar.' });
+    }
+    const vehiculo = await consultar('SELECT id FROM vehiculos WHERE id = $1', [vehiculoId]);
+    if (vehiculo.rowCount === 0) {
+        return res.status(400).json({ exito: false, error: 'El vehículo seleccionado no pertenece a la flota.' });
     }
 
     const dniUsado = await consultar('SELECT 1 FROM choferes WHERE dni = $1', [dni]);
@@ -106,11 +115,11 @@ rutasChoferes.post('/postulacion', autenticar, exigirRol('cliente'), async (req,
             `INSERT INTO choferes
                  (codigo, usuario_id, nombre_completo, email, telefono, domicilio, dni,
                   escaneo_facial_ok, verificacion_renaper, renaper_modo, metodo_verificacion,
-                  selfie_path, dni_frente_path, liveness_ok, face_match_score, verificado_en)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'aprobada', $9, $10, $11, $12, $13, $14, now())`,
+                  selfie_path, dni_frente_path, liveness_ok, face_match_score, vehiculo_id, verificado_en)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'aprobada', $9, $10, $11, $12, $13, $14, $15, now())`,
             [codigo, req.usuario.id, nombreCompleto, email, telefono, domicilio, dni,
              escaneoFacialOk, verificacion.modo === 'real' ? 'real' : 'simulado',
-             verificacion.modo, selfiePath, dniFrentePath, livenessOk, faceMatchScore]
+             verificacion.modo, selfiePath, dniFrentePath, livenessOk, faceMatchScore, vehiculoId]
         );
 
         const actualizado = await cliente.query(

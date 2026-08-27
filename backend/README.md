@@ -18,7 +18,7 @@ El esquema (`src/db/schema.sql`) persiste el circuito completo:
 | `cotizaciones`   | Cada cotización emitida por Boxy (snapshot completo en JSONB).           |
 | `envios`         | Pedido confirmado: estado `pendiente → asignado → en_viaje → entregado`. |
 | `envio_eventos`  | Línea de tiempo del seguimiento (un evento por hito).                    |
-| `asignaciones`   | Ofertas de viaje a choferes y su ciclo (ofrecida/aceptada/…).            |
+| `asignaciones`   | Viajes tomados por cada chofer y su ciclo (aceptada/completada/…).       |
 | `cupones`        | Cupones de compensación emitidos al exceder el SLA.                      |
 
 ## Requisitos
@@ -131,11 +131,12 @@ URL JDBC: `jdbc:postgresql://aws-0-<region>.pooler.supabase.com:5432/postgres?ss
 | GET    | `/api/envios/metricas`            | KPIs del panel (total, en viaje, entregados, …)      |
 | GET    | `/api/envios/:codigo`             | Detalle del envío + línea de tiempo de seguimiento   |
 | POST   | `/api/envios/:codigo/eventos`     | Agrega evento de seguimiento y transiciona el estado |
-| POST   | `/api/asignaciones`               | Registra una oferta de viaje para el chofer          |
-| POST   | `/api/asignaciones/:codigo/aceptar`   | El chofer acepta la oferta                        |
-| POST   | `/api/asignaciones/:codigo/rechazar`  | El chofer rechaza la oferta                       |
-| POST   | `/api/asignaciones/:codigo/completar` | Cierra el viaje del chofer                        |
+| GET    | `/api/asignaciones/disponibles`   | Envíos pagados que el chofer puede tomar (marketplace) |
+| POST   | `/api/asignaciones/:codigoEnvio/tomar` | El chofer toma un envío (asignación atómica)    |
+| GET    | `/api/asignaciones/activa`        | Viaje en curso del chofer                            |
+| POST   | `/api/asignaciones/:codigo/completar` | Cierra el viaje y marca el envío entregado       |
 | GET    | `/api/asignaciones`               | Historial de asignaciones del chofer                 |
+| GET    | `/api/vehiculos`                  | Catálogo de la flota (para elegir en la postulación) |
 | GET    | `/api/cupones`                    | Cupones de compensación del cliente                  |
 | POST   | `/api/cupones`                    | Emite un cupón (p. ej. por SLA excedido)             |
 | POST   | `/api/pagos/checkout`             | Inicia el pago por QR/deeplink (Mercado Pago o MODO) |
@@ -145,6 +146,26 @@ URL JDBC: `jdbc:postgresql://aws-0-<region>.pooler.supabase.com:5432/postgres?ss
 | GET    | `/api/pagos`                      | Pagos del cliente (`?envio=` opcional; admin: todos) |
 | POST   | `/api/pagos/webhook/mercadopago`  | Webhook de Mercado Pago (sin auth)                   |
 | GET    | `/api/perfil/resumen`             | Resumen de la cuenta para la pantalla de Perfil      |
+
+## Asignación de envíos (marketplace)
+
+El circuito replica el modelo de las apps de movilidad: **el envío se publica para
+la flota y el primer chofer que lo toma se lo lleva**.
+
+1. El cliente confirma y **paga** el envío (`estado_pago = 'pagado'`, sin chofer).
+2. El envío aparece en `GET /api/asignaciones/disponibles` **solo para los choferes
+   cuyo vehículo soporta la carga** (se comparan `peso_kg` y `bultos` contra el
+   `max_kg` / `max_bultos` de la unidad declarada en la postulación).
+3. El chofer lo toma con `POST /api/asignaciones/:codigoEnvio/tomar`.
+4. El envío queda con el chofer real (`chofer_id`, `chofer_nombre`), pasa a
+   `asignado` y se registra el evento en la línea de tiempo que ve el cliente.
+5. El chofer avanza los estados (`chofer_en_camino` → `retirado`) y cierra con
+   `completar`, que marca el envío como `entregado`.
+
+**Concurrencia:** dos choferes pueden intentar tomar el mismo envío a la vez. La
+toma se resuelve con un `UPDATE ... WHERE chofer_id IS NULL` **condicional y
+atómico** dentro de una transacción: exactamente uno gana y el resto recibe `409`.
+No hace falta bloqueo explícito ni cola externa.
 
 ## Roles
 

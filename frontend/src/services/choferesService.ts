@@ -6,6 +6,7 @@ export interface DatosPostulacion {
     telefono: string;
     domicilio: string;
     dni: string;
+    vehiculoId: string;
     escaneoFacialOk: boolean;
     dniEscaneado?: string;
     selfieBase64?: string | null;
