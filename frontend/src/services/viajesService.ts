@@ -36,5 +36,5 @@ function mapearEnvio(e: Envio): Viaje {
 
 export const obtenerViajesActivos = async (): Promise<Viaje[]> => {
     const envios = await listarEnvios();
-    return envios.map(mapearEnvio);
+    return envios.filter((e) => e.estadoPago === 'pagado').map(mapearEnvio);
 };

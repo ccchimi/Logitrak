@@ -75,15 +75,22 @@ export default function HomeScreen({ navigation, route }: any) {
 
   useEffect(() => {
     let activo = true;
-    obtenerViajesActivos().then((datos) => {
-      if (!activo) return;
-      setViajes(datos);
-      setCargando(false);
-    });
+
+    const cargarViajes = () => {
+      obtenerViajesActivos().then((datos) => {
+        if (!activo) return;
+        setViajes(datos);
+        setCargando(false);
+      });
+    };
+
+    cargarViajes();
+    const unsubscribe = navigation.addListener('focus', cargarViajes);
     return () => {
       activo = false;
+      unsubscribe();
     };
-  }, []);
+  }, [navigation]);
 
   const metricas = useMemo(() => {
     const total = viajes.length;

@@ -2,6 +2,8 @@ import { llamarApi } from './api';
 
 export type EstadoEnvio = 'pendiente' | 'asignado' | 'en_viaje' | 'entregado' | 'cancelado';
 
+export type EstadoPago = 'pendiente' | 'pagado' | 'rechazado';
+
 export type TipoEventoEnvio =
     | 'creado'
     | 'asignado'
@@ -35,6 +37,7 @@ export interface Envio {
     precio: number;
     moneda: string;
     estado: EstadoEnvio;
+    estadoPago: EstadoPago;
     slaMin: number | null;
     slaVenceEn: string | null;
     creadoEn: string;
