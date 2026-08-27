@@ -48,6 +48,7 @@ function publicar(fila) {
         precio: num(fila.precio),
         moneda: fila.moneda,
         estado: fila.estado,
+        estadoPago: fila.estado_pago,
         slaMin: fila.sla_min,
         slaVenceEn: fila.sla_vence_en,
         creadoEn: fila.creado_en,
