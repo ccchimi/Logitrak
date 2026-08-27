@@ -124,6 +124,8 @@ const formatearARS = (monto: number) => `$${Math.abs(monto).toLocaleString('es-A
 export default function SolicitudEnvioScreen({ navigation }: any) {
     const scrollRef = useRef<ScrollView | null>(null);
     const startedRef = useRef(false);
+    const solicitoEnvioRef = useRef(false);
+    const enviandoRef = useRef(false);
     const typingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     const pulseValue = useRef(new Animated.Value(0)).current;
@@ -495,14 +497,15 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
     };
 
     const confirmarYSolicitar = async (resultado: Cotizacion) => {
-        if (confirmando) return;
+        if (enviandoRef.current) return;
+        enviandoRef.current = true;
         setConfirmando(true);
 
         const envio = await crearEnvio({
             cotizacionCodigo: resultado.id,
             origen: resultado.origen.textoNormalizado || resultado.origen.textoOriginal,
             destino: resultado.destino.textoNormalizado || resultado.destino.textoOriginal,
-            origenLat: resultado.origen.localidad?.lat ?? null,
+            origenLat:resultado.origen.localidad?.lat ?? null, 
             origenLng: resultado.origen.localidad?.lng ?? null,
             destinoLat: resultado.destino.localidad?.lat ?? null,
             destinoLng: resultado.destino.localidad?.lng ?? null,
@@ -518,11 +521,9 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
             slaMin: SLA_ENVIO_MIN,
         });
 
-        setConfirmando(false);
-
         const seguimiento = {
             envioCodigo: envio?.codigo ?? null,
-            origen: resultado.origen.textoNormalizado,
+            origen:resultado.origen.textoNormalizado,
             destino: resultado.destino.textoNormalizado,
             producto: resultado.carga.descripcion,
             vehiculo: resultado.vehiculo.nombre,
@@ -531,12 +532,15 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
         };
 
         if (!envio?.codigo) {
-            navigation.navigate('Seguimiento', seguimiento);
+            setConfirmando(false);
+            enviandoRef.current = false;
             return;
         }
 
+        solicitoEnvioRef.current = true;
+        setConfirmando(false);
         navigation.navigate('Pago', {
-            envioCodigo: envio.codigo,
+            envioCodigo: envio.codigo, 
             monto: resultado.precio,
             moneda: resultado.moneda,
             seguimiento,
@@ -562,6 +566,17 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
         void typeBotMessage(CHAT_STEPS[0].question);
     };
 
+    useEffect(() => {
+        const unsubscribe = navigation.addListener('focus', () => {
+            if (solicitoEnvioRef.current) {
+                solicitoEnvioRef.current = false;
+                resetChat();
+            }
+        });
+
+        return unsubscribe;
+    }, [navigation]); 
+    
     const renderBoxyAvatar = () => (
         <View style={styles.boxyLogoWrapper}>
             <Animated.View
