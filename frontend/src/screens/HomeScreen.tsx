@@ -114,12 +114,27 @@ export default function HomeScreen({ navigation, route }: any) {
     [viajes]
   );
 
-  const rutaVivo = useMemo(() => {
-    if (!viajeVivo) return null;
-    const partes = viajeVivo.destino.split('→').map((s) => s.trim());
+  const partirRuta = (texto: string) => {
+    const partes = texto.split('→').map((s) => s.trim());
     if (partes.length < 2 || !partes[0] || !partes[1]) return null;
     return { origen: partes[0], destino: partes[1] };
-  }, [viajeVivo]);
+  };
+
+  const rutaVivo = useMemo(
+    () => (viajeVivo ? partirRuta(viajeVivo.destino) : null),
+    [viajeVivo]
+  );
+
+  const abrirSeguimiento = (viaje: Viaje) => {
+    const ruta = partirRuta(viaje.destino);
+    navigation.navigate('Seguimiento', {
+      envioCodigo: viaje.codigo,
+      referencia: viaje.codigo,
+      origen: ruta?.origen,
+      destino: ruta?.destino,
+      vehiculo: viaje.vehiculo ?? undefined,
+    });
+  };
 
   const esWeb = Platform.OS === 'web';
 
@@ -162,7 +177,8 @@ export default function HomeScreen({ navigation, route }: any) {
             key={item.ruta}
             style={[styles.navItem, activo && styles.navItemActive]}
             onPress={() => irA(item.ruta)}
-          >            <Text style={[styles.navLabel, activo && styles.navLabelActive]}>
+          >
+            <Text style={[styles.navLabel, activo && styles.navLabelActive]}>
               {item.label}
             </Text>
           </TouchableOpacity>
@@ -342,7 +358,7 @@ export default function HomeScreen({ navigation, route }: any) {
         ) : (
           viajesFiltrados.map((item) => (
             <View key={item.id} style={[styles.cell, { width: anchoTarjeta ?? '100%' }]}>
-              <TarjetaViaje viaje={item} />
+              <TarjetaViaje viaje={item} onPress={() => abrirSeguimiento(item)} />
             </View>
           ))
         )}

@@ -1,12 +1,13 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Viaje } from '../services/viajesService';
 
 interface TarjetaProps {
     viaje: Viaje;
+    onPress?: () => void;
 }
 
-export default function TarjetaViaje({ viaje }: TarjetaProps) {
+export default function TarjetaViaje({ viaje, onPress }: TarjetaProps) {
     const obtenerColorEstado = (estado: string) => {
         switch (estado) {
             case 'En Viaje':
@@ -20,7 +21,7 @@ export default function TarjetaViaje({ viaje }: TarjetaProps) {
         }
     };
 
-    return (
+    const contenido = (
         <View style={styles.card}>
             <View style={styles.header}>
                 <View style={styles.headerTopRow}>
@@ -83,11 +84,59 @@ export default function TarjetaViaje({ viaje }: TarjetaProps) {
                     </View>
                 ) : null}
             </View>
+
+            {onPress ? (
+                <View style={styles.verMapaRow}>
+                    <Text style={styles.verMapaText}>Ver seguimiento en el mapa</Text>
+                    <Text style={styles.verMapaArrow}>→</Text>
+                </View>
+            ) : null}
         </View>
+    );
+
+    if (!onPress) return contenido;
+
+    return (
+        <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={onPress}
+            style={styles.pressable}
+            accessibilityRole="button"
+            accessibilityLabel={`Ver el seguimiento del envío ${viaje.codigo} en el mapa`}
+        >
+            {contenido}
+        </TouchableOpacity>
     );
 }
 
 const styles = StyleSheet.create({
+    pressable: {
+        flex: 1,
+    },
+
+    verMapaRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginTop: 16,
+        paddingTop: 14,
+        borderTopWidth: 1,
+        borderTopColor: 'rgba(255, 255, 255, 0.08)',
+    },
+
+    verMapaText: {
+        fontSize: 13,
+        color: '#FFD700',
+        fontWeight: '700',
+        fontFamily: 'DMSans_700Bold',
+    },
+
+    verMapaArrow: {
+        fontSize: 15,
+        color: '#FFD700',
+        fontWeight: '900',
+    },
+
     card: {
         flex: 1,
         backgroundColor: '#161616',
