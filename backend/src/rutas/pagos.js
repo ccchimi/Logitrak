@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { consultar, pool } from '../db/pool.js';
 import { autenticar } from '../middleware/auth.js';
 import { generarQrDataUrl } from '../servicios/pagos/qr.js';
-import { mpHabilitado, crearPreferenciaMp, consultarPagoMp } from '../servicios/pagos/mercadoPago.js';
+import { mpHabilitado, crearPreferenciaMp, consultarPagoMp, buscarPagoMpPorReferencia } from '../servicios/pagos/mercadoPago.js';
 import { modoHabilitado, crearIntencionModo, consultarIntencionModo } from '../servicios/pagos/modo.js';
 import { procesarTarjeta } from '../servicios/pagos/tarjeta.js';
 
@@ -249,15 +249,25 @@ rutasPagos.get('/:codigo', autenticar, async (req, res) => {
     }
 
     if (pago.estado === 'pendiente' && pago.modo_proc === 'real' &&
-        pago.metodo === 'mercadopago' && pago.pago_ext_id) {
-        const mp = await consultarPagoMp(pago.pago_ext_id).catch(() => null);
+        pago.metodo === 'mercadopago') {
+        // Si el webhook nunca llegó (Render se duerme en el plan Free), buscamos
+        // el pago por external_reference en vez de depender del pago_ext_id.
+        let mp = pago.pago_ext_id ? await consultarPagoMp(pago.pago_ext_id).catch(() => null) : null;
+        if (!mp) mp = await buscarPagoMpPorReferencia(pago.codigo).catch(() => null);
+
         if (mp?.estado === 'approved') {
             const cliente = await pool.connect();
             try {
                 await cliente.query('BEGIN');
-                pago = await aprobarPago(cliente, pago.id, { pagoExtId: pago.pago_ext_id, detalle: mp.raw });
+                pago = await aprobarPago(cliente, pago.id, { pagoExtId: mp.id, detalle: mp.raw });
                 await cliente.query('COMMIT');
             } catch { await cliente.query('ROLLBACK'); } finally { cliente.release(); }
+        } else if (mp?.id && !pago.pago_ext_id) {
+            const upd = await consultar(
+                `UPDATE pagos SET pago_ext_id = $2, actualizado_en = now() WHERE id = $1 RETURNING *`,
+                [pago.id, mp.id]
+            );
+            pago = upd.rows[0];
         }
     } else if (pago.estado === 'pendiente' && pago.modo_proc === 'real' &&
         pago.metodo === 'modo' && pago.referencia_ext) {

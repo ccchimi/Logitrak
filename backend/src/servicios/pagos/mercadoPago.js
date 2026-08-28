@@ -60,12 +60,44 @@ export async function consultarPagoMp(pagoExtId) {
         const payment = new Payment(cliente);
         const data = await payment.get({ id: pagoExtId });
         return {
+            id: String(data.id),
             estado: data.status,
             externalReference: data.external_reference,
             raw: data,
         };
     } catch (e) {
         console.error('No se pudo consultar el pago en Mercado Pago:', e.message);
+        return null;
+    }
+}
+
+export async function buscarPagoMpPorReferencia(externalReference) {
+    const cliente = obtenerCliente();
+    if (!cliente || !externalReference) return null;
+
+    try {
+        const payment = new Payment(cliente);
+        const data = await payment.search({
+            options: {
+                external_reference: externalReference,
+                sort: 'date_created',
+                criteria: 'desc',
+                limit: 10,
+            },
+        });
+
+        const resultados = data?.results ?? [];
+        if (!resultados.length) return null;
+
+        const elegido = resultados.find((p) => p.status === 'approved') ?? resultados[0];
+        return {
+            id: String(elegido.id),
+            estado: elegido.status,
+            externalReference: elegido.external_reference,
+            raw: elegido,
+        };
+    } catch (e) {
+        console.error('No se pudo buscar el pago en Mercado Pago:', e.message);
         return null;
     }
 }
