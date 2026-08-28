@@ -209,31 +209,33 @@ el disco se borra en cada despliegue: en producción son obligatorias.
 
 ## Pagos
 
-El cobro sucede una vez que el envío está confirmado. Mercado Pago y MODO son
-integraciones reales que delegan en la pasarela cuando hay credenciales
-cargadas; si no las hay, el checkout por QR cae a un modo sandbox que se aprueba
-desde la aplicación. Cuando el pago se aprueba emitimos un comprobante con el
-formato `COMP-AAAA-NNNNNN` y el envío pasa a `estado_pago = 'pagado'`, que es lo
-que lo habilita a publicarse para la flota.
+El cobro sucede una vez que el envío está confirmado. El método principal es
+Mercado Pago, que es una integración real y delega en la pasarela cuando hay
+credenciales cargadas; si no las hay, el checkout por QR cae a un modo sandbox
+que se aprueba desde la aplicación. Cuando el pago se aprueba emitimos un
+comprobante con el formato `COMP-AAAA-NNNNNN` y el envío pasa a
+`estado_pago = 'pagado'`, que es lo que lo habilita a publicarse para la flota.
 
 Mercado Pago funciona con Checkout Pro a través del SDK oficial: creamos una
 preferencia, devolvemos el `init_point` con su QR y confirmamos por webhook o por
-consulta. Como el QR es interoperable bajo el estándar del BCRA, un usuario de
-MODO puede escanear ese mismo código, lo cual significa que el cobro a través de
-MODO ya funciona aunque la integración directa no esté verificada. Para activarlo
-hace falta `MP_ACCESS_TOKEN` y `PUBLIC_API_URL` apuntando a una URL que Mercado
-Pago pueda alcanzar.
+consulta. El webhook no confía en el aviso que llega: vuelve a pedirle el pago a
+Mercado Pago para verificar el estado antes de aprobar. Para activarlo hace falta
+`MP_ACCESS_TOKEN` y `PUBLIC_API_URL` apuntando a una URL que Mercado Pago pueda
+alcanzar (en producción, la de Render).
 
-La integración directa con MODO usa su API de intención de pago y también
-confirma por webhook o consulta. Se activa con `MODO_API_URL`, `MODO_CLIENT_ID` y
-`MODO_CLIENT_SECRET`. Acá hay una salvedad importante: la documentación de MODO
-está detrás de un convenio de comercio, así que los endpoints y los nombres de
-campo los dedujimos por convención. Por eso el código resuelve las respuestas en
-cascada, probando varios nombres posibles para el token, el deeplink y el
-identificador, y todas las URLs se pueden sobreescribir por variable de entorno
-(`MODO_TOKEN_URL`, `MODO_INTENTION_URL`, `MODO_STATUS_URL` y `MODO_STORE_ID`).
-El día que tengamos la documentación oficial, ajustar la integración es cuestión
-de configuración y no de tocar código.
+Un punto importante para el alcance: como el QR de Mercado Pago es interoperable
+bajo el estándar de Transferencias 3.0 del BCRA, un usuario de MODO puede escanear
+ese mismo código y pagar desde su banco. Es decir, los usuarios de MODO ya quedan
+cubiertos por el QR, sin necesitar una integración aparte.
+
+La integración directa con MODO (deeplink nativo a su app) queda como trabajo a
+futuro. Requiere un convenio de comercio con MODO para acceder a su API, que hoy
+no tenemos, así que la sacamos de la selección de métodos de pago. El servicio
+`servicios/pagos/modo.js` permanece en el código, apagado mientras no haya
+credenciales, y todas sus URLs son configurables por variable de entorno
+(`MODO_API_URL`, `MODO_CLIENT_ID`, `MODO_CLIENT_SECRET`, y opcionalmente
+`MODO_TOKEN_URL`, `MODO_INTENTION_URL`, `MODO_STATUS_URL`, `MODO_STORE_ID`). El
+día que exista el convenio, reactivarla es cuestión de configuración.
 
 El pago con tarjeta, en cambio, es simulado siempre. El procesador valida el
 número por el algoritmo de Luhn, la marca, el vencimiento y el CVV, y guarda

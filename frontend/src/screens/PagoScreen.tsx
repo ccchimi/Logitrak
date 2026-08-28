@@ -194,17 +194,6 @@ export default function PagoScreen({ navigation, route }: any) {
                 <Text style={styles.metodoChevron}>›</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.metodoCard} onPress={() => void elegirQr('modo')} activeOpacity={0.85}>
-                <View style={[styles.metodoIcono, { backgroundColor: 'rgba(123, 92, 255, 0.18)' }]}>
-                    <Text style={styles.metodoIconoTexto}>MD</Text>
-                </View>
-                <View style={styles.metodoTextos}>
-                    <Text style={styles.metodoNombre}>MODO</Text>
-                    <Text style={styles.metodoDetalle}>Escaneá con el celu y pagá desde tu banco</Text>
-                </View>
-                <Text style={styles.metodoChevron}>›</Text>
-            </TouchableOpacity>
-
             <TouchableOpacity style={styles.metodoCard} onPress={() => setMetodo('tarjeta')} activeOpacity={0.85}>
                 <View style={[styles.metodoIcono, { backgroundColor: COLORS.accentSoft }]}>
                     <Text style={styles.metodoIconoTexto}>TC</Text>
