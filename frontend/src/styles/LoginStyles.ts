@@ -332,6 +332,25 @@ export const styles = StyleSheet.create({
     color: COLORS.accent,
   },
 
+  vehiculoChip: {
+    minHeight: 48,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginBottom: 10,
+    justifyContent: 'center',
+  },
+
+  vehiculoChipText: {
+    color: COLORS.muted,
+    fontFamily: FONTS.textMedium,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+
   cuentaChip: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -194,14 +194,14 @@ export default function TrabajaConNosotrosScreen({ navigation }: any) {
               {flota.map((v) => (
                 <TouchableOpacity
                   key={v.id}
-                  style={[styles.rolChip, vehiculoId === v.id && styles.rolChipActive]}
+                  style={[styles.vehiculoChip, vehiculoId === v.id && styles.rolChipActive]}
                   onPress={() => {
                     setVehiculoId(v.id);
                     setError('');
                   }}
                 >
                   <Text
-                    style={[styles.rolChipText, vehiculoId === v.id && styles.rolChipTextActive]}
+                    style={[styles.vehiculoChipText, vehiculoId === v.id && styles.rolChipTextActive]}
                   >
                     {vehiculoId === v.id ? '✓ ' : ''}
                     {v.nombre} · hasta {v.maxKg} kg y {v.maxBultos} bultos
