@@ -20,12 +20,8 @@ Lista de tareas pendientes y limitaciones conocidas al cierre de la sesión.
 
 9. Fallback de polling de Mercado Pago sin webhook, buscando el pago por `external_reference`. Robustez extra para la demo.
 
-10. Integración directa con MODO. Bloqueada por convenio de comercio. Queda a futuro; el QR interoperable ya cubre a los usuarios de MODO.
+10. Backend en Render plan Free: el spin-down por inactividad afecta los webhooks de pago. Para producción, plan pago o keep-alive.
 
-11. Pago con tarjeta real. Requiere certificación PCI-DSS y un adquirente. Fuera de alcance, hoy simulado.
+11. Restringir las claves de Google Maps por package name y SHA-1. Hoy quedan embebidas en el bundle sin restricción.
 
-12. Backend en Render plan Free: el spin-down por inactividad afecta los webhooks de pago. Para producción, plan pago o keep-alive.
-
-13. Restringir las claves de Google Maps por package name y SHA-1. Hoy quedan embebidas en el bundle sin restricción.
-
-14. Verificación de identidad tiers 2 y 3 (liveness y match facial). Funcionan solo con dev build, no en Expo Go ni web. Se activan por variable de entorno.
+12. Verificación de identidad tiers 2 y 3 (liveness y match facial). Funcionan solo con dev build, no en Expo Go ni web. Se activan por variable de entorno.
