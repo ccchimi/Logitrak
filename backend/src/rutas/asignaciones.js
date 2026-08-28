@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { consultar, pool } from '../db/pool.js';
 import { autenticar, exigirRol } from '../middleware/auth.js';
+import { expirarOfertasVencidas } from '../servicios/envios/expiracion.js';
 
 export const rutasAsignaciones = Router();
 
@@ -85,6 +86,7 @@ async function choferDe(usuarioId) {
 }
 
 rutasAsignaciones.get('/disponibles', autenticar, exigirRol('chofer'), async (req, res) => {
+    await expirarOfertasVencidas();
     const chofer = await choferDe(req.usuario.id);
     if (!chofer) {
         return res.status(403).json({ exito: false, error: 'Tu ficha de chofer no está disponible.' });
@@ -100,11 +102,12 @@ rutasAsignaciones.get('/disponibles', autenticar, exigirRol('chofer'), async (re
     const { rows } = await consultar(
         `SELECT e.codigo, e.origen, e.destino, e.distancia_km, e.descripcion_carga,
                 e.categoria_carga, e.peso_kg, e.bultos, e.vehiculo_nombre, e.precio,
-                e.sla_min, e.sla_vence_en, e.creado_en
+                e.sla_min, e.sla_vence_en, e.oferta_vence_en, e.creado_en
          FROM envios e
          WHERE e.chofer_id IS NULL
            AND e.estado = 'pendiente'
            AND e.estado_pago = 'pagado'
+           AND (e.oferta_vence_en IS NULL OR e.oferta_vence_en > now())
            AND (e.peso_kg IS NULL OR e.peso_kg <= $1)
            AND (e.bultos IS NULL OR e.bultos <= $2)
          ORDER BY e.creado_en ASC
@@ -141,6 +144,7 @@ rutasAsignaciones.post('/:codigoEnvio/tomar', autenticar, exigirRol('chofer'), a
                AND chofer_id IS NULL
                AND estado = 'pendiente'
                AND estado_pago = 'pagado'
+               AND (oferta_vence_en IS NULL OR oferta_vence_en > now())
                AND (peso_kg IS NULL OR peso_kg <= $4)
                AND (bultos IS NULL OR bultos <= $5)
              RETURNING *`,
@@ -150,7 +154,9 @@ rutasAsignaciones.post('/:codigoEnvio/tomar', autenticar, exigirRol('chofer'), a
         if (tomado.rowCount === 0) {
             await cliente.query('ROLLBACK');
             const { rows } = await consultar(
-                'SELECT chofer_id, estado, estado_pago, peso_kg, bultos FROM envios WHERE codigo = $1',
+                `SELECT chofer_id, estado, estado_pago, peso_kg, bultos,
+                        (oferta_vence_en IS NOT NULL AND oferta_vence_en <= now()) AS oferta_vencida
+                 FROM envios WHERE codigo = $1`,
                 [codigoEnvio]
             );
             if (rows.length === 0) {
@@ -162,6 +168,9 @@ rutasAsignaciones.post('/:codigoEnvio/tomar', autenticar, exigirRol('chofer'), a
             }
             if (e.estado_pago !== 'pagado') {
                 return res.status(409).json({ exito: false, error: 'El envío todavía no está pagado.' });
+            }
+            if (e.oferta_vencida) {
+                return res.status(409).json({ exito: false, error: 'La oferta venció: el envío se canceló y se le devolvió el importe al cliente.' });
             }
             if (e.estado !== 'pendiente') {
                 return res.status(409).json({ exito: false, error: 'El envío ya no está disponible.' });

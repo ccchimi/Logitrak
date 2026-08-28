@@ -5,6 +5,7 @@ import { generarQrDataUrl } from '../servicios/pagos/qr.js';
 import { mpHabilitado, crearPreferenciaMp, consultarPagoMp, buscarPagoMpPorReferencia } from '../servicios/pagos/mercadoPago.js';
 import { modoHabilitado, crearIntencionModo, consultarIntencionModo } from '../servicios/pagos/modo.js';
 import { procesarTarjeta } from '../servicios/pagos/tarjeta.js';
+import { MINUTOS_ESPERA_CHOFER } from '../servicios/envios/expiracion.js';
 
 export const rutasPagos = Router();
 
@@ -61,9 +62,16 @@ async function aprobarPago(cliente, pagoId, extra = {}) {
         [pagoId, extra.pagoExtId ?? null, extra.detalle ? JSON.stringify(extra.detalle) : null]
     );
     const pago = rows[0];
+    // Recién con el pago aprobado el envío se ofrece a los choferes, así que es
+    // acá donde arranca la ventana de espera. COALESCE para que un segundo
+    // aviso de la pasarela no reinicie el reloj.
     await cliente.query(
-        `UPDATE envios SET estado_pago = 'pagado', actualizado_en = now() WHERE id = $1`,
-        [pago.envio_id]
+        `UPDATE envios
+         SET estado_pago = 'pagado',
+             oferta_vence_en = COALESCE(oferta_vence_en, now() + make_interval(mins => $2::int)),
+             actualizado_en = now()
+         WHERE id = $1`,
+        [pago.envio_id, MINUTOS_ESPERA_CHOFER]
     );
     return pago;
 }

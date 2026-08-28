@@ -1,4 +1,4 @@
-import { MercadoPagoConfig, Preference, Payment } from 'mercadopago';
+import { MercadoPagoConfig, Preference, Payment, PaymentRefund } from 'mercadopago';
 
 let clienteMp = null;
 
@@ -99,5 +99,24 @@ export async function buscarPagoMpPorReferencia(externalReference) {
     } catch (e) {
         console.error('No se pudo buscar el pago en Mercado Pago:', e.message);
         return null;
+    }
+}
+
+// Reembolso total del pago. Devuelve true si Mercado Pago lo aceptó, o si el
+// pago ya figuraba reembolsado de antes (para que reintentar sea inocuo).
+export async function reembolsarPagoMp(pagoExtId) {
+    const cliente = obtenerCliente();
+    if (!cliente || !pagoExtId) return false;
+
+    try {
+        const refund = new PaymentRefund(cliente);
+        await refund.create({ payment_id: pagoExtId, body: {} });
+        return true;
+    } catch (e) {
+        const estado = await consultarPagoMp(pagoExtId).catch(() => null);
+        if (estado?.estado === 'refunded') return true;
+
+        console.error('No se pudo reembolsar el pago en Mercado Pago:', e.message);
+        return false;
     }
 }

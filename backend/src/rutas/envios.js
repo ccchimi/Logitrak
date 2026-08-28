@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { consultar, pool } from '../db/pool.js';
 import { autenticar } from '../middleware/auth.js';
+import { expirarOfertasVencidas } from '../servicios/envios/expiracion.js';
 
 export const rutasEnvios = Router();
 
@@ -65,6 +66,7 @@ function publicar(fila) {
         estadoPago: fila.estado_pago,
         slaMin: fila.sla_min,
         slaVenceEn: fila.sla_vence_en,
+        ofertaVenceEn: fila.oferta_vence_en ?? null,
         creadoEn: fila.creado_en,
         actualizadoEn: fila.actualizado_en,
         entregadoEn: fila.entregado_en,
@@ -155,6 +157,7 @@ rutasEnvios.post('/', autenticar, async (req, res) => {
 });
 
 rutasEnvios.get('/metricas', autenticar, async (req, res) => {
+    await expirarOfertasVencidas();
     const esAdmin = req.usuario.rol === 'admin';
     const choferId = esAdmin ? null : await choferIdDe(req.usuario.id);
 
@@ -195,6 +198,7 @@ rutasEnvios.get('/metricas', autenticar, async (req, res) => {
 });
 
 rutasEnvios.get('/', autenticar, async (req, res) => {
+    await expirarOfertasVencidas();
     const esAdmin = req.usuario.rol === 'admin';
     const choferId = esAdmin ? null : await choferIdDe(req.usuario.id);
 
@@ -224,6 +228,7 @@ rutasEnvios.get('/', autenticar, async (req, res) => {
 });
 
 rutasEnvios.get('/:codigo', autenticar, async (req, res) => {
+    await expirarOfertasVencidas();
     const { rows } = await consultar(`${SELECT_ENVIO} WHERE e.codigo = $1`, [req.params.codigo]);
     const envio = rows[0];
     if (!envio) {

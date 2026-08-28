@@ -246,3 +246,29 @@ CREATE INDEX IF NOT EXISTS idx_envios_disponibles
     WHERE chofer_id IS NULL;
 
 CREATE INDEX IF NOT EXISTS idx_asignaciones_envio ON asignaciones (envio_id);
+
+-- ---------------------------------------------------------------------------
+-- Expiración de la oferta: si ningún chofer toma el envío dentro de la ventana,
+-- se cancela y se reembolsa. El reloj arranca cuando el pago queda aprobado,
+-- no cuando se crea el envío (el cliente puede tardar en pagar).
+-- ---------------------------------------------------------------------------
+ALTER TABLE envios ADD COLUMN IF NOT EXISTS oferta_vence_en TIMESTAMPTZ;
+
+-- 'reembolsado' no entra en VARCHAR(10), así que ampliamos la columna antes de
+-- tocar el CHECK. Los ALTER de constraint van con DROP + ADD porque
+-- "ADD COLUMN IF NOT EXISTS ... CHECK" no reescribe el CHECK si la columna ya existe.
+ALTER TABLE envios ALTER COLUMN estado_pago TYPE VARCHAR(12);
+
+ALTER TABLE envios DROP CONSTRAINT IF EXISTS envios_estado_pago_check;
+ALTER TABLE envios ADD CONSTRAINT envios_estado_pago_check
+    CHECK (estado_pago IN ('pendiente', 'pagado', 'rechazado', 'reembolsado'));
+
+ALTER TABLE pagos ADD COLUMN IF NOT EXISTS reembolsado_en TIMESTAMPTZ;
+
+ALTER TABLE pagos DROP CONSTRAINT IF EXISTS pagos_estado_check;
+ALTER TABLE pagos ADD CONSTRAINT pagos_estado_check
+    CHECK (estado IN ('pendiente', 'aprobado', 'rechazado', 'cancelado', 'expirado', 'reembolsado'));
+
+CREATE INDEX IF NOT EXISTS idx_envios_oferta_vencida
+    ON envios (oferta_vence_en)
+    WHERE chofer_id IS NULL AND estado = 'pendiente';
