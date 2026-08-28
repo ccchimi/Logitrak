@@ -69,7 +69,8 @@ export default function RecuperarScreen({ navigation }: any) {
   const campoContrasena = (
     label: string,
     placeholder: string,
-    onChange: (texto: string) => void
+    onChange: (texto: string) => void,
+    alEnviar?: () => void
   ) => (
     <View style={styles.formGroup}>
       <Text style={styles.label}>{label}</Text>
@@ -85,8 +86,10 @@ export default function RecuperarScreen({ navigation }: any) {
           autoComplete="off"
           importantForAutofill="noExcludeDescendants"
           textContentType="none"
-          returnKeyType="done"
+          returnKeyType={alEnviar ? 'go' : 'next'}
           disableFullscreenUI
+          blurOnSubmit={Boolean(alEnviar)}
+          onSubmitEditing={alEnviar}
           onChangeText={onChange}
         />
       </View>
@@ -163,8 +166,9 @@ export default function RecuperarScreen({ navigation }: any) {
                       autoComplete="off"
                       importantForAutofill="noExcludeDescendants"
                       textContentType="none"
-                      returnKeyType="done"
+                      returnKeyType="go"
                       disableFullscreenUI
+                      onSubmitEditing={() => void manejarBusqueda()}
                       onChangeText={(texto) => {
                         usuarioRef.current = texto;
                       }}
@@ -202,7 +206,7 @@ export default function RecuperarScreen({ navigation }: any) {
                 </View>
 
                 {campoContrasena('Nueva contraseña', 'Mínimo 8 caracteres', (t) => { nuevaRef.current = t; })}
-                {campoContrasena('Confirmar contraseña', 'Repetí la contraseña', (t) => { confirmacionRef.current = t; })}
+                {campoContrasena('Confirmar contraseña', 'Repetí la contraseña', (t) => { confirmacionRef.current = t; }, () => void manejarRestablecer())}
 
                 <TouchableOpacity
                   activeOpacity={0.85}

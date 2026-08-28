@@ -18,6 +18,7 @@ import { iniciarSesion } from '../services/authService';
 export default function LoginScreens({ navigation }: any) {
   const usuarioRef = useRef('');
   const contrasenaRef = useRef('');
+  const campoContrasenaRef = useRef<TextInput | null>(null);
 
   const { width } = useWindowDimensions();
   const { circulo, caja } = tamanosAuth(width);
@@ -104,8 +105,10 @@ export default function LoginScreens({ navigation }: any) {
                 autoComplete="off"
                 importantForAutofill="noExcludeDescendants"
                 textContentType="none"
-                returnKeyType="done"
+                returnKeyType="next"
                 disableFullscreenUI
+                blurOnSubmit={false}
+                onSubmitEditing={() => campoContrasenaRef.current?.focus()}
                 onChangeText={(texto) => {
                   usuarioRef.current = texto;
                 }}
@@ -118,6 +121,7 @@ export default function LoginScreens({ navigation }: any) {
 
             <View style={styles.inputContainer}>
               <TextInput
+                ref={campoContrasenaRef}
                 style={styles.input}
                 placeholder="Contraseña"
                 placeholderTextColor="rgba(255,255,255,0.35)"
@@ -127,8 +131,9 @@ export default function LoginScreens({ navigation }: any) {
                 autoComplete="off"
                 importantForAutofill="noExcludeDescendants"
                 textContentType="none"
-                returnKeyType="done"
+                returnKeyType="go"
                 disableFullscreenUI
+                onSubmitEditing={() => void manejarIngreso()}
                 onChangeText={(texto) => {
                   contrasenaRef.current = texto;
                 }}

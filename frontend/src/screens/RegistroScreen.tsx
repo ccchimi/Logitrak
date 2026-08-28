@@ -55,7 +55,8 @@ export default function RegistroScreen({ navigation }: any) {
     label: string,
     placeholder: string,
     onChange: (texto: string) => void,
-    seguro = false
+    seguro = false,
+    alEnviar?: () => void
   ) => (
     <View style={styles.formGroup}>
       <Text style={styles.label}>{label}</Text>
@@ -71,8 +72,10 @@ export default function RegistroScreen({ navigation }: any) {
           autoComplete="off"
           importantForAutofill="noExcludeDescendants"
           textContentType="none"
-          returnKeyType="done"
+          returnKeyType={alEnviar ? 'go' : 'next'}
           disableFullscreenUI
+          blurOnSubmit={Boolean(alEnviar)}
+          onSubmitEditing={alEnviar}
           onChangeText={onChange}
         />
       </View>
@@ -136,7 +139,7 @@ export default function RegistroScreen({ navigation }: any) {
             {campoTexto('Usuario / Legajo', 'Ej: lmendez', (t) => { usuarioRef.current = t; })}
 
             {campoTexto('Contraseña', 'Mínimo 8 caracteres', (t) => { contrasenaRef.current = t; }, true)}
-            {campoTexto('Confirmar contraseña', 'Repetí la contraseña', (t) => { confirmacionRef.current = t; }, true)}
+            {campoTexto('Confirmar contraseña', 'Repetí la contraseña', (t) => { confirmacionRef.current = t; }, true, () => void manejarRegistro())}
 
             <TouchableOpacity
               activeOpacity={0.85}
