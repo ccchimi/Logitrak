@@ -30,7 +30,7 @@ const SLA_TOTAL_SEG = 1200;
 const ETAPAS = [
     {
         titulo: 'Buscando transportista',
-        detalle: 'Tu envío está publicado en la red logitrak. Un chofer va a tomarlo en breve.',
+        detalle: 'El envío ya está publicado y esperamos que un chofer lo tome.',
     },
     {
         titulo: 'Chofer en camino al retiro',
@@ -38,11 +38,11 @@ const ETAPAS = [
     },
     {
         titulo: 'Paquete en viaje al destino',
-        detalle: 'Tu carga viaja protegida con seguimiento satelital de punta a punta.',
+        detalle: 'La carga está en ruta y podés seguirla en el mapa.',
     },
     {
         titulo: 'Envío entregado',
-        detalle: 'La carga fue entregada en el destino. ¡Gracias por elegir logitrak!',
+        detalle: 'La carga se entregó en el destino.',
     },
 ];
 
@@ -286,7 +286,7 @@ export default function SeguimientoScreen({ navigation, route }: any) {
                 ) : (
                     <View style={styles.estadoMapa}>
                         <Text style={styles.estadoMapaError}>
-                            ⚠️ {geoError ?? 'No se pudieron ubicar las direcciones.'}
+                            {geoError ?? 'No se pudieron ubicar las direcciones.'}
                         </Text>
                         <TouchableOpacity style={styles.botonCorregir} onPress={() => navigation.goBack()}>
                             <Text style={styles.botonCorregirTexto}>Volver a corregir la dirección</Text>
@@ -406,7 +406,7 @@ export default function SeguimientoScreen({ navigation, route }: any) {
 
                     <View style={styles.choferCard}>
                         <View style={styles.choferAvatar}>
-                            <Text style={styles.choferAvatarTexto}>{chofer ? '🛵' : '📡'}</Text>
+                            <Text style={styles.choferAvatarTexto}>{chofer ? chofer.charAt(0).toUpperCase() : '-'}</Text>
                         </View>
 
                         <View style={styles.choferTextos}>
@@ -439,7 +439,7 @@ export default function SeguimientoScreen({ navigation, route }: any) {
                         </View>
 
                         <Text style={styles.pedidoProducto}>{producto}</Text>
-                        <Text style={styles.pedidoVehiculo}>🚚 {vehiculo}</Text>
+                        <Text style={styles.pedidoVehiculo}>{vehiculo}</Text>
 
                         <View style={styles.rutaFila}>
                             <View style={styles.rutaDotCol}>

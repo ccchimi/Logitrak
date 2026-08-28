@@ -104,7 +104,7 @@ export default function HistorialScreen({ navigation }: any) {
                             </View>
                         ) : (
                             <View style={{ paddingVertical: 48, alignItems: 'center', paddingHorizontal: 24 }}>
-                                <Text style={{ fontSize: 40, marginBottom: 12 }}>🗂️</Text>
+                                <Text style={{ fontSize: 40, marginBottom: 12 }}>—</Text>
                                 <Text style={[styles.titulo, { fontSize: 18, textAlign: 'center' }]}>
                                     Todavía no hay envíos entregados
                                 </Text>
@@ -132,7 +132,7 @@ export default function HistorialScreen({ navigation }: any) {
 
                             <View style={styles.fila}>
                                 <View style={styles.badgeVehiculo}>
-                                    <Text style={styles.vehiculoTexto}>🤖 Boxy asignó: {item.vehiculoIA}</Text>
+                                    <Text style={styles.vehiculoTexto}>Vehículo asignado: {item.vehiculoIA}</Text>
                                 </View>
                                 <Text style={styles.precio}>{formatearARS(item.precio)}</Text>
                             </View>

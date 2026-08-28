@@ -95,7 +95,7 @@ export default function PerfilScreen({ navigation }: any) {
                 </View>
             </View>
 
-            <Text style={styles.seccionTitulo}>🎟️ Cupones de compensación</Text>
+            <Text style={styles.seccionTitulo}>Cupones de compensación</Text>
             <Text style={styles.seccionSub}>
                 Créditos emitidos automáticamente cuando un envío excede su SLA.
             </Text>

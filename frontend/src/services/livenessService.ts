@@ -17,12 +17,11 @@ export const UMBRALES = {
 export interface MetaGesto {
     gesto: GestoLiveness;
     instruccion: string;
-    icono: string;
 }
 
 export const SECUENCIA_LIVENESS: MetaGesto[] = [
-    { gesto: 'sonrisa', instruccion: 'Sonreí mirando a la cámara', icono: '😄' },
-    { gesto: 'giro', instruccion: 'Girá la cabeza hacia un costado', icono: '↪️' },
+    { gesto: 'sonrisa', instruccion: 'Sonreí mirando a la cámara' },
+    { gesto: 'giro', instruccion: 'Girá la cabeza hacia un costado' },
 ];
 
 export interface ResultadoGesto {

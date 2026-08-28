@@ -54,7 +54,7 @@ export default function TarjetaViaje({ viaje }: TarjetaProps) {
 
             <View style={styles.rutaContainer}>
                 <View style={styles.iconBox}>
-                    <Text style={styles.icon}>📦</Text>
+                    <Text style={styles.icon}>{viaje.codigo.slice(-3)}</Text>
                 </View>
 
                 <View style={styles.rutaInfo}>

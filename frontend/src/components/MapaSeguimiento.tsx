@@ -97,7 +97,7 @@ export default function MapaSeguimiento({ origen, destino, chofer, onEvento }: P
                     rotation={rumbo}
                 >
                     <View style={estilos.coche}>
-                        <Text style={estilos.cocheEmoji}>🚚</Text>
+                        <Text style={estilos.cocheEmoji}>●</Text>
                     </View>
                 </Marker>
             )}

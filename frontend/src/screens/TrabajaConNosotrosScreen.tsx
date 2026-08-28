@@ -103,7 +103,6 @@ export default function TrabajaConNosotrosScreen({ navigation }: any) {
   const campoTexto = (
     label: string,
     placeholder: string,
-    icono: string,
     onChange: (texto: string) => void,
     teclado: 'default' | 'email-address' | 'phone-pad' | 'numeric' = 'default'
   ) => (
@@ -125,8 +124,6 @@ export default function TrabajaConNosotrosScreen({ navigation }: any) {
           disableFullscreenUI
           onChangeText={onChange}
         />
-
-        <Text style={styles.inputIcon}>{icono}</Text>
       </View>
     </View>
   );
@@ -185,11 +182,11 @@ export default function TrabajaConNosotrosScreen({ navigation }: any) {
             {error ? <Text style={styles.errorTexto}>{error}</Text> : null}
             {exito ? <Text style={styles.successTexto}>{exito}</Text> : null}
 
-            {campoTexto('Nombre completo (como figura en el DNI)', 'Ej: Laura Méndez', '👤', (t) => { nombreRef.current = t; })}
-            {campoTexto('Email', 'Ej: laura@mail.com', '✉', (t) => { emailRef.current = t; }, 'email-address')}
-            {campoTexto('Teléfono', 'Ej: 11 5555 6666', '📞', (t) => { telefonoRef.current = t; }, 'phone-pad')}
-            {campoTexto('Domicilio de residencia', 'Calle, número, localidad', '🏠', (t) => { domicilioRef.current = t; })}
-            {campoTexto('DNI (sin puntos)', 'Ej: 34567890', '🪪', (t) => { dniRef.current = t; }, 'numeric')}
+            {campoTexto('Nombre completo (como figura en el DNI)', 'Ej: Laura Méndez', (t) => { nombreRef.current = t; })}
+            {campoTexto('Email', 'Ej: laura@mail.com', (t) => { emailRef.current = t; }, 'email-address')}
+            {campoTexto('Teléfono', 'Ej: 11 5555 6666', (t) => { telefonoRef.current = t; }, 'phone-pad')}
+            {campoTexto('Domicilio de residencia', 'Calle, número, localidad', (t) => { domicilioRef.current = t; })}
+            {campoTexto('DNI (sin puntos)', 'Ej: 34567890', (t) => { dniRef.current = t; }, 'numeric')}
 
             <View style={styles.formGroup}>
               <Text style={styles.label}>¿Con qué vehículo vas a trabajar?</Text>
@@ -222,7 +219,7 @@ export default function TrabajaConNosotrosScreen({ navigation }: any) {
                 disabled={verificado}
               >
                 <Text style={[styles.rolChipText, verificado && styles.rolChipTextActive]}>
-                  {verificado ? '✓ Identidad verificada (DNI + selfie)' : '🪪 Escanear DNI y tomar selfie'}
+                  {verificado ? '✓ Identidad verificada (DNI + selfie)' : 'Escanear DNI y tomar selfie'}
                 </Text>
               </TouchableOpacity>
             </View>

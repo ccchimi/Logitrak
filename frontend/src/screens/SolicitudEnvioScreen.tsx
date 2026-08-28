@@ -323,7 +323,7 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
         bultos: parseInt(data.bultos, 10) || null,
     });
 
-    const procesarEnvioInteligente = async (data: EnvioData) => {
+    const procesarEnvio = async (data: EnvioData) => {
         const thinkingId = addThinkingMessage();
 
         setCargando(true);
@@ -395,7 +395,7 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
             await typeBotMessage(prefacio);
         }
 
-        await procesarEnvioInteligente(nextData);
+        await procesarEnvio(nextData);
     };
 
     const commitRespuesta = async (field: CampoEnvio, valor: string, stepIndex: number, prefacio?: string) => {
@@ -680,7 +680,7 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
             )}
 
             <Text style={styles.resultadoExplicacion}>“{resultado.explicacion}”</Text>
-            <Text style={styles.resultadoSla}>⏱️ {resultado.sla}</Text>
+            <Text style={styles.resultadoSla}>{resultado.sla}</Text>
             <Text style={styles.validezTexto}>
                 Tarifa válida por {resultado.validezMin} minutos · Ref. {resultado.id}
             </Text>

@@ -54,7 +54,6 @@ export default function RegistroScreen({ navigation }: any) {
   const campoTexto = (
     label: string,
     placeholder: string,
-    icono: string,
     onChange: (texto: string) => void,
     seguro = false
   ) => (
@@ -76,8 +75,6 @@ export default function RegistroScreen({ navigation }: any) {
           disableFullscreenUI
           onChangeText={onChange}
         />
-
-        <Text style={styles.inputIcon}>{icono}</Text>
       </View>
     </View>
   );
@@ -135,11 +132,11 @@ export default function RegistroScreen({ navigation }: any) {
             {error ? <Text style={styles.errorTexto}>{error}</Text> : null}
             {exito ? <Text style={styles.successTexto}>{exito}</Text> : null}
 
-            {campoTexto('Nombre completo', 'Ej: Laura Méndez', '👤', (t) => { nombreRef.current = t; })}
-            {campoTexto('Usuario / Legajo', 'Ej: lmendez', '✉', (t) => { usuarioRef.current = t; })}
+            {campoTexto('Nombre completo', 'Ej: Laura Méndez', (t) => { nombreRef.current = t; })}
+            {campoTexto('Usuario / Legajo', 'Ej: lmendez', (t) => { usuarioRef.current = t; })}
 
-            {campoTexto('Contraseña', 'Mínimo 8 caracteres', '🔒', (t) => { contrasenaRef.current = t; }, true)}
-            {campoTexto('Confirmar contraseña', 'Repetí la contraseña', '🔒', (t) => { confirmacionRef.current = t; }, true)}
+            {campoTexto('Contraseña', 'Mínimo 8 caracteres', (t) => { contrasenaRef.current = t; }, true)}
+            {campoTexto('Confirmar contraseña', 'Repetí la contraseña', (t) => { confirmacionRef.current = t; }, true)}
 
             <TouchableOpacity
               activeOpacity={0.85}

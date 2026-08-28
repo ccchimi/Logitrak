@@ -185,7 +185,7 @@ export default function PagoScreen({ navigation, route }: any) {
 
             <TouchableOpacity style={styles.metodoCard} onPress={() => void elegirQr('mercadopago')} activeOpacity={0.85}>
                 <View style={[styles.metodoIcono, { backgroundColor: 'rgba(0, 177, 234, 0.16)' }]}>
-                    <Text style={styles.metodoIconoTexto}>💸</Text>
+                    <Text style={styles.metodoIconoTexto}>MP</Text>
                 </View>
                 <View style={styles.metodoTextos}>
                     <Text style={styles.metodoNombre}>Mercado Pago</Text>
@@ -196,7 +196,7 @@ export default function PagoScreen({ navigation, route }: any) {
 
             <TouchableOpacity style={styles.metodoCard} onPress={() => void elegirQr('modo')} activeOpacity={0.85}>
                 <View style={[styles.metodoIcono, { backgroundColor: 'rgba(123, 92, 255, 0.18)' }]}>
-                    <Text style={styles.metodoIconoTexto}>📲</Text>
+                    <Text style={styles.metodoIconoTexto}>MD</Text>
                 </View>
                 <View style={styles.metodoTextos}>
                     <Text style={styles.metodoNombre}>MODO</Text>
@@ -207,7 +207,7 @@ export default function PagoScreen({ navigation, route }: any) {
 
             <TouchableOpacity style={styles.metodoCard} onPress={() => setMetodo('tarjeta')} activeOpacity={0.85}>
                 <View style={[styles.metodoIcono, { backgroundColor: COLORS.accentSoft }]}>
-                    <Text style={styles.metodoIconoTexto}>💳</Text>
+                    <Text style={styles.metodoIconoTexto}>TC</Text>
                 </View>
                 <View style={styles.metodoTextos}>
                     <Text style={styles.metodoNombre}>Tarjeta de débito/crédito</Text>
@@ -357,7 +357,7 @@ export default function PagoScreen({ navigation, route }: any) {
             </TouchableOpacity>
 
             <Text style={styles.aclaracionSimulado}>
-                🔒 Procesamiento simulado para la demo. No se guarda el número de tarjeta,
+                Procesamiento simulado para la demo. No se guarda el número de tarjeta,
                 solo la marca y los últimos 4 dígitos.
             </Text>
         </View>
@@ -368,7 +368,7 @@ export default function PagoScreen({ navigation, route }: any) {
             <View style={styles.exitoIcono}>
                 <Text style={styles.exitoIconoTexto}>✓</Text>
             </View>
-            <Text style={styles.exitoTitulo}>¡Pago aprobado!</Text>
+            <Text style={styles.exitoTitulo}>Pago aprobado</Text>
             <Text style={styles.exitoSub}>Ya podés seguir tu envío en tiempo real.</Text>
 
             <View style={styles.comprobanteBox}>

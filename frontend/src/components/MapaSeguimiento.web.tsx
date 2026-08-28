@@ -206,10 +206,10 @@ export default function MapaSeguimiento({ origen, destino, chofer, onEvento, com
             });
 
             const infoOrigen = new maps.InfoWindow({
-                content: `<div style="color:#111;font-family:sans-serif;font-size:13px"><b>📦 Retiro</b><br/>${puntoOrigen.etiqueta}</div>`,
+                content: `<div style="color:#111;font-family:sans-serif;font-size:13px"><b>Retiro</b><br/>${puntoOrigen.etiqueta}</div>`,
             });
             const infoDestino = new maps.InfoWindow({
-                content: `<div style="color:#111;font-family:sans-serif;font-size:13px"><b>🏁 Entrega</b><br/>${puntoDestino.etiqueta}</div>`,
+                content: `<div style="color:#111;font-family:sans-serif;font-size:13px"><b>Entrega</b><br/>${puntoDestino.etiqueta}</div>`,
             });
             marcadorOrigen.addListener('click', () => infoOrigen.open({ map: mapa, anchor: marcadorOrigen }));
             marcadorDestino.addListener('click', () => infoDestino.open({ map: mapa, anchor: marcadorDestino }));
@@ -279,7 +279,7 @@ export default function MapaSeguimiento({ origen, destino, chofer, onEvento, com
                     strokeColor: '#FFD700',
                     strokeWeight: 2.5,
                 },
-                label: { text: '🚚', fontSize: '16px' },
+                label: { text: '\u25CF', fontSize: '16px' },
             });
 
             const flecha = new maps.Marker({
@@ -355,14 +355,14 @@ export default function MapaSeguimiento({ origen, destino, chofer, onEvento, com
 
             {estado === 'error' && (
                 <View style={estilos.overlay}>
-                    <Text style={estilos.errorIcono}>🗺️</Text>
+                    <Text style={estilos.errorIcono}>—</Text>
                     <Text style={estilos.errorTitulo}>No pudimos mostrar el mapa</Text>
                     <Text style={estilos.errorTexto}>{mensajeError}</Text>
 
                     <View style={estilos.rutaFallback}>
-                        <Text style={estilos.rutaPunto}>📍 {origen.direccion}</Text>
+                        <Text style={estilos.rutaPunto}>Retiro: {origen.direccion}</Text>
                         <Text style={estilos.rutaFlecha}>↓</Text>
-                        <Text style={estilos.rutaPunto}>🏁 {destino.direccion}</Text>
+                        <Text style={estilos.rutaPunto}>Entrega: {destino.direccion}</Text>
                     </View>
                 </View>
             )}

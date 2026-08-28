@@ -34,29 +34,29 @@ const trustedBy = ['Mercanorte', 'AndesCargo', 'PymeExpress', 'NovaRetail', 'Gru
 
 const features = [
   {
-    icon: '⚡',
+    indice: '01',
     title: 'Entrega express',
     text: 'Disponemos de rutas optimizadas para garantizar la entrega más rápida en cada zona.',
   },
   {
-    icon: '📍',
+    indice: '02',
     title: 'Rastreo en vivo',
     text: 'Seguí tu paquete en tiempo real desde el celular con actualizaciones al instante.',
   },
   {
-    icon: '🔒',
+    indice: '03',
     title: 'Envíos seguros',
     text: 'Cada paquete está asegurado y manejado con protocolos de seguridad estrictos.',
   },
 ];
 
 const solutions = [
-  { icon: '🛵', title: 'Última milla', text: 'Entregas urbanas en el día con flota propia y ruteo dinámico por zona.' },
-  { icon: '🚛', title: 'Cargas FTL / LTL', text: 'Cargas completas o consolidadas a todo el país, con trazabilidad punta a punta.' },
-  { icon: '❄️', title: 'Cadena de frío', text: 'Transporte refrigerado con control y registro de temperatura en tiempo real.' },
-  { icon: '🔁', title: 'Logística inversa', text: 'Gestión de devoluciones y cambios sin fricción para tu cliente final.' },
-  { icon: '🏬', title: 'Cross-docking', text: 'Consolidamos y redistribuimos sin almacenamiento intermedio para ganar tiempo.' },
-  { icon: '🌎', title: 'Comercio exterior', text: 'Importación y exportación con gestión aduanera integrada al envío.' },
+  { indice: '01', title: 'Última milla', text: 'Entregas urbanas en el día con flota propia y ruteo dinámico por zona.' },
+  { indice: '02', title: 'Cargas FTL / LTL', text: 'Cargas completas o consolidadas a todo el país, con seguimiento en cada tramo.' },
+  { indice: '03', title: 'Cadena de frío', text: 'Transporte refrigerado con control y registro de temperatura en tiempo real.' },
+  { indice: '04', title: 'Logística inversa', text: 'Gestionamos devoluciones y cambios para tu cliente final.' },
+  { indice: '05', title: 'Cross-docking', text: 'Consolidamos y redistribuimos sin almacenamiento intermedio para ganar tiempo.' },
+  { indice: '06', title: 'Comercio exterior', text: 'Importación y exportación con gestión aduanera integrada al envío.' },
 ];
 
 const coverageStats = [
@@ -330,7 +330,7 @@ export default function Inicio({ onGoLogin }: InicioProps) {
             ]}
           >
             <View style={styles.inner}>
-              <Text style={styles.heroKicker}>Logística Inteligente</Text>
+              <Text style={styles.heroKicker}>Logística de última milla</Text>
 
               <Text style={[styles.heroTitle, isMobile && styles.heroTitleM]}>
                 Envíos{'\n'}sin <Text style={styles.accentText}>demoras.</Text>
@@ -408,7 +408,7 @@ export default function Inicio({ onGoLogin }: InicioProps) {
                   ]}
                 >
                   <View style={styles.featIcon}>
-                    <Text style={styles.featIconText}>{item.icon}</Text>
+                    <Text style={styles.featIconText}>{item.indice}</Text>
                   </View>
                   <Text style={styles.featTitle}>{item.title}</Text>
                   <Text style={styles.featText}>{item.text}</Text>
@@ -438,7 +438,7 @@ export default function Inicio({ onGoLogin }: InicioProps) {
               {solutions.map((item) => (
                 <View key={item.title} style={[styles.solCard, { width: solWidth }]}>
                   <View style={styles.solIcon}>
-                    <Text style={styles.solIconText}>{item.icon}</Text>
+                    <Text style={styles.solIconText}>{item.indice}</Text>
                   </View>
                   <Text style={styles.solTitle}>{item.title}</Text>
                   <Text style={styles.solText}>{item.text}</Text>
@@ -489,7 +489,7 @@ export default function Inicio({ onGoLogin }: InicioProps) {
                 Llegamos donde tu negocio crece
               </Text>
               <Text style={styles.coverageParagraph}>
-                Red logística de punta a punta del país, conectando grandes
+                Cubrimos el país conectando grandes
                 ciudades y localidades del interior con el mismo estándar.
               </Text>
 
@@ -684,10 +684,10 @@ export default function Inicio({ onGoLogin }: InicioProps) {
 
               <View style={styles.storeButtons}>
                 <TouchableOpacity style={styles.storeButton}>
-                  <Text style={styles.storeButtonText}>🍎 App Store</Text>
+                  <Text style={styles.storeButtonText}>App Store</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.storeButton}>
-                  <Text style={styles.storeButtonText}>▶ Google Play</Text>
+                  <Text style={styles.storeButtonText}>Google Play</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -764,8 +764,7 @@ export default function Inicio({ onGoLogin }: InicioProps) {
                 logitrak<Text style={styles.logoDot}>.</Text>
               </Text>
               <Text style={styles.footerTagline}>
-                Innovación en movimiento. Logística inteligente para empresas que
-                no se detienen.
+                Movemos la logística de empresas que necesitan previsibilidad.
               </Text>
             </View>
 
@@ -806,7 +805,7 @@ export default function Inicio({ onGoLogin }: InicioProps) {
               © 2026 logitrak Systems. Todos los derechos reservados.
             </Text>
             <Text style={styles.footerText}>
-              Hecho en Argentina 🇦🇷
+              Hecho en Argentina
             </Text>
           </View>
         </View>

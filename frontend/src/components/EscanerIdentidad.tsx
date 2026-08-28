@@ -178,7 +178,7 @@ export default function EscanerIdentidad({ visible, nombreCompleto, dni, onCance
         if (!permiso.granted) {
             return (
                 <View style={styles.centro}>
-                    <Text style={styles.icono}>📷</Text>
+                    <Text style={styles.icono}>●</Text>
                     <Text style={styles.titulo}>Necesitamos la cámara</Text>
                     <Text style={styles.subtitulo}>
                         Para verificar tu identidad escaneamos el DNI, sacamos una foto del frente y
@@ -222,12 +222,12 @@ export default function EscanerIdentidad({ visible, nombreCompleto, dni, onCance
                     ) : fase === 'dniFrente' ? (
                         <>
                             <Text style={styles.paso}>Paso 2 de 3</Text>
-                            <Text style={styles.instruccion}>📇  Sacale una foto al FRENTE de tu DNI (donde está tu cara).</Text>
+                            <Text style={styles.instruccion}>Sacale una foto al FRENTE de tu DNI (donde está tu cara).</Text>
                         </>
                     ) : (
                         <>
                             <Text style={styles.paso}>Paso 3 de 3 · Prueba de vida</Text>
-                            <Text style={styles.instruccion}>{gesto.icono}  {gesto.instruccion}</Text>
+                            <Text style={styles.instruccion}>{gesto.instruccion}</Text>
                             <Text style={styles.webHint}>Gesto {gestoIdx + 1} de {SECUENCIA_LIVENESS.length}</Text>
                         </>
                     )}

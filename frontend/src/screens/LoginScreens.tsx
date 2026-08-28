@@ -110,8 +110,6 @@ export default function LoginScreens({ navigation }: any) {
                   usuarioRef.current = texto;
                 }}
               />
-
-              <Text style={styles.inputIcon}>✉</Text>
             </View>
           </View>
 
@@ -135,8 +133,6 @@ export default function LoginScreens({ navigation }: any) {
                   contrasenaRef.current = texto;
                 }}
               />
-
-              <Text style={styles.inputIcon}>🔒</Text>
             </View>
           </View>
 

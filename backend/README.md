@@ -1,262 +1,263 @@
-# Logitrak — Backend
+# Logitrak · Backend
 
-API en Node.js + Express sobre PostgreSQL (Supabase). Maneja autenticación con roles
-(`admin`, `cliente`, `chofer`), postulación a chofer con verificación de
-identidad, auditoría de accesos y **todo el circuito operativo**: cotizaciones,
-envíos, seguimiento, asignaciones a choferes y cupones de compensación.
+API REST en Node.js con Express, montada sobre PostgreSQL. Resuelve la
+autenticación con roles, el alta de choferes con verificación de identidad, la
+auditoría de accesos y todo el circuito operativo: cotizaciones, envíos,
+seguimiento, asignación a choferes, pagos y cupones de compensación.
 
 ## Modelo de datos
 
-El esquema (`src/db/schema.sql`) persiste el circuito completo:
+El esquema completo está en `src/db/schema.sql` y se aplica solo al arrancar, así
+que no manejamos migraciones a mano. Es idempotente: las tablas se crean si no
+existen y las columnas nuevas se agregan con `ALTER TABLE ... IF NOT EXISTS`, de
+modo que un despliegue sobre una base ya poblada no rompe nada.
 
-| Tabla            | Qué guarda                                                               |
-|------------------|--------------------------------------------------------------------------|
-| `usuarios`       | Cuentas y roles (admin / cliente / chofer).                              |
-| `choferes`       | Ficha del chofer + verificación de identidad.                            |
-| `auditoria_accesos` | Cada intento de login (IP, user-agent, resultado).                   |
-| `vehiculos`      | Catálogo de la flota (espeja la FLOTA del bot).                          |
-| `cotizaciones`   | Cada cotización emitida por Boxy (snapshot completo en JSONB).           |
-| `envios`         | Pedido confirmado: estado `pendiente → asignado → en_viaje → entregado`. |
-| `envio_eventos`  | Línea de tiempo del seguimiento (un evento por hito).                    |
-| `asignaciones`   | Viajes tomados por cada chofer y su ciclo (aceptada/completada/…).       |
-| `cupones`        | Cupones de compensación emitidos al exceder el SLA.                      |
+Las cuentas y sus roles viven en `usuarios`, y cuando alguien se convierte en
+chofer se le crea además una ficha en `choferes` con su verificación de identidad
+y el vehículo que declaró. Cada intento de login queda registrado en
+`auditoria_accesos`. La flota disponible está en `vehiculos`, que es la que
+determina qué envíos puede tomar cada chofer.
+
+Del lado operativo, `cotizaciones` guarda cada presupuesto que emite Boxy con su
+snapshot completo en JSONB, y cuando el cliente confirma se crea el `envio`, que
+avanza por los estados `pendiente`, `asignado`, `en_viaje` y `entregado`. Cada
+hito de ese recorrido queda como una fila en `envio_eventos`, que es lo que
+alimenta la línea de tiempo del seguimiento. Los viajes que toma cada chofer se
+registran en `asignaciones`, los cobros en `pagos` y las compensaciones por SLA
+incumplido en `cupones`.
 
 ## Requisitos
 
-- Node.js 20+
-- Acceso al proyecto de **Supabase** del equipo (PostgreSQL gestionado). Todos
-  comparten el mismo proyecto, así que comparten datos. Ver "Base de datos en
-  Supabase".
+Node.js 20 o superior y acceso al proyecto de Supabase del equipo, que es donde
+corre el PostgreSQL. Como todos apuntamos al mismo proyecto, compartimos los
+datos en tiempo real.
 
 ## Cómo correrlo
 
 ```bash
 cd backend
 npm install
-cp .env.example .env   # (Windows PowerShell: copy .env.example .env)
-npm run dev            # con recarga automática (o: npm start)
+cp .env.example .env   # en PowerShell: copy .env.example .env
+npm run dev            # con recarga automática (o npm start)
 ```
 
-**Antes del primer arranque, editá el `.env`** y pegá el `DATABASE_URL` del
-proyecto de Supabase (ver abajo). Sin un `DATABASE_URL` válido, el arranque falla
-al conectar. El archivo está en `.gitignore`, así que tus credenciales no se
-commitean.
+Antes del primer arranque hay que editar el `.env` y pegar el `DATABASE_URL`,
+porque sin una conexión válida el servidor falla al iniciar. Ese archivo está en
+`.gitignore`, así que las credenciales no se versionan.
 
-Al arrancar, el servidor aplica el esquema (`src/db/schema.sql`, idempotente) y
-siembra los 3 administradores y la flota. La API queda en
-`http://localhost:4000` (o el `PORT` que definas).
+Al arrancar, el servidor aplica el esquema y siembra los tres administradores y
+la flota. La API queda escuchando en `http://localhost:4000`, o en el puerto que
+definas con `PORT`.
 
-## Deploy en producción (Render)
+## Conexión a la base
 
-El backend está deployado como **Web Service** en Render
-(`https://logitrak.onrender.com`), con **auto-deploy** desde la rama `main`.
-
-- **Build:** `npm install` · **Start:** `npm start`.
-- Las variables **no** salen del `.env` (que no se versiona): se cargan en el
-  panel del servicio → **Environment**. Ahí van `DATABASE_URL`, `JWT_SECRET`,
-  `PUBLIC_API_URL` (la URL pública de Render) y las tres `SUPABASE_*` de Storage.
-  **No** definas `PORT`: Render lo inyecta.
-- Como el esquema se aplica al arrancar (idempotente), las columnas nuevas se
-  migran solas en el próximo deploy.
-
-> **Plan Free:** la instancia hace *spin down* por inactividad y el primer
-> request puede demorar ~50 s, lo que puede afectar los webhooks de pago. Para
-> producción real, un plan pago (always-on) lo resuelve.
-
-## Base de datos en Supabase
-
-El backend usa un único connection string (`DATABASE_URL`); todo el equipo apunta
-al **mismo proyecto de Supabase**, así que comparten datos en tiempo real.
-
-**1. Conseguir el connection string** (lo hace una persona; el resto lo reutiliza):
-
-En el panel de Supabase → botón **Connect** → pestaña **Connection string** /
-ORMs. Copiá el del **Session pooler** (soporta IPv4 y las conexiones persistentes
-del backend) y reemplazá `[TU-PASSWORD]` por la contraseña de la base del proyecto:
-
-```
-postgresql://postgres.tu-ref:[TU-PASSWORD]@aws-0-<region>.pooler.supabase.com:5432/postgres
-```
-
-**2. Apuntar el `.env`:**
+El backend usa un único connection string. Para obtenerlo hay que entrar al panel
+de Supabase, ir a **Connect** y copiar el de **Session pooler** en formato URI,
+que es el que conviene porque soporta IPv4 y las conexiones persistentes que
+mantiene el pool de `pg`. El usuario tiene la forma `postgres.<ref-del-proyecto>`,
+y hay que reemplazar el marcador de la contraseña por la de la base:
 
 ```ini
-DATABASE_URL=postgresql://postgres.tu-ref:TU-PASSWORD@aws-0-us-east-1.pooler.supabase.com:5432/postgres
+DATABASE_URL=postgresql://postgres.turef:TU-PASSWORD@aws-1-<region>.pooler.supabase.com:5432/postgres
 ```
 
-**3. Inicializar y arrancar:**
+Con eso alcanza para inicializar y levantar:
 
 ```bash
-npm run db:init   # aplica el esquema y siembra admins + flota en Supabase
+npm run db:init   # aplica el esquema y siembra admins y flota
 npm run dev
 ```
 
-No hace falta migrar datos: el esquema y los seeds (admins + flota) se crean
-solos en el primer arranque. El TLS va activo por defecto; si vieras un error de
-certificado del pooler, ya queda destrabado (no se valida el CA salvo que pongas
-`PGSSL_STRICT=true`). Si más adelante tenés datos productivos en otra base, usá
-`pg_dump`/`pg_restore` (o el SQL Editor de Supabase) para volcarlos.
+El TLS va activo por defecto, que es lo que Supabase exige. Si alguna vez
+aparece un error de certificado del pooler no hace falta tocar nada, porque no
+validamos la cadena salvo que definas `PGSSL_STRICT=true`.
 
-## Conexión desde un cliente de base de datos (IntelliJ / DBeaver / VS Code)
+Si querés conectarte desde un cliente como DBeaver o IntelliJ, los datos salen
+del mismo connection string: el host es el del pooler, el puerto 5432, la base
+`postgres` y el SSL es obligatorio (`sslmode=require`).
 
-Usá los datos del connection string del Session pooler de Supabase:
+## Despliegue
 
-| Campo    | Valor                                            |
-|----------|--------------------------------------------------|
-| Host     | `aws-0-<region>.pooler.supabase.com`             |
-| Port     | `5432`                                           |
-| User     | `postgres.tu-ref`                                |
-| Password | la contraseña de la base del proyecto            |
-| Database | `postgres`                                       |
-| SSL/TLS  | requerido (`sslmode=require`)                    |
+El backend corre en Render como Web Service, con despliegue automático desde
+`main`. Instala con `npm install` y arranca con `npm start`.
 
-URL JDBC: `jdbc:postgresql://aws-0-<region>.pooler.supabase.com:5432/postgres?sslmode=require`
+Las variables no salen del `.env`, que no se versiona, sino que se cargan en el
+panel del servicio, en la sección Environment: van ahí `DATABASE_URL`,
+`JWT_SECRET`, `PUBLIC_API_URL` con la URL pública, y las tres variables de
+Supabase Storage. Lo que no hay que definir es `PORT`, porque Render lo inyecta
+solo y fijarlo hace que el servicio no exponga el puerto correcto.
+
+Conviene tener presente que el plan gratuito apaga la instancia cuando no recibe
+tráfico, y el primer pedido después de ese apagado puede tardar unos cincuenta
+segundos. Eso afecta sobre todo a los webhooks de pago, así que para producción
+haría falta un plan que mantenga el servicio activo.
 
 ## Endpoints
 
-| Método | Ruta                              | Descripción                                          |
-|--------|-----------------------------------|------------------------------------------------------|
-| GET    | `/api/salud`                      | Estado del servidor y la base                        |
-| POST   | `/api/auth/login`                 | Inicia sesión, devuelve token + rol                  |
-| POST   | `/api/auth/registro`              | Crea una cuenta (siempre rol `cliente`)              |
-| GET    | `/api/auth/existe/:usuario`       | Indica si existe un usuario                          |
-| POST   | `/api/auth/recuperar`             | Restablece contraseña (no permitido para admins)     |
-| GET    | `/api/auth/perfil`                | Datos del usuario logueado (requiere token)          |
-| POST   | `/api/choferes/postulacion`       | Postula a un cliente como chofer (requiere token)    |
-| GET    | `/api/choferes/:codigo/documentos` | Selfie + frente del DNI (URLs firmadas; solo admin)  |
-| POST   | `/api/cotizaciones`               | Guarda una cotización emitida por Boxy               |
-| GET    | `/api/cotizaciones`               | Lista cotizaciones del usuario (admin: todas)        |
-| POST   | `/api/envios`                     | Confirma una cotización y crea el envío              |
-| GET    | `/api/envios`                     | Lista envíos según rol (`?estado=` opcional)         |
-| GET    | `/api/envios/metricas`            | KPIs del panel (total, en viaje, entregados, …)      |
-| GET    | `/api/envios/:codigo`             | Detalle del envío + línea de tiempo de seguimiento   |
-| POST   | `/api/envios/:codigo/eventos`     | Agrega evento de seguimiento y transiciona el estado |
-| GET    | `/api/asignaciones/disponibles`   | Envíos pagados que el chofer puede tomar (marketplace) |
-| POST   | `/api/asignaciones/:codigoEnvio/tomar` | El chofer toma un envío (asignación atómica)    |
-| GET    | `/api/asignaciones/activa`        | Viaje en curso del chofer                            |
-| POST   | `/api/asignaciones/:codigo/completar` | Cierra el viaje y marca el envío entregado       |
-| GET    | `/api/asignaciones`               | Historial de asignaciones del chofer                 |
-| GET    | `/api/vehiculos`                  | Catálogo de la flota (para elegir en la postulación) |
-| GET    | `/api/cupones`                    | Cupones de compensación del cliente                  |
-| POST   | `/api/cupones`                    | Emite un cupón (p. ej. por SLA excedido)             |
-| POST   | `/api/pagos/checkout`             | Inicia el pago por QR/deeplink (Mercado Pago o MODO) |
-| POST   | `/api/pagos/tarjeta`              | Cobra con tarjeta déb/créd (procesador simulado)     |
-| POST   | `/api/pagos/:codigo/confirmar`    | Confirma un pago sandbox ("ya pagué")                |
-| GET    | `/api/pagos/:codigo`              | Estado del pago (polling del checkout)               |
-| GET    | `/api/pagos`                      | Pagos del cliente (`?envio=` opcional; admin: todos) |
-| POST   | `/api/pagos/webhook/mercadopago`  | Webhook de Mercado Pago (sin auth)                   |
-| GET    | `/api/perfil/resumen`             | Resumen de la cuenta para la pantalla de Perfil      |
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| GET | `/api/salud` | Estado del servidor y la base |
+| POST | `/api/auth/login` | Inicia sesión y devuelve token y rol |
+| POST | `/api/auth/registro` | Crea una cuenta, siempre con rol `cliente` |
+| GET | `/api/auth/existe/:usuario` | Indica si un usuario ya está tomado |
+| POST | `/api/auth/recuperar` | Restablece contraseña (no aplica a admins) |
+| GET | `/api/auth/perfil` | Datos del usuario autenticado |
+| POST | `/api/choferes/postulacion` | Postula a un cliente como chofer |
+| GET | `/api/choferes/:codigo/documentos` | Selfie y DNI con URLs firmadas (solo admin) |
+| POST | `/api/cotizaciones` | Guarda una cotización emitida por Boxy |
+| GET | `/api/cotizaciones` | Cotizaciones del usuario (admin ve todas) |
+| POST | `/api/envios` | Confirma una cotización y crea el envío |
+| GET | `/api/envios` | Envíos según rol, con `?estado=` opcional |
+| GET | `/api/envios/metricas` | Totales para el panel |
+| GET | `/api/envios/:codigo` | Detalle del envío y su línea de tiempo |
+| POST | `/api/envios/:codigo/eventos` | Agrega un hito y transiciona el estado |
+| GET | `/api/asignaciones/disponibles` | Envíos que el chofer puede tomar |
+| POST | `/api/asignaciones/:codigoEnvio/tomar` | El chofer toma un envío |
+| GET | `/api/asignaciones/activa` | Viaje en curso del chofer |
+| POST | `/api/asignaciones/:codigo/completar` | Cierra el viaje y marca la entrega |
+| GET | `/api/asignaciones` | Historial de viajes del chofer |
+| GET | `/api/vehiculos` | Catálogo de la flota |
+| GET | `/api/cupones` | Cupones del cliente |
+| POST | `/api/cupones` | Emite un cupón por SLA incumplido |
+| POST | `/api/pagos/checkout` | Inicia el pago por QR o deeplink |
+| POST | `/api/pagos/tarjeta` | Cobra con tarjeta (procesador simulado) |
+| POST | `/api/pagos/:codigo/confirmar` | Confirma un pago sandbox |
+| GET | `/api/pagos/:codigo` | Estado del pago |
+| GET | `/api/pagos` | Pagos del cliente (admin ve todos) |
+| POST | `/api/pagos/webhook/mercadopago` | Webhook de Mercado Pago, sin auth |
+| GET | `/api/perfil/resumen` | Resumen de cuenta para la pantalla de Perfil |
 
-## Asignación de envíos (marketplace)
+## Cómo se asignan los envíos
 
-El circuito replica el modelo de las apps de movilidad: **el envío se publica para
-la flota y el primer chofer que lo toma se lo lleva**.
+Elegimos el mismo modelo que usan las aplicaciones de movilidad: en vez de
+decidir centralmente a qué chofer le toca cada viaje, publicamos el envío y deja
+que la flota lo tome.
 
-1. El cliente confirma y **paga** el envío (`estado_pago = 'pagado'`, sin chofer).
-2. El envío aparece en `GET /api/asignaciones/disponibles` **solo para los choferes
-   cuyo vehículo soporta la carga** (se comparan `peso_kg` y `bultos` contra el
-   `max_kg` / `max_bultos` de la unidad declarada en la postulación).
-3. El chofer lo toma con `POST /api/asignaciones/:codigoEnvio/tomar`.
-4. El envío queda con el chofer real (`chofer_id`, `chofer_nombre`), pasa a
-   `asignado` y se registra el evento en la línea de tiempo que ve el cliente.
-5. El chofer avanza los estados (`chofer_en_camino` → `retirado`) y cierra con
-   `completar`, que marca el envío como `entregado`.
+El recorrido arranca cuando el cliente paga. Recién ahí el envío queda con
+`estado_pago = 'pagado'` y sin chofer, que es la condición para que aparezca en
+`GET /api/asignaciones/disponibles`. Ese listado no es igual para todos: filtra
+por capacidad, comparando el peso y los bultos del envío contra el `max_kg` y el
+`max_bultos` del vehículo que el chofer declaró al postularse, de manera que una
+moto nunca ve una mudanza.
 
-**Concurrencia:** dos choferes pueden intentar tomar el mismo envío a la vez. La
-toma se resuelve con un `UPDATE ... WHERE chofer_id IS NULL` **condicional y
-atómico** dentro de una transacción: exactamente uno gana y el resto recibe `409`.
-No hace falta bloqueo explícito ni cola externa.
+Cuando un chofer lo toma, el envío queda asociado a su ficha, pasa a `asignado` y
+se escribe el evento correspondiente en la línea de tiempo que ve el cliente. A
+partir de ahí el chofer va marcando los hitos (`chofer_en_camino`, `retirado`) y
+cierra con `completar`, que marca el envío como entregado.
+
+El punto interesante es qué pasa si dos choferes tocan el botón al mismo tiempo.
+Lo resolvemos con un `UPDATE` condicional sobre la fila del envío, que solo
+modifica si `chofer_id IS NULL`, todo dentro de una transacción. Como PostgreSQL
+serializa las escrituras sobre la misma fila, exactamente uno gana y el otro
+recibe un `409` con el motivo. No necesitamos ni un bloqueo explícito ni una cola
+externa para garantizarlo.
 
 ## Roles
 
-- **admin**: no se puede crear desde la app; se siembran 3 por sistema en `src/db/init.js`.
-- **cliente**: todo el que se registra.
-- **chofer**: un cliente que completó la postulación ("Trabajá con nosotros") y
-  pasó la verificación de identidad. Recibe un ID público único (p. ej. `CH-7F3K9Q`),
-  que es lo único que ve el cliente junto a su nombre completo.
+Los administradores no se pueden crear desde la aplicación: se siembran tres por
+sistema en `src/db/init.js`. Cualquiera que se registra queda como cliente. Y un
+chofer es un cliente que completó la postulación de "Trabajá con nosotros",
+declaró su vehículo y aprobó la verificación de identidad; al aprobarse recibe un
+identificador público del estilo `CH-7F3K9Q`, que es lo que ve el cliente junto a
+su nombre y su unidad.
 
-## Verificación de identidad (alta de chofer)
+## Verificación de identidad
 
-RENAPER requiere convenio/SID, así que el alta verifica identidad **offline**, en
-tres capas. Las dos avanzadas vienen **registradas pero sin exigir** por defecto,
-para no romper Expo Go / web.
+Validar contra RENAPER requiere un convenio y credenciales SID que no están al
+alcance del proyecto, así que resolvimos la verificación de forma offline y en
+tres capas. Las dos más avanzadas quedan registradas pero no son obligatorias por
+defecto, para que el alta siga funcionando en Expo Go y en web.
 
-| Tier | Qué hace | Estado por defecto | Para exigirlo |
-|------|----------|--------------------|---------------|
-| 1 · PDF417 | Lee el código del dorso del DNI y lo cruza con los datos tipeados + guarda la selfie. | **Activo y obligatorio.** | — |
-| 2 · Liveness | Gestos (sonrisa + giro) validados on-device con ML Kit. | Se registra (`liveness_ok`). | `LIVENESS_REQUERIDO=true` + **dev build** de la app (`expo run:android`); ML Kit no corre en Expo Go. |
-| 3 · Match facial | Compara la selfie con la foto del frente del DNI (face-api). | Se registra el score (`face_match_score`); degrada solo si falta runtime. | `FACE_MATCH_REQUERIDO=true` + runtime y modelos (abajo). |
+La primera capa lee el código PDF417 del dorso del DNI y lo cruza contra los
+datos que la persona tipeó: si el número o el apellido no coinciden, el alta se
+rechaza. Esta capa está activa y es obligatoria.
 
-**Activar el match facial (Tier 3):**
+La segunda es la prueba de vida, que pide dos gestos y los valida en el
+dispositivo con ML Kit. Se guarda el resultado en `liveness_ok`, pero para
+exigirla hay que poner `LIVENESS_REQUERIDO=true` y usar un dev build de la
+aplicación, porque ML Kit no corre en Expo Go.
 
-1. Usar **Node LTS (20/22)** e instalar el runtime nativo: `npm install @tensorflow/tfjs-node`.
-2. Descargar los pesos a `backend/models` (`ssdMobilenetv1`, `faceLandmark68Net`,
-   `faceRecognitionNet`) desde https://github.com/vladmandic/face-api/tree/master/model
-   (o setear `FACE_MODELS_DIR`).
-3. `FACE_MATCH_REQUERIDO=true` en el `.env`.
+La tercera compara la selfie con la foto del frente del DNI usando face-api y
+guarda el puntaje en `face_match_score`. Para exigirla hace falta
+`FACE_MATCH_REQUERIDO=true`, además de instalar el runtime nativo con
+`npm install @tensorflow/tfjs-node` sobre Node LTS y descargar los pesos de los
+modelos `ssdMobilenetv1`, `faceLandmark68Net` y `faceRecognitionNet` a
+`backend/models`, o bien apuntar `FACE_MODELS_DIR` a donde los tengas. Si el
+runtime o los modelos no están, el match se saltea con puntaje nulo y el alta
+sigue adelante: preferimos que una dependencia ausente no bloquee el registro.
 
-Si el runtime o los modelos no están, el match se saltea (score nulo) y el alta
-sigue funcionando: nunca bloquea por una dependencia ausente.
+### Dónde quedan las fotos
 
-### Dónde se guardan las fotos
+La selfie y la foto del DNI se suben a Supabase Storage, en un bucket privado que
+por defecto se llama `verificacion-identidad`. En la base guardamos únicamente la
+ruta interna del objeto, en `selfie_path` y `dni_frente_path`, nunca la imagen ni
+una URL pública. Para revisarlas está `GET /api/choferes/:codigo/documentos`,
+que solo responde a un admin y devuelve URLs firmadas que expiran, de manera que
+el bucket nunca queda expuesto.
 
-La selfie y la foto del frente del DNI se suben a **Supabase Storage**, en un
-bucket **privado** (`verificacion-identidad` por defecto). En la base solo se
-persiste la ruta interna del objeto (`selfie_path`, `dni_frente_path`); para
-revisarlas, `GET /api/choferes/:codigo/documentos` (solo admin) devuelve **URLs
-firmadas** temporales, así el bucket nunca queda expuesto.
-
-Configuralo en el `.env` (y en Render → Environment):
+La configuración va en el `.env` y en el panel de Render:
 
 | Variable | Qué es |
 |----------|--------|
-| `SUPABASE_URL` | URL base del proyecto, **sin** `/rest/v1` (p. ej. `https://tu-ref.supabase.co`). |
-| `SUPABASE_SERVICE_ROLE_KEY` | Clave `service_role` (secreta, **solo backend**). |
-| `SUPABASE_BUCKET` | Nombre del bucket privado (por defecto `verificacion-identidad`). |
+| `SUPABASE_URL` | URL base del proyecto, sin `/rest/v1` (por ejemplo `https://turef.supabase.co`) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Clave `service_role`, secreta y solo de servidor |
+| `SUPABASE_BUCKET` | Nombre del bucket privado |
 
-Creá el bucket privado antes del primer uso. Si estas variables quedan vacías,
-las imágenes caen al disco local: sirve en desarrollo, pero **en Render el disco
-es efímero y se borrarían en cada deploy**, así que en producción son
-obligatorias.
+El bucket hay que crearlo antes del primer uso. Si estas variables quedan vacías
+las imágenes caen al disco local, lo cual alcanza para desarrollo, pero en Render
+el disco se borra en cada despliegue: en producción son obligatorias.
 
-## Pagos / facturación
+## Pagos
 
-El envío se cobra una vez confirmado. **Mercado Pago y MODO son integraciones
-reales** (delegan en la pasarela cuando hay credenciales); sin credenciales, el
-checkout por QR cae a un modo sandbox que se aprueba desde la app. La **tarjeta
-es siempre simulada**. Al aprobarse, se emite un **comprobante**
-(`COMP-AAAA-NNNNNN`) y el envío pasa a `estado_pago = 'pagado'`.
+El cobro sucede una vez que el envío está confirmado. Mercado Pago y MODO son
+integraciones reales que delegan en la pasarela cuando hay credenciales
+cargadas; si no las hay, el checkout por QR cae a un modo sandbox que se aprueba
+desde la aplicación. Cuando el pago se aprueba emitimos un comprobante con el
+formato `COMP-AAAA-NNNNNN` y el envío pasa a `estado_pago = 'pagado'`, que es lo
+que lo habilita a publicarse para la flota.
 
-| Método | Cómo funciona | Real con… |
-|--------|---------------|-----------|
-| **Mercado Pago** (Checkout Pro) | SDK oficial `mercadopago`: crea una preferencia real, devuelve el `init_point` + QR y confirma por webhook/polling. El QR es interoperable, así que **MODO también puede escanearlo**. | `MP_ACCESS_TOKEN` + `PUBLIC_API_URL` (webhook). |
-| **MODO** (e-commerce QR) | Auth + creación de intención de pago contra la API de MODO; confirma por webhook/polling. | `MODO_API_URL` + `MODO_CLIENT_ID` + `MODO_CLIENT_SECRET`. |
-| **Tarjeta** déb/créd | Procesador **simulado**: valida Luhn, marca, vencimiento y CVV; guarda solo marca + últimos 4, **nunca el PAN**. | — (siempre simulado). |
+Mercado Pago funciona con Checkout Pro a través del SDK oficial: creamos una
+preferencia, devolvemos el `init_point` con su QR y confirmamos por webhook o por
+consulta. Como el QR es interoperable bajo el estándar del BCRA, un usuario de
+MODO puede escanear ese mismo código, lo cual significa que el cobro a través de
+MODO ya funciona aunque la integración directa no esté verificada. Para activarlo
+hace falta `MP_ACCESS_TOKEN` y `PUBLIC_API_URL` apuntando a una URL que Mercado
+Pago pueda alcanzar.
 
-> **Por qué la tarjeta es simulada:** cobrar tarjetas reales exige certificación
-> PCI-DSS y un adquirente, fuera del alcance del proyecto. Para producción se
-> reemplaza `servicios/pagos/tarjeta.js` por un gateway que tokenice la tarjeta
-> en el cliente, sin que el número toque nunca este backend.
->
-> En sandbox, una tarjeta con número válido (Luhn) se **aprueba**; el PAN de
-> prueba `4000 0000 0000 0002` se **rechaza** para demostrar el camino de error.
-> Transferencias bancarias: **no soportadas** a propósito.
+La integración directa con MODO usa su API de intención de pago y también
+confirma por webhook o consulta. Se activa con `MODO_API_URL`, `MODO_CLIENT_ID` y
+`MODO_CLIENT_SECRET`. Acá hay una salvedad importante: la documentación de MODO
+está detrás de un convenio de comercio, así que los endpoints y los nombres de
+campo los dedujimos por convención. Por eso el código resuelve las respuestas en
+cascada, probando varios nombres posibles para el token, el deeplink y el
+identificador, y todas las URLs se pueden sobreescribir por variable de entorno
+(`MODO_TOKEN_URL`, `MODO_INTENTION_URL`, `MODO_STATUS_URL` y `MODO_STORE_ID`).
+El día que tengamos la documentación oficial, ajustar la integración es cuestión
+de configuración y no de tocar código.
 
-**Activar Mercado Pago real:** poné el `MP_ACCESS_TOKEN`, exponé el backend con
-ngrok y seteá `PUBLIC_API_URL` para que MP pueda llamar al webhook.
+El pago con tarjeta, en cambio, es simulado siempre. El procesador valida el
+número por el algoritmo de Luhn, la marca, el vencimiento y el CVV, y guarda
+únicamente la marca y los últimos cuatro dígitos: el número completo nunca se
+persiste. La razón es concreta: cobrar tarjetas de verdad exige certificación
+PCI-DSS y un acuerdo con un adquirente, algo que excede el alcance del proyecto.
+Para llevarlo a producción habría que reemplazar `servicios/pagos/tarjeta.js` por
+un gateway que tokenice la tarjeta del lado del cliente, de forma que el número
+no pase nunca por este backend. En el sandbox, cualquier número válido según
+Luhn se aprueba, salvo el `4000 0000 0000 0002`, que rechazamos a propósito para
+poder mostrar el camino de error. Las transferencias bancarias no están
+soportadas, y es una decisión deliberada.
 
-**Activar MODO real:** completá `MODO_API_URL` + `MODO_CLIENT_ID` +
-`MODO_CLIENT_SECRET`. Como la documentación de MODO está detrás de login, en
-`src/servicios/pagos/modo.js` los endpoints y nombres de campo están marcados
-con `[DOC]`: confirmá cada uno contra tu doc de MODO (o fijalos por env:
-`MODO_TOKEN_URL`, `MODO_INTENTION_URL`, `MODO_STATUS_URL`, `MODO_STORE_ID`).
+## Seguridad
 
-## Seguridad implementada
+Las contraseñas se guardan hasheadas con bcrypt y nunca en texto plano, y las
+sesiones viajan en un JWT firmado con expiración configurable a través de
+`JWT_EXPIRA`. El login y la recuperación de contraseña tienen rate limiting de
+diez intentos por IP cada quince minutos, y todos los intentos de acceso quedan
+auditados en `auditoria_accesos` con IP, user-agent y resultado, sirvan o no.
 
-- Contraseñas hasheadas con bcrypt (nunca en texto plano).
-- Sesiones con JWT firmado (expiración configurable, `JWT_EXPIRA`).
-- Rate limiting en login/recuperación (10 intentos por IP cada 15 min).
-- Auditoría de todos los intentos de acceso en `auditoria_accesos` (IP, user-agent, resultado).
-- Las cuentas admin no se registran ni se restablecen desde la app.
-- Consultas SQL siempre parametrizadas (sin concatenación de strings).
-- Alta de chofer transaccional (rol + ficha cambian juntos o no cambia nada).
+Las cuentas de administrador no se pueden registrar ni restablecer desde la
+aplicación, justamente para que no haya forma de escalar privilegios desde el
+frontend. Todas las consultas SQL van parametrizadas, sin concatenar strings, de
+manera que no hay superficie para inyección. Y el alta de chofer corre dentro de
+una transacción, así el cambio de rol y la creación de la ficha se aplican juntos
+o no se aplica ninguno.

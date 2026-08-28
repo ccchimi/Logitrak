@@ -1,52 +1,63 @@
 # Logitrak
 
-**Logitrak es una plataforma de logística de última milla** que conecta a quien
-necesita enviar algo con la flota que puede llevarlo, sin fricción: el cliente
-cotiza conversando con un asistente, paga, sigue su envío en un mapa en tiempo
-real y recibe una compensación automática si no cumplimos el plazo prometido.
+Logitrak es una plataforma de logística de última milla que conecta a quien
+necesita enviar algo con la flota que puede llevarlo. El cliente cotiza su envío
+conversando con un asistente, lo paga, y a partir de ahí lo sigue en un mapa
+hasta que llega a destino.
 
-## Nuestro objetivo
+La idea detrás del proyecto es que mandar un paquete debería ser tan simple como
+pedir un viaje. Para eso nos apoyamos en tres decisiones que atraviesan todo el
+sistema. La primera es que el precio se explica: en lugar de mostrar una tarifa
+cerrada, el motor de cotización desglosa cuánto pesa el vehículo elegido, la
+distancia, el peso volumétrico y la franja horaria. La segunda es que la
+confianza se construye con datos verificables, así que los choferes pasan por una
+verificación de identidad y el cliente ve en todo momento quién lleva su carga y
+en qué unidad. La tercera es que la misma aplicación corre en web, Android e iOS
+desde una única base de código, para no mantener tres productos distintos.
 
-Hacer que mandar un paquete sea tan simple, transparente y confiable como pedir
-un viaje. Apuntamos a tres cosas:
+## Cómo funciona el circuito
 
-- **Cotización honesta e instantánea.** Un motor de pricing que explica cada
-  peso del precio (vehículo, distancia, peso volumétrico, franja horaria,
-  demanda) en vez de una tarifa opaca.
-- **Confianza de punta a punta.** Seguimiento en vivo, choferes con identidad
-  verificada y un SLA que, si se incumple, se compensa solo con un cupón.
-- **Una sola experiencia, en todos lados.** La misma app en web, Android e iOS,
-  pensada para que cualquiera la use sin instrucciones.
+El cliente arranca cotizando con Boxy, el asistente que corre en el propio
+dispositivo: interpreta las direcciones y la descripción de la carga, elige el
+vehículo que corresponde y arma el precio. Cuando confirma y paga, el envío deja
+de ser una cotización y pasa a estar disponible para la flota.
 
-La visión: ser la capa de logística sobre la que se apoyen comercios y personas
-en Argentina para mover cualquier cosa, de un punto a otro, con previsibilidad.
+Ahí entra el modelo que usamos para asignar: el envío pagado se publica para
+todos los choferes cuyo vehículo puede transportar esa carga, y el primero que lo
+toma se lo queda. Es el mismo esquema de las aplicaciones de movilidad, y nos
+evita tener que decidir centralmente a quién le toca cada viaje. Desde ese
+momento el cliente ve el nombre del chofer, su identificador y la unidad real que
+salió a buscar el paquete, mientras el chofer va marcando los hitos del viaje
+desde su propia consola.
 
-## Cómo funciona
+Si el envío supera el plazo comprometido, se emite un cupón de compensación a
+favor del cliente. Conviene aclarar que hoy ese cupón se dispara desde la
+aplicación cuando vence el contador, y no desde un proceso en el servidor: es una
+deuda que tenemos pendiente y está anotada como tal.
 
-1. **Cotizás** un envío conversando con **Boxy**, el asistente de logística que
-   corre on-device: interpreta direcciones y carga, elige el vehículo y arma el
-   precio con su desglose.
-2. **Confirmás y pagás** (Mercado Pago, MODO o tarjeta).
-3. El envío se **asigna a un chofer** verificado y empieza el **seguimiento en
-   vivo** sobre el mapa.
-4. Si el envío excede el SLA, se **emite un cupón de compensación** automático.
+El sistema maneja tres roles. Cliente es cualquiera que se registra. Chofer es un
+cliente que se postuló, declaró con qué vehículo trabaja y aprobó la verificación
+de identidad. Admin se siembra por sistema y no puede crearse desde la
+aplicación.
 
-Roles del sistema: **cliente** (todo el que se registra), **chofer** (un cliente
-que se postuló y pasó la verificación de identidad) y **admin** (gestión
-interna, no se crea desde la app).
+## Cómo está organizado el repositorio
 
-## Estructura del repositorio
+El proyecto se divide en dos partes que se desarrollan y se despliegan por
+separado.
 
-| Carpeta | Qué es | Tecnología |
-|---------|--------|------------|
-| [`backend/`](backend/README.md) | API REST: auth con roles, cotizaciones, envíos, asignaciones, pagos, cupones y verificación de identidad. | Node.js · Express · PostgreSQL (Supabase) |
-| [`frontend/`](frontend/README.md) | App multiplataforma con Boxy, mapa de seguimiento, pago y alta de chofer. | Expo · React Native · TypeScript |
+En `backend/` vive la API REST, escrita en Node.js con Express sobre PostgreSQL.
+Resuelve la autenticación con roles, las cotizaciones, los envíos y su
+seguimiento, la asignación a choferes, los pagos, los cupones y la verificación
+de identidad.
 
-Cada carpeta tiene su propio README con el detalle de cómo configurarla y
-correrla. El recorrido típico es: **levantar el `backend`** (apuntado al proyecto
-de Supabase del equipo) y luego **correr el `frontend`** apuntándolo a esa API.
+En `frontend/` está la aplicación, hecha con Expo y React Native en TypeScript.
+Incluye a Boxy, el mapa de seguimiento, el circuito de pago y el alta de chofer.
 
-## Puesta en marcha rápida
+Cada carpeta tiene su propio README con el detalle de configuración. El orden
+para levantar el proyecto es siempre el mismo: primero el backend apuntado a la
+base del equipo, y después el frontend apuntado a esa API.
+
+## Puesta en marcha
 
 ```bash
 # 1) Backend
@@ -60,17 +71,18 @@ cp .env.example .env        # fijá EXPO_PUBLIC_API_URL a la IP LAN de tu backen
 npm start                   # escaneá el QR con Expo Go o elegí plataforma
 ```
 
-## Deploy
+## Dónde corre
 
-| Parte | Dónde | Cómo |
-|-------|-------|------|
-| Backend | **Render** — `https://logitrak.onrender.com` | Web Service Node, auto-deploy desde `main`. Variables en el panel (Environment). |
-| Base de datos | **Supabase** (PostgreSQL) | Gestionada; el esquema se aplica solo al arrancar el backend. |
-| Fotos de verificación | **Supabase Storage** | Bucket privado `verificacion-identidad` (selfie + frente del DNI). |
-| App mobile | **EAS Build** (Expo) | Perfiles development / preview / production. |
+El backend está desplegado en Render como Web Service, con despliegue automático
+desde `main`, y responde en `https://logitrak.onrender.com`. La base de datos es
+un PostgreSQL gestionado en Supabase, que además nos guarda en un bucket privado
+las fotos de la verificación de identidad. La aplicación se compila con EAS
+Build, que es el servicio de builds de Expo.
 
-El backend en Render está en plan **Free**, que se duerme por inactividad (~50 s
-de demora en el primer request); para producción conviene un plan always-on.
+Una limitación a tener presente: el plan gratuito de Render apaga la instancia
+cuando no recibe tráfico, así que el primer pedido después de un rato puede
+demorar cerca de cincuenta segundos. Para producción hace falta un plan que
+mantenga el servicio siempre activo.
 
 ---
 

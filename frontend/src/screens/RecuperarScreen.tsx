@@ -89,8 +89,6 @@ export default function RecuperarScreen({ navigation }: any) {
           disableFullscreenUI
           onChangeText={onChange}
         />
-
-        <Text style={styles.inputIcon}>🔒</Text>
       </View>
     </View>
   );
@@ -171,8 +169,6 @@ export default function RecuperarScreen({ navigation }: any) {
                         usuarioRef.current = texto;
                       }}
                     />
-
-                    <Text style={styles.inputIcon}>✉</Text>
                   </View>
                 </View>
 

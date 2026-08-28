@@ -248,7 +248,7 @@ export default function ChoferScreen({ navigation, route }: any) {
 
                 <View style={styles.saludoBlock}>
                     <Text style={styles.eyebrow}>Consola de transportista</Text>
-                    <Text style={styles.saludo}>Hola, {primerNombre} 👋</Text>
+                    <Text style={styles.saludo}>Hola, {primerNombre}</Text>
                     <Text style={styles.subtitulo}>
                         {codigo ? `ID ${codigo}` : 'Unidad homologada'}
                         {vehiculo ? ` · ${vehiculo.nombre}` : ''} · Red logitrak.
@@ -305,7 +305,7 @@ export default function ChoferScreen({ navigation, route }: any) {
                         {buscando ? (
                             <View style={styles.idleCard}>
                                 <View style={styles.idleIconWrap}>
-                                    <Text style={styles.idleIcon}>📡</Text>
+                                    <Text style={styles.idleIcon}>—</Text>
                                 </View>
                                 <Text style={styles.idleTitulo}>Buscando envíos disponibles…</Text>
                                 <ActivityIndicator color={COLORS.accent} />
@@ -313,7 +313,7 @@ export default function ChoferScreen({ navigation, route }: any) {
                         ) : ofertas.length === 0 ? (
                             <View style={styles.idleCard}>
                                 <View style={styles.idleIconWrap}>
-                                    <Text style={styles.idleIcon}>📡</Text>
+                                    <Text style={styles.idleIcon}>—</Text>
                                 </View>
                                 <Text style={styles.idleTitulo}>No hay envíos disponibles</Text>
                                 <Text style={styles.idleTexto}>
@@ -321,7 +321,7 @@ export default function ChoferScreen({ navigation, route }: any) {
                                         'Cuando un cliente pague un envío que tu unidad pueda transportar, va a aparecer acá.'}
                                 </Text>
                                 <TouchableOpacity style={styles.ctaPrimario} onPress={cargarOfertas}>
-                                    <Text style={styles.ctaPrimarioTexto}>↻ Actualizar</Text>
+                                    <Text style={styles.ctaPrimarioTexto}>Actualizar</Text>
                                 </TouchableOpacity>
                             </View>
                         ) : (
@@ -329,14 +329,14 @@ export default function ChoferScreen({ navigation, route }: any) {
                                 <View style={styles.actividadHeader}>
                                     <Text style={styles.actividadTitulo}>Envíos disponibles</Text>
                                     <TouchableOpacity onPress={cargarOfertas}>
-                                        <Text style={styles.botonSalirTexto}>↻ Actualizar</Text>
+                                        <Text style={styles.botonSalirTexto}>Actualizar</Text>
                                     </TouchableOpacity>
                                 </View>
 
                                 {ofertas.map((o) => (
                                     <View key={o.envioCodigo} style={styles.ofertaCard}>
                                         <View style={styles.ofertaHeader}>
-                                            <Text style={styles.ofertaTitulo}>📦 Envío disponible</Text>
+                                            <Text style={styles.ofertaTitulo}>Envío disponible</Text>
                                             <Text style={[styles.badgePrioridad, estiloPrioridad(o.prioridad)]}>
                                                 {ETIQUETA_PRIORIDAD[o.prioridad]}
                                             </Text>
@@ -457,7 +457,7 @@ export default function ChoferScreen({ navigation, route }: any) {
                                 ]}
                             >
                                 {pasoEstado === PASOS_VIAJE.length - 1
-                                    ? '🏁 Confirmar entrega'
+                                    ? 'Confirmar entrega'
                                     : 'Avanzar al siguiente estado →'}
                             </Text>
                         </TouchableOpacity>

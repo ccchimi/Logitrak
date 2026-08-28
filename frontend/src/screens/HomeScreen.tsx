@@ -22,10 +22,10 @@ type Filtro = 'Todos' | 'En Viaje' | 'Pendiente' | 'Entregado';
 const FILTROS: Filtro[] = ['Todos', 'En Viaje', 'Pendiente', 'Entregado'];
 
 const NAV = [
-  { label: 'Panel', icon: '▦', ruta: 'Home' },
-  { label: 'Solicitar envío', icon: '＋', ruta: 'SolicitudEnvio' },
-  { label: 'Historial', icon: '🗂', ruta: 'Historial' },
-  { label: 'Perfil', icon: '👤', ruta: 'Perfil' },
+  { label: 'Panel', ruta: 'Home' },
+  { label: 'Solicitar envío', ruta: 'SolicitudEnvio' },
+  { label: 'Historial', ruta: 'Historial' },
+  { label: 'Perfil', ruta: 'Perfil' },
 ];
 
 const DIAS =['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -152,7 +152,7 @@ export default function HomeScreen({ navigation, route }: any) {
           logitrak<Text style={styles.sbDot}>.</Text>
         </Text>
       </View>
-      <Text style={styles.sbTag}>Centro de comando</Text>
+      <Text style={styles.sbTag}>Panel de gestión</Text>
 
       <Text style={styles.sbNavLabel}>Menú</Text>
       {NAV.map((item) => {
@@ -162,9 +162,7 @@ export default function HomeScreen({ navigation, route }: any) {
             key={item.ruta}
             style={[styles.navItem, activo && styles.navItemActive]}
             onPress={() => irA(item.ruta)}
-          >
-            <Text style={[styles.navIcon, activo && styles.navIconActive]}>{item.icon}</Text>
-            <Text style={[styles.navLabel, activo && styles.navLabelActive]}>
+          >            <Text style={[styles.navLabel, activo && styles.navLabelActive]}>
               {item.label}
             </Text>
           </TouchableOpacity>
@@ -211,7 +209,7 @@ export default function HomeScreen({ navigation, route }: any) {
           <View style={styles.mNavRow}>
             {NAV.filter((n) => n.ruta !== 'Home').map((item) => (
               <TouchableOpacity key={item.ruta} style={styles.mChip} onPress={() => irA(item.ruta)}>
-                <Text style={styles.mChipText}>{item.icon}  {item.label}</Text>
+                <Text style={styles.mChipText}>{item.label}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -245,7 +243,7 @@ export default function HomeScreen({ navigation, route }: any) {
               style={styles.ctaGhost}
               onPress={() => navigation.navigate('TrabajaConNosotros')}
             >
-              <Text style={styles.ctaGhostText}>🚚  Trabajá con nosotros</Text>
+              <Text style={styles.ctaGhostText}>Trabajá con nosotros</Text>
             </TouchableOpacity>
           )}
 
@@ -334,7 +332,7 @@ export default function HomeScreen({ navigation, route }: any) {
       >
         {viajesFiltrados.length === 0 && !cargando ? (
           <View style={styles.emptyWrap}>
-            <Text style={styles.emptyIcon}>🗂️</Text>
+            <Text style={styles.emptyIcon}>—</Text>
             <Text style={styles.emptyTitle}>Sin envíos en esta vista</Text>
             <Text style={styles.emptyText}>
               No hay envíos con el estado “{filtro}”. Probá con otro filtro o
@@ -435,7 +433,7 @@ export default function HomeScreen({ navigation, route }: any) {
       </View>
 
       <View style={styles.railBoxy}>
-        <Text style={styles.railBoxyKicker}>🤖 logitrak IA</Text>
+        <Text style={styles.railBoxyKicker}>Asistente Boxy</Text>
         <Text style={styles.railBoxyTitle}>Cotizá con Boxy</Text>
         <Text style={styles.railBoxyText}>
           El asistente verifica direcciones y arma la tarifa en tiempo real.
