@@ -113,8 +113,6 @@ const CHAT_STEPS: ChatStep[] = [
     },
 ];
 
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
 const createId = (prefix: string) => {
     return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 };
@@ -127,6 +125,11 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
     const solicitoEnvioRef = useRef(false);
     const enviandoRef = useRef(false);
     const typingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    // Mensaje que Boxy está tipeando ahora: guardamos el texto completo y el
+    // resolve de su promesa para poder terminarlo de golpe con Enter.
+    const tipeoEnCursoRef = useRef<{ id: string; texto: string; resolver: () => void } | null>(null);
+    // Espera cancelable de las pausas de "Analizando".
+    const esperaEnCursoRef = useRef<{ timer: ReturnType<typeof setTimeout>; resolver: () => void } | null>(null);
 
     const pulseValue = useRef(new Animated.Value(0)).current;
     const thinkingOpacity = useRef(new Animated.Value(0.35)).current;
@@ -235,6 +238,7 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
                 }
 
                 setIsBotTyping(true);
+                tipeoEnCursoRef.current = { id, texto: fullText, resolver: resolve };
 
                 setMessages(prev => [
                     ...prev,
@@ -269,6 +273,7 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
                             typingTimerRef.current = null;
                         }
 
+                        tipeoEnCursoRef.current = null;
                         setIsBotTyping(false);
                         resolve();
                     }
@@ -290,7 +295,52 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
             if (typingTimerRef.current) {
                 clearInterval(typingTimerRef.current);
             }
+            if (esperaEnCursoRef.current) {
+                clearTimeout(esperaEnCursoRef.current.timer);
+            }
         };
+    }, []);
+
+    // Espera que Enter puede cortar, para las pausas artificiales de Boxy.
+    const esperar = useCallback((ms: number) => {
+        return new Promise<void>(resolve => {
+            const terminar = () => {
+                esperaEnCursoRef.current = null;
+                resolve();
+            };
+            const timer = setTimeout(terminar, ms);
+            esperaEnCursoRef.current = { timer, resolver: terminar };
+        });
+    }, []);
+
+    // Completa de una lo que Boxy esté tipeando o esperando. Devuelve true si
+    // había algo que saltear, para que Enter no haga además un envío.
+    const saltearBoxy = useCallback(() => {
+        let salteo = false;
+
+        const espera = esperaEnCursoRef.current;
+        if (espera) {
+            clearTimeout(espera.timer);
+            espera.resolver();
+            salteo = true;
+        }
+
+        const tipeo = tipeoEnCursoRef.current;
+        if (tipeo) {
+            if (typingTimerRef.current) {
+                clearInterval(typingTimerRef.current);
+                typingTimerRef.current = null;
+            }
+            setMessages(prev =>
+                prev.map(m => (m.id === tipeo.id ? { ...m, text: tipeo.texto } : m))
+            );
+            tipeoEnCursoRef.current = null;
+            setIsBotTyping(false);
+            tipeo.resolver();
+            salteo = true;
+        }
+
+        return salteo;
     }, []);
 
     const addThinkingMessage = useCallback(() => {
@@ -379,7 +429,7 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
 
             setCurrentStep(nextStep);
 
-            await delay(650);
+            await esperar(650);
 
             removeThinkingMessage(thinkingId);
 
@@ -406,7 +456,7 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
 
     const responderBot = async (texto: string, msDeAnalisis = 550) => {
         const thinkingId = addThinkingMessage();
-        await delay(msDeAnalisis);
+        await esperar(msDeAnalisis);
         removeThinkingMessage(thinkingId);
         await typeBotMessage(texto);
     };
@@ -475,6 +525,11 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
             currentStep,
             interpretacion.reconocimiento
         );
+    };
+
+    const manejarEnter = () => {
+        if (saltearBoxy()) return;
+        void handleSend();
     };
 
     const handleSend = async () => {
@@ -552,6 +607,11 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
             clearInterval(typingTimerRef.current);
             typingTimerRef.current = null;
         }
+        if (esperaEnCursoRef.current) {
+            clearTimeout(esperaEnCursoRef.current.timer);
+            esperaEnCursoRef.current = null;
+        }
+        tipeoEnCursoRef.current = null;
 
         setMessages([]);
         setCurrentStep(0);
@@ -565,6 +625,18 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
 
         void typeBotMessage(CHAT_STEPS[0].question);
     };
+
+    useEffect(() => {
+        if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+
+        const alPresionar = (evento: KeyboardEvent) => {
+            if (evento.key !== 'Enter' || evento.shiftKey) return;
+            if (saltearBoxy()) evento.preventDefault();
+        };
+
+        document.addEventListener('keydown', alPresionar);
+        return () => document.removeEventListener('keydown', alPresionar);
+    }, [saltearBoxy]);
 
     useEffect(() => {
         const unsubscribe = navigation.addListener('focus', () => {
@@ -839,7 +911,7 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
                                     editable={!isComposerDisabled}
                                     keyboardType={confirmacion ? 'default' : currentQuestion?.keyboardType || 'default'}
                                     returnKeyType="send"
-                                    onSubmitEditing={() => void handleSend()}
+                                    onSubmitEditing={manejarEnter}
                                 />
 
                                 <TouchableOpacity
