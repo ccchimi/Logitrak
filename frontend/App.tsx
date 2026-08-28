@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 import {
   Animated,
@@ -31,6 +31,7 @@ import {
 import AppNavigator from './src/navigation/AppNavigator';
 import Inicio from './src/screens/Inicio';
 import { RootFlowProvider } from './src/navigation/RootFlowContext';
+import { restaurarSesion } from './src/services/authService';
 
 export default function App() {
   const { height } = useWindowDimensions();
@@ -48,6 +49,32 @@ export default function App() {
 
   const [mostrarApp, setMostrarApp] = useState(false);
 
+  // null = todavía no sabemos; 'Login' = sin sesión; otra ruta = sesión viva.
+  const [rutaInicial, setRutaInicial] = useState<string | null>(null);
+  const [sesionVerificada, setSesionVerificada] = useState(false);
+
+  // Al arrancar (y en cada F5) intentamos rehidratar la sesión guardada. Si es
+  // válida, saltamos la landing y entramos directo donde estaba el usuario.
+  useEffect(() => {
+    let activo = true;
+
+    restaurarSesion()
+      .then((usuario) => {
+        if (!activo) return;
+        if (usuario) {
+          setRutaInicial(usuario.rol === 'chofer' ? 'Chofer' : 'Home');
+          setMostrarApp(true);
+        }
+      })
+      .finally(() => {
+        if (activo) setSesionVerificada(true);
+      });
+
+    return () => {
+      activo = false;
+    };
+  }, []);
+
   const transitionY = useRef(new Animated.Value(height)).current;
 
   const irAlLoginReal = () => {
@@ -59,6 +86,7 @@ export default function App() {
       easing: Easing.bezier(0.77, 0, 0.175, 1),
       useNativeDriver: true,
     }).start(() => {
+      setRutaInicial(null);
       setMostrarApp(true);
 
       requestAnimationFrame(() => {
@@ -98,7 +126,7 @@ export default function App() {
     });
   };
 
-  if (!fontsLoaded && !fontError) {
+  if ((!fontsLoaded && !fontError) || !sesionVerificada) {
     return (
       <View style={styles.loadingContainer}>
         <Text style={styles.loadingText}>Cargando...</Text>
@@ -115,7 +143,7 @@ export default function App() {
           <Inicio onGoLogin={irAlLoginReal} />
         ) : (
           <RootFlowProvider value={{ volverAlInicio, puedeVolver: true }}>
-            <AppNavigator />
+            <AppNavigator rutaInicial={rutaInicial} />
           </RootFlowProvider>
         )}
 

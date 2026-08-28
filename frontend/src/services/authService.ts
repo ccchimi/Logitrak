@@ -1,14 +1,16 @@
 import {
     cerrarSesion as limpiarSesion,
     guardarSesion,
+    hayToken,
     llamarApi,
     obtenerUsuarioSesion,
+    restaurarSesion,
     RolUsuario,
     UsuarioSesion,
 } from './api';
 
 export type { RolUsuario, UsuarioSesion };
-export { obtenerUsuarioSesion };
+export { obtenerUsuarioSesion, restaurarSesion, hayToken };
 
 export type ResultadoSesion =
     | { exito: true; usuario: UsuarioSesion }
