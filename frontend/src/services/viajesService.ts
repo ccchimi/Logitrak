@@ -38,7 +38,28 @@ function mapearEnvio(e: Envio): Viaje {
     };
 }
 
-export const obtenerViajesActivos = async (): Promise<Viaje[]> => {
+export interface PanelEnvios {
+    viajes: Viaje[];
+    // Envíos pagos que todavía ningún chofer tomó. No se listan como viajes
+    // porque hasta que alguien los tome pueden cancelarse y reembolsarse.
+    buscandoChofer: number;
+    // Vencimiento más próximo de esos envíos, para el contador del panel.
+    proximoVencimiento: string | null;
+}
+
+export const obtenerPanelEnvios = async (): Promise<PanelEnvios> => {
     const envios = await listarEnvios();
-    return envios.filter((e) => e.estadoPago === 'pagado').map(mapearEnvio);
+    const pagos = envios.filter((e) => e.estadoPago === 'pagado');
+
+    const enEspera = pagos.filter((e) => e.estado === 'pendiente');
+    const vencimientos = enEspera
+        .map((e) => e.ofertaVenceEn)
+        .filter((v): v is string => Boolean(v))
+        .sort();
+
+    return {
+        viajes: pagos.filter((e) => e.estado !== 'pendiente').map(mapearEnvio),
+        buscandoChofer: enEspera.length,
+        proximoVencimiento: vencimientos[0] ?? null,
+    };
 };

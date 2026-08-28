@@ -2,7 +2,7 @@ import { llamarApi } from './api';
 
 export type EstadoEnvio = 'pendiente' | 'asignado' | 'en_viaje' | 'entregado' | 'cancelado';
 
-export type EstadoPago = 'pendiente' | 'pagado' | 'rechazado';
+export type EstadoPago = 'pendiente' | 'pagado' | 'rechazado' | 'reembolsado';
 
 export type TipoEventoEnvio =
     | 'creado'
@@ -42,6 +42,7 @@ export interface Envio {
     moneda: string;
     estado: EstadoEnvio;
     estadoPago: EstadoPago;
+    ofertaVenceEn: string | null;
     slaMin: number | null;
     slaVenceEn: string | null;
     creadoEn: string;

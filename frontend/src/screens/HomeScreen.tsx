@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Platform,
   View,
@@ -12,7 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { styles, COLORS, ESTADO_COLORS } from '../styles/HomeStyles';
-import { obtenerViajesActivos, Viaje } from '../services/viajesService';
+import { obtenerPanelEnvios, Viaje } from '../services/viajesService';
 import { cerrarSesion, obtenerUsuarioSesion } from '../services/authService';
 import TarjetaViaje from '../components/TarjetaViaje';
 import MapaSeguimiento from '../components/MapaSeguimiento';
@@ -68,29 +68,35 @@ export default function HomeScreen({ navigation, route }: any) {
   const railAlLado = width >= 1120;
 
   const [viajes, setViajes] = useState<Viaje[]>([]);
+  const [buscandoChofer, setBuscandoChofer] = useState(0);
+  const [proximoVencimiento, setProximoVencimiento] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
   const [filtro, setFiltro] = useState<Filtro>('Todos');
 
   const [gridW, setGridW] = useState(0);
 
+  const cargarViajes = useCallback(() => {
+    return obtenerPanelEnvios().then((datos) => {
+      setViajes(datos.viajes);
+      setBuscandoChofer(datos.buscandoChofer);
+      setProximoVencimiento(datos.proximoVencimiento);
+      setCargando(false);
+    });
+  }, []);
+
   useEffect(() => {
-    let activo = true;
+    void cargarViajes();
+    return navigation.addListener('focus', () => void cargarViajes());
+  }, [navigation, cargarViajes]);
 
-    const cargarViajes = () => {
-      obtenerViajesActivos().then((datos) => {
-        if (!activo) return;
-        setViajes(datos);
-        setCargando(false);
-      });
-    };
-
-    cargarViajes();
-    const unsubscribe = navigation.addListener('focus', cargarViajes);
-    return () => {
-      activo = false;
-      unsubscribe();
-    };
-  }, [navigation]);
+  // Mientras haya envíos esperando chofer el estado cambia solo (lo toma
+  // alguien o vence la oferta), así que refrescamos seguido. Sin nada en
+  // espera no hacemos polling.
+  useEffect(() => {
+    if (buscandoChofer === 0) return;
+    const intervalo = setInterval(() => void cargarViajes(), 15000);
+    return () => clearInterval(intervalo);
+  }, [buscandoChofer, cargarViajes]);
 
   const metricas = useMemo(() => {
     const total = viajes.length;
@@ -113,6 +119,22 @@ export default function HomeScreen({ navigation, route }: any) {
     () => viajes.find((v) => v.estado === 'En Viaje') ?? null,
     [viajes]
   );
+
+  const [ahora, setAhora] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!proximoVencimiento) return;
+    const t = setInterval(() => setAhora(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [proximoVencimiento]);
+
+  const restanteBusqueda = useMemo(() => {
+    if (!proximoVencimiento) return null;
+    const ms = new Date(proximoVencimiento).getTime() - ahora;
+    if (!Number.isFinite(ms) || ms <= 0) return null;
+    const total = Math.floor(ms / 1000);
+    return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+  }, [proximoVencimiento, ahora]);
 
   const partirRuta = (texto: string) => {
     const partes = texto.split('→').map((s) => s.trim());
@@ -327,6 +349,23 @@ export default function HomeScreen({ navigation, route }: any) {
         })}
       </View>
 
+      {buscandoChofer > 0 && (
+        <View style={estilosEspera.aviso}>
+          <View style={estilosEspera.punto} />
+          <View style={estilosEspera.textos}>
+            <Text style={estilosEspera.titulo}>
+              {buscandoChofer === 1
+                ? 'Buscando chofer para tu envío'
+                : `Buscando chofer para ${buscandoChofer} envíos`}
+            </Text>
+            <Text style={estilosEspera.detalle}>
+              Aparecen en el panel apenas un chofer los tome.
+              {restanteBusqueda ? ` Si nadie los toma en ${restanteBusqueda}, se cancelan y te devolvemos el importe.` : ''}
+            </Text>
+          </View>
+        </View>
+      )}
+
       <View style={styles.sectionRow}>
         <View>
           <Text style={styles.sectionTitle}>Envíos recientes</Text>
@@ -493,3 +532,44 @@ export default function HomeScreen({ navigation, route }: any) {
     </View>
   );
 }
+const estilosEspera = StyleSheet.create({
+  aviso: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    backgroundColor: 'rgba(255, 215, 0, 0.07)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 215, 0, 0.28)',
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginBottom: 18,
+  },
+
+  punto: {
+    width: 9,
+    height: 9,
+    borderRadius: 999,
+    backgroundColor: '#FFD700',
+    marginTop: 5,
+  },
+
+  textos: {
+    flex: 1,
+    minWidth: 0,
+  },
+
+  titulo: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontFamily: 'DMSans_700Bold',
+    marginBottom: 3,
+  },
+
+  detalle: {
+    color: 'rgba(255, 255, 255, 0.62)',
+    fontSize: 12.5,
+    lineHeight: 18,
+    fontFamily: 'DMSans_400Regular',
+  },
+});
