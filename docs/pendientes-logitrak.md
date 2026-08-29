@@ -21,8 +21,10 @@ y verificado se saca de acá; el historial queda en los commits.
    está en `backend/src/servicios/envios/expiracion.js`.
 5. Que el admin pueda editar los perfiles de otros usuarios. Hoy cada rol edita
    solo el suyo; falta una pantalla de listado de usuarios.
-6. Seguimiento en tiempo real por push con Supabase Realtime, en lugar del
-   polling actual. Mejora de escalabilidad y también entra en el plan Free.
+6. Seguimiento de envíos en tiempo real por push, en lugar del polling actual.
+   El chat de soporte ya funciona así y dejó el camino hecho: JWT propio firmado
+   por el backend, políticas RLS de solo lectura y `REPLICA IDENTITY FULL`. Falta
+   aplicar el mismo patrón a `envios` y `envio_eventos`.
 7. Suite de tests automatizados. Hoy no hay tests propios. La expiración de
    ofertas y el reembolso son los primeros candidatos: se probaron a mano contra
    la base, pero no quedó test que lo cubra.

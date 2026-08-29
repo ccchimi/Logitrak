@@ -25,17 +25,12 @@ async function obtenerCliente(): Promise<SupabaseClient | null> {
 
     cliente = createClient(credencialCache.url, credencialCache.anonKey, {
         auth: { persistSession: false, autoRefreshToken: false },
-        // El token dura una hora; si venció, pedimos otro al backend.
-        accessToken: async () => {
-            if (credencialCache) return credencialCache.token;
-            const c = await credencialRealtime();
-            if (c.disponible && c.url && c.anonKey && c.token) {
-                credencialCache = { url: c.url, anonKey: c.anonKey, token: c.token };
-                return c.token;
-            }
-            return '';
-        },
     });
+
+    // Sin este setAuth el socket viaja con la anon key y RLS no ve nuestros
+    // claims, así que el canal se suscribe pero no llega ningún evento. La
+    // opción `accessToken` del cliente no alcanza: no la propaga al socket.
+    await cliente.realtime.setAuth(credencialCache.token);
 
     return cliente;
 }

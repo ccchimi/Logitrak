@@ -330,3 +330,66 @@ CREATE TABLE IF NOT EXISTS soporte_mensajes (
 CREATE INDEX IF NOT EXISTS idx_soporte_tickets_usuario ON soporte_tickets (usuario_id, creado_en DESC);
 CREATE INDEX IF NOT EXISTS idx_soporte_tickets_estado  ON soporte_tickets (estado, ultimo_mensaje_en DESC);
 CREATE INDEX IF NOT EXISTS idx_soporte_mensajes_ticket ON soporte_mensajes (ticket_id, creado_en, id);
+
+-- ---------------------------------------------------------------------------
+-- Soporte en tiempo real (solo aplica sobre Supabase).
+--
+-- El frontend se conecta a Supabase únicamente para ESCUCHAR mensajes nuevos.
+-- Toda escritura sigue yendo por la API de Express, que autentica con su propio
+-- JWT y escribe con la service role. Por eso acá solo hay políticas de SELECT.
+--
+-- Los usuarios de Logitrak viven en `usuarios`, no en Supabase Auth: el backend
+-- firma un JWT con el JWT secret del proyecto y dos claims propios, y estas
+-- funciones los leen.
+--
+-- REPLICA IDENTITY FULL no es opcional: con RLS activo, Realtime necesita la
+-- fila completa en el WAL para evaluar las políticas. Sin eso el canal se
+-- suscribe pero no llega ningún evento.
+-- ---------------------------------------------------------------------------
+DO $realtime$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'auth') THEN
+        RAISE NOTICE 'Sin esquema auth: se omite la configuración de Realtime (no estamos en Supabase).';
+        RETURN;
+    END IF;
+
+    EXECUTE $sql$
+        CREATE OR REPLACE FUNCTION public.logitrak_usuario_id()
+        RETURNS integer LANGUAGE sql STABLE SET search_path = public, pg_catalog
+        AS 'SELECT NULLIF(auth.jwt() ->> ''logitrak_usuario_id'', '''')::integer';
+    $sql$;
+
+    EXECUTE $sql$
+        CREATE OR REPLACE FUNCTION public.logitrak_es_admin()
+        RETURNS boolean LANGUAGE sql STABLE SET search_path = public, pg_catalog
+        AS 'SELECT COALESCE(auth.jwt() ->> ''logitrak_rol'', '''') = ''admin''';
+    $sql$;
+
+    ALTER TABLE soporte_tickets  ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE soporte_mensajes ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE soporte_tickets  REPLICA IDENTITY FULL;
+    ALTER TABLE soporte_mensajes REPLICA IDENTITY FULL;
+
+    DROP POLICY IF EXISTS soporte_tickets_lectura ON soporte_tickets;
+    CREATE POLICY soporte_tickets_lectura ON soporte_tickets FOR SELECT
+        USING (public.logitrak_es_admin() OR usuario_id = public.logitrak_usuario_id());
+
+    DROP POLICY IF EXISTS soporte_mensajes_lectura ON soporte_mensajes;
+    CREATE POLICY soporte_mensajes_lectura ON soporte_mensajes FOR SELECT
+        USING (
+            public.logitrak_es_admin()
+            OR EXISTS (SELECT 1 FROM soporte_tickets t
+                       WHERE t.id = soporte_mensajes.ticket_id
+                         AND t.usuario_id = public.logitrak_usuario_id())
+        );
+
+    IF NOT EXISTS (SELECT 1 FROM pg_publication_tables
+                   WHERE pubname = 'supabase_realtime' AND tablename = 'soporte_mensajes') THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE soporte_mensajes;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_publication_tables
+                   WHERE pubname = 'supabase_realtime' AND tablename = 'soporte_tickets') THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE soporte_tickets;
+    END IF;
+END
+$realtime$;
