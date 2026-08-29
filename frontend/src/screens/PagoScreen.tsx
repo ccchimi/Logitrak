@@ -5,13 +5,13 @@ import {
     KeyboardAvoidingView,
     Linking,
     Platform,
-    SafeAreaView,
     ScrollView,
     Text,
     TextInput,
     TouchableOpacity,
     View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { styles, COLORS } from '../styles/PagoStyles';
 import { ToastStack, useToasts } from '../components/Toasts';
 import {

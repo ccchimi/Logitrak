@@ -1,13 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     ActivityIndicator,
-    SafeAreaView,
     ScrollView,
     Text,
     TouchableOpacity,
     useWindowDimensions,
     View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { styles, COLORS } from '../styles/ChoferStyles';
 import { cerrarSesion, obtenerUsuarioSesion } from '../services/authService';
 import {

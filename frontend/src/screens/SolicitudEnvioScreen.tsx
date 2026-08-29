@@ -5,13 +5,13 @@ import {
     Keyboard,
     KeyboardAvoidingView,
     Platform,
-    SafeAreaView,
     ScrollView,
     Text,
     TextInput,
     TouchableOpacity,
     View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { styles } from '../styles/SolicitudEnvioStyles';
 import {
     analizarDireccion,
