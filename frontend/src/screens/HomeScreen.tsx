@@ -160,8 +160,14 @@ export default function HomeScreen({ navigation, route }: any) {
 
   const esWeb = Platform.OS === 'web';
 
+  // Entran tantas columnas como quepan sin bajar de ANCHO_MIN_TARJETA. Con
+  // breakpoints fijos las tarjetas quedaban de ~258px y el contenido no entraba.
   const GAP = 16;
-  const columnas = gridW >= 1080 ? 4 : gridW >= 800 ? 3 : gridW >= 520 ? 2 : 1;
+  const ANCHO_MIN_TARJETA = 300;
+  const columnas =
+    gridW > 0
+      ? Math.max(1, Math.min(4, Math.floor((gridW + GAP) / (ANCHO_MIN_TARJETA + GAP))))
+      : 1;
   const anchoTarjeta =
     gridW > 0 ? Math.floor((gridW - GAP * (columnas - 1)) / columnas) : undefined;
 

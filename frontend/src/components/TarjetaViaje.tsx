@@ -25,7 +25,7 @@ export default function TarjetaViaje({ viaje, onPress }: TarjetaProps) {
         <View style={styles.card}>
             <View style={styles.header}>
                 <View style={styles.headerTopRow}>
-                    <Text style={styles.label} numberOfLines={1}>Código de seguimiento</Text>
+                    <Text style={styles.label}>Código de seguimiento</Text>
 
                     <View
                         style={[
@@ -50,7 +50,7 @@ export default function TarjetaViaje({ viaje, onPress }: TarjetaProps) {
                     </View>
                 </View>
 
-                <Text style={styles.codigo} numberOfLines={1}>{viaje.codigo}</Text>
+                <Text style={styles.codigo}>{viaje.codigo}</Text>
             </View>
 
             <View style={styles.rutaContainer}>
@@ -69,7 +69,7 @@ export default function TarjetaViaje({ viaje, onPress }: TarjetaProps) {
             <View style={styles.footer}>
                 <View style={styles.choferBox}>
                     <Text style={styles.footerLabel}>Chofer</Text>
-                    <Text style={styles.footerText} numberOfLines={2}>
+                    <Text style={styles.footerText}>
                         {viaje.chofer}
                         {viaje.vehiculo ? ` · ${viaje.vehiculo}` : ''}
                     </Text>
@@ -78,9 +78,7 @@ export default function TarjetaViaje({ viaje, onPress }: TarjetaProps) {
                 {viaje.fecha ? (
                     <View style={styles.fechaBox}>
                         <Text style={styles.footerLabel}>Fecha</Text>
-                        <Text style={styles.footerText} numberOfLines={1}>
-                            {viaje.fecha}
-                        </Text>
+                        <Text style={styles.footerText}>{viaje.fecha}</Text>
                     </View>
                 ) : null}
             </View>
@@ -152,6 +150,7 @@ const styles = StyleSheet.create({
 
     headerTopRow: {
         flexDirection: 'row',
+        flexWrap: 'wrap',
         alignItems: 'center',
         justifyContent: 'space-between',
         gap: 10,
@@ -164,7 +163,6 @@ const styles = StyleSheet.create({
     },
 
     label: {
-        flex: 1,
         fontSize: 12,
         color: 'rgba(255, 255, 255, 0.5)',
         fontWeight: '700',
@@ -250,14 +248,17 @@ const styles = StyleSheet.create({
 
     footer: {
         flexDirection: 'row',
+        flexWrap: 'wrap',
         justifyContent: 'space-between',
         alignItems: 'flex-start',
-        gap: 12,
+        rowGap: 12,
+        columnGap: 12,
     },
 
     choferBox: {
-        flex: 1,
-        minWidth: 0,
+        flexGrow: 1,
+        flexShrink: 1,
+        minWidth: 140,
     },
 
     footerLabel: {
@@ -279,4 +280,7 @@ const styles = StyleSheet.create({
         alignItems: 'flex-end',
         flexShrink: 0,
     },
+
+    /* el nombre del chofer puede ser largo: preferimos que baje de línea antes
+       que cortarlo con puntos suspensivos */
 });
