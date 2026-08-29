@@ -26,6 +26,7 @@ const NAV = [
   { label: 'Solicitar envío', ruta: 'SolicitudEnvio' },
   { label: 'Historial', ruta: 'Historial' },
   { label: 'Perfil', ruta: 'Perfil' },
+  { label: 'Soporte', ruta: 'Soporte' },
 ];
 
 const DIAS =['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -76,13 +77,13 @@ export default function HomeScreen({ navigation, route }: any) {
   const [gridW, setGridW] = useState(0);
 
   const cargarViajes = useCallback(() => {
-    return obtenerPanelEnvios().then((datos) => {
+    return obtenerPanelEnvios({ verPendientes: !esCliente }).then((datos) => {
       setViajes(datos.viajes);
       setBuscandoChofer(datos.buscandoChofer);
       setProximoVencimiento(datos.proximoVencimiento);
       setCargando(false);
     });
-  }, []);
+  }, [esCliente]);
 
   useEffect(() => {
     void cargarViajes();
@@ -403,7 +404,11 @@ export default function HomeScreen({ navigation, route }: any) {
         ) : (
           viajesFiltrados.map((item) => (
             <View key={item.id} style={[styles.cell, { width: anchoTarjeta ?? '100%' }]}>
-              <TarjetaViaje viaje={item} onPress={() => abrirSeguimiento(item)} />
+              <TarjetaViaje
+                viaje={item}
+                onPress={() => navigation.navigate('DetalleEnvio', { codigo: item.codigo })}
+                onVerMapa={() => abrirSeguimiento(item)}
+              />
             </View>
           ))
         )}

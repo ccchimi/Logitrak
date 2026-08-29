@@ -5,9 +5,10 @@ import { Viaje } from '../services/viajesService';
 interface TarjetaProps {
     viaje: Viaje;
     onPress?: () => void;
+    onVerMapa?: () => void;
 }
 
-export default function TarjetaViaje({ viaje, onPress }: TarjetaProps) {
+export default function TarjetaViaje({ viaje, onPress, onVerMapa }: TarjetaProps) {
     const obtenerColorEstado = (estado: string) => {
         switch (estado) {
             case 'En Viaje':
@@ -85,9 +86,20 @@ export default function TarjetaViaje({ viaje, onPress }: TarjetaProps) {
 
             {onPress ? (
                 <View style={styles.verMapaRow}>
-                    <Text style={styles.verMapaText}>Ver seguimiento en el mapa</Text>
+                    <Text style={styles.verMapaText}>Ver detalle del envío</Text>
                     <Text style={styles.verMapaArrow}>→</Text>
                 </View>
+            ) : null}
+
+            {onVerMapa ? (
+                <TouchableOpacity
+                    style={styles.verMapaSecundario}
+                    onPress={onVerMapa}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Ver el envío ${viaje.codigo} en el mapa`}
+                >
+                    <Text style={styles.verMapaSecundarioTexto}>Seguir en el mapa</Text>
+                </TouchableOpacity>
             ) : null}
         </View>
     );
@@ -133,6 +145,22 @@ const styles = StyleSheet.create({
         fontSize: 15,
         color: '#FFD700',
         fontWeight: '900',
+    },
+
+    verMapaSecundario: {
+        marginTop: 10,
+        paddingVertical: 10,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.14)',
+        alignItems: 'center',
+    },
+
+    verMapaSecundarioTexto: {
+        fontSize: 12.5,
+        color: 'rgba(255, 255, 255, 0.75)',
+        fontWeight: '700',
+        fontFamily: 'DMSans_700Bold',
     },
 
     card: {

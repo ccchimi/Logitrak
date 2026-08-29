@@ -47,7 +47,12 @@ export interface PanelEnvios {
     proximoVencimiento: string | null;
 }
 
-export const obtenerPanelEnvios = async (): Promise<PanelEnvios> => {
+// El cliente no ve los envíos que todavía nadie tomó: hasta ese momento pueden
+// cancelarse y reembolsarse solos. El admin sí los ve, porque necesita poder
+// inspeccionarlos y actuar sobre ellos.
+export const obtenerPanelEnvios = async (
+    { verPendientes = false }: { verPendientes?: boolean } = {}
+): Promise<PanelEnvios> => {
     const envios = await listarEnvios();
     const pagos = envios.filter((e) => e.estadoPago === 'pagado');
 
@@ -57,8 +62,10 @@ export const obtenerPanelEnvios = async (): Promise<PanelEnvios> => {
         .filter((v): v is string => Boolean(v))
         .sort();
 
+    const visibles = verPendientes ? pagos : pagos.filter((e) => e.estado !== 'pendiente');
+
     return {
-        viajes: pagos.filter((e) => e.estado !== 'pendiente').map(mapearEnvio),
+        viajes: visibles.map(mapearEnvio),
         buscandoChofer: enEspera.length,
         proximoVencimiento: vencimientos[0] ?? null,
     };

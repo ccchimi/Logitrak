@@ -76,4 +76,6 @@ export async function restablecerContrasena(
 
 export function cerrarSesion() {
     limpiarSesion();
+    // El token de Realtime queda inválido junto con la sesión.
+    void import('./realtimeSoporte').then((m) => m.olvidarCredencialRealtime());
 }

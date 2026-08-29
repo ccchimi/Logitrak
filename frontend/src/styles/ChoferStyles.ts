@@ -434,6 +434,12 @@ export const styles = StyleSheet.create({
         marginBottom: 16,
     },
 
+    enlaceDetalle: {
+        color: COLORS.accent,
+        fontSize: 12,
+        fontFamily: FONTS.titleBold,
+    },
+
     rutaBox: {
         backgroundColor: COLORS.cardDeep,
         borderWidth: 1,

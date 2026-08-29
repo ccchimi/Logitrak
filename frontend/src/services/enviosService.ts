@@ -43,6 +43,8 @@ export interface Envio {
     estado: EstadoEnvio;
     estadoPago: EstadoPago;
     ofertaVenceEn: string | null;
+    archivadoEn: string | null;
+    archivadoMotivo: string | null;
     slaMin: number | null;
     slaVenceEn: string | null;
     creadoEn: string;
@@ -105,14 +107,64 @@ export async function listarEnvios(estado?: EstadoEnvio): Promise<Envio[]> {
     return r.exito ? r.envios : [];
 }
 
-export async function obtenerEnvio(
-    codigo: string
-): Promise<{ envio: Envio; eventos: EventoEnvio[] } | null> {
-    const r = await llamarApi<{ exito: true; envio: Envio; eventos: EventoEnvio[] }>(
+export interface PagoDeEnvio {
+    codigo: string;
+    metodo: 'mercadopago' | 'modo' | 'tarjeta';
+    monto: number;
+    moneda: string;
+    estado: 'pendiente' | 'aprobado' | 'rechazado' | 'cancelado' | 'expirado' | 'reembolsado';
+    modoProc: 'sandbox' | 'real';
+    tarjetaMarca: string | null;
+    tarjetaUltimos: string | null;
+    cuotas: number | null;
+    comprobante: string | null;
+    pagoExtId: string | null;
+    creadoEn: string;
+    pagadoEn: string | null;
+    reembolsadoEn: string | null;
+    // Motivo por el que la pasarela rechazó la devolución, si pasó.
+    reembolsoPendiente: string | null;
+}
+
+export interface DetalleEnvio {
+    envio: Envio;
+    eventos: EventoEnvio[];
+    pagos: PagoDeEnvio[];
+}
+
+export async function obtenerEnvio(codigo: string): Promise<DetalleEnvio | null> {
+    const r = await llamarApi<{ exito: true } & DetalleEnvio>(
         `/api/envios/${encodeURIComponent(codigo)}`,
         { conAuth: true }
     );
-    return r.exito ? { envio: r.envio, eventos: r.eventos } : null;
+    return r.exito ? { envio: r.envio, eventos: r.eventos, pagos: r.pagos ?? [] } : null;
+}
+
+export type ResultadoAccionAdmin = { exito: boolean; mensaje: string };
+
+export async function archivarEnvio(
+    codigo: string,
+    opciones: { motivo?: string; reembolsar?: boolean } = {}
+): Promise<ResultadoAccionAdmin> {
+    const r = (await llamarApi<{ exito: boolean; mensaje: string }>(
+        `/api/envios/${encodeURIComponent(codigo)}/archivar`,
+        { metodo: 'POST', cuerpo: opciones, conAuth: true }
+    )) as any;
+    return {
+        exito: Boolean(r.exito),
+        mensaje: r.mensaje || r.error || 'No se pudo archivar el envío.',
+    };
+}
+
+export async function reembolsarEnvio(codigo: string): Promise<ResultadoAccionAdmin> {
+    const r = (await llamarApi<{ exito: boolean; mensaje: string }>(
+        `/api/envios/${encodeURIComponent(codigo)}/reembolsar`,
+        { metodo: 'POST', conAuth: true }
+    )) as any;
+    return {
+        exito: Boolean(r.exito),
+        mensaje: r.mensaje || r.error || 'No se pudo emitir la devolución.',
+    };
 }
 
 export interface NuevoEvento {

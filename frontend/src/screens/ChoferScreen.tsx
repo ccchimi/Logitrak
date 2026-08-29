@@ -241,9 +241,18 @@ export default function ChoferScreen({ navigation, route }: any) {
                         </View>
                     </View>
 
-                    <TouchableOpacity style={styles.botonSalir} onPress={salir}>
-                        <Text style={styles.botonSalirTexto}>Salir</Text>
-                    </TouchableOpacity>
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                        <TouchableOpacity
+                            style={styles.botonSalir}
+                            onPress={() => navigation.navigate('Soporte')}
+                        >
+                            <Text style={styles.botonSalirTexto}>Soporte</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity style={styles.botonSalir} onPress={salir}>
+                            <Text style={styles.botonSalirTexto}>Salir</Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
 
                 <View style={styles.saludoBlock}>
@@ -342,7 +351,18 @@ export default function ChoferScreen({ navigation, route }: any) {
                                             </Text>
                                         </View>
 
-                                        <Text style={styles.referenciaTexto}>Ref. {o.envioCodigo}</Text>
+                                        <TouchableOpacity
+                                            onPress={() =>
+                                                navigation.navigate('DetalleEnvio', { codigo: o.envioCodigo })
+                                            }
+                                            accessibilityRole="button"
+                                            accessibilityLabel={`Ver el detalle del envío ${o.envioCodigo}`}
+                                        >
+                                            <Text style={styles.referenciaTexto}>
+                                                Ref. {o.envioCodigo}
+                                                <Text style={styles.enlaceDetalle}>   Ver detalle →</Text>
+                                            </Text>
+                                        </TouchableOpacity>
 
                                         {renderRuta(o.origen, o.destino)}
 
@@ -416,9 +436,21 @@ export default function ChoferScreen({ navigation, route }: any) {
                             <Text style={styles.viajeBadgeTexto}>ORDEN EN CURSO · TIEMPO REAL</Text>
                         </View>
 
-                        <Text style={styles.referenciaTexto}>
-                            Ref. {viajeActivo.envioCodigo ?? viajeActivo.codigo}
-                        </Text>
+                        <TouchableOpacity
+                            disabled={!viajeActivo.envioCodigo}
+                            onPress={() =>
+                                navigation.navigate('DetalleEnvio', { codigo: viajeActivo.envioCodigo })
+                            }
+                            accessibilityRole="button"
+                            accessibilityLabel="Ver el detalle del envío en curso"
+                        >
+                            <Text style={styles.referenciaTexto}>
+                                Ref. {viajeActivo.envioCodigo ?? viajeActivo.codigo}
+                                {viajeActivo.envioCodigo ? (
+                                    <Text style={styles.enlaceDetalle}>   Ver detalle →</Text>
+                                ) : null}
+                            </Text>
+                        </TouchableOpacity>
 
                         <View style={styles.stepperRow}>
                             {PASOS_VIAJE.map((_, i) => (

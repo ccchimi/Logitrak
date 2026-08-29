@@ -9,6 +9,8 @@ import HomeScreen from '../screens/HomeScreen';
 import SolicitudEnvioScreen from '../screens/SolicitudEnvioScreen';
 import PagoScreen from '../screens/PagoScreen';
 import SeguimientoScreen from '../screens/SeguimientoScreen';
+import DetalleEnvioScreen from '../screens/DetalleEnvioScreen';
+import SoporteScreen from '../screens/SoporteScreen';
 import PerfilScreen from '../screens/PerfilScreen';
 import HistorialScreen from '../screens/HistorialScreen';
 import ChoferScreen from '../screens/ChoferScreen';
@@ -114,6 +116,18 @@ export default function AppNavigator({ rutaInicial }: { rutaInicial: string | nu
                 <Stack.Screen
                     name="Seguimiento"
                     component={SeguimientoScreen}
+                    options={{ headerShown: false }}
+                />
+
+                <Stack.Screen
+                    name="DetalleEnvio"
+                    component={DetalleEnvioScreen}
+                    options={{ headerShown: false }}
+                />
+
+                <Stack.Screen
+                    name="Soporte"
+                    component={SoporteScreen}
                     options={{ headerShown: false }}
                 />
 
