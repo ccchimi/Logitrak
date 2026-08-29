@@ -25,23 +25,37 @@ async function reembolsarPagoDelEnvio(cliente, envioId) {
         [envioId]
     );
     const pago = rows[0];
-    if (!pago) return { reembolsado: false, motivo: 'sin pago aprobado' };
+    if (!pago) return { estado: 'sin_pago' };
 
     // Los pagos sandbox (QR simulado y tarjeta simulada) nunca cobraron nada:
     // alcanza con dejarlos marcados. Los reales van contra la pasarela.
-    let ok = true;
-    if (pago.modo_proc === 'real' && pago.metodo === 'mercadopago' && pago.pago_ext_id) {
-        ok = await reembolsarPagoMp(pago.pago_ext_id);
+    const esReal = pago.modo_proc === 'real' && pago.metodo === 'mercadopago' && pago.pago_ext_id;
+    const r = esReal
+        ? await reembolsarPagoMp(pago.pago_ext_id)
+        : { ok: true, reintentable: false, motivo: 'pago sandbox, no hubo cobro real' };
+
+    if (r.ok) {
+        await cliente.query(
+            `UPDATE pagos SET estado = 'reembolsado', reembolsado_en = now(), actualizado_en = now(),
+                    detalle = COALESCE(detalle, '{}'::jsonb) || jsonb_build_object('reembolso', $2::text)
+             WHERE id = $1`,
+            [pago.id, r.motivo]
+        );
+        return { estado: 'reembolsado' };
     }
 
-    if (!ok) return { reembolsado: false, motivo: 'la pasarela rechazó el reembolso' };
+    if (r.reintentable) return { estado: 'reintentar', motivo: r.motivo };
 
+    // Falla permanente: la pasarela no va a aceptar el reembolso por más que
+    // insistamos. Dejamos el pago como aprobado —no mentimos sobre la plata— y
+    // anotamos el motivo para que quede a la vista de un admin.
     await cliente.query(
-        `UPDATE pagos SET estado = 'reembolsado', reembolsado_en = now(), actualizado_en = now()
+        `UPDATE pagos SET actualizado_en = now(),
+                detalle = COALESCE(detalle, '{}'::jsonb) || jsonb_build_object('reembolsoPendiente', $2::text)
          WHERE id = $1`,
-        [pago.id]
+        [pago.id, r.motivo]
     );
-    return { reembolsado: true, pago };
+    return { estado: 'reembolso_pendiente', motivo: r.motivo };
 }
 
 async function expirarUno(envioId) {
@@ -68,16 +82,18 @@ async function expirarUno(envioId) {
             return false;
         }
 
-        const resultado = await reembolsarPagoDelEnvio(cliente, envio.id);
+        const r = await reembolsarPagoDelEnvio(cliente, envio.id);
 
-        // Si la pasarela rechazó el reembolso no cancelamos: preferimos dejar el
-        // envío vivo y reintentar en el próximo barrido antes que dejar al
-        // cliente sin envío y sin plata.
-        if (!resultado.reembolsado && resultado.motivo !== 'sin pago aprobado') {
+        // Solo abortamos si el reembolso puede salir bien más tarde. Si la
+        // pasarela lo rechaza de forma definitiva, cancelamos igual: dejar el
+        // envío vivo para siempre es peor, porque ningún chofer lo va a tomar.
+        if (r.estado === 'reintentar') {
             await cliente.query('ROLLBACK');
-            console.error(`No se expiró el envío ${envio.codigo}: ${resultado.motivo}`);
+            console.error(`Reembolso del envío ${envio.codigo} pospuesto: ${r.motivo}`);
             return false;
         }
+
+        const reembolsado = r.estado === 'reembolsado';
 
         await cliente.query(
             `UPDATE envios
@@ -85,7 +101,7 @@ async function expirarUno(envioId) {
                  estado_pago = CASE WHEN $2 THEN 'reembolsado' ELSE estado_pago END,
                  actualizado_en = now()
              WHERE id = $1`,
-            [envio.id, resultado.reembolsado]
+            [envio.id, reembolsado]
         );
 
         await cliente.query(
@@ -94,11 +110,15 @@ async function expirarUno(envioId) {
             [
                 envio.id,
                 'Envío cancelado por falta de choferes',
-                resultado.reembolsado
+                reembolsado
                     ? `Ningún chofer tomó el envío en ${MINUTOS_ESPERA_CHOFER} minutos. Se devolvió el importe al medio de pago original.`
-                    : `Ningún chofer tomó el envío en ${MINUTOS_ESPERA_CHOFER} minutos.`,
+                    : `Ningún chofer tomó el envío en ${MINUTOS_ESPERA_CHOFER} minutos. La devolución quedó pendiente de revisión.`,
             ]
         );
+
+        if (r.estado === 'reembolso_pendiente') {
+            console.error(`Envío ${envio.codigo} cancelado SIN reembolsar: ${r.motivo}`);
+        }
 
         await cliente.query('COMMIT');
         return true;
@@ -127,7 +147,7 @@ async function barrer() {
         if (await expirarUno(fila.id)) expirados += 1;
     }
     if (expirados > 0) {
-        console.log(`Expiración de ofertas: ${expirados} envío(s) cancelado(s) y reembolsado(s).`);
+        console.log(`Expiración de ofertas: ${expirados} envío(s) cancelado(s).`);
     }
     return expirados;
 }

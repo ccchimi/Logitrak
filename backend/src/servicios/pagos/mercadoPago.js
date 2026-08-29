@@ -102,21 +102,36 @@ export async function buscarPagoMpPorReferencia(externalReference) {
     }
 }
 
-// Reembolso total del pago. Devuelve true si Mercado Pago lo aceptó, o si el
-// pago ya figuraba reembolsado de antes (para que reintentar sea inocuo).
+// Reembolso total del pago. Devuelve si se pudo y, cuando no, si tiene sentido
+// reintentar. Un 4xx (credenciales, pago inexistente) no se arregla solo; un
+// 5xx o un corte de red sí.
+//
+// Ojo: las cuentas de prueba de Mercado Pago NO pueden reembolsar. La API
+// responde 401 "Unauthorized use of live credentials" aunque el pago exista y
+// sea de esa misma cuenta. Para poder ejercitar el flujo completo en el entorno
+// de prueba está MP_REEMBOLSOS_SIMULADOS.
 export async function reembolsarPagoMp(pagoExtId) {
+    if (process.env.MP_REEMBOLSOS_SIMULADOS === 'true') {
+        return { ok: true, reintentable: false, motivo: 'reembolso simulado (MP_REEMBOLSOS_SIMULADOS)' };
+    }
+
     const cliente = obtenerCliente();
-    if (!cliente || !pagoExtId) return false;
+    if (!cliente) return { ok: false, reintentable: false, motivo: 'Mercado Pago no está configurado' };
+    if (!pagoExtId) return { ok: false, reintentable: false, motivo: 'el pago no tiene id externo' };
 
     try {
         const refund = new PaymentRefund(cliente);
         await refund.create({ payment_id: pagoExtId, body: {} });
-        return true;
+        return { ok: true, reintentable: false, motivo: 'reembolsado en Mercado Pago' };
     } catch (e) {
+        // Puede haberse reembolsado antes: reintentar tiene que ser inocuo.
         const estado = await consultarPagoMp(pagoExtId).catch(() => null);
-        if (estado?.estado === 'refunded') return true;
+        if (estado?.estado === 'refunded') {
+            return { ok: true, reintentable: false, motivo: 'ya figuraba reembolsado' };
+        }
 
-        console.error('No se pudo reembolsar el pago en Mercado Pago:', e.message);
-        return false;
+        const http = Number(e?.status) || 0;
+        const reintentable = http === 0 || http === 429 || http >= 500;
+        return { ok: false, reintentable, motivo: `${e.message}${http ? ` (HTTP ${http})` : ''}` };
     }
 }
