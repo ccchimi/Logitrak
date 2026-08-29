@@ -105,6 +105,7 @@ rutasAsignaciones.get('/disponibles', autenticar, exigirRol('chofer'), async (re
                 e.sla_min, e.sla_vence_en, e.oferta_vence_en, e.creado_en
          FROM envios e
          WHERE e.chofer_id IS NULL
+           AND e.archivado_en IS NULL
            AND e.estado = 'pendiente'
            AND e.estado_pago = 'pagado'
            AND (e.oferta_vence_en IS NULL OR e.oferta_vence_en > now())
@@ -141,6 +142,7 @@ rutasAsignaciones.post('/:codigoEnvio/tomar', autenticar, exigirRol('chofer'), a
             `UPDATE envios
              SET chofer_id = $1, chofer_nombre = $2, estado = 'asignado', actualizado_en = now()
              WHERE codigo = $3
+               AND archivado_en IS NULL
                AND chofer_id IS NULL
                AND estado = 'pendiente'
                AND estado_pago = 'pagado'

@@ -13,11 +13,13 @@ import { rutasPagos } from './rutas/pagos.js';
 import { rutasPerfil } from './rutas/perfil.js';
 import { rutasVehiculos } from './rutas/vehiculos.js';
 import { rutasAdmin } from './rutas/admin.js';
+import { rutasSoporte } from './rutas/soporte.js';
 
 const app = express();
 
 app.use(cors());
-app.use(express.json({ limit: '6mb' }));
+// 16mb: un adjunto de soporte de 10 MB viaja en base64, que infla un 33 %.
+app.use(express.json({ limit: '16mb' }));
 
 app.get('/api/salud', async (_req, res) => {
     try {
@@ -38,6 +40,7 @@ app.use('/api/pagos', rutasPagos);
 app.use('/api/perfil', rutasPerfil);
 app.use('/api/vehiculos', rutasVehiculos);
 app.use('/api/admin', rutasAdmin);
+app.use('/api/soporte', rutasSoporte);
 
 app.use((_req, res) => {
     res.status(404).json({ exito: false, error: 'Ruta no encontrada.' });

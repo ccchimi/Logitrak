@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { consultar, pool } from '../db/pool.js';
-import { autenticar } from '../middleware/auth.js';
+import { autenticar, exigirRol } from '../middleware/auth.js';
 import { expirarOfertasVencidas } from '../servicios/envios/expiracion.js';
+import { reembolsarPagoDelEnvio } from '../servicios/pagos/reembolsos.js';
 
 export const rutasEnvios = Router();
 
@@ -67,9 +68,33 @@ function publicar(fila) {
         slaMin: fila.sla_min,
         slaVenceEn: fila.sla_vence_en,
         ofertaVenceEn: fila.oferta_vence_en ?? null,
+        archivadoEn: fila.archivado_en ?? null,
+        archivadoMotivo: fila.archivado_motivo ?? null,
         creadoEn: fila.creado_en,
         actualizadoEn: fila.actualizado_en,
         entregadoEn: fila.entregado_en,
+    };
+}
+
+// Los pagos que se muestran en el detalle. Nunca exponemos `detalle`, que trae
+// la respuesta cruda de la pasarela, ni la referencia interna de la preferencia.
+function publicarPago(fila) {
+    return {
+        codigo: fila.codigo,
+        metodo: fila.metodo,
+        monto: num(fila.monto),
+        moneda: fila.moneda,
+        estado: fila.estado,
+        modoProc: fila.modo_proc,
+        tarjetaMarca: fila.tarjeta_marca,
+        tarjetaUltimos: fila.tarjeta_ultimos,
+        cuotas: fila.cuotas,
+        comprobante: fila.comprobante,
+        pagoExtId: fila.pago_ext_id,
+        creadoEn: fila.creado_en,
+        pagadoEn: fila.pagado_en,
+        reembolsadoEn: fila.reembolsado_en,
+        reembolsoPendiente: fila.detalle?.reembolsoPendiente ?? null,
     };
 }
 
@@ -178,7 +203,7 @@ rutasEnvios.get('/metricas', autenticar, async (req, res) => {
              COUNT(*) FILTER (WHERE estado IN ('pendiente','asignado'))::int AS pendientes,
              COUNT(*) FILTER (WHERE estado = 'entregado')::int          AS entregados,
              COUNT(*) FILTER (WHERE estado = 'cancelado')::int          AS cancelados
-         FROM envios WHERE ${filtro}`,
+         FROM envios WHERE ${filtro} AND archivado_en IS NULL`,
         params
     );
 
@@ -219,6 +244,8 @@ rutasEnvios.get('/', autenticar, async (req, res) => {
         cond.push(`e.estado = $${params.length}`);
     }
 
+    cond.push('e.archivado_en IS NULL');
+
     const where = cond.length ? `WHERE ${cond.join(' AND ')}` : '';
     const { rows } = await consultar(
         `${SELECT_ENVIO} ${where} ORDER BY e.creado_en DESC LIMIT 200`,
@@ -247,7 +274,17 @@ rutasEnvios.get('/:codigo', autenticar, async (req, res) => {
         'SELECT * FROM envio_eventos WHERE envio_id = $1 ORDER BY creado_en, id',
         [envio.id]
     );
-    return res.json({ exito: true, envio: publicar(envio), eventos: ev.rows.map(publicarEvento) });
+    const pg = await consultar(
+        'SELECT * FROM pagos WHERE envio_id = $1 ORDER BY creado_en DESC',
+        [envio.id]
+    );
+
+    return res.json({
+        exito: true,
+        envio: publicar(envio),
+        eventos: ev.rows.map(publicarEvento),
+        pagos: pg.rows.map(publicarPago),
+    });
 });
 
 rutasEnvios.post('/:codigo/eventos', autenticar, async (req, res) => {
@@ -320,4 +357,152 @@ rutasEnvios.post('/:codigo/eventos', autenticar, async (req, res) => {
     } finally {
         cliente.release();
     }
+});
+
+// ---------------------------------------------------------------------------
+// Acciones de admin sobre un envío
+// ---------------------------------------------------------------------------
+
+async function buscarEnvioPorCodigo(codigo) {
+    const { rows } = await consultar('SELECT * FROM envios WHERE codigo = $1', [codigo]);
+    return rows[0] ?? null;
+}
+
+const MENSAJE_REEMBOLSO = {
+    reembolsado: 'El importe se devolvió al medio de pago original.',
+    sin_pago: 'Este envío no tiene ningún pago aprobado para devolver.',
+    reintentar: 'La pasarela no respondió. Probá de nuevo en un rato.',
+    reembolso_pendiente: 'Mercado Pago rechazó la devolución. Quedó anotada para resolverla a mano.',
+};
+
+rutasEnvios.post('/:codigo/reembolsar', autenticar, exigirRol('admin'), async (req, res) => {
+    const envio = await buscarEnvioPorCodigo(req.params.codigo);
+    if (!envio) return res.status(404).json({ exito: false, error: 'Envío no encontrado.' });
+
+    const cliente = await pool.connect();
+    try {
+        await cliente.query('BEGIN');
+        const r = await reembolsarPagoDelEnvio(cliente, envio.id);
+
+        if (r.estado === 'reintentar') {
+            await cliente.query('ROLLBACK');
+            return res.status(502).json({ exito: false, error: MENSAJE_REEMBOLSO.reintentar, motivo: r.motivo });
+        }
+        if (r.estado === 'sin_pago') {
+            await cliente.query('ROLLBACK');
+            return res.status(409).json({ exito: false, error: MENSAJE_REEMBOLSO.sin_pago });
+        }
+
+        const devuelto = r.estado === 'reembolsado';
+        if (devuelto) {
+            await cliente.query(
+                `UPDATE envios SET estado_pago = 'reembolsado', actualizado_en = now() WHERE id = $1`,
+                [envio.id]
+            );
+        }
+
+        await cliente.query(
+            `INSERT INTO envio_eventos (envio_id, tipo, titulo, detalle) VALUES ($1, 'cancelado', $2, $3)`,
+            [
+                envio.id,
+                devuelto ? 'Devolución emitida' : 'Devolución pendiente',
+                devuelto
+                    ? `Un administrador devolvió el importe del envío.`
+                    : `Un administrador pidió la devolución, pero la pasarela la rechazó: ${r.motivo}`,
+            ]
+        );
+
+        await cliente.query('COMMIT');
+        return res.json({
+            exito: devuelto,
+            estado: r.estado,
+            mensaje: MENSAJE_REEMBOLSO[r.estado],
+            motivo: r.motivo ?? null,
+        });
+    } catch (e) {
+        await cliente.query('ROLLBACK');
+        console.error('No se pudo reembolsar el envío:', e.message);
+        return res.status(500).json({ exito: false, error: 'No se pudo procesar la devolución.' });
+    } finally {
+        cliente.release();
+    }
+});
+
+rutasEnvios.post('/:codigo/archivar', autenticar, exigirRol('admin'), async (req, res) => {
+    const envio = await buscarEnvioPorCodigo(req.params.codigo);
+    if (!envio) return res.status(404).json({ exito: false, error: 'Envío no encontrado.' });
+    if (envio.archivado_en) {
+        return res.status(409).json({ exito: false, error: 'Este envío ya estaba archivado.' });
+    }
+
+    const motivo = (req.body?.motivo || '').toString().trim().slice(0, 200) || null;
+    const quiereReembolsar = req.body?.reembolsar !== false;
+
+    const cliente = await pool.connect();
+    try {
+        await cliente.query('BEGIN');
+
+        let reembolso = { estado: 'sin_pago' };
+        if (quiereReembolsar) {
+            reembolso = await reembolsarPagoDelEnvio(cliente, envio.id);
+            if (reembolso.estado === 'reintentar') {
+                await cliente.query('ROLLBACK');
+                return res.status(502).json({
+                    exito: false,
+                    error: 'No pudimos contactar a la pasarela para devolver el importe. El envío no se archivó.',
+                    motivo: reembolso.motivo,
+                });
+            }
+        }
+
+        const devuelto = reembolso.estado === 'reembolsado';
+
+        // Un envío ya entregado se archiva pero no se cancela: pasó de verdad.
+        await cliente.query(
+            `UPDATE envios
+             SET archivado_en = now(),
+                 archivado_por = $2,
+                 archivado_motivo = $3,
+                 estado = CASE WHEN estado = 'entregado' THEN estado ELSE 'cancelado' END,
+                 estado_pago = CASE WHEN $4 THEN 'reembolsado' ELSE estado_pago END,
+                 actualizado_en = now()
+             WHERE id = $1`,
+            [envio.id, req.usuario.id, motivo, devuelto]
+        );
+
+        await cliente.query(
+            `INSERT INTO envio_eventos (envio_id, tipo, titulo, detalle) VALUES ($1, 'cancelado', $2, $3)`,
+            [
+                envio.id,
+                'Envío archivado por un administrador',
+                [motivo, devuelto ? 'Se devolvió el importe.' : null].filter(Boolean).join(' ') || null,
+            ]
+        );
+
+        await cliente.query('COMMIT');
+        return res.json({
+            exito: true,
+            reembolso: reembolso.estado,
+            mensaje: quiereReembolsar ? MENSAJE_REEMBOLSO[reembolso.estado] : 'Envío archivado sin devolución.',
+        });
+    } catch (e) {
+        await cliente.query('ROLLBACK');
+        console.error('No se pudo archivar el envío:', e.message);
+        return res.status(500).json({ exito: false, error: 'No se pudo archivar el envío.' });
+    } finally {
+        cliente.release();
+    }
+});
+
+rutasEnvios.post('/:codigo/desarchivar', autenticar, exigirRol('admin'), async (req, res) => {
+    const { rowCount } = await consultar(
+        `UPDATE envios SET archivado_en = NULL, archivado_por = NULL, archivado_motivo = NULL,
+                actualizado_en = now()
+         WHERE codigo = $1 AND archivado_en IS NOT NULL`,
+        [req.params.codigo]
+    );
+    if (rowCount === 0) {
+        return res.status(404).json({ exito: false, error: 'No hay un envío archivado con ese código.' });
+    }
+    return res.json({ exito: true, mensaje: 'Envío restaurado. Seguí revisando su estado.' });
 });

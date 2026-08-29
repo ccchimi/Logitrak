@@ -17,7 +17,7 @@ export function almacenamientoDisponible() {
     return Boolean(obtenerCliente());
 }
 
-export async function subirImagen(ruta, buffer, contentType = 'image/jpeg') {
+export async function subirArchivo(ruta, buffer, contentType = 'application/octet-stream') {
     const supa = obtenerCliente();
     if (!supa || !buffer) return null;
     const { error } = await supa.storage.from(BUCKET).upload(ruta, buffer, {
@@ -25,10 +25,14 @@ export async function subirImagen(ruta, buffer, contentType = 'image/jpeg') {
         upsert: true,
     });
     if (error) {
-        throw new Error(`No se pudo subir la imagen a Storage: ${error.message}`);
+        throw new Error(`No se pudo subir el archivo a Storage: ${error.message}`);
     }
     return ruta;
 }
+
+// Alias histórico: la verificación de identidad ya lo usaba con este nombre.
+export const subirImagen = (ruta, buffer, contentType = 'image/jpeg') =>
+    subirArchivo(ruta, buffer, contentType);
 
 export async function urlFirmada(ruta, expiraEnSegundos = 3600) {
     const supa = obtenerCliente();

@@ -1,5 +1,5 @@
 import { consultar, pool } from '../../db/pool.js';
-import { reembolsarPagoMp } from '../pagos/mercadoPago.js';
+import { reembolsarPagoDelEnvio } from '../pagos/reembolsos.js';
 
 // Ventana que tiene la red para que algún chofer tome el envío. Se cuenta desde
 // que el pago queda aprobado, no desde que se crea el envío.
@@ -15,49 +15,6 @@ const MS_ENTRE_BARRIDOS = 5000;
 let ultimoBarrido = 0;
 let barridoEnCurso = null;
 
-async function reembolsarPagoDelEnvio(cliente, envioId) {
-    const { rows } = await cliente.query(
-        `SELECT * FROM pagos
-         WHERE envio_id = $1 AND estado = 'aprobado'
-         ORDER BY pagado_en DESC NULLS LAST, id DESC
-         LIMIT 1
-         FOR UPDATE`,
-        [envioId]
-    );
-    const pago = rows[0];
-    if (!pago) return { estado: 'sin_pago' };
-
-    // Los pagos sandbox (QR simulado y tarjeta simulada) nunca cobraron nada:
-    // alcanza con dejarlos marcados. Los reales van contra la pasarela.
-    const esReal = pago.modo_proc === 'real' && pago.metodo === 'mercadopago' && pago.pago_ext_id;
-    const r = esReal
-        ? await reembolsarPagoMp(pago.pago_ext_id)
-        : { ok: true, reintentable: false, motivo: 'pago sandbox, no hubo cobro real' };
-
-    if (r.ok) {
-        await cliente.query(
-            `UPDATE pagos SET estado = 'reembolsado', reembolsado_en = now(), actualizado_en = now(),
-                    detalle = COALESCE(detalle, '{}'::jsonb) || jsonb_build_object('reembolso', $2::text)
-             WHERE id = $1`,
-            [pago.id, r.motivo]
-        );
-        return { estado: 'reembolsado' };
-    }
-
-    if (r.reintentable) return { estado: 'reintentar', motivo: r.motivo };
-
-    // Falla permanente: la pasarela no va a aceptar el reembolso por más que
-    // insistamos. Dejamos el pago como aprobado —no mentimos sobre la plata— y
-    // anotamos el motivo para que quede a la vista de un admin.
-    await cliente.query(
-        `UPDATE pagos SET actualizado_en = now(),
-                detalle = COALESCE(detalle, '{}'::jsonb) || jsonb_build_object('reembolsoPendiente', $2::text)
-         WHERE id = $1`,
-        [pago.id, r.motivo]
-    );
-    return { estado: 'reembolso_pendiente', motivo: r.motivo };
-}
-
 async function expirarUno(envioId) {
     const cliente = await pool.connect();
     try {
@@ -68,6 +25,7 @@ async function expirarUno(envioId) {
         const { rows } = await cliente.query(
             `SELECT * FROM envios
              WHERE id = $1
+               AND archivado_en IS NULL
                AND chofer_id IS NULL
                AND estado = 'pendiente'
                AND estado_pago = 'pagado'
@@ -135,6 +93,7 @@ async function barrer() {
     const { rows } = await consultar(
         `SELECT id FROM envios
          WHERE chofer_id IS NULL
+           AND archivado_en IS NULL
            AND estado = 'pendiente'
            AND estado_pago = 'pagado'
            AND oferta_vence_en IS NOT NULL

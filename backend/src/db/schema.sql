@@ -272,3 +272,61 @@ ALTER TABLE pagos ADD CONSTRAINT pagos_estado_check
 CREATE INDEX IF NOT EXISTS idx_envios_oferta_vencida
     ON envios (oferta_vence_en)
     WHERE chofer_id IS NULL AND estado = 'pendiente';
+
+-- ---------------------------------------------------------------------------
+-- Archivado de envíos por parte del admin. No borramos la fila: se pierde la
+-- trazabilidad de los pagos, los comprobantes y los eventos, que es justo lo
+-- que hace falta ante un reclamo. Archivado = fuera de todas las listas.
+-- ---------------------------------------------------------------------------
+ALTER TABLE envios ADD COLUMN IF NOT EXISTS archivado_en  TIMESTAMPTZ;
+ALTER TABLE envios ADD COLUMN IF NOT EXISTS archivado_por INTEGER REFERENCES usuarios(id) ON DELETE SET NULL;
+ALTER TABLE envios ADD COLUMN IF NOT EXISTS archivado_motivo VARCHAR(200);
+
+CREATE INDEX IF NOT EXISTS idx_envios_activos ON envios (cliente_id, creado_en DESC)
+    WHERE archivado_en IS NULL;
+
+-- ---------------------------------------------------------------------------
+-- Soporte: tickets con chat. El bot atiende primero y, si no resuelve, el
+-- ticket se escala a un admin y siguen conversando en el mismo hilo.
+-- ---------------------------------------------------------------------------
+CREATE SEQUENCE IF NOT EXISTS soporte_codigo_seq;
+
+CREATE TABLE IF NOT EXISTS soporte_tickets (
+    id           SERIAL PRIMARY KEY,
+    codigo       VARCHAR(24) UNIQUE NOT NULL
+                 DEFAULT ('SOP-' || to_char(now(), 'YYYY') || '-'
+                          || lpad(nextval('soporte_codigo_seq')::text, 6, '0')),
+    usuario_id   INTEGER      NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    envio_id     INTEGER      REFERENCES envios(id) ON DELETE SET NULL,
+    asunto       VARCHAR(140) NOT NULL,
+    categoria    VARCHAR(30)  NOT NULL,
+    estado       VARCHAR(12)  NOT NULL DEFAULT 'bot'
+                 CHECK (estado IN ('bot', 'escalado', 'resuelto', 'cerrado')),
+    admin_id     INTEGER      REFERENCES usuarios(id) ON DELETE SET NULL,
+    -- Para que cada lado sepa si tiene algo sin leer sin recorrer los mensajes.
+    ultimo_mensaje_en TIMESTAMPTZ NOT NULL DEFAULT now(),
+    creado_en    TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    actualizado_en TIMESTAMPTZ NOT NULL DEFAULT now(),
+    resuelto_en  TIMESTAMPTZ
+);
+
+CREATE TABLE IF NOT EXISTS soporte_mensajes (
+    id             SERIAL PRIMARY KEY,
+    ticket_id      INTEGER     NOT NULL REFERENCES soporte_tickets(id) ON DELETE CASCADE,
+    autor          VARCHAR(8)  NOT NULL CHECK (autor IN ('usuario', 'bot', 'admin')),
+    autor_id       INTEGER     REFERENCES usuarios(id) ON DELETE SET NULL,
+    autor_nombre   VARCHAR(120),
+    texto          TEXT,
+    adjunto_ruta   VARCHAR(300),
+    adjunto_nombre VARCHAR(200),
+    adjunto_tipo   VARCHAR(80),
+    adjunto_bytes  INTEGER,
+    creado_en      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    -- Un mensaje sin texto y sin adjunto no tiene sentido.
+    CONSTRAINT soporte_mensaje_con_contenido
+        CHECK (texto IS NOT NULL OR adjunto_ruta IS NOT NULL)
+);
+
+CREATE INDEX IF NOT EXISTS idx_soporte_tickets_usuario ON soporte_tickets (usuario_id, creado_en DESC);
+CREATE INDEX IF NOT EXISTS idx_soporte_tickets_estado  ON soporte_tickets (estado, ultimo_mensaje_en DESC);
+CREATE INDEX IF NOT EXISTS idx_soporte_mensajes_ticket ON soporte_mensajes (ticket_id, creado_en, id);
