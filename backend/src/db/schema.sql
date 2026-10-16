@@ -1,0 +1,395 @@
+CREATE TABLE IF NOT EXISTS usuarios (
+    id              SERIAL PRIMARY KEY,
+    usuario         VARCHAR(20)  UNIQUE NOT NULL,
+    contrasena_hash TEXT         NOT NULL,
+    rol             VARCHAR(10)  NOT NULL DEFAULT 'cliente'
+                    CHECK (rol IN ('admin', 'cliente', 'chofer')),
+    nombre_completo VARCHAR(120) NOT NULL,
+    creado_en       TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS choferes (
+    id                   SERIAL PRIMARY KEY,
+    codigo               VARCHAR(12)  UNIQUE NOT NULL,
+    usuario_id           INTEGER      UNIQUE NOT NULL
+                         REFERENCES usuarios(id) ON DELETE CASCADE,
+    nombre_completo      VARCHAR(120) NOT NULL,
+    email                VARCHAR(120) NOT NULL,
+    telefono             VARCHAR(30)  NOT NULL,
+    domicilio            VARCHAR(200) NOT NULL,
+    dni                  VARCHAR(10)  UNIQUE NOT NULL,
+    escaneo_facial_ok    BOOLEAN      NOT NULL DEFAULT FALSE,
+    verificacion_renaper VARCHAR(10)  NOT NULL DEFAULT 'pendiente'
+                         CHECK (verificacion_renaper IN ('pendiente', 'aprobada', 'rechazada')),
+    renaper_modo         VARCHAR(10)  NOT NULL DEFAULT 'simulado'
+                         CHECK (renaper_modo IN ('simulado', 'real')),
+    metodo_verificacion  VARCHAR(12),
+    selfie_path          VARCHAR(300),
+    dni_frente_path      VARCHAR(300),
+    verificado_en        TIMESTAMPTZ,
+    creado_en            TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+
+ALTER TABLE choferes ADD COLUMN IF NOT EXISTS metodo_verificacion VARCHAR(12);
+ALTER TABLE choferes ADD COLUMN IF NOT EXISTS selfie_path          VARCHAR(300);
+ALTER TABLE choferes ADD COLUMN IF NOT EXISTS dni_frente_path      VARCHAR(300);
+ALTER TABLE choferes ADD COLUMN IF NOT EXISTS liveness_ok          BOOLEAN;
+ALTER TABLE choferes ADD COLUMN IF NOT EXISTS face_match_score     NUMERIC(5,4);
+ALTER TABLE choferes ADD COLUMN IF NOT EXISTS vehiculo_id          VARCHAR(20);
+
+CREATE TABLE IF NOT EXISTS auditoria_accesos (
+    id         SERIAL PRIMARY KEY,
+    usuario    VARCHAR(20)  NOT NULL,
+    exito      BOOLEAN      NOT NULL,
+    motivo     VARCHAR(60),
+    ip         VARCHAR(45),
+    user_agent VARCHAR(300),
+    fecha      TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+
+
+CREATE TABLE IF NOT EXISTS vehiculos (
+    id                  VARCHAR(20)  PRIMARY KEY,
+    nombre              VARCHAR(60)   NOT NULL,
+    max_kg              NUMERIC(10,2) NOT NULL,
+    max_bultos          INTEGER       NOT NULL,
+    max_volumen_dm3     NUMERIC(12,2) NOT NULL,
+    tarifa_base         NUMERIC(12,2) NOT NULL,
+    por_kg              NUMERIC(12,2) NOT NULL,
+    por_bulto           NUMERIC(12,2) NOT NULL,
+    por_km              NUMERIC(12,2) NOT NULL,
+    velocidad_media_kmh NUMERIC(6,2)  NOT NULL,
+    capacidades         TEXT[]        NOT NULL DEFAULT '{}'
+);
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'choferes_vehiculo_id_fkey'
+    ) THEN
+        ALTER TABLE choferes
+            ADD CONSTRAINT choferes_vehiculo_id_fkey
+            FOREIGN KEY (vehiculo_id) REFERENCES vehiculos(id);
+    END IF;
+END $$;
+
+CREATE TABLE IF NOT EXISTS cotizaciones (
+    id                 SERIAL PRIMARY KEY,
+    codigo             VARCHAR(40)   UNIQUE NOT NULL,
+    cliente_id         INTEGER       REFERENCES usuarios(id) ON DELETE SET NULL,
+    origen             VARCHAR(200)  NOT NULL,
+    destino            VARCHAR(200)  NOT NULL,
+    descripcion_carga  VARCHAR(300),
+    categoria_carga    VARCHAR(20),
+    peso_kg            NUMERIC(10,2) NOT NULL,
+    peso_facturable_kg NUMERIC(10,2),
+    bultos             INTEGER       NOT NULL,
+    largo_cm           NUMERIC(8,2),
+    ancho_cm           NUMERIC(8,2),
+    alto_cm            NUMERIC(8,2),
+    valor_declarado    NUMERIC(14,2),
+    vehiculo_id        VARCHAR(20)   REFERENCES vehiculos(id),
+    vehiculo_nombre    VARCHAR(60),
+    distancia_km       NUMERIC(10,2),
+    distancia_estimada BOOLEAN,
+    precio             NUMERIC(14,2) NOT NULL,
+    moneda             VARCHAR(3)    NOT NULL DEFAULT 'ARS',
+    confianza          VARCHAR(10),
+    puntaje_confianza  INTEGER,
+    validez_min        INTEGER,
+    estado             VARCHAR(12)   NOT NULL DEFAULT 'emitida'
+                       CHECK (estado IN ('emitida', 'confirmada', 'vencida', 'descartada')),
+    detalle            JSONB,
+    emitida_en         TIMESTAMPTZ   NOT NULL DEFAULT now()
+);
+
+CREATE SEQUENCE IF NOT EXISTS envios_codigo_seq;
+
+CREATE TABLE IF NOT EXISTS envios (
+    id                SERIAL PRIMARY KEY,
+    codigo            VARCHAR(24)   UNIQUE NOT NULL
+                      DEFAULT ('TRK-' || to_char(now(), 'YYYY') || '-'
+                               || lpad(nextval('envios_codigo_seq')::text, 6, '0')),
+    cliente_id        INTEGER       NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    cotizacion_id     INTEGER       REFERENCES cotizaciones(id) ON DELETE SET NULL,
+    chofer_id         INTEGER       REFERENCES choferes(id) ON DELETE SET NULL,
+    origen            VARCHAR(200)  NOT NULL,
+    destino           VARCHAR(200)  NOT NULL,
+    origen_lat        NUMERIC(9,6),
+    origen_lng        NUMERIC(9,6),
+    destino_lat       NUMERIC(9,6),
+    destino_lng       NUMERIC(9,6),
+    descripcion_carga VARCHAR(300),
+    categoria_carga   VARCHAR(20),
+    peso_kg           NUMERIC(10,2),
+    bultos            INTEGER,
+    vehiculo_id       VARCHAR(20)   REFERENCES vehiculos(id),
+    vehiculo_nombre   VARCHAR(60),
+    distancia_km      NUMERIC(10,2),
+    precio            NUMERIC(14,2) NOT NULL,
+    moneda            VARCHAR(3)    NOT NULL DEFAULT 'ARS',
+    estado            VARCHAR(14)   NOT NULL DEFAULT 'pendiente'
+                      CHECK (estado IN ('pendiente', 'asignado', 'en_viaje', 'entregado', 'cancelado')),
+    sla_min           INTEGER,
+    sla_vence_en      TIMESTAMPTZ,
+    chofer_nombre     VARCHAR(120),
+    creado_en         TIMESTAMPTZ   NOT NULL DEFAULT now(),
+    actualizado_en    TIMESTAMPTZ   NOT NULL DEFAULT now(),
+    entregado_en      TIMESTAMPTZ
+);
+
+CREATE TABLE IF NOT EXISTS envio_eventos (
+    id        SERIAL PRIMARY KEY,
+    envio_id  INTEGER      NOT NULL REFERENCES envios(id) ON DELETE CASCADE,
+    tipo      VARCHAR(24)  NOT NULL
+              CHECK (tipo IN ('creado', 'asignado', 'chofer_en_camino', 'retirado',
+                              'en_viaje', 'entregado', 'sla_excedido', 'cancelado')),
+    titulo    VARCHAR(120) NOT NULL,
+    detalle   VARCHAR(300),
+    lat       NUMERIC(9,6),
+    lng       NUMERIC(9,6),
+    creado_en TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS asignaciones (
+    id                 SERIAL PRIMARY KEY,
+    codigo             VARCHAR(40)   UNIQUE NOT NULL,
+    chofer_id          INTEGER       NOT NULL REFERENCES choferes(id) ON DELETE CASCADE,
+    envio_id           INTEGER       REFERENCES envios(id) ON DELETE SET NULL,
+    origen             VARCHAR(200)  NOT NULL,
+    destino            VARCHAR(200)  NOT NULL,
+    distancia_km       NUMERIC(10,2),
+    descripcion_carga  VARCHAR(300),
+    categoria_etiqueta VARCHAR(60),
+    peso_kg            NUMERIC(10,2),
+    bultos             INTEGER,
+    vehiculo_requerido VARCHAR(60),
+    tarifa             NUMERIC(14,2),
+    pago_chofer        NUMERIC(14,2),
+    prioridad          VARCHAR(6)    CHECK (prioridad IN ('alta', 'media', 'baja')),
+    eta_retiro_min     INTEGER,
+    tiempo_viaje_min   INTEGER,
+    estado             VARCHAR(12)   NOT NULL DEFAULT 'ofrecida'
+                       CHECK (estado IN ('ofrecida', 'aceptada', 'rechazada', 'expirada', 'completada')),
+    recomendacion      JSONB,
+    requisitos         TEXT[]        NOT NULL DEFAULT '{}',
+    generada_en        TIMESTAMPTZ   NOT NULL DEFAULT now(),
+    expira_en          TIMESTAMPTZ,
+    respondida_en      TIMESTAMPTZ
+);
+
+CREATE SEQUENCE IF NOT EXISTS cupones_codigo_seq;
+
+CREATE TABLE IF NOT EXISTS cupones (
+    id            SERIAL PRIMARY KEY,
+    codigo        VARCHAR(40)  UNIQUE NOT NULL
+                  DEFAULT ('SLA-INCUMP-' || lpad(nextval('cupones_codigo_seq')::text, 3, '0')),
+    cliente_id    INTEGER      NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    envio_id      INTEGER      REFERENCES envios(id) ON DELETE SET NULL,
+    descuento_pct INTEGER      NOT NULL,
+    motivo        VARCHAR(200) NOT NULL,
+    estado        VARCHAR(10)  NOT NULL DEFAULT 'activo'
+                  CHECK (estado IN ('activo', 'usado', 'vencido')),
+    creado_en     TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    usado_en      TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_usuarios_rol            ON usuarios (rol);
+CREATE INDEX IF NOT EXISTS idx_auditoria_usuario_fecha ON auditoria_accesos (usuario, fecha DESC);
+CREATE INDEX IF NOT EXISTS idx_cotizaciones_cliente    ON cotizaciones (cliente_id, emitida_en DESC);
+CREATE INDEX IF NOT EXISTS idx_envios_cliente          ON envios (cliente_id, creado_en DESC);
+CREATE INDEX IF NOT EXISTS idx_envios_chofer           ON envios (chofer_id);
+CREATE INDEX IF NOT EXISTS idx_envios_estado           ON envios (estado);
+CREATE INDEX IF NOT EXISTS idx_envio_eventos_envio     ON envio_eventos (envio_id, creado_en);
+CREATE INDEX IF NOT EXISTS idx_asignaciones_chofer     ON asignaciones (chofer_id, generada_en DESC);
+CREATE INDEX IF NOT EXISTS idx_cupones_cliente         ON cupones (cliente_id, creado_en DESC);
+
+
+CREATE SEQUENCE IF NOT EXISTS pagos_codigo_seq;
+CREATE SEQUENCE IF NOT EXISTS comprobantes_seq;
+
+CREATE TABLE IF NOT EXISTS pagos (
+    id              SERIAL PRIMARY KEY,
+    codigo          VARCHAR(24)   UNIQUE NOT NULL
+                    DEFAULT ('PAY-' || to_char(now(), 'YYYY') || '-'
+                             || lpad(nextval('pagos_codigo_seq')::text, 6, '0')),
+    envio_id        INTEGER       NOT NULL REFERENCES envios(id) ON DELETE CASCADE,
+    cliente_id      INTEGER       NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    metodo          VARCHAR(12)   NOT NULL
+                    CHECK (metodo IN ('mercadopago', 'modo', 'tarjeta')),
+    monto           NUMERIC(14,2) NOT NULL,
+    moneda          VARCHAR(3)    NOT NULL DEFAULT 'ARS',
+    estado          VARCHAR(12)   NOT NULL DEFAULT 'pendiente'
+                    CHECK (estado IN ('pendiente', 'aprobado', 'rechazado', 'cancelado', 'expirado')),
+    modo_proc       VARCHAR(10)   NOT NULL DEFAULT 'sandbox'
+                    CHECK (modo_proc IN ('sandbox', 'real')),
+    tarjeta_marca   VARCHAR(20),
+    tarjeta_ultimos VARCHAR(4),
+    cuotas          INTEGER,
+    referencia_ext  VARCHAR(120),
+    pago_ext_id     VARCHAR(120),
+    comprobante     VARCHAR(24),
+    detalle         JSONB,
+    creado_en       TIMESTAMPTZ   NOT NULL DEFAULT now(),
+    actualizado_en  TIMESTAMPTZ   NOT NULL DEFAULT now(),
+    pagado_en       TIMESTAMPTZ
+);
+
+ALTER TABLE envios ADD COLUMN IF NOT EXISTS estado_pago VARCHAR(10) NOT NULL DEFAULT 'pendiente'
+    CHECK (estado_pago IN ('pendiente', 'pagado', 'rechazado'));
+
+CREATE INDEX IF NOT EXISTS idx_pagos_envio   ON pagos (envio_id);
+CREATE INDEX IF NOT EXISTS idx_pagos_cliente ON pagos (cliente_id, creado_en DESC);
+
+CREATE INDEX IF NOT EXISTS idx_envios_disponibles
+    ON envios (estado, estado_pago, creado_en)
+    WHERE chofer_id IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_asignaciones_envio ON asignaciones (envio_id);
+
+-- ---------------------------------------------------------------------------
+-- Expiración de la oferta: si ningún chofer toma el envío dentro de la ventana,
+-- se cancela y se reembolsa. El reloj arranca cuando el pago queda aprobado,
+-- no cuando se crea el envío (el cliente puede tardar en pagar).
+-- ---------------------------------------------------------------------------
+ALTER TABLE envios ADD COLUMN IF NOT EXISTS oferta_vence_en TIMESTAMPTZ;
+
+-- 'reembolsado' no entra en VARCHAR(10), así que ampliamos la columna antes de
+-- tocar el CHECK. Los ALTER de constraint van con DROP + ADD porque
+-- "ADD COLUMN IF NOT EXISTS ... CHECK" no reescribe el CHECK si la columna ya existe.
+ALTER TABLE envios ALTER COLUMN estado_pago TYPE VARCHAR(12);
+
+ALTER TABLE envios DROP CONSTRAINT IF EXISTS envios_estado_pago_check;
+ALTER TABLE envios ADD CONSTRAINT envios_estado_pago_check
+    CHECK (estado_pago IN ('pendiente', 'pagado', 'rechazado', 'reembolsado'));
+
+ALTER TABLE pagos ADD COLUMN IF NOT EXISTS reembolsado_en TIMESTAMPTZ;
+
+ALTER TABLE pagos DROP CONSTRAINT IF EXISTS pagos_estado_check;
+ALTER TABLE pagos ADD CONSTRAINT pagos_estado_check
+    CHECK (estado IN ('pendiente', 'aprobado', 'rechazado', 'cancelado', 'expirado', 'reembolsado'));
+
+CREATE INDEX IF NOT EXISTS idx_envios_oferta_vencida
+    ON envios (oferta_vence_en)
+    WHERE chofer_id IS NULL AND estado = 'pendiente';
+
+-- ---------------------------------------------------------------------------
+-- Archivado de envíos por parte del admin. No borramos la fila: se pierde la
+-- trazabilidad de los pagos, los comprobantes y los eventos, que es justo lo
+-- que hace falta ante un reclamo. Archivado = fuera de todas las listas.
+-- ---------------------------------------------------------------------------
+ALTER TABLE envios ADD COLUMN IF NOT EXISTS archivado_en  TIMESTAMPTZ;
+ALTER TABLE envios ADD COLUMN IF NOT EXISTS archivado_por INTEGER REFERENCES usuarios(id) ON DELETE SET NULL;
+ALTER TABLE envios ADD COLUMN IF NOT EXISTS archivado_motivo VARCHAR(200);
+
+CREATE INDEX IF NOT EXISTS idx_envios_activos ON envios (cliente_id, creado_en DESC)
+    WHERE archivado_en IS NULL;
+
+-- ---------------------------------------------------------------------------
+-- Soporte: tickets con chat. El bot atiende primero y, si no resuelve, el
+-- ticket se escala a un admin y siguen conversando en el mismo hilo.
+-- ---------------------------------------------------------------------------
+CREATE SEQUENCE IF NOT EXISTS soporte_codigo_seq;
+
+CREATE TABLE IF NOT EXISTS soporte_tickets (
+    id           SERIAL PRIMARY KEY,
+    codigo       VARCHAR(24) UNIQUE NOT NULL
+                 DEFAULT ('SOP-' || to_char(now(), 'YYYY') || '-'
+                          || lpad(nextval('soporte_codigo_seq')::text, 6, '0')),
+    usuario_id   INTEGER      NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    envio_id     INTEGER      REFERENCES envios(id) ON DELETE SET NULL,
+    asunto       VARCHAR(140) NOT NULL,
+    categoria    VARCHAR(30)  NOT NULL,
+    estado       VARCHAR(12)  NOT NULL DEFAULT 'bot'
+                 CHECK (estado IN ('bot', 'escalado', 'resuelto', 'cerrado')),
+    admin_id     INTEGER      REFERENCES usuarios(id) ON DELETE SET NULL,
+    -- Para que cada lado sepa si tiene algo sin leer sin recorrer los mensajes.
+    ultimo_mensaje_en TIMESTAMPTZ NOT NULL DEFAULT now(),
+    creado_en    TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    actualizado_en TIMESTAMPTZ NOT NULL DEFAULT now(),
+    resuelto_en  TIMESTAMPTZ
+);
+
+CREATE TABLE IF NOT EXISTS soporte_mensajes (
+    id             SERIAL PRIMARY KEY,
+    ticket_id      INTEGER     NOT NULL REFERENCES soporte_tickets(id) ON DELETE CASCADE,
+    autor          VARCHAR(8)  NOT NULL CHECK (autor IN ('usuario', 'bot', 'admin')),
+    autor_id       INTEGER     REFERENCES usuarios(id) ON DELETE SET NULL,
+    autor_nombre   VARCHAR(120),
+    texto          TEXT,
+    adjunto_ruta   VARCHAR(300),
+    adjunto_nombre VARCHAR(200),
+    adjunto_tipo   VARCHAR(80),
+    adjunto_bytes  INTEGER,
+    creado_en      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    -- Un mensaje sin texto y sin adjunto no tiene sentido.
+    CONSTRAINT soporte_mensaje_con_contenido
+        CHECK (texto IS NOT NULL OR adjunto_ruta IS NOT NULL)
+);
+
+CREATE INDEX IF NOT EXISTS idx_soporte_tickets_usuario ON soporte_tickets (usuario_id, creado_en DESC);
+CREATE INDEX IF NOT EXISTS idx_soporte_tickets_estado  ON soporte_tickets (estado, ultimo_mensaje_en DESC);
+CREATE INDEX IF NOT EXISTS idx_soporte_mensajes_ticket ON soporte_mensajes (ticket_id, creado_en, id);
+
+-- ---------------------------------------------------------------------------
+-- Soporte en tiempo real (solo aplica sobre Supabase).
+--
+-- El frontend se conecta a Supabase únicamente para ESCUCHAR mensajes nuevos.
+-- Toda escritura sigue yendo por la API de Express, que autentica con su propio
+-- JWT y escribe con la service role. Por eso acá solo hay políticas de SELECT.
+--
+-- Los usuarios de Logitrak viven en `usuarios`, no en Supabase Auth: el backend
+-- firma un JWT con el JWT secret del proyecto y dos claims propios, y estas
+-- funciones los leen.
+--
+-- REPLICA IDENTITY FULL no es opcional: con RLS activo, Realtime necesita la
+-- fila completa en el WAL para evaluar las políticas. Sin eso el canal se
+-- suscribe pero no llega ningún evento.
+-- ---------------------------------------------------------------------------
+DO $realtime$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'auth') THEN
+        RAISE NOTICE 'Sin esquema auth: se omite la configuración de Realtime (no estamos en Supabase).';
+        RETURN;
+    END IF;
+
+    EXECUTE $sql$
+        CREATE OR REPLACE FUNCTION public.logitrak_usuario_id()
+        RETURNS integer LANGUAGE sql STABLE SET search_path = public, pg_catalog
+        AS 'SELECT NULLIF(auth.jwt() ->> ''logitrak_usuario_id'', '''')::integer';
+    $sql$;
+
+    EXECUTE $sql$
+        CREATE OR REPLACE FUNCTION public.logitrak_es_admin()
+        RETURNS boolean LANGUAGE sql STABLE SET search_path = public, pg_catalog
+        AS 'SELECT COALESCE(auth.jwt() ->> ''logitrak_rol'', '''') = ''admin''';
+    $sql$;
+
+    ALTER TABLE soporte_tickets  ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE soporte_mensajes ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE soporte_tickets  REPLICA IDENTITY FULL;
+    ALTER TABLE soporte_mensajes REPLICA IDENTITY FULL;
+
+    DROP POLICY IF EXISTS soporte_tickets_lectura ON soporte_tickets;
+    CREATE POLICY soporte_tickets_lectura ON soporte_tickets FOR SELECT
+        USING (public.logitrak_es_admin() OR usuario_id = public.logitrak_usuario_id());
+
+    DROP POLICY IF EXISTS soporte_mensajes_lectura ON soporte_mensajes;
+    CREATE POLICY soporte_mensajes_lectura ON soporte_mensajes FOR SELECT
+        USING (
+            public.logitrak_es_admin()
+            OR EXISTS (SELECT 1 FROM soporte_tickets t
+                       WHERE t.id = soporte_mensajes.ticket_id
+                         AND t.usuario_id = public.logitrak_usuario_id())
+        );
+
+    IF NOT EXISTS (SELECT 1 FROM pg_publication_tables
+                   WHERE pubname = 'supabase_realtime' AND tablename = 'soporte_mensajes') THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE soporte_mensajes;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_publication_tables
+                   WHERE pubname = 'supabase_realtime' AND tablename = 'soporte_tickets') THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE soporte_tickets;
+    END IF;
+END
+$realtime$;

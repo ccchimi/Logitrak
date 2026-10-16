@@ -1,0 +1,139 @@
+npm notice run frontend@1.0.0 npx
+npm notice run jest --coverage --verbose --colors=false
+PASS src/services/botLogistica/__tests__/nlp.test.ts (5.426 s)
+  normalizar y tokenizar
+    √ quita tildes, mayúsculas y espacios de más (9 ms)
+    √ separa en palabras ignorando signos (1 ms)
+  levenshtein y similitud
+    √ levenshtein("", "") = 0 (1 ms)
+    √ levenshtein("abc", "") = 3 (1 ms)
+    √ levenshtein("", "abc") = 3
+    √ levenshtein("rosario", "rosaro") = 1
+    √ levenshtein("kitten", "sitting") = 3 (1 ms)
+    √ similitud entre textos vacíos es 1 y entre distintos es menor
+  extraerNumero
+    √ "3,5 kg" → NaN (2 ms)
+    √ "500 gramos" → NaN
+    √ "2 toneladas" → NaN
+    √ "1,2 metros" → NaN (1 ms)
+    √ "dos kilos" → NaN
+    √ "veinticinco" → NaN
+    √ devuelve null si no hay número (1 ms)
+  detección de textos basura
+    √ reconoce placeholders (1 ms)
+    √ reconoce texto ilegible (1 ms)
+    √ no marca como ilegible "Av. Rivadavia 10000, CABA" por tener dígitos repetidos
+    √ no marca como ilegible "Calle 1111, La Plata" por tener dígitos repetidos
+    √ no marca como ilegible "Ruta 8 km 40000" por tener dígitos repetidos
+  afirmaciones y negaciones
+    √ "Sí" es afirmación
+    √ "dale!" es afirmación (1 ms)
+    √ "si, confirmo" es afirmación
+    √ "de una" es afirmación
+    √ "No" es negación (1 ms)
+    √ "nop." es negación
+    √ "no, cambialo" es negación (1 ms)
+    √ "me equivoqué" es negación
+  hashTexto y elegirVariante
+    √ es determinístico
+    √ elige siempre la misma variante para la misma semilla
+
+PASS src/services/botLogistica/__tests__/cargas.test.ts (5.71 s)
+  clasificarCarga
+    √ clasifica "un sobre con el contrato firmado" como documentos (+0%) (7 ms)
+    √ clasifica "notebook y monitor" como electronica (+8%) (1 ms)
+    √ clasifica "Vajilla de PORCELANA" como fragil (+12%)
+    √ clasifica "carne congelada" como refrigerado (+18%) (1 ms)
+    √ clasifica "vacunas para la farmacia" como medicinal (+15%)
+    √ clasifica "bidones de pintura" como peligroso (+30%) (1 ms)
+    √ clasifica "un sillón y un colchón de mudanza" como voluminoso (+10%)
+    √ clasifica "lote mayorista de zapatillas" como indumentaria (+0%)
+    √ asigna la capacidad de vehículo requerida (1 ms)
+    √ sin descripción devuelve carga general con confianza baja
+    √ descripción no reconocida devuelve carga general (1 ms)
+    √ no comparte el arreglo de requisitos con el catálogo
+
+PASS src/services/botLogistica/__tests__/direcciones.test.ts (5.899 s)
+  analizarDireccion
+    √ verifica una dirección completa y la normaliza (13 ms)
+    √ reconoce código postal y piso/departamento (1 ms)
+    √ corrige localidades mal escritas (4 ms)
+    √ advierte si falta la altura o la localidad (5 ms)
+    √ advierte alturas imposibles (1 ms)
+    √ acepta alturas reales con dígitos repetidos
+    √ advierte (sin rechazar) una altura imposible con dígitos repetidos (1 ms)
+    √ marca como inválida "" (direccion_vacia)
+    √ marca como inválida "   " (direccion_vacia)
+    √ marca como inválida "Mitre" (direccion_corta)
+    √ marca como inválida "calle falsa 123" (texto_de_prueba)
+    √ marca como inválida "qwerty uiop" (texto_de_prueba)
+    √ marca como inválida "xkcd zzzz 11" (texto_ilegible)
+    √ marca como inválida "123456 7890" (texto_ilegible)
+  resolverLocalidad
+    √ resuelve por alias exacto
+    √ devuelve null si no hay coincidencia (2 ms)
+  esMismaDireccion
+    √ detecta la misma calle y altura aunque cambie la escritura (1 ms)
+    √ distingue alturas distintas
+  distancias
+    √ la distancia de un punto a sí mismo es 0 (1 ms)
+    √ CABA → Rosario ronda los 280 km en línea recta
+    √ aplica el factor de ruta entre localidades distintas
+    √ asume 8 km urbanos si falta la localidad (1 ms)
+
+PASS src/services/botLogistica/__tests__/tarifas.test.ts (6.088 s)
+  cotizarSync — camino feliz
+    √ cotiza un envío urbano de documentos con moto y el precio calculado a mano (10 ms)
+    √ el precio final es la suma del desglose redondeada a múltiplos de $50 (1 ms)
+    √ usa el peso volumétrico cuando supera al peso real (1 ms)
+    √ suma peajes en tramos interurbanos (más de 50 km) (2 ms)
+    √ aplica recargo por tipo de carga y seguro por valor declarado (1 ms)
+    √ asigna un vehículo con cadena de frío para carga refrigerada (1 ms)
+    √ encarece la tarifa en domingo y hora pico respecto del horario valle (1 ms)
+    √ normaliza la cantidad de bultos inválida a 1 (1 ms)
+  cotizarSync — casos de borde y error
+    √ rechaza direcciones vacías
+    √ rechaza textos de prueba como "asdasd" (1 ms)
+    √ cotiza direcciones con alturas de dígitos repetidos (regresión DEF-01)
+    √ rechaza cuando origen y destino son la misma dirección
+    √ rechaza peso cero (1 ms)
+    √ rechaza peso negativo
+    √ rechaza peso NaN
+    √ rechaza peso infinito
+    √ rechaza peso debajo del mínimo (0,01 kg)
+    √ acepta exactamente el peso mínimo (0,05 kg)
+    √ acepta exactamente el peso máximo (12.000 kg) y rechaza 12.001 kg (1 ms)
+    √ acepta 200 bultos y rechaza 201
+    √ rechaza cuando ninguna unidad soporta el volumen pedido
+  seleccionarVehiculo
+    √ elige la unidad más barata que cubre la carga (1 ms)
+    √ respeta los límites exactos de capacidad de la moto
+    √ exige la capacidad especial de la carga (mercancía peligrosa → camión)
+    √ devuelve null si ninguna unidad alcanza
+  calcularFactoresContexto
+    √ horario valle de un día hábil no aplica multiplicadores de hora ni día (1 ms)
+    √ detecta franja nocturna y sábado
+    √ marca plaza de baja demanda y usa 1 si no hay localidades
+    √ describe el viernes como día de alta rotación
+  estimarTiempos
+    √ calcula ETA de retiro, viaje y ventana del mismo día
+    √ limita la ETA de retiro a 40 minutos
+    √ pasa la entrega a "mañana" si cruza la medianoche
+    √ expresa en días los viajes de más de 24 h
+  cotizarEnvio (asíncrono)
+    √ resuelve con la misma respuesta que cotizarSync luego de la latencia simulada (2 ms)
+
+----------------|---------|----------|---------|---------|-----------------------
+File            | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s     
+----------------|---------|----------|---------|---------|-----------------------
+All files       |   97.66 |    91.88 |     100 |   98.11 |                       
+ cargas.ts      |   96.55 |    94.11 |     100 |     100 | 7                     
+ direcciones.ts |    99.3 |    93.93 |     100 |   99.22 | 264                   
+ nlp.ts         |     100 |      100 |     100 |     100 |                       
+ tarifas.ts     |   94.83 |    86.04 |     100 |   95.55 | 20-21,329-330,335,338 
+----------------|---------|----------|---------|---------|-----------------------
+Test Suites: 4 passed, 4 total
+Tests:       98 passed, 98 total
+Snapshots:   0 total
+Time:        6.883 s
+Ran all test suites.
