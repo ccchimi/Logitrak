@@ -131,10 +131,12 @@ La cobertura global actual (ver evidencia) supera con margen el mínimo. Al cód
 | **ESLint** con `typescript-eslint` y `eslint-plugin-sonarjs` | Malas prácticas, variables sin usar, funciones demasiado complejas (`complexity`, `cognitive-complexity`), código duplicado dentro de un archivo | Editor, *pre-commit* y CI |
 | **SonarCloud** (gratuito para repositorios públicos) | Código duplicado entre archivos, *code smells*, **deuda técnica** estimada en horas, *security hotspots* y cobertura del código nuevo (*quality gate*) | En cada PR, como check obligatorio |
 | **GitHub CodeQL** | Vulnerabilidades de seguridad en JS/TS (inyecciones, datos sin validar), sobre todo en el backend | En cada PR y semanal |
-| **npm audit** + **Dependabot** | Dependencias con vulnerabilidades conocidas y versiones desactualizadas | CI (implementado) y PRs semanales |
+| **npm audit** + **Dependabot** | Dependencias con vulnerabilidades conocidas y versiones desactualizadas | CI (implementado, por ahora informativo) y PRs semanales |
 | **Revisión de código entre pares** | Lo que las herramientas no ven: reglas de negocio mal entendidas, nombres confusos, falta de pruebas | Obligatoria en cada PR |
 
 Un mantenimiento **no se despliega** si alguna de estas herramientas marca un problema bloqueante: un error de tipos, un error de ESLint, el *quality gate* de SonarCloud en rojo o una vulnerabilidad crítica.
+
+**Hallazgo de la primera ejecución de la CI.** La primera corrida del pipeline en GitHub aprobó las 107 pruebas, pero `npm audit` encontró **23 vulnerabilidades en dependencias** (2 críticas, 11 altas y 10 moderadas) y dejó la ejecución en rojo. Las dos críticas son `tar` y `shell-quote`, que no son código nuestro: las trae el CLI de Expo (`expo › @expo/cli › tar`) y las herramientas de depuración de React Native (`react-native › react-devtools-core › shell-quote`). Se usan para compilar y desarrollar, no viajan dentro de la app que instala el cliente. Para no frenar todos los cambios por un problema externo, el paso quedó **informativo** (`continue-on-error`): la CI sigue mostrando el reporte, pero no bloquea. La corrección es un **mantenimiento adaptativo**: actualizar Expo SDK y React Native (punto 1.2), con la batería de regresión como garantía. Cuando la auditoría quede limpia, el paso vuelve a ser bloqueante para las vulnerabilidades críticas.
 
 ## 3. Matriz unificada de mantenimiento y testing
 
@@ -149,13 +151,14 @@ Un mantenimiento **no se despliega** si alguna de estas herramientas marca un pr
 
 | Elemento | Archivo | Estado |
 |---|---|---|
-| Pipeline de CI (tests, cobertura, `npm audit`, ejecución semanal) | `.github/workflows/ci.yml` | Implementado |
+| Pipeline de CI (tests, cobertura, `npm audit`, ejecución semanal) | `.github/workflows/ci.yml` | Implementado (la auditoría, informativa hasta actualizar Expo) |
 | Hook *pre-commit* con regresión selectiva | `.githooks/pre-commit` (se activa con `git config core.hooksPath .githooks`) | Implementado |
 | Pruebas de caracterización de `cotizarSync` (8 escenarios) | `__tests__/caracterizacion.test.ts` | Implementado |
 | Prueba de rendimiento con tiempo límite | `__tests__/rendimiento.test.ts` | Implementado |
 | Umbral de cobertura que hace fallar la ejecución | `frontend/jest.config.js` (desde el TP2) | Implementado |
 | Branch protection en `main` y auto-deploy de Render condicionado a la CI | Configuración de GitHub / Render | Pendiente (configuración, sin código) |
 | ESLint, SonarCloud, CodeQL y Dependabot | — | Planificado |
+| Actualización de Expo SDK para eliminar las vulnerabilidades críticas de `tar` y `shell-quote` | `frontend/package.json` | Planificado (mantenimiento adaptativo) |
 | Corrección de DEF-02, adaptador de distancias, alternativas de vehículo y refactorización | — | Planificado (este plan) |
 
 ### Resultado de la ejecución
