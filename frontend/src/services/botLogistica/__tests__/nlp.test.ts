@@ -48,7 +48,7 @@ describe('extraerNumero', () => {
         ['1,2 metros', 'longitud', 120, 'metros'],
         ['dos kilos', 'peso', 2, 'kilos'],
         ['veinticinco', undefined, 25, null],
-    ] as const)('"%s" → %d', (texto, dominio, valor, unidad) => {
+    ] as const)('"%s" (%s) → %s', (texto, dominio, valor, unidad) => {
         const r = extraerNumero(texto, dominio);
 
         expect(r?.valor).toBeCloseTo(valor);

@@ -1,0 +1,16 @@
+#!/bin/sh
+# Hook pre-commit: si el commit toca el cotizador, corre solo las pruebas
+# relacionadas con los archivos modificados. Si alguna falla, el commit se frena.
+# Activarlo una vez por clon:  git config core.hooksPath .githooks
+# Ver docs/qa/plan-de-mantenimiento.md, sección 2.
+
+archivos=$(git diff --cached --name-only --diff-filter=ACMR -- 'frontend/src/services/botLogistica/' | sed 's#^frontend/##')
+
+[ -z "$archivos" ] && exit 0
+
+echo "pre-commit: corriendo las pruebas relacionadas con el cotizador..."
+cd frontend || exit 1
+npx jest --bail --findRelatedTests $archivos || {
+    echo "pre-commit: hay pruebas que fallan. Corregilas antes de commitear (o usá --no-verify bajo tu responsabilidad)."
+    exit 1
+}

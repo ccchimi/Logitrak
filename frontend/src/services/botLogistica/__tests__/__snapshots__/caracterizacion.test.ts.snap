@@ -1,0 +1,321 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`caracterización de cotizarSync carga máxima de la flota 1`] = `
+{
+  "categoria": "general",
+  "desglose": [
+    [
+      "base",
+      14500,
+    ],
+    [
+      "variable",
+      660000,
+    ],
+    [
+      "variable",
+      17000,
+    ],
+    [
+      "variable",
+      2002,
+    ],
+    [
+      "recargo",
+      69350,
+    ],
+  ],
+  "distanciaKm": 7.7,
+  "pesoFacturableKg": 12000,
+  "precio": 762850,
+  "tiempos": {
+    "etaRetiroMin": 11,
+    "tiempoViajeMin": 16,
+    "ventanaEntrega": "Hoy, 14:27 – 14:57 h",
+  },
+  "vehiculo": "camion",
+}
+`;
+
+exports[`caracterización de cotizarSync documentos urbanos en moto 1`] = `
+{
+  "categoria": "documentos",
+  "desglose": [
+    [
+      "base",
+      1900,
+    ],
+    [
+      "variable",
+      390,
+    ],
+    [
+      "variable",
+      160,
+    ],
+    [
+      "variable",
+      732,
+    ],
+    [
+      "recargo",
+      318,
+    ],
+  ],
+  "distanciaKm": 7.7,
+  "pesoFacturableKg": 3,
+  "precio": 3500,
+  "tiempos": {
+    "etaRetiroMin": 11,
+    "tiempoViajeMin": 22,
+    "ventanaEntrega": "Hoy, 14:33 – 15:03 h",
+  },
+  "vehiculo": "moto",
+}
+`;
+
+exports[`caracterización de cotizarSync domina el peso volumétrico 1`] = `
+{
+  "categoria": "indumentaria",
+  "desglose": [
+    [
+      "base",
+      4300,
+    ],
+    [
+      "variable",
+      4930,
+    ],
+    [
+      "variable",
+      360,
+    ],
+    [
+      "variable",
+      1078,
+    ],
+    [
+      "recargo",
+      1067,
+    ],
+  ],
+  "distanciaKm": 7.7,
+  "pesoFacturableKg": 57.6,
+  "precio": 11750,
+  "tiempos": {
+    "etaRetiroMin": 11,
+    "tiempoViajeMin": 20,
+    "ventanaEntrega": "Hoy, 14:31 – 15:01 h",
+  },
+  "vehiculo": "utilitario",
+}
+`;
+
+exports[`caracterización de cotizarSync electrónica con seguro 1`] = `
+{
+  "categoria": "electronica",
+  "desglose": [
+    [
+      "base",
+      4300,
+    ],
+    [
+      "variable",
+      680,
+    ],
+    [
+      "variable",
+      240,
+    ],
+    [
+      "variable",
+      1078,
+    ],
+    [
+      "recargo",
+      504,
+    ],
+    [
+      "recargo",
+      10800,
+    ],
+    [
+      "recargo",
+      1760,
+    ],
+  ],
+  "distanciaKm": 7.7,
+  "pesoFacturableKg": 8,
+  "precio": 19350,
+  "tiempos": {
+    "etaRetiroMin": 11,
+    "tiempoViajeMin": 20,
+    "ventanaEntrega": "Hoy, 14:31 – 15:01 h",
+  },
+  "vehiculo": "utilitario",
+}
+`;
+
+exports[`caracterización de cotizarSync interurbano con peajes 1`] = `
+{
+  "categoria": "general",
+  "desglose": [
+    [
+      "base",
+      4300,
+    ],
+    [
+      "variable",
+      12750,
+    ],
+    [
+      "variable",
+      720,
+    ],
+    [
+      "variable",
+      48706,
+    ],
+    [
+      "recargo",
+      6650,
+    ],
+    [
+      "recargo",
+      5850,
+    ],
+  ],
+  "distanciaKm": 347.9,
+  "pesoFacturableKg": 150,
+  "precio": 79000,
+  "tiempos": {
+    "etaRetiroMin": 40,
+    "tiempoViajeMin": 557,
+    "ventanaEntrega": "Hoy, 23:57 – 00:27 h",
+  },
+  "vehiculo": "utilitario",
+}
+`;
+
+exports[`caracterización de cotizarSync mercancía peligrosa 1`] = `
+{
+  "categoria": "peligroso",
+  "desglose": [
+    [
+      "base",
+      14500,
+    ],
+    [
+      "variable",
+      3300,
+    ],
+    [
+      "variable",
+      255,
+    ],
+    [
+      "variable",
+      2002,
+    ],
+    [
+      "recargo",
+      6017,
+    ],
+    [
+      "recargo",
+      2607,
+    ],
+  ],
+  "distanciaKm": 7.7,
+  "pesoFacturableKg": 60,
+  "precio": 28700,
+  "tiempos": {
+    "etaRetiroMin": 11,
+    "tiempoViajeMin": 16,
+    "ventanaEntrega": "Hoy, 14:27 – 14:57 h",
+  },
+  "vehiculo": "camion",
+}
+`;
+
+exports[`caracterización de cotizarSync mudanza voluminosa en domingo pico 1`] = `
+{
+  "categoria": "voluminoso",
+  "desglose": [
+    [
+      "base",
+      7800,
+    ],
+    [
+      "variable",
+      21000,
+    ],
+    [
+      "variable",
+      1000,
+    ],
+    [
+      "variable",
+      1425,
+    ],
+    [
+      "recargo",
+      3123,
+    ],
+    [
+      "recargo",
+      16923,
+    ],
+  ],
+  "distanciaKm": 7.7,
+  "pesoFacturableKg": 300,
+  "precio": 51250,
+  "tiempos": {
+    "etaRetiroMin": 13,
+    "tiempoViajeMin": 22,
+    "ventanaEntrega": "Hoy, 18:35 – 19:05 h",
+  },
+  "vehiculo": "furgon",
+}
+`;
+
+exports[`caracterización de cotizarSync refrigerado con cadena de frío 1`] = `
+{
+  "categoria": "refrigerado",
+  "desglose": [
+    [
+      "base",
+      4300,
+    ],
+    [
+      "variable",
+      3400,
+    ],
+    [
+      "variable",
+      480,
+    ],
+    [
+      "variable",
+      1078,
+    ],
+    [
+      "recargo",
+      1666,
+    ],
+    [
+      "recargo",
+      1092,
+    ],
+  ],
+  "distanciaKm": 7.7,
+  "pesoFacturableKg": 40,
+  "precio": 12000,
+  "tiempos": {
+    "etaRetiroMin": 11,
+    "tiempoViajeMin": 20,
+    "ventanaEntrega": "Hoy, 14:31 – 15:01 h",
+  },
+  "vehiculo": "utilitario",
+}
+`;

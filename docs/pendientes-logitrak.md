@@ -25,9 +25,13 @@ y verificado se saca de acá; el historial queda en los commits.
    El chat de soporte ya funciona así y dejó el camino hecho: JWT propio firmado
    por el backend, políticas RLS de solo lectura y `REPLICA IDENTITY FULL`. Falta
    aplicar el mismo patrón a `envios` y `envio_eventos`.
-7. Suite de tests automatizados. Hoy no hay tests propios. La expiración de
+7. Tests del backend. El cotizador ya tiene su batería en Jest con CI
+   (`docs/qa/`), pero el backend no tiene tests propios. La expiración de
    ofertas y el reembolso son los primeros candidatos: se probaron a mano contra
    la base, pero no quedó test que lo cubra.
+12. DEF-02: el backend guarda y cobra el precio que manda la app sin
+    recalcularlo (`POST /api/cotizaciones`, `POST /api/envios`). Plan de
+    corrección en `docs/qa/plan-de-mantenimiento.md`, sección 1.1.
 8. Validar la firma del webhook de Mercado Pago con la clave secreta del panel.
    Hoy no se valida, pero no es explotable: antes de aprobar, el backend
    reconsulta el pago contra la API de MP, así que una notificación falsa no
