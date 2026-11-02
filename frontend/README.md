@@ -82,8 +82,12 @@ frontend/
 │  ├─ screens/              # Las pantallas (.tsx)
 │  ├─ styles/               # Las hojas de estilo de cada pantalla (.ts)
 │  ├─ components/           # Inputs, mapa, escáner de identidad, avisos
+│  │  ├─ boxy/              # Chat de cotización: mensajes, tarjeta, encabezado, caja de respuesta
+│  │  └─ inicio/            # Secciones de la landing
 │  ├─ services/             # Cliente de API y servicios por dominio
 │  │  └─ botLogistica/      # Boxy: NLP, direcciones, cargas y tarifas
+│  ├─ helpers/              # Funciones puras: formato de montos, guion del chat
+│  ├─ constants/            # Textos y datos estáticos (contenido de la landing)
 │  └─ theme/                # Paleta de colores
 └─ assets/                  # Íconos y splash
 ```
@@ -130,6 +134,10 @@ npm start          # abre Metro: escaneá el QR con Expo Go o elegí plataforma
 
 También están los atajos `npm run web`, `npm run android` y `npm run ios` para ir
 directo a una plataforma.
+
+La versión web publicada está en https://ccchimi.github.io/Logitrak/ y se
+actualiza sola con cada cambio en `frontend/` que llega a `main` (workflow
+`.github/workflows/web.yml`). Para generarla a mano: `npx expo export --platform web`.
 
 ## Cosas a tener en cuenta
 
