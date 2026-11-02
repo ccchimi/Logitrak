@@ -1,0 +1,67 @@
+# Publica la Web App (el mismo código Expo de frontend/, exportado a web) en
+# GitHub Pages cada vez que cambia el frontend en main.
+# URL: https://ccchimi.github.io/Logitrak/
+name: Web App
+
+on:
+  push:
+    branches: [main]
+    paths: ['frontend/**', '.github/workflows/web.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Exportar la app a web
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+
+      # Las EXPO_PUBLIC_* quedan dentro del bundle público. La clave de Maps web
+      # va como secret del repo y tiene que estar restringida por dominio
+      # (ccchimi.github.io) en Google Cloud; si falta, solo deja de verse el mapa.
+      - name: Exportar
+        run: npx expo export --platform web --output-dir dist
+        env:
+          EXPO_BASE_URL: /Logitrak
+          EXPO_PUBLIC_API_URL: ${{ vars.EXPO_PUBLIC_API_URL || 'https://logitrak.onrender.com' }}
+          EXPO_PUBLIC_GOOGLE_MAPS_WEB_KEY: ${{ secrets.EXPO_PUBLIC_GOOGLE_MAPS_WEB_KEY }}
+          EXPO_PUBLIC_GOOGLE_DIRECTIONS_KEY: ${{ secrets.EXPO_PUBLIC_GOOGLE_DIRECTIONS_KEY }}
+
+      # GitHub Pages no conoce las rutas de la app: cualquier URL desconocida
+      # vuelve al index para que la resuelva la navegación.
+      - run: cp dist/index.html dist/404.html
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: frontend/dist
+
+  deploy:
+    name: Publicar en GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.publicar.outputs.page_url }}
+    steps:
+      - id: publicar
+        uses: actions/deploy-pages@v5

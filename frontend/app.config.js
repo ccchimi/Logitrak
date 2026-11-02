@@ -2,6 +2,12 @@ import 'dotenv/config';
 
 export default ({ config }) => ({
   ...config,
+  // Solo afecta al export web: GitHub Pages sirve la app bajo /Logitrak.
+  // En desarrollo queda vacío y la app corre en la raíz.
+  experiments: {
+    ...config.experiments,
+    baseUrl: process.env.EXPO_BASE_URL || '',
+  },
   android: {
     ...config.android,
     config: {
