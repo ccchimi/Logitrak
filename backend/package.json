@@ -7,7 +7,9 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
-    "db:init": "node src/db/init.js --standalone"
+    "db:init": "node src/db/init.js --standalone",
+    "generar:cotizador": "node scripts/generar-cotizador.js",
+    "test": "node --test"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.3",
@@ -23,5 +25,8 @@
     "pg": "^8.13.1",
     "qrcode": "^1.5.4"
   },
-  "private": true
+  "private": true,
+  "devDependencies": {
+    "esbuild": "0.25.11"
+  }
 }

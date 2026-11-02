@@ -71,34 +71,27 @@ export interface MetricasEnvios {
     cumplimiento: number;
 }
 
+// El precio, la carga y el vehículo los toma el servidor de la cotización
+// guardada (DEF-02); acá solo viaja la referencia y lo que necesita el mapa.
 export interface DatosNuevoEnvio {
     cotizacionId?: number | null;
     cotizacionCodigo?: string | null;
-    origen: string;
-    destino: string;
     origenLat?: number | null;
     origenLng?: number | null;
     destinoLat?: number | null;
     destinoLng?: number | null;
-    descripcionCarga?: string | null;
-    categoriaCarga?: string | null;
-    pesoKg?: number | null;
-    bultos?: number | null;
-    vehiculoId?: string | null;
-    vehiculoNombre?: string | null;
-    distanciaKm?: number | null;
-    precio: number;
-    moneda?: string;
     slaMin?: number | null;
 }
 
-export async function crearEnvio(datos: DatosNuevoEnvio): Promise<Envio | null> {
+export async function crearEnvio(
+    datos: DatosNuevoEnvio
+): Promise<{ exito: true; envio: Envio } | { exito: false; error: string }> {
     const r = await llamarApi<{ exito: true; envio: Envio }>('/api/envios', {
         metodo: 'POST',
         cuerpo: datos,
         conAuth: true,
     });
-    return r.exito ? r.envio : null;
+    return r.exito ? { exito: true, envio: r.envio } : { exito: false, error: r.error };
 }
 
 export async function listarEnvios(estado?: EstadoEnvio): Promise<Envio[]> {

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { consultar } from '../db/pool.js';
 import { autenticar, exigirRol } from '../middleware/auth.js';
+import { cotizarEnServidor } from '../servicios/cotizador/index.js';
 
 export const rutasCotizaciones = Router();
 
@@ -32,19 +33,23 @@ function publicar(fila) {
     };
 }
 
+// Del body solo se usan los datos de la carga. El precio, el vehículo y la
+// distancia los recalcula el servidor (DEF-02); si el precio que vio el
+// cliente no coincide, la respuesta lo marca para que la app lo actualice.
 rutasCotizaciones.post('/', autenticar, exigirRol('cliente', 'admin'), async (req, res) => {
     const b = req.body ?? {};
-    const codigo = (b.codigo || '').trim();
-    const origen = (b.origen || '').trim();
-    const destino = (b.destino || '').trim();
-    const precio = num(b.precio);
+    const codigo = typeof b.codigo === 'string' ? b.codigo.trim() : '';
 
-    if (!codigo) {
+    if (!codigo || codigo.length > 40) {
         return res.status(400).json({ exito: false, error: 'Falta el código de la cotización.' });
     }
-    if (!origen || !destino || precio === null) {
-        return res.status(400).json({ exito: false, error: 'La cotización está incompleta.' });
+
+    const calculo = cotizarEnServidor(b);
+    if (!calculo.exito) {
+        return res.status(422).json({ exito: false, error: calculo.motivo, problemas: calculo.problemas });
     }
+    const c = calculo.cotizacion;
+    c.id = codigo;
 
     try {
         const { rows } = await consultar(
@@ -55,25 +60,37 @@ rutasCotizaciones.post('/', autenticar, exigirRol('cliente', 'admin'), async (re
                   distancia_estimada, precio, moneda, confianza, puntaje_confianza,
                   validez_min, detalle)
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,
-                     COALESCE($19,'ARS'),$20,$21,$22,$23)
+                     $19,$20,$21,$22,$23)
              ON CONFLICT (codigo) DO NOTHING
              RETURNING *`,
             [
-                codigo, req.usuario.id, origen, destino,
-                b.descripcionCarga ?? null, b.categoriaCarga ?? null,
-                num(b.pesoKg), num(b.pesoFacturableKg), num(b.bultos),
+                codigo, req.usuario.id,
+                c.origen.textoNormalizado || c.origen.textoOriginal,
+                c.destino.textoNormalizado || c.destino.textoOriginal,
+                c.carga.descripcion, c.carga.categoria,
+                c.pesoRealKg, c.pesoFacturableKg, Math.max(1, Math.floor(num(b.bultos) ?? 1) || 1),
                 num(b.largoCm), num(b.anchoCm), num(b.altoCm), num(b.valorDeclarado),
-                b.vehiculoId ?? null, b.vehiculoNombre ?? null,
-                num(b.distanciaKm), typeof b.distanciaEstimada === 'boolean' ? b.distanciaEstimada : null,
-                precio, b.moneda ?? null, b.confianza ?? null, num(b.puntajeConfianza),
-                num(b.validezMin), b.detalle ? JSON.stringify(b.detalle) : null,
+                c.vehiculo.id, c.vehiculo.nombre,
+                c.distanciaKm, c.distanciaEstimada,
+                c.precio, c.moneda, c.confianza, c.puntajeConfianza,
+                c.validezMin, JSON.stringify(c),
             ]
         );
 
         const fila = rows[0]
             ?? (await consultar('SELECT * FROM cotizaciones WHERE codigo = $1', [codigo])).rows[0];
 
-        return res.status(201).json({ exito: true, cotizacion: publicar(fila) });
+        if (fila.cliente_id !== req.usuario.id) {
+            return res.status(409).json({ exito: false, error: 'Ese código de cotización ya está en uso.' });
+        }
+
+        const precioCliente = num(b.precio);
+        return res.status(201).json({
+            exito: true,
+            cotizacion: publicar(fila),
+            calculo: fila.detalle,
+            precioAjustado: precioCliente !== null && precioCliente !== num(fila.precio),
+        });
     } catch (e) {
         console.error('No se pudo guardar la cotización:', e.message);
         return res.status(500).json({ exito: false, error: 'No se pudo guardar la cotización.' });

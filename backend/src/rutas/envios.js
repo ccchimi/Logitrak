@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { consultar, pool } from '../db/pool.js';
 import { autenticar, exigirRol } from '../middleware/auth.js';
+import { verificarCotizacionParaEnvio } from '../servicios/cotizador/index.js';
 import { expirarOfertasVencidas } from '../servicios/envios/expiracion.js';
 import { reembolsarPagoDelEnvio } from '../servicios/pagos/reembolsos.js';
 
@@ -115,34 +116,35 @@ async function choferIdDe(usuarioId) {
     return rows[0]?.id ?? null;
 }
 
+// El envío se arma siempre desde una cotización guardada por el servidor
+// (DEF-02): precio, vehículo, carga y distancia salen de ahí, no del body.
 rutasEnvios.post('/', autenticar, async (req, res) => {
     const b = req.body ?? {};
-    const origen = (b.origen || '').trim();
-    const destino = (b.destino || '').trim();
-    const precio = num(b.precio);
+    const cotizacionId = num(b.cotizacionId);
+    const cotizacionCodigo = typeof b.cotizacionCodigo === 'string' ? b.cotizacionCodigo.trim() : '';
 
-    if (!origen || !destino || precio === null) {
-        return res.status(400).json({ exito: false, error: 'Faltan datos del envío (origen, destino o precio).' });
+    if (!cotizacionId && !cotizacionCodigo) {
+        return res.status(400).json({ exito: false, error: 'Falta la cotización del envío.' });
     }
 
     const cliente = await pool.connect();
     try {
         await cliente.query('BEGIN');
 
-        let cotizacionId = num(b.cotizacionId);
-        if (!cotizacionId && b.cotizacionCodigo) {
-            const r = await cliente.query(
-                `UPDATE cotizaciones SET estado = 'confirmada'
-                 WHERE codigo = $1 AND cliente_id = $2 RETURNING id`,
-                [String(b.cotizacionCodigo), req.usuario.id]
-            );
-            cotizacionId = r.rows[0]?.id ?? null;
-        } else if (cotizacionId) {
-            await cliente.query(
-                `UPDATE cotizaciones SET estado = 'confirmada' WHERE id = $1 AND cliente_id = $2`,
-                [cotizacionId, req.usuario.id]
-            );
+        const { rows: cotizaciones } = await cliente.query(
+            `SELECT * FROM cotizaciones
+             WHERE ${cotizacionId ? 'id = $1' : 'codigo = $1'}
+             FOR UPDATE`,
+            [cotizacionId || cotizacionCodigo]
+        );
+        const cotizacion = cotizaciones[0];
+        const verificacion = verificarCotizacionParaEnvio(cotizacion, req.usuario.id);
+        if (!verificacion.valida) {
+            await cliente.query('ROLLBACK');
+            return res.status(409).json({ exito: false, error: verificacion.motivo });
         }
+
+        await cliente.query(`UPDATE cotizaciones SET estado = 'confirmada' WHERE id = $1`, [cotizacion.id]);
 
         const slaMin = num(b.slaMin);
         const insercion = await cliente.query(
@@ -155,11 +157,11 @@ rutasEnvios.post('/', autenticar, async (req, res) => {
                      CASE WHEN $18::int IS NULL THEN NULL ELSE now() + make_interval(mins => $18::int) END)
              RETURNING *`,
             [
-                req.usuario.id, cotizacionId, origen, destino,
+                req.usuario.id, cotizacion.id, cotizacion.origen, cotizacion.destino,
                 num(b.origenLat), num(b.origenLng), num(b.destinoLat), num(b.destinoLng),
-                b.descripcionCarga ?? null, b.categoriaCarga ?? null, num(b.pesoKg), num(b.bultos),
-                b.vehiculoId ?? null, b.vehiculoNombre ?? null, num(b.distanciaKm), precio,
-                b.moneda ?? null, slaMin,
+                cotizacion.descripcion_carga, cotizacion.categoria_carga, cotizacion.peso_kg, cotizacion.bultos,
+                cotizacion.vehiculo_id, cotizacion.vehiculo_nombre, cotizacion.distancia_km, cotizacion.precio,
+                cotizacion.moneda, slaMin,
             ]
         );
         const envio = insercion.rows[0];

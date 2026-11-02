@@ -8,47 +8,40 @@ export interface CotizacionGuardada {
     estado: string;
 }
 
-export interface EntradaEnvio {
+// Lo que cargó el cliente, tal cual. Con esto el servidor recalcula la cotización.
+export interface EntradaCotizacion {
+    origen: string;
+    destino: string;
+    pesoKg: number;
     bultos?: number;
+    descripcionCarga?: string;
     largoCm?: number;
     anchoCm?: number;
     altoCm?: number;
     valorDeclarado?: number;
 }
 
+export type ResultadoGuardado =
+    | { exito: true; guardada: CotizacionGuardada; cotizacion: Cotizacion; precioAjustado: boolean }
+    | { exito: false; error: string };
+
+// El precio que vale es el del servidor (DEF-02). El de la app solo sirve para
+// mostrarlo al instante; si difiere, se reemplaza por el cálculo que devuelve la API.
 export async function guardarCotizacion(
     cotizacion: Cotizacion,
-    entrada: EntradaEnvio = {}
-): Promise<CotizacionGuardada | null> {
-    const cuerpo = {
-        codigo: cotizacion.id,
-        origen: cotizacion.origen.textoNormalizado || cotizacion.origen.textoOriginal,
-        destino: cotizacion.destino.textoNormalizado || cotizacion.destino.textoOriginal,
-        descripcionCarga: cotizacion.carga.descripcion || null,
-        categoriaCarga: cotizacion.carga.categoria,
-        pesoKg: cotizacion.pesoRealKg,
-        pesoFacturableKg: cotizacion.pesoFacturableKg,
-        bultos: entrada.bultos ?? null,
-        largoCm: entrada.largoCm ?? null,
-        anchoCm: entrada.anchoCm ?? null,
-        altoCm: entrada.altoCm ?? null,
-        valorDeclarado: entrada.valorDeclarado ?? null,
-        vehiculoId: cotizacion.vehiculo.id,
-        vehiculoNombre: cotizacion.vehiculo.nombre,
-        distanciaKm: cotizacion.distanciaKm,
-        distanciaEstimada: cotizacion.distanciaEstimada,
-        precio: cotizacion.precio,
-        moneda: cotizacion.moneda,
-        confianza: cotizacion.confianza,
-        puntajeConfianza: cotizacion.puntajeConfianza,
-        validezMin: cotizacion.validezMin,
-        detalle: cotizacion,
-    };
-
-    const r = await llamarApi<{ exito: true; cotizacion: CotizacionGuardada }>('/api/cotizaciones', {
+    entrada: EntradaCotizacion
+): Promise<ResultadoGuardado> {
+    const r = await llamarApi<{
+        exito: true;
+        cotizacion: CotizacionGuardada;
+        calculo: Cotizacion;
+        precioAjustado: boolean;
+    }>('/api/cotizaciones', {
         metodo: 'POST',
-        cuerpo,
+        cuerpo: { codigo: cotizacion.id, precio: cotizacion.precio, ...entrada },
         conAuth: true,
     });
-    return r.exito ? r.cotizacion : null;
+
+    if (!r.exito) return { exito: false, error: r.error };
+    return { exito: true, guardada: r.cotizacion, cotizacion: r.calculo, precioAjustado: r.precioAjustado };
 }

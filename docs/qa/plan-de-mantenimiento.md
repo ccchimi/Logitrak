@@ -20,7 +20,7 @@ Al preparar este plan revisamos el camino que recorre el precio después de coti
 - **Fraude:** cualquiera que intercepte o arme la petición a mano puede crear un envío de Rosario a CABA con `"precio": 100` y pagarlo así.
 - **Precio desactualizado:** si cambiamos una tarifa, los clientes que no actualizaron la app siguen cotizando, y pagando, con la tarifa vieja, porque las tarifas viven dentro de la app (`conocimiento.ts`).
 
-Severidad: **crítica**, porque afecta directamente lo que cobra la empresa. Estado: **abierto**, con la corrección planificada.
+Severidad: **crítica**, porque afecta directamente lo que cobra la empresa. Estado: **cerrado** el 02/11/2026 (ver *Actualización* al final de esta sección).
 
 **Registro del bug.** Usamos **GitHub Issues** porque el repositorio ya está en GitHub, es gratuito y vincula cada issue con sus commits, su pull request y su ejecución de CI. Cada defecto se carga con una plantilla fija:
 
@@ -45,6 +45,11 @@ Severidad: **crítica**, porque afecta directamente lo que cobra la empresa. Est
 7. **Verificación previa:** la rama se despliega en un servicio de *staging* de Render que apunta a una base de pruebas de Supabase, y ahí se repite el caso del issue.
 8. **Despliegue y vuelta atrás:** al unir a `main`, Render despliega automáticamente. Si algo falla, Render permite volver al despliegue anterior con un clic (*rollback*) mientras se investiga.
 9. **Cierre:** se cierra el issue, se marca DEF-02 como cerrado y la prueba nueva queda para siempre como **prueba de regresión**.
+
+**Actualización (02/11/2026): DEF-02 corregido.** El backend ahora recalcula la cotización con el mismo código del cotizador (empaquetado desde el frontend con esbuild en `backend/src/servicios/cotizador/`) y `POST /api/envios` toma el precio de la cotización guardada, verificando que sea del cliente y que no haya vencido. La corrección siguió el flujo de arriba:
+
+- **Reproducción:** un script de punta a punta contra la API con una base PostgreSQL descartable (Docker) probó 8 casos. Con el código anterior **fallaron 7 de 8**: una mudanza de 300 kg se guardaba a **$100 en moto**, y se podía crear un envío sin cotización. Con la corrección pasan los 8 (la misma mudanza queda en $37.800 en furgón, y el checkout cobra ese importe).
+- **Regresión:** 11 pruebas nuevas del backend (`npm test`, con el runner nativo de Node) y un job nuevo en la CI que además verifica que la copia del cotizador del servidor esté al día con la de la app.
 
 ### 1.2. Mantenimiento adaptativo
 
@@ -159,7 +164,8 @@ Un mantenimiento **no se despliega** si alguna de estas herramientas marca un pr
 | Branch protection en `main` y auto-deploy de Render condicionado a la CI | Configuración de GitHub / Render | Pendiente (configuración, sin código) |
 | ESLint, SonarCloud, CodeQL y Dependabot | — | Planificado |
 | Actualización de Expo SDK para eliminar las vulnerabilidades críticas de `tar` y `shell-quote` | `frontend/package.json` | Planificado (mantenimiento adaptativo) |
-| Corrección de DEF-02, adaptador de distancias, alternativas de vehículo y refactorización | — | Planificado (este plan) |
+| Corrección de DEF-02 (precio calculado en el servidor) | `backend/src/servicios/cotizador/`, rutas de cotizaciones y envíos | Implementado (02/11/2026) |
+| Adaptador de distancias, alternativas de vehículo y refactorización | — | Planificado (este plan) |
 
 ### Resultado de la ejecución
 

@@ -397,15 +397,27 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
             });
 
             if (respuesta.exito) {
-                resultado = respuesta.cotizacion;
-                setCotizacion(resultado);
-                void guardarCotizacion(resultado, {
+                const guardado = await guardarCotizacion(respuesta.cotizacion, {
+                    origen: data.origen,
+                    destino: data.destino,
+                    pesoKg: parseFloat(data.peso),
                     bultos: parseInt(data.bultos, 10) || undefined,
+                    descripcionCarga: data.descripcion || undefined,
                     largoCm: parseFloat(data.largo) || undefined,
                     anchoCm: parseFloat(data.ancho) || undefined,
                     altoCm: parseFloat(data.alto) || undefined,
                 });
-                botText = `Listo. Analicé ruta, carga y contexto operativo: esta es mi cotización con un ${resultado.puntajeConfianza}% de confianza.`;
+
+                if (guardado.exito) {
+                    resultado = guardado.cotizacion;
+                    setCotizacion(resultado);
+                    botText = `Listo. Analicé ruta, carga y contexto operativo: esta es mi cotización con un ${resultado.puntajeConfianza}% de confianza.`;
+                    if (guardado.precioAjustado) {
+                        botText += '\n\nAjusté el precio con la tarifa vigente del servidor.';
+                    }
+                } else {
+                    botText = `No pude registrar la cotización: ${guardado.error}\n\nTocá "Nueva cotización" para intentarlo de nuevo.`;
+                }
             } else {
                 const detalles = respuesta.problemas
                     .map(p => `• ${p.mensaje}${p.sugerencia ? ` ${p.sugerencia}` : ''}`)
@@ -556,25 +568,15 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
         enviandoRef.current = true;
         setConfirmando(true);
 
-        const envio = await crearEnvio({
+        const creacion = await crearEnvio({
             cotizacionCodigo: resultado.id,
-            origen: resultado.origen.textoNormalizado || resultado.origen.textoOriginal,
-            destino: resultado.destino.textoNormalizado || resultado.destino.textoOriginal,
-            origenLat:resultado.origen.localidad?.lat ?? null, 
+            origenLat: resultado.origen.localidad?.lat ?? null,
             origenLng: resultado.origen.localidad?.lng ?? null,
             destinoLat: resultado.destino.localidad?.lat ?? null,
             destinoLng: resultado.destino.localidad?.lng ?? null,
-            descripcionCarga: resultado.carga.descripcion || null,
-            categoriaCarga: resultado.carga.categoria,
-            pesoKg: resultado.pesoRealKg,
-            bultos: parseInt(envioData.bultos, 10) || null,
-            vehiculoId: resultado.vehiculo.id,
-            vehiculoNombre: resultado.vehiculo.nombre,
-            distanciaKm: resultado.distanciaKm,
-            precio: resultado.precio,
-            moneda: resultado.moneda,
             slaMin: SLA_ENVIO_MIN,
         });
+        const envio = creacion.exito ? creacion.envio : null;
 
         const seguimiento = {
             envioCodigo: envio?.codigo ?? null,
@@ -582,22 +584,23 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
             destino: resultado.destino.textoNormalizado,
             producto: resultado.carga.descripcion,
             vehiculo: resultado.vehiculo.nombre,
-            precio: resultado.precio,
+            precio: envio?.precio ?? resultado.precio,
             referencia: envio?.codigo ?? resultado.id,
         };
 
         if (!envio?.codigo) {
             setConfirmando(false);
             enviandoRef.current = false;
+            if (!creacion.exito) await typeBotMessage(creacion.error);
             return;
         }
 
         solicitoEnvioRef.current = true;
         setConfirmando(false);
         navigation.navigate('Pago', {
-            envioCodigo: envio.codigo, 
-            monto: resultado.precio,
-            moneda: resultado.moneda,
+            envioCodigo: envio.codigo,
+            monto: envio.precio,
+            moneda: envio.moneda,
             seguimiento,
         });
     };

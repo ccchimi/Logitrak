@@ -1,6 +1,7 @@
 #!/bin/sh
 # Hook pre-commit: si el commit toca el cotizador, corre solo las pruebas
-# relacionadas con los archivos modificados. Si alguna falla, el commit se frena.
+# relacionadas con los archivos modificados y regenera la copia que usa el
+# backend (DEF-02). Si algo falla o la copia quedó vieja, el commit se frena.
 # Activarlo una vez por clon:  git config core.hooksPath .githooks
 # Ver docs/qa/plan-de-mantenimiento.md, sección 2.
 
@@ -9,8 +10,15 @@ archivos=$(git diff --cached --name-only --diff-filter=ACMR -- 'frontend/src/ser
 [ -z "$archivos" ] && exit 0
 
 echo "pre-commit: corriendo las pruebas relacionadas con el cotizador..."
-cd frontend || exit 1
-npx jest --bail --findRelatedTests $archivos || {
+(cd frontend && npx jest --bail --findRelatedTests $archivos) || {
     echo "pre-commit: hay pruebas que fallan. Corregilas antes de commitear (o usá --no-verify bajo tu responsabilidad)."
     exit 1
 }
+
+generado=backend/src/servicios/cotizador/cotizador.generado.js
+(cd backend && npm run --silent generar:cotizador >/dev/null) || exit 1
+if ! git diff --quiet -- "$generado"; then
+    echo "pre-commit: el cotizador del backend quedó desactualizado y lo regeneré."
+    echo "Revisalo y agregalo al commit:  git add $generado"
+    exit 1
+fi

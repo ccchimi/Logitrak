@@ -49,3 +49,33 @@ jobs:
       - name: Auditoría de dependencias (informativa)
         continue-on-error: true
         run: npm audit --omit=dev --audit-level=critical
+
+  pruebas-backend:
+    name: Pruebas del backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - run: npm ci
+
+      # El backend usa una copia empaquetada del cotizador de la app (DEF-02).
+      # Si alguien cambió el cotizador y no la regeneró, la CI falla acá.
+      - name: Cotizador del servidor al día con el de la app
+        run: |
+          npm run generar:cotizador
+          git diff --exit-code -- src/servicios/cotizador/cotizador.generado.js
+
+      # TZ=UTC reproduce el entorno de Render: las franjas horarias tienen que
+      # salir en hora argentina igual.
+      - run: npm test
+        env:
+          TZ: UTC

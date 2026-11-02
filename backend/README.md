@@ -104,9 +104,9 @@ haría falta un plan que mantenga el servicio activo.
 | GET | `/api/auth/perfil` | Datos del usuario autenticado |
 | POST | `/api/choferes/postulacion` | Postula a un cliente como chofer |
 | GET | `/api/choferes/:codigo/documentos` | Selfie y DNI con URLs firmadas (solo admin) |
-| POST | `/api/cotizaciones` | Guarda una cotización emitida por Boxy |
+| POST | `/api/cotizaciones` | Recalcula la cotización en el servidor y la guarda |
 | GET | `/api/cotizaciones` | Cotizaciones del usuario (admin ve todas) |
-| POST | `/api/envios` | Confirma una cotización y crea el envío |
+| POST | `/api/envios` | Crea el envío a partir de una cotización vigente del cliente |
 | GET | `/api/envios` | Envíos según rol, con `?estado=` opcional |
 | GET | `/api/envios/metricas` | Totales para el panel |
 | GET | `/api/envios/:codigo` | Detalle del envío y su línea de tiempo |
@@ -126,6 +126,27 @@ haría falta un plan que mantenga el servicio activo.
 | GET | `/api/pagos` | Pagos del cliente (admin ve todos) |
 | POST | `/api/pagos/webhook/mercadopago` | Webhook de Mercado Pago, sin auth |
 | GET | `/api/perfil/resumen` | Resumen de cuenta para la pantalla de Perfil |
+
+## Cómo se calcula el precio
+
+El precio lo decide el servidor. La app cotiza con Boxy para mostrar el
+resultado al instante, pero `POST /api/cotizaciones` vuelve a calcularlo con los
+datos de la carga (direcciones, peso, bultos, medidas, descripción) e ignora el
+precio, el vehículo y la distancia que mande el cliente. Si no coinciden, la
+respuesta trae `precioAjustado: true` y el cálculo del servidor, que es el que la
+app pasa a mostrar.
+
+Para que los dos lados den exactamente lo mismo, el backend no tiene una copia
+escrita a mano del cotizador: `npm run generar:cotizador` empaqueta con esbuild
+el de `frontend/src/services/botLogistica` en
+`src/servicios/cotizador/cotizador.generado.js`. Ese archivo se commitea, así que
+Render no necesita ningún paso de build, y la CI falla si alguien cambió el
+cotizador sin regenerarlo. Las franjas horarias se calculan en hora argentina
+aunque el servidor corra en UTC.
+
+`POST /api/envios` ya no recibe precio: toma el precio, la carga, el vehículo y
+la distancia de la cotización guardada, y la rechaza si es de otro cliente o si
+venció (15 minutos). Lo que se cobra en `/api/pagos` es ese precio.
 
 ## Cómo se asignan los envíos
 
