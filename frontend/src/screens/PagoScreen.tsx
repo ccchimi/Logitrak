@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { styles, COLORS } from '../styles/PagoStyles';
+import { formatearARS } from '../helpers/formato';
 import { ToastStack, useToasts } from '../components/Toasts';
 import {
     iniciarCheckout,
@@ -32,7 +33,6 @@ const NOMBRE_METODO: Record<MetodoPago, string> = {
 
 const CUOTAS_OPCIONES = [1, 3, 6, 12];
 
-const formatearARS = (monto: number) => `$${Math.round(monto).toLocaleString('es-AR')}`;
 
 const formatearNumeroTarjeta = (valor: string) =>
     valor.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim();

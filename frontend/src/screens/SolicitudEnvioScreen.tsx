@@ -7,7 +7,6 @@ import {
     Platform,
     ScrollView,
     Text,
-    TextInput,
     TouchableOpacity,
     View,
 } from 'react-native';
@@ -15,7 +14,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { styles } from '../styles/SolicitudEnvioStyles';
 import {
     analizarDireccion,
-    BOT_META,
     Cotizacion,
     cotizarEnvio,
     ContextoConversacion,
@@ -25,99 +23,19 @@ import {
 } from '../services/botLogistica';
 import { guardarCotizacion } from '../services/cotizacionesService';
 import { crearEnvio } from '../services/enviosService';
-
-const SLA_ENVIO_MIN = 20;
-
-type CampoEnvio = 'origen' | 'destino' | 'descripcion' | 'peso' | 'bultos' | 'largo' | 'ancho' | 'alto';
-type EnvioData = Record<CampoEnvio, string>;
-type ChatMessage = {
-    id: string;
-    sender: 'bot' | 'user';
-    text: string;
-    kind?: 'normal' | 'thinking' | 'result';
-    result?: Cotizacion;
-};
-
-type ChatStep = {
-    field: CampoEnvio;
-    question: string;
-    placeholder: string;
-    optional?: boolean;
-    keyboardType?: 'default' | 'numeric';
-};
-
-type ConfirmacionPendiente = {
-    field: CampoEnvio;
-    valorNormalizado: string;
-};
-
-const INITIAL_DATA: EnvioData = {
-    origen: '',
-    destino: '',
-    descripcion: '',
-    peso: '',
-    bultos: '',
-    largo: '',
-    ancho: '',
-    alto: '',
-};
-
-const CHAT_STEPS: ChatStep[] = [
-    {
-        field: 'origen',
-        question: `Hola, soy ${BOT_META.nombre}. Voy a ayudarte a cotizar tu envío y verifico cada dato en el momento. Primero, ¿cuál es el punto de retiro? (calle, altura y localidad)`,
-        placeholder: 'Ej: Av. Rivadavia 5000, CABA',
-    },
-    {
-        field: 'destino',
-        question: 'Perfecto. Ahora decime, ¿cuál es el punto de entrega?',
-        placeholder: 'Ej: Av. Corrientes 1200, Rosario',
-    },
-    {
-        field: 'descripcion',
-        question: '¿Qué vas a enviar? Contame brevemente, así asigno el vehículo y los protocolos correctos.',
-        placeholder: 'Ej: una caja con repuestos, un sillón, documentos…',
-    },
-    {
-        field: 'peso',
-        question: '¿Cuál es el peso total aproximado del envío? Podés usar kg, gramos o toneladas.',
-        placeholder: 'Ej: 8,5 kg',
-        keyboardType: 'default',
-    },
-    {
-        field: 'bultos',
-        question: '¿Cuántos bultos son en total?',
-        placeholder: 'Ej: 2',
-        keyboardType: 'numeric',
-    },
-    {
-        field: 'largo',
-        question: 'Para afinar la cotización por volumen, ¿cuál es el largo del bulto en cm? Si no lo sabés, tocá Saltar.',
-        placeholder: 'Ej: 40',
-        keyboardType: 'numeric',
-        optional: true,
-    },
-    {
-        field: 'ancho',
-        question: '¿Y el ancho del bulto en cm?',
-        placeholder: 'Ej: 30',
-        keyboardType: 'numeric',
-        optional: true,
-    },
-    {
-        field: 'alto',
-        question: 'Último dato: ¿cuál es el alto del bulto en cm?',
-        placeholder: 'Ej: 25',
-        keyboardType: 'numeric',
-        optional: true,
-    },
-];
-
-const createId = (prefix: string) => {
-    return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-};
-
-const formatearARS = (monto: number) => `$${Math.abs(monto).toLocaleString('es-AR')}`;
+import {
+    CampoEnvio,
+    CHAT_STEPS,
+    ChatStep,
+    ConfirmacionPendiente,
+    createId,
+    EnvioData,
+    INITIAL_DATA,
+    SLA_ENVIO_MIN,
+} from '../helpers/pasosSolicitudEnvio';
+import ComposerBoxy from '../components/boxy/ComposerBoxy';
+import EncabezadoBoxy from '../components/boxy/EncabezadoBoxy';
+import MensajeChat, { ChatMessage } from '../components/boxy/MensajeChat';
 
 export default function SolicitudEnvioScreen({ navigation }: any) {
     const scrollRef = useRef<ScrollView | null>(null);
@@ -652,153 +570,7 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
         return unsubscribe;
     }, [navigation]); 
     
-    const renderBoxyAvatar = () => (
-        <View style={styles.boxyLogoWrapper}>
-            <Animated.View
-                style={[
-                    styles.boxyPulseGlow,
-                    {
-                        opacity: pulseOpacity,
-                        transform: [{ scale: pulseScale }],
-                    },
-                ]}
-            />
-
-            <View style={styles.boxyAuraCore} />
-        </View>
-    );
-    const renderUserAvatar = () => (
-        <View style={styles.userAvatar}>
-            <Text style={styles.userAvatarText}>TÚ</Text>
-        </View>
-    );
-
-    const renderThinkingContent = () => (
-        <Animated.Text style={[styles.thinkingText, { opacity: thinkingOpacity }]}>
-            Analizando...
-        </Animated.Text>
-    );
-
-    const estiloConfianza = (nivel: Cotizacion['confianza']) =>
-        nivel === 'alta'
-            ? styles.badgeConfianzaAlta
-            : nivel === 'media'
-              ? styles.badgeConfianzaMedia
-              : styles.badgeConfianzaBaja;
-
-    const renderResultado = (resultado: Cotizacion) => (
-        <View style={styles.resultadoCardChat}>
-            <View style={styles.resultadoHeaderRow}>
-                <Text style={styles.resultadoTitulo}>Cotización de {BOT_META.nombre}</Text>
-                <Text style={[styles.badgeConfianza, estiloConfianza(resultado.confianza)]}>
-                    Confianza {resultado.confianza} · {resultado.puntajeConfianza}%
-                </Text>
-            </View>
-
-            <View style={styles.resultadoLinea}>
-                <Text style={styles.resultadoLabel}>Unidad asignada</Text>
-                <Text style={styles.resultadoValor}>{resultado.vehiculo.nombre}</Text>
-            </View>
-
-            <View style={styles.resultadoLinea}>
-                <Text style={styles.resultadoLabel}>Tarifa dinámica</Text>
-                <Text style={styles.resultadoPrecio}>{formatearARS(resultado.precio)}</Text>
-            </View>
-
-            <View style={styles.resultadoMetaRow}>
-                <View style={styles.metaItem}>
-                    <Text style={styles.metaLabel}>Recorrido</Text>
-                    <Text style={styles.metaValor}>
-                        {resultado.distanciaKm} km{resultado.distanciaEstimada ? ' (est.)' : ''}
-                    </Text>
-                </View>
-                <View style={styles.metaItem}>
-                    <Text style={styles.metaLabel}>Retiro en</Text>
-                    <Text style={styles.metaValor}>~{resultado.tiempos.etaRetiroMin} min</Text>
-                </View>
-                <View style={styles.metaItem}>
-                    <Text style={styles.metaLabel}>Entrega</Text>
-                    <Text style={styles.metaValor}>{resultado.tiempos.ventanaEntrega}</Text>
-                </View>
-            </View>
-
-            <Text style={styles.resultadoSeccionTitulo}>Desglose de la tarifa</Text>
-            <View style={styles.desgloseBox}>
-                {resultado.desglose.map((linea, i) => (
-                    <View key={`${linea.concepto}-${i}`} style={styles.desgloseLinea}>
-                        <Text style={styles.desgloseConcepto}>{linea.concepto}</Text>
-                        <Text style={linea.tipo === 'descuento' ? styles.desgloseDescuento : styles.desgloseMonto}>
-                            {linea.tipo === 'descuento' ? `−${formatearARS(linea.monto)}` : formatearARS(linea.monto)}
-                        </Text>
-                    </View>
-                ))}
-            </View>
-
-            {resultado.carga.requisitos.length > 0 && (
-                <>
-                    <Text style={styles.resultadoSeccionTitulo}>
-                        Protocolo — {resultado.carga.etiqueta}
-                    </Text>
-                    {resultado.carga.requisitos.map(req => (
-                        <Text key={req} style={styles.protocoloTexto}>• {req}</Text>
-                    ))}
-                </>
-            )}
-
-            {resultado.advertencias.length > 0 && (
-                <>
-                    <Text style={styles.resultadoSeccionTitulo}>A tener en cuenta</Text>
-                    {resultado.advertencias.map(adv => (
-                        <Text key={adv} style={styles.advertenciaTexto}>⚠ {adv}</Text>
-                    ))}
-                </>
-            )}
-
-            <Text style={styles.resultadoExplicacion}>“{resultado.explicacion}”</Text>
-            <Text style={styles.resultadoSla}>{resultado.sla}</Text>
-            <Text style={styles.validezTexto}>
-                Tarifa válida por {resultado.validezMin} minutos · Ref. {resultado.id}
-            </Text>
-
-            <TouchableOpacity
-                style={styles.botonConfirmar}
-                disabled={confirmando}
-                onPress={() => void confirmarYSolicitar(resultado)}
-            >
-                <Text style={styles.botonConfirmarTexto}>
-                    {confirmando ? 'Registrando envío…' : 'Confirmar y Solicitar Chofer'}
-                </Text>
-            </TouchableOpacity>
-        </View>
-    );
-
-    const renderMessage = (message: ChatMessage) => {
-        const isBot = message.sender === 'bot';
-
-        return (
-            <View key={message.id} style={[styles.messageRow, isBot ? styles.botRow : styles.userRow]}>
-                {isBot && renderBoxyAvatar()}
-
-                <View style={[styles.messageContent, isBot ? styles.botMessageContent : styles.userMessageContent]}>
-                    <Text style={styles.messageAuthor}>{isBot ? BOT_META.nombre : 'Vos'}</Text>
-
-                    {message.kind === 'thinking' ? (
-                        renderThinkingContent()
-                    ) : (
-                        <>
-                            <Text style={isBot ? styles.botMessageText : styles.userMessageText}>
-                                {message.text}
-                            </Text>
-
-                            {message.result ? renderResultado(message.result) : null}
-                        </>
-                    )}
-                </View>
-
-                {!isBot && renderUserAvatar()}
-            </View>
-        );
-    };
+    const pulso = { opacity: pulseOpacity, scale: pulseScale };
 
     const isComposerDisabled = isThinking || isBotTyping || cargando || !currentQuestion;
     const isSendDisabled =
@@ -814,50 +586,11 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
             >
                 <View style={styles.container}>
                     <View style={styles.content}>
-                        {tecladoVisible ? (
-                            <View style={styles.headerCompact}>
-                                <TouchableOpacity
-                                    style={styles.backButton}
-                                    onPress={() => navigation.goBack()}
-                                    activeOpacity={0.75}
-                                    accessibilityRole="button"
-                                    accessibilityLabel="Volver atrás"
-                                >
-                                    <Text style={styles.backButtonText}>←</Text>
-                                </TouchableOpacity>
-
-                                <View style={styles.headerCompactTextos}>
-                                    <Text style={styles.headerCompactKicker}>logitrak IA</Text>
-                                    <Text style={styles.headerCompactTitle}>{BOT_META.nombre}</Text>
-                                </View>
-                            </View>
-                        ) : (
-                        <View style={styles.headerCard}>
-                            <View style={styles.headerTopRow}>
-                                <TouchableOpacity
-                                    style={styles.backButton}
-                                    onPress={() => navigation.goBack()}
-                                    activeOpacity={0.75}
-                                    accessibilityRole="button"
-                                    accessibilityLabel="Volver atrás"
-                                >
-                                    <Text style={styles.backButtonText}>←</Text>
-                                </TouchableOpacity>
-                            </View>
-
-                            <View style={styles.headerInfo}>
-                                {renderBoxyAvatar()}
-
-                                <View style={styles.headerTextBox}>
-                                    <Text style={styles.headerKicker}>logitrak IA</Text>
-                                    <Text style={styles.headerTitle}>{BOT_META.nombre}</Text>
-                                    <Text style={styles.headerSubtitle}>
-                                        Asistente logístico con verificación de direcciones en tiempo real.
-                                    </Text>
-                                </View>
-                            </View>
-                        </View>
-                        )}
+                        <EncabezadoBoxy
+                            compacto={tecladoVisible}
+                            pulso={pulso}
+                            onVolver={() => navigation.goBack()}
+                        />
 
                         <ScrollView
                             ref={scrollRef}
@@ -874,7 +607,16 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
                             showsVerticalScrollIndicator={false}
                             onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
                         >
-                            {messages.map(renderMessage)}
+                            {messages.map(mensaje => (
+                                <MensajeChat
+                                    key={mensaje.id}
+                                    mensaje={mensaje}
+                                    pulso={pulso}
+                                    opacidadPensando={thinkingOpacity}
+                                    confirmando={confirmando}
+                                    onConfirmar={r => void confirmarYSolicitar(r)}
+                                />
+                            ))}
                         </ScrollView>
                     </View>
 
@@ -885,60 +627,17 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
                             </TouchableOpacity>
                         </View>
                     ) : (
-                        <View style={styles.composerShell}>
-                            <View style={styles.inputMeta}>
-                                <Text style={styles.inputLabel}>
-                                    {confirmacion
-                                        ? `Confirmá el dato a ${BOT_META.nombre}`
-                                        : currentQuestion
-                                          ? `Respondé a ${BOT_META.nombre}`
-                                          : 'Conversación finalizada'}
-                                </Text>
-
-                                {currentQuestion?.optional && !confirmacion ? (
-                                    <Text style={styles.optionalBadge}>Opcional</Text>
-                                ) : null}
-                            </View>
-
-                            <View style={styles.inputRow}>
-                                <TextInput
-                                    style={styles.textInput}
-                                    placeholder={
-                                        confirmacion
-                                            ? 'sí / no, o escribilo de nuevo'
-                                            : currentQuestion?.placeholder || 'Escribí tu respuesta...'
-                                    }
-                                    placeholderTextColor="#8A8880"
-                                    value={inputValue}
-                                    onChangeText={setInputValue}
-                                    editable={!isComposerDisabled}
-                                    keyboardType={confirmacion ? 'default' : currentQuestion?.keyboardType || 'default'}
-                                    returnKeyType="send"
-                                    onSubmitEditing={manejarEnter}
-                                />
-
-                                <TouchableOpacity
-                                    style={[
-                                        styles.sendButton,
-                                        isSendDisabled ? styles.sendButtonDisabled : styles.sendButtonActive,
-                                    ]}
-                                    disabled={isSendDisabled}
-                                    onPress={() => void handleSend()}
-                                >
-                                    <Text style={styles.sendButtonText}>➜</Text>
-                                </TouchableOpacity>
-                            </View>
-
-                            {currentQuestion?.optional && !confirmacion ? (
-                                <TouchableOpacity
-                                    style={styles.skipButton}
-                                    disabled={isComposerDisabled}
-                                    onPress={() => void handleSkip()}
-                                >
-                                    <Text style={styles.skipButtonText}>Saltar este dato</Text>
-                                </TouchableOpacity>
-                            ) : null}
-                        </View>
+                        <ComposerBoxy
+                            pregunta={currentQuestion}
+                            confirmacion={confirmacion}
+                            texto={inputValue}
+                            deshabilitado={isComposerDisabled}
+                            envioDeshabilitado={isSendDisabled}
+                            onCambiarTexto={setInputValue}
+                            onEnter={manejarEnter}
+                            onEnviar={() => void handleSend()}
+                            onSaltear={() => void handleSkip()}
+                        />
                     )}
                 </View>
             </KeyboardAvoidingView>

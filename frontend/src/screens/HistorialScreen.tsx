@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { styles } from '../styles/HistorialStyles';
+import { formatearARS } from '../helpers/formato';
 import { Envio, listarEnvios } from '../services/enviosService';
 
 interface OrdenPasada {
@@ -14,7 +15,6 @@ interface OrdenPasada {
     precio: number;
 }
 
-const formatearARS = (monto: number) => `$${monto.toLocaleString('es-AR')}`;
 
 function formatearFecha(iso: string | null): string {
     if (!iso) return '';

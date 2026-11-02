@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { styles, COLORS } from '../styles/SeguimientoStyles';
+import { formatearARS } from '../helpers/formato';
 import MapaSeguimiento from '../components/MapaSeguimiento';
 import { ToastStack, useToasts } from '../components/Toasts';
 import { analizarDireccion } from '../services/botLogistica';
@@ -263,7 +264,6 @@ export default function SeguimientoScreen({ navigation, route }: any) {
         return `${minutos.toString().padStart(2, '0')}:${segundos.toString().padStart(2, '0')}`;
     };
 
-    const formatearARS = (monto: number) => `$${monto.toLocaleString('es-AR')}`;
 
     const slaVencido = tiempoRestante === 0;
     const progresoSla = tiempoRestante / SLA_TOTAL_SEG;

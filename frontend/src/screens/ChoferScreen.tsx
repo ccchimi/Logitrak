@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { styles, COLORS } from '../styles/ChoferStyles';
+import { formatearARS } from '../helpers/formato';
 import { cerrarSesion, obtenerUsuarioSesion } from '../services/authService';
 import {
     listarOfertas,
@@ -199,8 +200,6 @@ export default function ChoferScreen({ navigation, route }: any) {
               ? styles.prioridadMedia
               : styles.prioridadBaja;
 
-    const formatearARS = (monto: number | null) =>
-        typeof monto === 'number' ? `$${monto.toLocaleString('es-AR')}` : '—';
 
     const estadoOperativo = viajeActivo
         ? { texto: 'En servicio', color: COLORS.accent }
