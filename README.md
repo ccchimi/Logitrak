@@ -135,6 +135,7 @@ en el panel de Render (backend) y en EAS (builds de la app), no en archivos.
 | `MODO_API_URL`, `MODO_CLIENT_ID`, `MODO_CLIENT_SECRET`, `MODO_STORE_ID` | No | MODO (vacío = sandbox simulado) |
 | `RENAPER_API_URL`, `RENAPER_API_KEY` | No | Verificación contra RENAPER (vacío = lectura offline del DNI) |
 | `MINUTOS_ESPERA_CHOFER` | No | Minutos que espera un envío pago a que lo tome un chofer (5) |
+| `GOOGLE_DIRECTIONS_KEY` | Para mapas | Ruta por calles del seguimiento en la app móvil (solo servidor) |
 
 **Frontend** (`frontend/.env`)
 
@@ -142,11 +143,16 @@ en el panel de Render (backend) y en EAS (builds de la app), no en archivos.
 |---|---|---|
 | `EXPO_PUBLIC_API_URL` | Sí | URL del backend (en local, la IP LAN de la PC, no `localhost`) |
 | `EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_KEY` | Para mapas | Mapa nativo en Android |
-| `EXPO_PUBLIC_GOOGLE_DIRECTIONS_KEY` | Para mapas | Trazado de rutas |
 | `EXPO_PUBLIC_GOOGLE_MAPS_WEB_KEY` | Para mapas | Mapa de la versión web |
 
 Todo lo que empieza con `EXPO_PUBLIC_` queda dentro de la app, así que ahí nunca
-van secretos de servidor.
+van secretos de servidor. Las dos claves de Google que sí viajan en la app van
+restringidas en Google Cloud: la de Android por package name (`com.logitrak.frontend`) + SHA-1 y solo
+Maps SDK for Android; la web por dominio (`https://ccchimi.github.io/*`) y solo
+Maps JavaScript y Directions. La ruta por calles del móvil la pide la app al
+backend (`GET /api/recorridos`), que usa `GOOGLE_DIRECTIONS_KEY`: una llamada a
+Google hecha desde el JavaScript del teléfono no lleva paquete ni dominio, así
+que esa clave no se podría restringir.
 
 ## Librerías principales
 
@@ -155,7 +161,7 @@ van secretos de servidor.
 | App | Expo SDK 54, React Native 0.81, React 19 | Base de la aplicación mobile y web |
 | App | `react-native-web` | Versión web desde el mismo código |
 | App | React Navigation (`native-stack`) | Navegación entre pantallas |
-| App | `react-native-maps`, `react-native-maps-directions` | Mapa y ruta del seguimiento |
+| App | `react-native-maps` | Mapa y ruta del seguimiento (la ruta la calcula el backend) |
 | App | `expo-location` | Ubicación del chofer |
 | App | `expo-camera`, `@react-native-ml-kit/face-detection` | Escaneo de DNI, selfie y prueba de vida |
 | App | `@supabase/supabase-js` | Chat de soporte en tiempo real |

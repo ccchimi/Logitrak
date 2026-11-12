@@ -126,6 +126,7 @@ haría falta un plan que mantenga el servicio activo.
 | GET | `/api/pagos` | Pagos del cliente (admin ve todos) |
 | POST | `/api/pagos/webhook/mercadopago` | Webhook de Mercado Pago, sin auth |
 | GET | `/api/perfil/resumen` | Resumen de cuenta para la pantalla de Perfil |
+| GET | `/api/recorridos` | Ruta por calles entre dos puntos (Google Directions, con caché) |
 | POST | `/api/perfil/eliminar-cuenta` | Elimina la cuenta propia (pide la contraseña) |
 
 ## Cómo se calcula el precio
@@ -369,6 +370,16 @@ una sola transacción:
 No se puede eliminar una cuenta de admin, ni la de un cliente con un envío pago
 todavía en curso, ni la de un chofer con un viaje asignado: primero tienen que
 terminar (responde 409 explicando el motivo).
+
+**Claves de Google**: la ruta por calles de la app móvil se pide a
+`GET /api/recorridos`, que llama a Google Directions con `GOOGLE_DIRECTIONS_KEY`.
+Esa clave nunca sale del servidor; las respuestas se guardan 30 minutos en
+memoria y el endpoint exige sesión y tiene un límite de 60 consultas cada 10
+minutos por IP, así que no sirve como proxy gratuito. Sin la clave responde 503
+y la app muestra solo los puntos de retiro y entrega.
+
+**Dependencias**: `npm audit` del backend da 0 vulnerabilidades. La CI no lo
+exige todavía, así que conviene correrlo antes de cada entrega.
 
 Las contraseñas se guardan hasheadas con bcrypt y nunca en texto plano, y las
 sesiones viajan en un JWT firmado con expiración configurable a través de

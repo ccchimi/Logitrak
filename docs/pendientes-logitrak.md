@@ -39,8 +39,15 @@ y verificado se saca de acá; el historial queda en los commits.
 9. Backend en Render plan Free: el spin-down por inactividad afecta los webhooks
    de pago. Para producción, plan pago o keep-alive. Mitigado en parte por el
    fallback de polling por `external_reference`.
-10. Restringir las claves de Google Maps por package name y SHA-1. Hoy quedan
-   embebidas en el bundle sin restricción.
+10. Aplicar las restricciones de las claves de Google en la Cloud Console (no
+    se puede hacer desde el código). Desde el Hito 0.6 la ruta del móvil la
+    calcula el backend, así que la clave de Directions ya no viaja en la app.
+    Falta: restringir la de Android a `com.logitrak.frontend` + SHA-1 y solo
+    Maps SDK for Android; la web a `https://ccchimi.github.io/*` y solo Maps
+    JavaScript y Directions; la del servidor (`GOOGLE_DIRECTIONS_KEY` en Render)
+    solo a Directions. Después, rotar la clave de Directions vieja, que estuvo
+    expuesta en versiones anteriores de la app, y borrar el secret
+    `EXPO_PUBLIC_GOOGLE_DIRECTIONS_KEY` del repo.
 11. Verificación de identidad tiers 2 y 3 (liveness y match facial). Funcionan
     solo con dev build, no en Expo Go ni web. Se activan por variable de entorno.
 12. Guardar el refresh token en el almacenamiento seguro del teléfono
@@ -53,3 +60,9 @@ y verificado se saca de acá; el historial queda en los commits.
     tenemos guardado de él. Y un trabajo periódico que borre del Storage los
     archivos que hayan quedado si la eliminación no pudo borrarlos en el momento
     (hoy solo se registra en el log).
+15. Actualizar Expo de SDK 54 a la versión vigente. En el Hito 0.6 quedaron
+    corregidas todas las vulnerabilidades críticas y las del backend; las 21
+    restantes del frontend (1 alta) están en las herramientas de build de Expo
+    (`@expo/cli`, metro, `image-size`), no en el código que llega al teléfono, y
+    su arreglo exige el salto de SDK. Conviene hacerlo de a una versión, con
+    `npx expo install --fix`, probando el mapa, la cámara y la detección facial.

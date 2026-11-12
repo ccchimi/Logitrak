@@ -14,6 +14,7 @@ import { rutasPerfil } from './rutas/perfil.js';
 import { rutasVehiculos } from './rutas/vehiculos.js';
 import { rutasAdmin } from './rutas/admin.js';
 import { rutasSoporte } from './rutas/soporte.js';
+import { rutasRecorridos } from './rutas/recorridos.js';
 
 // La app sin arrancar: index.js la pone a escuchar y las pruebas de integración
 // la levantan en un puerto libre contra una base de prueba.
@@ -44,6 +45,7 @@ app.use('/api/perfil', rutasPerfil);
 app.use('/api/vehiculos', rutasVehiculos);
 app.use('/api/admin', rutasAdmin);
 app.use('/api/soporte', rutasSoporte);
+app.use('/api/recorridos', rutasRecorridos);
 
 app.use((_req, res) => {
     res.status(404).json({ exito: false, error: 'Ruta no encontrada.' });

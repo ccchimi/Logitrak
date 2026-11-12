@@ -45,7 +45,6 @@ jobs:
           EXPO_BASE_URL: /Logitrak
           EXPO_PUBLIC_API_URL: ${{ vars.EXPO_PUBLIC_API_URL || 'https://logitrak.onrender.com' }}
           EXPO_PUBLIC_GOOGLE_MAPS_WEB_KEY: ${{ secrets.EXPO_PUBLIC_GOOGLE_MAPS_WEB_KEY }}
-          EXPO_PUBLIC_GOOGLE_DIRECTIONS_KEY: ${{ secrets.EXPO_PUBLIC_GOOGLE_DIRECTIONS_KEY }}
 
       # GitHub Pages no conoce las rutas de la app: cualquier URL desconocida
       # vuelve al index para que la resuelva la navegación.

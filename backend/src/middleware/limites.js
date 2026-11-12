@@ -42,6 +42,11 @@ export const crearLimiteCotizaciones = () =>
 export const crearLimitePagos = () =>
     limite({ minutos: 10, maximo: 20, mensaje: `Demasiados intentos de pago seguidos. ${ESPERA}` });
 
+// Cada recorrido le cuesta una consulta a Google; la caché absorbe las
+// repeticiones, y esto frena a quien quiera usar la API como proxy gratis.
+export const crearLimiteRecorridos = () =>
+    limite({ minutos: 10, maximo: 60, mensaje: `Demasiadas consultas de rutas. ${ESPERA}` });
+
 // Una instancia por proceso, compartida por las rutas.
 export const limiteGeneral = crearLimiteGeneral();
 export const limiteLogin = crearLimiteLogin();
@@ -49,3 +54,4 @@ export const limiteRegistro = crearLimiteRegistro();
 export const limiteRenovacion = crearLimiteRenovacion();
 export const limiteCotizaciones = crearLimiteCotizaciones();
 export const limitePagos = crearLimitePagos();
+export const limiteRecorridos = crearLimiteRecorridos();

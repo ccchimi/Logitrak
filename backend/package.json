@@ -17,7 +17,7 @@
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
-    "express": "^4.21.2",
+    "express": "^4.22.3",
     "express-rate-limit": "^7.4.1",
     "helmet": "8.1.0",
     "jpeg-js": "^0.4.4",
@@ -25,7 +25,7 @@
     "mercadopago": "^3.1.0",
     "pg": "^8.13.1",
     "qrcode": "^1.5.4",
-    "zod": "4.1.12"
+    "zod": "^4.6.7"
   },
   "private": true,
   "devDependencies": {
