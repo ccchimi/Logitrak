@@ -48,6 +48,81 @@ var LOCALIDADES = [
   { id: "rio-gallegos", nombre: "R\xEDo Gallegos", provincia: "Santa Cruz", lat: -51.623, lng: -69.2168, radioKm: 4, indiceDemanda: 1.1, alias: ["rio gallegos"] },
   { id: "ushuaia", nombre: "Ushuaia", provincia: "Tierra del Fuego", lat: -54.8019, lng: -68.303, radioKm: 4, indiceDemanda: 1.12, alias: ["ushuaia"] }
 ];
+var barriosDe = (localidadId, nombres) => nombres.map((nombre) => ({ nombre, localidadId }));
+var BARRIOS = [
+  // Los 48 barrios de CABA, más los nombres de uso común.
+  ...barriosDe("caba", [
+    "Agronom\xEDa",
+    "Almagro",
+    "Balvanera",
+    "Barracas",
+    "Belgrano",
+    "Boedo",
+    "Caballito",
+    "Chacarita",
+    "Coghlan",
+    "Colegiales",
+    "Constituci\xF3n",
+    "Flores",
+    "Floresta",
+    "La Boca",
+    "La Paternal",
+    "Liniers",
+    "Mataderos",
+    "Monte Castro",
+    "Monserrat",
+    "Nueva Pompeya",
+    "N\xFA\xF1ez",
+    "Palermo",
+    "Parque Avellaneda",
+    "Parque Chacabuco",
+    "Parque Chas",
+    "Parque Patricios",
+    "Puerto Madero",
+    "Recoleta",
+    "Retiro",
+    "Saavedra",
+    "San Crist\xF3bal",
+    "San Nicol\xE1s",
+    "San Telmo",
+    "V\xE9lez Sarsfield",
+    "Versalles",
+    "Villa Crespo",
+    "Villa del Parque",
+    "Villa Devoto",
+    "Villa General Mitre",
+    "Villa Lugano",
+    "Villa Luro",
+    "Villa Ort\xFAzar",
+    "Villa Pueyrred\xF3n",
+    "Villa Real",
+    "Villa Riachuelo",
+    "Villa Santa Rita",
+    "Villa Soldati",
+    "Villa Urquiza"
+  ]),
+  { nombre: "Microcentro", localidadId: "caba" },
+  { nombre: "Once", localidadId: "caba" },
+  { nombre: "Barrio Norte", localidadId: "caba" },
+  { nombre: "Palermo Soho", localidadId: "caba" },
+  { nombre: "Palermo Hollywood", localidadId: "caba" },
+  { nombre: "Montserrat", localidadId: "caba" },
+  { nombre: "Pompeya", localidadId: "caba" },
+  { nombre: "Boca", localidadId: "caba" },
+  // Localidades del conurbano que pertenecen a un partido con cobertura.
+  ...barriosDe("lomas-de-zamora", ["Banfield", "Temperley", "Turdera", "Llavallol", "Villa Fiorito"]),
+  ...barriosDe("lanus", ["Lan\xFAs Este", "Lan\xFAs Oeste", "Remedios de Escalada", "Valent\xEDn Alsina", "Monte Chingolo"]),
+  ...barriosDe("avellaneda", ["Wilde", "Sarand\xED", "Dock Sud", "Gerli", "Villa Dom\xEDnico", "Pi\xF1eyro"]),
+  ...barriosDe("quilmes", ["Bernal", "Ezpeleta", "Don Bosco", "Quilmes Oeste", "San Francisco Solano"]),
+  ...barriosDe("moron", ["Castelar", "Haedo", "El Palomar", "Villa Sarmiento"]),
+  ...barriosDe("san-isidro", ["Mart\xEDnez", "Acassuso", "Beccar", "Boulogne", "Villa Adelina"]),
+  ...barriosDe("vicente-lopez", ["Olivos", "Florida", "Munro", "La Lucila", "Carapachay", "Villa Martelli"]),
+  ...barriosDe("tigre", ["Don Torcuato", "General Pacheco", "Benav\xEDdez", "Nordelta", "El Talar", "Rinc\xF3n de Milberg"]),
+  ...barriosDe("pilar", ["Del Viso", "Presidente Derqui", "Villa Rosa"]),
+  ...barriosDe("la-plata", ["City Bell", "Gonnet", "Tolosa", "Los Hornos", "Villa Elisa", "Ringuelet"]),
+  ...barriosDe("cordoba", ["Nueva C\xF3rdoba", "Cerro de las Rosas", "Alberdi", "General Paz"]),
+  ...barriosDe("rosario", ["Fisherton", "Echesortu", "Pichincha"])
+];
 var TIPOS_VIA = [
   "avenida",
   "av",
@@ -376,28 +451,51 @@ function capitalizar(texto) {
     (palabra, i) => CONECTORES.has(palabra) && i > 0 ? palabra : palabra.charAt(0).toUpperCase() + palabra.slice(1)
   ).join(" ");
 }
+var CANDIDATOS = [
+  ...LOCALIDADES.flatMap((localidad) => localidad.alias.map((alias) => ({ alias, localidad, barrio: null }))),
+  ...BARRIOS.flatMap((barrio) => {
+    const localidad = LOCALIDADES.find((l) => l.id === barrio.localidadId);
+    if (!localidad) return [];
+    return [normalizar(barrio.nombre), ...barrio.alias ?? []].map((alias) => ({
+      alias,
+      localidad,
+      barrio: barrio.nombre
+    }));
+  })
+];
+function segmentosDeLocalidad(texto) {
+  const n = normalizar(texto);
+  const partes = n.split(",").map((s) => s.trim());
+  let tramos;
+  if (partes.length > 1) {
+    tramos = partes.slice(1);
+  } else {
+    const palabras = n.split(" ");
+    const iAltura = palabras.findIndex((p, i) => i > 0 && /^\d{1,5}$/.test(p));
+    tramos = iAltura >= 0 ? [palabras.slice(iAltura + 1).join(" ")] : [];
+  }
+  return tramos.map((t) => t.split(" ").filter((p) => p && !/\d/.test(p)).join(" ").replace(/[.;:]+$/g, "").trim()).filter((t) => t.length >= 3 && !/^(piso|dpto|depto|departamento|cp)\b/.test(t));
+}
+function contienePalabras(tramo, alias) {
+  return ` ${tramo} `.includes(` ${alias} `);
+}
 function resolverLocalidad(texto) {
-  const n = ` ${normalizar(texto)} `;
-  for (const localidad of LOCALIDADES) {
-    for (const alias of localidad.alias) {
-      if (n.includes(` ${alias} `) || n.includes(` ${alias},`) || n.endsWith(` ${alias}`)) {
-        return { localidad, corregida: false };
-      }
+  const tramos = segmentosDeLocalidad(texto);
+  for (const tramo of tramos) {
+    const coincidencias = CANDIDATOS.filter((c) => contienePalabras(tramo, c.alias));
+    if (coincidencias.length) {
+      const elegido = coincidencias.reduce((a, b) => b.alias.length > a.alias.length ? b : a);
+      return { localidad: elegido.localidad, corregida: false, barrio: elegido.barrio };
     }
   }
-  const segmentos = normalizar(texto).split(",").map((s) => s.trim()).filter((s) => s.length >= 4 && !/\d/.test(s));
   let mejor = null;
-  for (const segmento of segmentos) {
-    for (const localidad of LOCALIDADES) {
-      for (const alias of localidad.alias) {
-        const s = similitud(segmento, alias);
-        if (s >= 0.78 && (!mejor || s > mejor.puntaje)) {
-          mejor = { localidad, puntaje: s };
-        }
-      }
+  for (const tramo of tramos.filter((t) => t.length >= 4)) {
+    for (const candidato of CANDIDATOS) {
+      const s = similitud(tramo, candidato.alias);
+      if (s >= 0.78 && (!mejor || s > mejor.puntaje)) mejor = { ...candidato, puntaje: s };
     }
   }
-  return mejor ? { localidad: mejor.localidad, corregida: true } : null;
+  return mejor ? { localidad: mejor.localidad, corregida: true, barrio: mejor.barrio } : null;
 }
 function extraerComponentes(texto) {
   const n = normalizar(texto);
@@ -436,7 +534,7 @@ function nivelDesdePuntaje2(puntaje) {
   if (puntaje >= 50) return "media";
   return "baja";
 }
-function construirNormalizada(componentes, localidad, textoOriginal) {
+function construirNormalizada(componentes, localidad, barrio, textoOriginal) {
   if (!componentes.nombreVia) return textoOriginal.trim();
   const ABREVIATURAS = {
     av: "Av.",
@@ -456,6 +554,7 @@ function construirNormalizada(componentes, localidad, textoOriginal) {
   const via = `${tipo} ${capitalizar(componentes.nombreVia)}`.trim();
   partes.push(componentes.altura ? `${via} ${componentes.altura}` : via);
   if (componentes.pisoDepto) partes.push(capitalizar(componentes.pisoDepto));
+  if (barrio) partes.push(barrio);
   if (localidad) {
     partes.push(localidad.nombre);
     if (localidad.provincia !== localidad.nombre) partes.push(localidad.provincia);
@@ -471,6 +570,7 @@ function analizarDireccion(textoOriginal) {
     componentes: { tipoVia: null, nombreVia: null, altura: null, pisoDepto: null, codigoPostal: null },
     localidad: null,
     localidadCorregida: false,
+    barrio: null,
     problemas
   };
   const invalida = (extra) => ({
@@ -521,6 +621,7 @@ function analizarDireccion(textoOriginal) {
   const resolucion = resolverLocalidad(texto);
   const localidad = resolucion?.localidad ?? null;
   const localidadCorregida = resolucion?.corregida ?? false;
+  const barrio = resolucion?.barrio ?? null;
   let puntaje = 0;
   if (componentes.nombreVia && componentes.nombreVia.length >= 3 && /[aeiouáéíóú]/i.test(componentes.nombreVia)) {
     puntaje += 35;
@@ -562,12 +663,20 @@ function analizarDireccion(textoOriginal) {
       });
     }
   } else {
-    problemas.push({
-      codigo: "localidad_desconocida",
-      severidad: "advertencia",
-      mensaje: "No reconozco la localidad dentro de nuestra red de cobertura.",
-      sugerencia: 'Sum\xE1 la ciudad al final. Ej: "..., Rosario" o "..., CABA".'
-    });
+    const escrito = segmentosDeLocalidad(texto)[0];
+    problemas.push(
+      escrito ? {
+        codigo: "localidad_desconocida",
+        severidad: "advertencia",
+        mensaje: `No reconozco "${capitalizar(escrito)}" como una ciudad o localidad de nuestra cobertura.`,
+        sugerencia: 'Si es un barrio, agreg\xE1 la ciudad al final. Ej: "Cabildo 2000, Belgrano, CABA" o "Mitre 450, Bernal, Quilmes".'
+      } : {
+        codigo: "localidad_desconocida",
+        severidad: "advertencia",
+        mensaje: "Falta la ciudad o localidad.",
+        sugerencia: 'Agregala despu\xE9s de una coma. Ej: "Av. Corrientes 1300, CABA" o "Bv. Oro\xF1o 1200, Rosario".'
+      }
+    );
   }
   if (componentes.tipoVia) puntaje += 10;
   if (componentes.codigoPostal) puntaje += 5;
@@ -579,10 +688,11 @@ function analizarDireccion(textoOriginal) {
   else veredicto = "invalida";
   return {
     ...base,
-    textoNormalizado: construirNormalizada(componentes, localidad, texto),
+    textoNormalizado: construirNormalizada(componentes, localidad, barrio, texto),
     componentes,
     localidad,
     localidadCorregida,
+    barrio,
     veredicto,
     puntaje,
     confianza: nivelDesdePuntaje2(puntaje),
@@ -734,6 +844,20 @@ function cotizarSync(solicitud) {
       problemas
     };
   }
+  const sinCiudad = [origen, destino].filter((d) => !d.localidad);
+  if (sinCiudad.length > 0) {
+    return {
+      exito: false,
+      motivo: "Necesito la ciudad o localidad de retiro y de entrega para calcular la distancia.",
+      problemas: sinCiudad.map((d) => ({
+        ...d.problemas.find((p) => p.codigo === "localidad_desconocida") ?? {
+          codigo: "localidad_desconocida",
+          mensaje: "Falta la ciudad o localidad."
+        },
+        severidad: "critica"
+      }))
+    };
+  }
   if (esMismaDireccion(origen, destino)) {
     return {
       exito: false,
@@ -876,9 +1000,6 @@ function cotizarSync(solicitud) {
         advertencias.push(`${lado}: ${p.mensaje}`);
       }
     }
-  }
-  if (distancia.estimada && origen.localidad?.id !== destino.localidad?.id) {
-    advertencias.push("La distancia se estim\xF3 sin localidad verificada; el precio puede ajustarse al confirmar.");
   }
   if (carga.confianza === "baja" && solicitud.descripcionCarga) {
     advertencias.push("No pude clasificar la carga con precisi\xF3n: se aplic\xF3 tratamiento de carga general.");

@@ -53,6 +53,7 @@ Ejecutado el 15/10/2026 con `npm run test:coverage` en `frontend/` (salida compl
 | Id | Descripción | Severidad | Estado |
 |---|---|---|---|
 | DEF-01 | `esTextoIlegible` (`nlp.ts`) marcaba como ilegible cualquier texto con 4 caracteres iguales seguidos, incluidas las **alturas de calle** como `1111`, `10000` o `40000`. Por eso una dirección real como *"Av. Rivadavia 10000, CABA"* se rechazaba con "No puedo reconocer una dirección" y no se podía cotizar. Se detectó al diseñar el caso de altura implausible. | Media | **Cerrado** — la regla de repetición ahora aplica solo a letras (`/(.)\1{3,}/` → `/([a-zñ])\1{3,}/`). |
+| DEF-03 | Reportado por el equipo. `resolverLocalidad` (`direcciones.ts`) buscaba la ciudad en **todo el texto**, incluido el nombre de la calle: *"Av. Corrientes 1300, Palermo"* se ubicaba en la ciudad de Corrientes y *"Av. Santa Fe 3200, Recoleta"* en Santa Fe, así que un tramo urbano se cotizaba como uno de 500 km ($102.850 en vez de $6.800). Los barrios no se reconocían: Boxy avisaba que no ubicaba la localidad pero dejaba avanzar con una distancia fija de 8 km. Además, un peso sin unidad se aceptaba sin aclarar qué se registró. | Alta | **Cerrado** — la ciudad se busca solo después de la calle, hay una tabla de barrios de CABA y del conurbano, la conversación y el cotizador rechazan direcciones sin ciudad reconocida y el peso sin unidad se aclara (o se confirma desde 100). 20 pruebas nuevas. |
 
 #### Ciclo de corrección del DEF-01
 

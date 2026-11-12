@@ -6,10 +6,13 @@ import { mpHabilitado, crearPreferenciaMp, consultarPagoMp, buscarPagoMpPorRefer
 import { modoHabilitado, crearIntencionModo, consultarIntencionModo } from '../servicios/pagos/modo.js';
 import { procesarTarjeta } from '../servicios/pagos/tarjeta.js';
 import { MINUTOS_ESPERA_CHOFER } from '../servicios/envios/expiracion.js';
+import { exigirFirmaMercadoPago } from '../middleware/webhookMercadoPago.js';
+import { esReutilizable, leerClaveIdempotencia, minutosRestantes, mismaOperacion } from '../servicios/pagos/intentos.js';
 
 export const rutasPagos = Router();
 
-const MINUTOS_VIGENCIA_QR = 15;
+// Código de PostgreSQL para una violación de índice único.
+const VIOLACION_UNICA = '23505';
 
 function num(v) {
     const n = Number(v);
@@ -39,15 +42,51 @@ function baseUrlDe(req) {
     return process.env.PUBLIC_API_URL || `${req.protocol}://${req.get('host')}`;
 }
 
-async function buscarEnvioDelCliente(codigo, usuario) {
-    const { rows } = await consultar('SELECT * FROM envios WHERE codigo = $1', [codigo]);
+// Trae el envío bloqueado (FOR UPDATE) dentro de la transacción: mientras dure,
+// ningún otro pedido puede iniciar ni aprobar un pago de ese mismo envío. Es lo
+// que serializa los reintentos y los doble clic.
+async function bloquearEnvioDelCliente(cliente, codigo, usuario) {
+    const { rows } = await cliente.query('SELECT * FROM envios WHERE codigo = $1 FOR UPDATE', [codigo]);
     const envio = rows[0];
     if (!envio) return { error: 404 };
     if (usuario.rol !== 'admin' && envio.cliente_id !== usuario.id) return { error: 403 };
     return { envio };
 }
 
+async function buscarPorClave(cliente, clienteId, clave) {
+    if (!clave) return null;
+    const { rows } = await cliente.query(
+        'SELECT * FROM pagos WHERE cliente_id = $1 AND idempotency_key = $2',
+        [clienteId, clave]
+    );
+    return rows[0] ?? null;
+}
+
+// Aprobar es idempotente: la pasarela puede avisar dos veces (webhook + consulta,
+// o un reintento del webhook) y el resultado tiene que ser el mismo. Siempre se
+// bloquea primero el envío y después el pago, igual que en el checkout y en los
+// reembolsos, para que no haya interbloqueos.
 async function aprobarPago(cliente, pagoId, extra = {}) {
+    const previo = (await cliente.query('SELECT envio_id FROM pagos WHERE id = $1', [pagoId])).rows[0];
+    if (!previo) return null;
+
+    await cliente.query('SELECT id FROM envios WHERE id = $1 FOR UPDATE', [previo.envio_id]);
+    const actual = (await cliente.query('SELECT * FROM pagos WHERE id = $1 FOR UPDATE', [pagoId])).rows[0];
+    if (actual.estado === 'aprobado' || actual.estado === 'reembolsado') return actual;
+
+    // Si el envío ya tiene otro pago aprobado, este cobro es un duplicado: se
+    // registra tal cual (la plata se movió) pero no vuelve a tocar el envío, y
+    // queda marcado para que un admin lo devuelva.
+    const otro = (await cliente.query(
+        `SELECT codigo FROM pagos WHERE envio_id = $1 AND estado = 'aprobado' AND id <> $2 LIMIT 1`,
+        [actual.envio_id, pagoId]
+    )).rows[0];
+
+    const detalle = extra.detalle ?? actual.detalle ?? null;
+    const detalleFinal = otro
+        ? { ...(detalle ?? {}), duplicadoDe: otro.codigo, reembolsoPendiente: `pago duplicado de ${otro.codigo}` }
+        : detalle;
+
     const { rows } = await cliente.query(
         `UPDATE pagos SET
              estado = 'aprobado',
@@ -59,9 +98,15 @@ async function aprobarPago(cliente, pagoId, extra = {}) {
              pagado_en = COALESCE(pagado_en, now()),
              actualizado_en = now()
          WHERE id = $1 RETURNING *`,
-        [pagoId, extra.pagoExtId ?? null, extra.detalle ? JSON.stringify(extra.detalle) : null]
+        [pagoId, extra.pagoExtId ?? null, detalleFinal ? JSON.stringify(detalleFinal) : null]
     );
     const pago = rows[0];
+
+    if (otro) {
+        console.error(`Pago ${pago.codigo} aprobado como DUPLICADO de ${otro.codigo}: hay que reembolsarlo.`);
+        return pago;
+    }
+
     // Recién con el pago aprobado el envío se ofrece a los choferes, así que es
     // acá donde arranca la ventana de espera. COALESCE para que un segundo
     // aviso de la pasarela no reinicie el reloj.
@@ -76,6 +121,24 @@ async function aprobarPago(cliente, pagoId, extra = {}) {
     return pago;
 }
 
+async function responderCheckout(res, pago, { estado, reutilizado = false }) {
+    const datos = pago.checkout_datos ?? {};
+    const qr = await generarQrDataUrl(datos.deeplink || datos.url || pago.codigo);
+    return res.status(estado).json({
+        exito: true,
+        pago: publicar(pago),
+        reutilizado,
+        checkout: {
+            metodo: pago.metodo,
+            sandbox: pago.modo_proc !== 'real',
+            qr,
+            deeplink: datos.deeplink ?? null,
+            url: datos.url ?? null,
+            expiraEnMin: Math.max(1, minutosRestantes(pago)),
+        },
+    });
+}
+
 rutasPagos.post('/checkout', autenticar, async (req, res) => {
     const b = req.body ?? {};
     const metodo = (b.metodo || '').trim();
@@ -85,102 +148,174 @@ rutasPagos.post('/checkout', autenticar, async (req, res) => {
         return res.status(400).json({ exito: false, error: 'Método de checkout inválido (usá mercadopago o modo).' });
     }
 
-    const r = await buscarEnvioDelCliente(envioCodigo, req.usuario);
-    if (r.error === 404) return res.status(404).json({ exito: false, error: 'Envío no encontrado.' });
-    if (r.error === 403) return res.status(403).json({ exito: false, error: 'No tenés acceso a este envío.' });
-    const envio = r.envio;
+    const idem = leerClaveIdempotencia(req.get('Idempotency-Key'));
+    if (idem.error) return res.status(400).json({ exito: false, error: idem.error });
 
-    if (envio.estado_pago === 'pagado') {
-        return res.status(409).json({ exito: false, error: 'Este envío ya está pagado.' });
-    }
-
-    const real = metodo === 'mercadopago' ? mpHabilitado() : modoHabilitado();
-
-    const ins = await consultar(
-        `INSERT INTO pagos (envio_id, cliente_id, metodo, monto, moneda, modo_proc)
-         VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-        [envio.id, envio.cliente_id, metodo, envio.precio, envio.moneda, real ? 'real' : 'sandbox']
-    );
-    let pago = ins.rows[0];
-
-    const baseUrl = baseUrlDe(req);
-    let deeplink = null;
-    let url = null;
-    let referenciaExt = null;
-
+    const cliente = await pool.connect();
     try {
-        if (metodo === 'mercadopago') {
-            const pref = await crearPreferenciaMp({ pago, envio, baseUrl });
-            if (pref) {
-                url = pref.initPoint;
-                deeplink = pref.initPoint;
-                referenciaExt = pref.preferenceId;
-            } else {
-                deeplink = `logitrak://pago/mercadopago/${pago.codigo}`;
-                url = `${baseUrl}/api/pagos/${pago.codigo}`;
-            }
-        } else {
-            const intencion = await crearIntencionModo({ pago, envio, baseUrl });
-            deeplink = intencion.deeplink;
-            referenciaExt = intencion.intencionId;
-        }
-    } catch (e) {
-        console.error('No se pudo iniciar el checkout:', e.message);
-        await consultar(`UPDATE pagos SET estado = 'cancelado', actualizado_en = now() WHERE id = $1`, [pago.id]);
-        return res.status(502).json({ exito: false, error: 'No pudimos iniciar el pago con la pasarela. Probá con otro método.' });
-    }
+        await cliente.query('BEGIN');
 
-    if (referenciaExt) {
-        const upd = await consultar(
-            `UPDATE pagos SET referencia_ext = $2, actualizado_en = now() WHERE id = $1 RETURNING *`,
-            [pago.id, referenciaExt]
+        const r = await bloquearEnvioDelCliente(cliente, envioCodigo, req.usuario);
+        if (r.error) {
+            await cliente.query('ROLLBACK');
+            return r.error === 404
+                ? res.status(404).json({ exito: false, error: 'Envío no encontrado.' })
+                : res.status(403).json({ exito: false, error: 'No tenés acceso a este envío.' });
+        }
+        const envio = r.envio;
+
+        // 1) Mismo pedido reintentado con la misma clave: se devuelve el original.
+        const repetido = await buscarPorClave(cliente, envio.cliente_id, idem.clave);
+        if (repetido) {
+            await cliente.query('ROLLBACK');
+            if (!mismaOperacion(repetido, { envioId: envio.id, metodo })) {
+                return res.status(422).json({ exito: false, error: 'Esa clave de idempotencia ya se usó para otro pago.' });
+            }
+            return responderCheckout(res, repetido, { estado: 200, reutilizado: true });
+        }
+
+        if (envio.estado_pago === 'pagado') {
+            await cliente.query('ROLLBACK');
+            return res.status(409).json({ exito: false, error: 'Este envío ya está pagado.' });
+        }
+
+        const real = metodo === 'mercadopago' ? mpHabilitado() : modoHabilitado();
+        const modoProc = real ? 'real' : 'sandbox';
+
+        // 2) Ya hay un checkout pendiente y vigente para este envío y método:
+        //    se reutiliza en vez de crear otro pago y otra preferencia.
+        const { rows: pendientes } = await cliente.query(
+            `SELECT * FROM pagos
+             WHERE envio_id = $1 AND metodo = $2 AND estado = 'pendiente'
+             ORDER BY creado_en DESC LIMIT 1`,
+            [envio.id, metodo]
+        );
+        if (esReutilizable(pendientes[0], { envio, metodo, modoProc })) {
+            await cliente.query('ROLLBACK');
+            return responderCheckout(res, pendientes[0], { estado: 200, reutilizado: true });
+        }
+
+        // 3) Intento nuevo. Si la pasarela falla, el ROLLBACK no deja ninguna
+        //    fila huérfana.
+        const ins = await cliente.query(
+            `INSERT INTO pagos (envio_id, cliente_id, metodo, monto, moneda, modo_proc, idempotency_key)
+             VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7::uuid, gen_random_uuid())) RETURNING *`,
+            [envio.id, envio.cliente_id, metodo, envio.precio, envio.moneda, modoProc, idem.clave]
+        );
+        let pago = ins.rows[0];
+
+        const baseUrl = baseUrlDe(req);
+        let deeplink = null;
+        let url = null;
+        let referenciaExt = null;
+
+        try {
+            if (metodo === 'mercadopago') {
+                const pref = await crearPreferenciaMp({ pago, envio, baseUrl });
+                if (pref) {
+                    url = pref.initPoint;
+                    deeplink = pref.initPoint;
+                    referenciaExt = pref.preferenceId;
+                } else {
+                    deeplink = `logitrak://pago/mercadopago/${pago.codigo}`;
+                    url = `${baseUrl}/api/pagos/${pago.codigo}`;
+                }
+            } else {
+                const intencion = await crearIntencionModo({ pago, envio, baseUrl });
+                deeplink = intencion.deeplink;
+                referenciaExt = intencion.intencionId;
+            }
+        } catch (e) {
+            await cliente.query('ROLLBACK');
+            console.error('No se pudo iniciar el checkout:', e.message);
+            return res.status(502).json({ exito: false, error: 'No pudimos iniciar el pago con la pasarela. Probá con otro método.' });
+        }
+
+        const upd = await cliente.query(
+            `UPDATE pagos SET referencia_ext = $2, checkout_datos = $3::jsonb, actualizado_en = now()
+             WHERE id = $1 RETURNING *`,
+            [pago.id, referenciaExt, JSON.stringify({ deeplink, url })]
         );
         pago = upd.rows[0];
+
+        await cliente.query('COMMIT');
+        return responderCheckout(res, pago, { estado: 201 });
+    } catch (e) {
+        await cliente.query('ROLLBACK').catch(() => {});
+        if (e.code === VIOLACION_UNICA) {
+            return res.status(409).json({ exito: false, error: 'Ya hay un pago en curso con esa clave de idempotencia.' });
+        }
+        console.error('No se pudo iniciar el checkout:', e.message);
+        return res.status(500).json({ exito: false, error: 'No se pudo iniciar el pago.' });
+    } finally {
+        cliente.release();
     }
-
-    const qr = await generarQrDataUrl(deeplink || url || pago.codigo);
-
-    return res.status(201).json({
-        exito: true,
-        pago: publicar(pago),
-        checkout: { metodo, sandbox: !real, qr, deeplink, url, expiraEnMin: MINUTOS_VIGENCIA_QR },
-    });
 });
 
 rutasPagos.post('/tarjeta', autenticar, async (req, res) => {
     const b = req.body ?? {};
     const envioCodigo = (b.envioCodigo || '').trim();
 
-    const r = await buscarEnvioDelCliente(envioCodigo, req.usuario);
-    if (r.error === 404) return res.status(404).json({ exito: false, error: 'Envío no encontrado.' });
-    if (r.error === 403) return res.status(403).json({ exito: false, error: 'No tenés acceso a este envío.' });
-    const envio = r.envio;
-
-    if (envio.estado_pago === 'pagado') {
-        return res.status(409).json({ exito: false, error: 'Este envío ya está pagado.' });
-    }
-
-    const resultado = procesarTarjeta({
-        numero: b.numero,
-        titular: b.titular,
-        vencimiento: b.vencimiento,
-        cvv: b.cvv,
-        cuotas: b.cuotas,
-    });
+    const idem = leerClaveIdempotencia(req.get('Idempotency-Key'));
+    if (idem.error) return res.status(400).json({ exito: false, error: idem.error });
 
     const cliente = await pool.connect();
     try {
         await cliente.query('BEGIN');
 
+        const r = await bloquearEnvioDelCliente(cliente, envioCodigo, req.usuario);
+        if (r.error) {
+            await cliente.query('ROLLBACK');
+            return r.error === 404
+                ? res.status(404).json({ exito: false, error: 'Envío no encontrado.' })
+                : res.status(403).json({ exito: false, error: 'No tenés acceso a este envío.' });
+        }
+        const envio = r.envio;
+
+        // Mismo cobro reintentado con la misma clave: se devuelve el resultado
+        // original, aprobado o rechazado, sin volver a pasar la tarjeta.
+        const repetido = await buscarPorClave(cliente, envio.cliente_id, idem.clave);
+        if (repetido) {
+            await cliente.query('ROLLBACK');
+            if (!mismaOperacion(repetido, { envioId: envio.id, metodo: 'tarjeta' })) {
+                return res.status(422).json({ exito: false, error: 'Esa clave de idempotencia ya se usó para otro pago.' });
+            }
+            const aprobado = repetido.estado === 'aprobado' || repetido.estado === 'reembolsado';
+            return res.status(aprobado ? 200 : 402).json({
+                exito: aprobado,
+                aprobado,
+                motivo: repetido.detalle?.motivo ?? (aprobado ? 'Pago aprobado.' : 'Pago rechazado.'),
+                pago: publicar(repetido),
+                reutilizado: true,
+            });
+        }
+
+        if (envio.estado_pago === 'pagado') {
+            await cliente.query('ROLLBACK');
+            return res.status(409).json({ exito: false, error: 'Este envío ya está pagado.' });
+        }
+
+        const resultado = procesarTarjeta({
+            numero: b.numero,
+            titular: b.titular,
+            vencimiento: b.vencimiento,
+            cvv: b.cvv,
+            cuotas: b.cuotas,
+        });
+
         const ins = await cliente.query(
             `INSERT INTO pagos (envio_id, cliente_id, metodo, monto, moneda, modo_proc,
-                                estado, tarjeta_marca, tarjeta_ultimos, cuotas, detalle)
-             VALUES ($1,$2,'tarjeta',$3,$4,'sandbox',$5,$6,$7,$8,$9) RETURNING *`,
+                                estado, tarjeta_marca, tarjeta_ultimos, cuotas, detalle, idempotency_key)
+             VALUES ($1,$2,'tarjeta',$3,$4,'sandbox',$5,$6,$7,$8,$9, COALESCE($10::uuid, gen_random_uuid()))
+             RETURNING *`,
             [
                 envio.id, envio.cliente_id, envio.precio, envio.moneda,
-                resultado.aprobado ? 'aprobado' : 'rechazado',
+                // Entra como pendiente y lo aprueba aprobarPago, que es quien
+                // emite el comprobante y habilita el envío.
+                resultado.aprobado ? 'pendiente' : 'rechazado',
                 resultado.marca ?? null, resultado.ultimos ?? null, resultado.cuotas ?? null,
                 JSON.stringify({ motivo: resultado.motivo, codigoAutorizacion: resultado.codigoAutorizacion ?? null }),
+                idem.clave,
             ]
         );
         let pago = ins.rows[0];
@@ -199,7 +334,10 @@ rutasPagos.post('/tarjeta', autenticar, async (req, res) => {
             pago: publicar(pago),
         });
     } catch (e) {
-        await cliente.query('ROLLBACK');
+        await cliente.query('ROLLBACK').catch(() => {});
+        if (e.code === VIOLACION_UNICA) {
+            return res.status(409).json({ exito: false, error: 'Ya hay un pago en curso con esa clave de idempotencia.' });
+        }
         console.error('No se pudo procesar la tarjeta:', e.message);
         return res.status(500).json({ exito: false, error: 'No se pudo procesar el pago con tarjeta.' });
     } finally {
@@ -316,32 +454,52 @@ rutasPagos.get('/', autenticar, async (req, res) => {
     return res.json({ exito: true, pagos: rows.map(publicar) });
 });
 
-rutasPagos.post('/webhook/mercadopago', async (req, res) => {
-    try {
-        const tipo = req.body?.type || req.query?.type || req.query?.topic;
-        const pagoExtId = req.body?.data?.id || req.query?.id || req.query?.['data.id'];
+// La firma (exigirFirmaMercadoPago) prueba que el aviso viene de Mercado Pago y
+// que el id es el de la URL firmada; el id del cuerpo no se usa. Aun así, antes
+// de aprobar se reconsulta el pago a la API. Un fallo propio responde 500 para
+// que Mercado Pago reintente: procesar dos veces el mismo aviso es inocuo.
+rutasPagos.post('/webhook/mercadopago', exigirFirmaMercadoPago, async (req, res) => {
+    const tipo = req.body?.type || req.query?.type || req.query?.topic;
+    const pagoExtId = req.mpDataId;
 
-        if (tipo && String(tipo).includes('payment') && pagoExtId) {
-            const mp = await consultarPagoMp(String(pagoExtId)).catch(() => null);
-            if (mp?.externalReference) {
-                const { rows } = await consultar('SELECT * FROM pagos WHERE codigo = $1', [mp.externalReference]);
-                const pago = rows[0];
-                if (pago && pago.estado === 'pendiente' && mp.estado === 'approved') {
-                    const cliente = await pool.connect();
-                    try {
-                        await cliente.query('BEGIN');
-                        await aprobarPago(cliente, pago.id, { pagoExtId: String(pagoExtId), detalle: mp.raw });
-                        await cliente.query('COMMIT');
-                    } catch { await cliente.query('ROLLBACK'); } finally { cliente.release(); }
-                } else if (pago && mp.estado === 'rejected') {
-                    await consultar(`UPDATE pagos SET estado = 'rechazado', actualizado_en = now() WHERE id = $1`, [pago.id]);
-                }
+    if (!tipo || !String(tipo).includes('payment') || !pagoExtId) return res.sendStatus(200);
+
+    try {
+        const mp = await consultarPagoMp(pagoExtId);
+        if (!mp?.externalReference) return res.sendStatus(200);
+
+        const { rows } = await consultar('SELECT * FROM pagos WHERE codigo = $1', [mp.externalReference]);
+        const pago = rows[0];
+        if (!pago) return res.sendStatus(200);
+
+        // 'rechazado' también: el cliente puede reintentar con otra tarjeta dentro
+        // del mismo checkout de Mercado Pago, y ese cobro llega con la misma
+        // referencia.
+        if (mp.estado === 'approved' && (pago.estado === 'pendiente' || pago.estado === 'rechazado')) {
+            const cliente = await pool.connect();
+            try {
+                await cliente.query('BEGIN');
+                await aprobarPago(cliente, pago.id, { pagoExtId, detalle: mp.raw });
+                await cliente.query('COMMIT');
+            } catch (e) {
+                await cliente.query('ROLLBACK').catch(() => {});
+                throw e;
+            } finally {
+                cliente.release();
             }
+        } else if (mp.estado === 'rejected') {
+            // Solo un intento pendiente pasa a rechazado: un aviso viejo no
+            // puede pisar un pago que ya se aprobó.
+            await consultar(
+                `UPDATE pagos SET estado = 'rechazado', actualizado_en = now() WHERE id = $1 AND estado = 'pendiente'`,
+                [pago.id]
+            );
         }
+        return res.sendStatus(200);
     } catch (e) {
         console.error('Webhook Mercado Pago:', e.message);
+        return res.sendStatus(500);
     }
-    return res.sendStatus(200);
 });
 
 rutasPagos.post('/webhook/modo', async (req, res) => {

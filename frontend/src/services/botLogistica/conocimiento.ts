@@ -1,4 +1,4 @@
-import { CategoriaCarga, Localidad, VehiculoFlota } from './types';
+import { Barrio, CategoriaCarga, Localidad, VehiculoFlota } from './types';
 
 export const LOCALIDADES: readonly Localidad[] = [
     { id: 'caba', nombre: 'CABA', provincia: 'CABA', lat: -34.6037, lng: -58.3816, radioKm: 11, indiceDemanda: 1.1, alias: ['caba', 'capital federal', 'capital', 'ciudad autonoma de buenos aires', 'ciudad de buenos aires', 'baires', 'bs as', 'bsas', 'buenos aires'] },
@@ -45,6 +45,47 @@ export const LOCALIDADES: readonly Localidad[] = [
     { id: 'comodoro', nombre: 'Comodoro Rivadavia', provincia: 'Chubut', lat: -45.8641, lng: -67.4966, radioKm: 5, indiceDemanda: 1.08, alias: ['comodoro rivadavia', 'comodoro'] },
     { id: 'rio-gallegos', nombre: 'Río Gallegos', provincia: 'Santa Cruz', lat: -51.623, lng: -69.2168, radioKm: 4, indiceDemanda: 1.1, alias: ['rio gallegos'] },
     { id: 'ushuaia', nombre: 'Ushuaia', provincia: 'Tierra del Fuego', lat: -54.8019, lng: -68.303, radioKm: 4, indiceDemanda: 1.12, alias: ['ushuaia'] },
+];
+
+// Mucha gente escribe el barrio en lugar de la ciudad ("Cabildo 2000, Belgrano").
+// Cada barrio apunta a la localidad de cobertura que lo contiene. Los alias van
+// sin tildes y en minúsculas, igual que el texto normalizado.
+const barriosDe = (localidadId: string, nombres: readonly string[]): Barrio[] =>
+    nombres.map((nombre) => ({ nombre, localidadId }));
+
+export const BARRIOS: readonly Barrio[] = [
+    // Los 48 barrios de CABA, más los nombres de uso común.
+    ...barriosDe('caba', [
+        'Agronomía', 'Almagro', 'Balvanera', 'Barracas', 'Belgrano', 'Boedo', 'Caballito', 'Chacarita',
+        'Coghlan', 'Colegiales', 'Constitución', 'Flores', 'Floresta', 'La Boca', 'La Paternal', 'Liniers',
+        'Mataderos', 'Monte Castro', 'Monserrat', 'Nueva Pompeya', 'Núñez', 'Palermo', 'Parque Avellaneda',
+        'Parque Chacabuco', 'Parque Chas', 'Parque Patricios', 'Puerto Madero', 'Recoleta', 'Retiro',
+        'Saavedra', 'San Cristóbal', 'San Nicolás', 'San Telmo', 'Vélez Sarsfield', 'Versalles',
+        'Villa Crespo', 'Villa del Parque', 'Villa Devoto', 'Villa General Mitre', 'Villa Lugano',
+        'Villa Luro', 'Villa Ortúzar', 'Villa Pueyrredón', 'Villa Real', 'Villa Riachuelo',
+        'Villa Santa Rita', 'Villa Soldati', 'Villa Urquiza',
+    ]),
+    { nombre: 'Microcentro', localidadId: 'caba' },
+    { nombre: 'Once', localidadId: 'caba' },
+    { nombre: 'Barrio Norte', localidadId: 'caba' },
+    { nombre: 'Palermo Soho', localidadId: 'caba' },
+    { nombre: 'Palermo Hollywood', localidadId: 'caba' },
+    { nombre: 'Montserrat', localidadId: 'caba' },
+    { nombre: 'Pompeya', localidadId: 'caba' },
+    { nombre: 'Boca', localidadId: 'caba' },
+    // Localidades del conurbano que pertenecen a un partido con cobertura.
+    ...barriosDe('lomas-de-zamora', ['Banfield', 'Temperley', 'Turdera', 'Llavallol', 'Villa Fiorito']),
+    ...barriosDe('lanus', ['Lanús Este', 'Lanús Oeste', 'Remedios de Escalada', 'Valentín Alsina', 'Monte Chingolo']),
+    ...barriosDe('avellaneda', ['Wilde', 'Sarandí', 'Dock Sud', 'Gerli', 'Villa Domínico', 'Piñeyro']),
+    ...barriosDe('quilmes', ['Bernal', 'Ezpeleta', 'Don Bosco', 'Quilmes Oeste', 'San Francisco Solano']),
+    ...barriosDe('moron', ['Castelar', 'Haedo', 'El Palomar', 'Villa Sarmiento']),
+    ...barriosDe('san-isidro', ['Martínez', 'Acassuso', 'Beccar', 'Boulogne', 'Villa Adelina']),
+    ...barriosDe('vicente-lopez', ['Olivos', 'Florida', 'Munro', 'La Lucila', 'Carapachay', 'Villa Martelli']),
+    ...barriosDe('tigre', ['Don Torcuato', 'General Pacheco', 'Benavídez', 'Nordelta', 'El Talar', 'Rincón de Milberg']),
+    ...barriosDe('pilar', ['Del Viso', 'Presidente Derqui', 'Villa Rosa']),
+    ...barriosDe('la-plata', ['City Bell', 'Gonnet', 'Tolosa', 'Los Hornos', 'Villa Elisa', 'Ringuelet']),
+    ...barriosDe('cordoba', ['Nueva Córdoba', 'Cerro de las Rosas', 'Alberdi', 'General Paz']),
+    ...barriosDe('rosario', ['Fisherton', 'Echesortu', 'Pichincha']),
 ];
 
 export const TIPOS_VIA: readonly string[] = [

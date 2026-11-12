@@ -110,14 +110,15 @@ interface OpcionesApi {
     metodo?: 'GET' | 'POST' | 'PUT' | 'DELETE';
     cuerpo?: unknown;
     conAuth?: boolean;
+    encabezados?: Record<string, string>;
 }
 
 export async function llamarApi<T extends { exito: boolean }>(
     ruta: string,
-    { metodo = 'GET', cuerpo, conAuth = false }: OpcionesApi = {}
+    { metodo = 'GET', cuerpo, conAuth = false, encabezados: extra }: OpcionesApi = {}
 ): Promise<T | { exito: false; error: string; sinConexion?: boolean }> {
     try {
-        const encabezados: Record<string, string> = { 'Content-Type': 'application/json' };
+        const encabezados: Record<string, string> = { 'Content-Type': 'application/json', ...extra };
         if (conAuth && tokenActual) encabezados.Authorization = `Bearer ${tokenActual}`;
 
         const respuesta = await fetch(`${BASE_URL}${ruta}`, {
