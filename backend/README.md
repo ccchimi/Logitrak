@@ -288,6 +288,27 @@ soportadas, y es una decisión deliberada.
 
 ## Seguridad
 
+**Seguridad HTTP** (`src/middleware/seguridad.js` y `limites.js`):
+
+- **Cabeceras** con `helmet`: HSTS, `X-Content-Type-Options: nosniff`,
+  `X-Frame-Options`, política de recursos entre orígenes, sin `X-Powered-By`.
+- **CORS acotado**: solo la Web App (`https://ccchimi.github.io`), los orígenes
+  de `CORS_ORIGENES` y, para desarrollar, `localhost` y la red local. Los
+  pedidos sin `Origin` (app móvil, webhooks) pasan, porque CORS es una regla de
+  los navegadores: la autorización real la hace el token.
+- **IP real del cliente** detrás del proxy de Render (`trust proxy`). Sin esto,
+  todos los usuarios compartían la IP del proxy: el límite de login frenaba a
+  todos juntos y la auditoría de accesos guardaba una IP equivocada.
+- **Límites de pedidos por IP** (responden 429 con el mensaje en JSON):
+
+| Ruta | Límite |
+|---|---|
+| Toda la API (salvo los webhooks de pago) | 900 cada 15 minutos |
+| Login, recuperar contraseña, verificar usuario | 10 cada 15 minutos |
+| Registro | 5 cada hora |
+| Guardar cotización | 30 cada 10 minutos |
+| Checkout, pago con tarjeta y confirmación | 20 cada 10 minutos |
+
 Las contraseñas se guardan hasheadas con bcrypt y nunca en texto plano, y las
 sesiones viajan en un JWT firmado con expiración configurable a través de
 `JWT_EXPIRA`. El login y la recuperación de contraseña tienen rate limiting de

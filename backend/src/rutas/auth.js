@@ -1,18 +1,10 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
-import rateLimit from 'express-rate-limit';
 import { consultar } from '../db/pool.js';
 import { autenticar, firmarToken } from '../middleware/auth.js';
+import { limiteLogin, limiteRegistro } from '../middleware/limites.js';
 
 export const rutasAuth = Router();
-
-const limiteLogin = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    limit: 10,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { exito: false, error: 'Demasiados intentos. Probá de nuevo en unos minutos.' },
-});
 
 function publicar(fila, chofer) {
     return {
@@ -63,7 +55,7 @@ rutasAuth.post('/login', limiteLogin, async (req, res) => {
     return res.json({ exito: true, token: firmarToken(fila), usuario: publicar(fila, chofer) });
 });
 
-rutasAuth.post('/registro', async (req, res) => {
+rutasAuth.post('/registro', limiteRegistro, async (req, res) => {
     const nombre = (req.body?.nombreCompleto || '').trim();
     const usuario = (req.body?.usuario || '').trim().toLowerCase();
     const contrasena = req.body?.contrasena || '';

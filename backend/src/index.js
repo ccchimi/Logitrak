@@ -1,7 +1,8 @@
 import 'dotenv/config';
 import express from 'express';
-import cors from 'cors';
 import { pool } from './db/pool.js';
+import { configurarSeguridad } from './middleware/seguridad.js';
+import { limiteGeneral } from './middleware/limites.js';
 import { inicializarBaseDeDatos } from './db/init.js';
 import { rutasAuth } from './rutas/auth.js';
 import { rutasChoferes } from './rutas/choferes.js';
@@ -17,7 +18,8 @@ import { rutasSoporte } from './rutas/soporte.js';
 
 const app = express();
 
-app.use(cors());
+configurarSeguridad(app);
+app.use('/api', limiteGeneral);
 // 16mb: un adjunto de soporte de 10 MB viaja en base64, que infla un 33 %.
 app.use(express.json({ limit: '16mb' }));
 

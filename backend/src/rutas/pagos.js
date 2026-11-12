@@ -7,6 +7,7 @@ import { modoHabilitado, crearIntencionModo, consultarIntencionModo } from '../s
 import { procesarTarjeta } from '../servicios/pagos/tarjeta.js';
 import { MINUTOS_ESPERA_CHOFER } from '../servicios/envios/expiracion.js';
 import { exigirFirmaMercadoPago } from '../middleware/webhookMercadoPago.js';
+import { limitePagos } from '../middleware/limites.js';
 import { esReutilizable, leerClaveIdempotencia, minutosRestantes, mismaOperacion } from '../servicios/pagos/intentos.js';
 
 export const rutasPagos = Router();
@@ -139,7 +140,7 @@ async function responderCheckout(res, pago, { estado, reutilizado = false }) {
     });
 }
 
-rutasPagos.post('/checkout', autenticar, async (req, res) => {
+rutasPagos.post('/checkout', limitePagos, autenticar, async (req, res) => {
     const b = req.body ?? {};
     const metodo = (b.metodo || '').trim();
     const envioCodigo = (b.envioCodigo || '').trim();
@@ -252,7 +253,7 @@ rutasPagos.post('/checkout', autenticar, async (req, res) => {
     }
 });
 
-rutasPagos.post('/tarjeta', autenticar, async (req, res) => {
+rutasPagos.post('/tarjeta', limitePagos, autenticar, async (req, res) => {
     const b = req.body ?? {};
     const envioCodigo = (b.envioCodigo || '').trim();
 
@@ -345,7 +346,7 @@ rutasPagos.post('/tarjeta', autenticar, async (req, res) => {
     }
 });
 
-rutasPagos.post('/:codigo/confirmar', autenticar, async (req, res) => {
+rutasPagos.post('/:codigo/confirmar', limitePagos, autenticar, async (req, res) => {
     const { rows } = await consultar('SELECT * FROM pagos WHERE codigo = $1', [req.params.codigo]);
     const pago = rows[0];
     if (!pago) return res.status(404).json({ exito: false, error: 'Pago no encontrado.' });

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { consultar } from '../db/pool.js';
 import { autenticar, exigirRol } from '../middleware/auth.js';
 import { cotizarEnServidor } from '../servicios/cotizador/index.js';
+import { limiteCotizaciones } from '../middleware/limites.js';
 
 export const rutasCotizaciones = Router();
 
@@ -37,7 +38,7 @@ function publicar(fila) {
 // distancia los recalcula el servidor (DEF-02); si el precio que vio el
 // cliente no coincide, la respuesta lo marca para que la app lo actualice.
 // Un chofer sigue siendo cliente: puede cotizar y mandar sus propios envíos.
-rutasCotizaciones.post('/', autenticar, exigirRol('cliente', 'chofer', 'admin'), async (req, res) => {
+rutasCotizaciones.post('/', limiteCotizaciones, autenticar, exigirRol('cliente', 'chofer', 'admin'), async (req, res) => {
     const b = req.body ?? {};
     const codigo = typeof b.codigo === 'string' ? b.codigo.trim() : '';
 
