@@ -16,6 +16,8 @@ const RECONOCIMIENTOS_DIRECCION = [
     'Excelente, lo ubiqué.',
 ] as const;
 
+const UMBRAL_CONFIRMAR_PESO_SIN_UNIDAD_KG = 100;
+
 const RECONOCIMIENTOS_DATO = [
     'Perfecto.',
     'Anotado.',
@@ -53,6 +55,16 @@ function interpretarDireccion(
         return {
             resultado: 'rechazado',
             mensajeBot: `${critico?.mensaje ?? 'No puedo validar esa dirección.'}${sugerencia}`,
+        };
+    }
+
+    // Sin ciudad no hay distancia real ni precio confiable: se pide antes de
+    // seguir en vez de avanzar con una advertencia que nadie lee.
+    if (!analisis.localidad) {
+        const problema = analisis.problemas.find((p) => p.codigo === 'localidad_desconocida');
+        return {
+            resultado: 'rechazado',
+            mensajeBot: `${problema?.mensaje ?? 'No pude ubicar la ciudad.'} ${problema?.sugerencia ?? ''}`.trim(),
         };
     }
 
@@ -137,17 +149,33 @@ function interpretarPeso(texto: string): InterpretacionRespuesta {
         };
     }
 
-    const conversion =
-        numero.unidadDetectada && numero.unidadDetectada !== 'kg' && !numero.unidadDetectada.startsWith('kilo')
-            ? ` Convertí ${texto.trim()} a ${pesoKg} kg.`
-            : '';
-
+    const kg = `${pesoKg.toLocaleString('es-AR')} kg`;
     const notaPorte = pesoKg > 350 ? ' Va a requerir una unidad de gran porte.' : '';
+
+    // Un número suelto se toma como kilos. Si es grande, puede que fueran
+    // gramos: se pregunta antes de cotizar un camión por error.
+    if (!numero.unidadDetectada) {
+        if (pesoKg >= UMBRAL_CONFIRMAR_PESO_SIN_UNIDAD_KG) {
+            return {
+                resultado: 'confirmar',
+                valorNormalizado: String(pesoKg),
+                mensajeBot: `¿Son ${kg}? Si eran gramos, escribilo con la unidad, por ejemplo "${texto.trim()} g". (sí / no)`,
+            };
+        }
+        return {
+            resultado: 'aceptado',
+            valorNormalizado: String(pesoKg),
+            reconocimiento: `${elegirVariante(RECONOCIMIENTOS_DATO, texto)} Lo tomo como ${kg}.${notaPorte}`,
+        };
+    }
+
+    const enKilos = numero.unidadDetectada.startsWith('kg') || numero.unidadDetectada.startsWith('kilo');
+    const detalle = enKilos ? ` Registré ${kg}.` : ` Convertí ${texto.trim()} a ${kg}.`;
 
     return {
         resultado: 'aceptado',
         valorNormalizado: String(pesoKg),
-        reconocimiento: `${elegirVariante(RECONOCIMIENTOS_DATO, texto)}${conversion}${notaPorte}`,
+        reconocimiento: `${elegirVariante(RECONOCIMIENTOS_DATO, texto)}${detalle}${notaPorte}`,
     };
 }
 

@@ -1,4 +1,4 @@
-import { CONFIG_OPERATIVA, LOCALIDADES, TIPOS_VIA } from './conocimiento';
+import { BARRIOS, CONFIG_OPERATIVA, LOCALIDADES, TIPOS_VIA } from './conocimiento';
 import { esTextoDePrueba, esTextoIlegible, normalizar, similitud } from './nlp';
 import {
     AnalisisDireccion,
@@ -23,35 +23,80 @@ function capitalizar(texto: string): string {
         .join(' ');
 }
 
-export function resolverLocalidad(texto: string): { localidad: Localidad; corregida: boolean } | null {
-    const n = ` ${normalizar(texto)} `;
+export interface ResolucionLocalidad {
+    localidad: Localidad;
+    corregida: boolean;
+    barrio: string | null;
+}
 
-    for (const localidad of LOCALIDADES) {
-        for (const alias of localidad.alias) {
-            if (n.includes(` ${alias} `) || n.includes(` ${alias},`) || n.endsWith(` ${alias}`)) {
-                return { localidad, corregida: false };
-            }
+interface Candidato {
+    alias: string;
+    localidad: Localidad;
+    barrio: string | null;
+}
+
+const CANDIDATOS: readonly Candidato[] = [
+    ...LOCALIDADES.flatMap((localidad) => localidad.alias.map((alias) => ({ alias, localidad, barrio: null }))),
+    ...BARRIOS.flatMap((barrio) => {
+        const localidad = LOCALIDADES.find((l) => l.id === barrio.localidadId);
+        if (!localidad) return [];
+        return [normalizar(barrio.nombre), ...(barrio.alias ?? [])].map((alias) => ({
+            alias,
+            localidad,
+            barrio: barrio.nombre,
+        }));
+    }),
+];
+
+// Tramos donde puede estar la ciudad: lo que va después de la primera coma o,
+// sin comas, lo que sigue a la altura. El nombre de la calle nunca cuenta:
+// "Av. Corrientes 1300" no es la ciudad de Corrientes ni "Av. Santa Fe" la de
+// Santa Fe. Se descartan los tramos con números (piso, depto, código postal).
+export function segmentosDeLocalidad(texto: string): string[] {
+    const n = normalizar(texto);
+    const partes = n.split(',').map((s) => s.trim());
+
+    let tramos: string[];
+    if (partes.length > 1) {
+        tramos = partes.slice(1);
+    } else {
+        const palabras = n.split(' ');
+        const iAltura = palabras.findIndex((p, i) => i > 0 && /^\d{1,5}$/.test(p));
+        tramos = iAltura >= 0 ? [palabras.slice(iAltura + 1).join(' ')] : [];
+    }
+
+    return tramos
+        .map((t) => t.split(' ').filter((p) => p && !/\d/.test(p)).join(' ').replace(/[.;:]+$/g, '').trim())
+        .filter((t) => t.length >= 3 && !/^(piso|dpto|depto|departamento|cp)\b/.test(t));
+}
+
+function contienePalabras(tramo: string, alias: string): boolean {
+    return ` ${tramo} `.includes(` ${alias} `);
+}
+
+export function resolverLocalidad(texto: string): ResolucionLocalidad | null {
+    const tramos = segmentosDeLocalidad(texto);
+
+    // Primero coincidencias exactas, tramo por tramo y en orden: "..., Quilmes,
+    // Buenos Aires" es Quilmes aunque "buenos aires" sea un alias de CABA. Entre
+    // los alias que entran en un mismo tramo gana el más largo ("palermo soho").
+    for (const tramo of tramos) {
+        const coincidencias = CANDIDATOS.filter((c) => contienePalabras(tramo, c.alias));
+        if (coincidencias.length) {
+            const elegido = coincidencias.reduce((a, b) => (b.alias.length > a.alias.length ? b : a));
+            return { localidad: elegido.localidad, corregida: false, barrio: elegido.barrio };
         }
     }
 
-    const segmentos = normalizar(texto)
-        .split(',')
-        .map((s) => s.trim())
-        .filter((s) => s.length >= 4 && !/\d/.test(s));
-
-    let mejor: { localidad: Localidad; puntaje: number } | null = null;
-    for (const segmento of segmentos) {
-        for (const localidad of LOCALIDADES) {
-            for (const alias of localidad.alias) {
-                const s = similitud(segmento, alias);
-                if (s >= 0.78 && (!mejor || s > mejor.puntaje)) {
-                    mejor = { localidad, puntaje: s };
-                }
-            }
+    let mejor: (Candidato & { puntaje: number }) | null = null;
+    for (const tramo of tramos.filter((t) => t.length >= 4)) {
+        for (const candidato of CANDIDATOS) {
+            const s = similitud(tramo, candidato.alias);
+            if (s >= 0.78 && (!mejor || s > mejor.puntaje)) mejor = { ...candidato, puntaje: s };
         }
     }
 
-    return mejor ? { localidad: mejor.localidad, corregida: true } : null;
+    return mejor ? { localidad: mejor.localidad, corregida: true, barrio: mejor.barrio } : null;
 }
 
 function extraerComponentes(texto: string): ComponentesDireccion {
@@ -106,6 +151,7 @@ function nivelDesdePuntaje(puntaje: number): NivelConfianza {
 function construirNormalizada(
     componentes: ComponentesDireccion,
     localidad: Localidad | null,
+    barrio: string | null,
     textoOriginal: string
 ): string {
     if (!componentes.nombreVia) return textoOriginal.trim();
@@ -125,6 +171,7 @@ function construirNormalizada(
     const via = `${tipo} ${capitalizar(componentes.nombreVia)}`.trim();
     partes.push(componentes.altura ? `${via} ${componentes.altura}` : via);
     if (componentes.pisoDepto) partes.push(capitalizar(componentes.pisoDepto));
+    if (barrio) partes.push(barrio);
     if (localidad) {
         partes.push(localidad.nombre);
         if (localidad.provincia !== localidad.nombre) partes.push(localidad.provincia);
@@ -143,6 +190,7 @@ export function analizarDireccion(textoOriginal: string): AnalisisDireccion {
         componentes: { tipoVia: null, nombreVia: null, altura: null, pisoDepto: null, codigoPostal: null },
         localidad: null,
         localidadCorregida: false,
+        barrio: null,
         problemas,
     };
 
@@ -199,6 +247,7 @@ export function analizarDireccion(textoOriginal: string): AnalisisDireccion {
     const resolucion = resolverLocalidad(texto);
     const localidad = resolucion?.localidad ?? null;
     const localidadCorregida = resolucion?.corregida ?? false;
+    const barrio = resolucion?.barrio ?? null;
 
     let puntaje = 0;
 
@@ -244,12 +293,25 @@ export function analizarDireccion(textoOriginal: string): AnalisisDireccion {
             });
         }
     } else {
-        problemas.push({
-            codigo: 'localidad_desconocida',
-            severidad: 'advertencia',
-            mensaje: 'No reconozco la localidad dentro de nuestra red de cobertura.',
-            sugerencia: 'Sumá la ciudad al final. Ej: "..., Rosario" o "..., CABA".',
-        });
+        // Se distingue "no dijo la ciudad" de "dijo algo que no es una ciudad
+        // de la cobertura", que suele ser un barrio confundido con la localidad.
+        const escrito = segmentosDeLocalidad(texto)[0];
+        problemas.push(
+            escrito
+                ? {
+                      codigo: 'localidad_desconocida',
+                      severidad: 'advertencia',
+                      mensaje: `No reconozco "${capitalizar(escrito)}" como una ciudad o localidad de nuestra cobertura.`,
+                      sugerencia:
+                          'Si es un barrio, agregá la ciudad al final. Ej: "Cabildo 2000, Belgrano, CABA" o "Mitre 450, Bernal, Quilmes".',
+                  }
+                : {
+                      codigo: 'localidad_desconocida',
+                      severidad: 'advertencia',
+                      mensaje: 'Falta la ciudad o localidad.',
+                      sugerencia: 'Agregala después de una coma. Ej: "Av. Corrientes 1300, CABA" o "Bv. Oroño 1200, Rosario".',
+                  }
+        );
     }
 
     if (componentes.tipoVia) puntaje += 10;
@@ -265,10 +327,11 @@ export function analizarDireccion(textoOriginal: string): AnalisisDireccion {
 
     return {
         ...base,
-        textoNormalizado: construirNormalizada(componentes, localidad, texto),
+        textoNormalizado: construirNormalizada(componentes, localidad, barrio, texto),
         componentes,
         localidad,
         localidadCorregida,
+        barrio,
         veredicto,
         puntaje,
         confianza: nivelDesdePuntaje(puntaje),

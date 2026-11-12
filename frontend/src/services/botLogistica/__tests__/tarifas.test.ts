@@ -129,6 +129,27 @@ describe('cotizarSync — casos de borde y error', () => {
         expect(r.problemas[0].codigo).toBe('texto_de_prueba');
     });
 
+    // DEF-03: "Av. Corrientes" y "Av. Santa Fe" se tomaban como las ciudades de
+    // Corrientes y Santa Fe, y un tramo urbano se cotizaba como uno de 500 km.
+    it('cotiza como urbano un tramo entre barrios de CABA (regresión DEF-03)', () => {
+        const conBarrios = cotizacionOk(cotizarSync({
+            ...solicitudBase,
+            origen: 'Av. Corrientes 1300, Palermo',
+            destino: 'Av. Santa Fe 3200, Recoleta',
+        }));
+        const conCiudad = cotizacionOk(cotizarSync(solicitudBase));
+
+        expect(conBarrios.distanciaKm).toBe(conCiudad.distanciaKm);
+        expect(conBarrios.precio).toBe(conCiudad.precio);
+    });
+
+    it('no cotiza sin la ciudad de retiro o de entrega (regresión DEF-03)', () => {
+        const r = motivoError(cotizarSync({ ...solicitudBase, destino: 'Av. Santa Fe 3200' }));
+
+        expect(r.motivo).toMatch(/ciudad o localidad/);
+        expect(r.problemas).toEqual([expect.objectContaining({ codigo: 'localidad_desconocida', severidad: 'critica' })]);
+    });
+
     it('cotiza direcciones con alturas de dígitos repetidos (regresión DEF-01)', () => {
         const c = cotizacionOk(cotizarSync({ ...solicitudBase, destino: 'Av. Rivadavia 10000, CABA' }));
         expect(c.destino.componentes.altura).toBe(10000);

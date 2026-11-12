@@ -165,6 +165,24 @@ export function cotizarSync(solicitud: SolicitudCotizacion): RespuestaCotizacion
         };
     }
 
+    // Sin la ciudad de los dos puntos la distancia sería inventada, y con ella el
+    // precio: no se cotiza. Evita también pedirle al servidor un viaje largo al
+    // precio de un tramo urbano omitiendo la localidad.
+    const sinCiudad = [origen, destino].filter((d) => !d.localidad);
+    if (sinCiudad.length > 0) {
+        return {
+            exito: false,
+            motivo: 'Necesito la ciudad o localidad de retiro y de entrega para calcular la distancia.',
+            problemas: sinCiudad.map((d) => ({
+                ...(d.problemas.find((p) => p.codigo === 'localidad_desconocida') ?? {
+                    codigo: 'localidad_desconocida' as const,
+                    mensaje: 'Falta la ciudad o localidad.',
+                }),
+                severidad: 'critica' as const,
+            })),
+        };
+    }
+
     if (esMismaDireccion(origen, destino)) {
         return {
             exito: false,
@@ -330,9 +348,6 @@ export function cotizarSync(solicitud: SolicitudCotizacion): RespuestaCotizacion
                 advertencias.push(`${lado}: ${p.mensaje}`);
             }
         }
-    }
-    if (distancia.estimada && origen.localidad?.id !== destino.localidad?.id) {
-        advertencias.push('La distancia se estimó sin localidad verificada; el precio puede ajustarse al confirmar.');
     }
     if (carga.confianza === 'baja' && solicitud.descripcionCarga) {
         advertencias.push('No pude clasificar la carga con precisión: se aplicó tratamiento de carga general.');
