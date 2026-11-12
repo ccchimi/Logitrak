@@ -11,6 +11,7 @@ import { validarRequest } from '../middleware/validar.js';
 import { eliminarCuenta } from '../esquemas/perfil.js';
 import { anonimizarCuenta, impedimentoParaEliminar } from '../servicios/eliminacionCuenta.js';
 import { borrarArchivos } from '../servicios/almacenamiento.js';
+import { log, registrarError } from '../observabilidad/logger.js';
 
 export const rutasPerfil = Router();
 
@@ -150,7 +151,7 @@ rutasPerfil.put('/', autenticar, async (req, res) => {
         if (e && e.status) {
             return res.status(e.status).json({ exito: false, error: e.msg });
         }
-        console.error('No se pudo actualizar el perfil:', e.message);
+        registrarError(e, 'No se pudo actualizar el perfil');
         return res.status(500).json({ exito: false, error: 'No se pudo actualizar el perfil.' });
     } finally {
         cliente.release();
@@ -226,7 +227,7 @@ rutasPerfil.post('/eliminar-cuenta', limiteLogin, autenticar, validarRequest({ b
         await cliente.query('COMMIT');
     } catch (e) {
         await cliente.query('ROLLBACK').catch(() => {});
-        console.error('No se pudo eliminar la cuenta:', e.message);
+        registrarError(e, 'No se pudo eliminar la cuenta');
         return res.status(500).json({ exito: false, error: 'No se pudo eliminar la cuenta. Probá de nuevo.' });
     } finally {
         cliente.release();
@@ -238,8 +239,8 @@ rutasPerfil.post('/eliminar-cuenta', limiteLogin, autenticar, validarRequest({ b
     for (const ruta of archivos.filter((r) => r.startsWith('uploads/'))) {
         await rm(join(RAIZ_BACKEND, ruta), { force: true }).catch(() => pendientes.push(ruta));
     }
-    if (pendientes.length) console.error(`Archivos de la cuenta ${req.usuario.id} sin borrar: ${pendientes.join(', ')}`);
-    console.log(`Cuenta ${req.usuario.id} eliminada por pedido de su titular.`);
+    if (pendientes.length) log().error({ archivos: pendientes }, 'Archivos de la cuenta eliminada sin borrar');
+    log().info('Cuenta eliminada por pedido de su titular');
 
     return res.json({
         exito: true,

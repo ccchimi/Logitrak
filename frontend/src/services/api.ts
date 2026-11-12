@@ -1,5 +1,6 @@
 import { NativeModules, Platform } from 'react-native';
 import { borrar, guardar, guardarJson, leer, leerJson } from './almacenamiento';
+import { identificarUsuario, registrarFallaApi } from './monitoreo';
 export type RolUsuario = 'admin' | 'cliente' | 'chofer';
 export interface UsuarioSesion {
     id: number;
@@ -53,6 +54,7 @@ const MS_ESPERA_VALIDACION = 6000;
 export function guardarSesion(token: string, usuario: UsuarioSesion, refreshToken?: string) {
     tokenActual = token;
     usuarioActual = usuario;
+    identificarUsuario(usuario);
     void guardar(CLAVE_TOKEN, token);
     void guardarJson(CLAVE_USUARIO, usuario);
     if (refreshToken) {
@@ -73,6 +75,7 @@ export function cerrarSesion() {
     tokenActual = null;
     refreshActual = null;
     usuarioActual = null;
+    identificarUsuario(null);
     void borrar(CLAVE_TOKEN);
     void borrar(CLAVE_REFRESH);
     void borrar(CLAVE_USUARIO);
@@ -164,6 +167,7 @@ export async function restaurarSesion(): Promise<UsuarioSesion | null> {
     tokenActual = token;
     refreshActual = await leer(CLAVE_REFRESH);
     usuarioActual = usuario;
+    identificarUsuario(usuario);
 
     // Si el token de acceso venció, llamarApi lo renueva solo con el refresh token.
     // Render Free duerme el backend: despertarlo puede tardar casi un minuto y
@@ -239,6 +243,10 @@ async function ejecutar<T extends { exito: boolean }>(
             const renovacion = await renovarSesion();
             if (renovacion === 'ok') return ejecutar<T>(ruta, opciones, false);
             if (renovacion === 'vencida') cerrarSesion();
+        }
+
+        if (respuesta.status >= 500) {
+            registrarFallaApi(metodo, ruta, respuesta.status, respuesta.headers.get('X-Request-Id'));
         }
 
         return (await respuesta.json()) as T;

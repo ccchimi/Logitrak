@@ -16,6 +16,7 @@ import {
     subirImagen,
     urlFirmada,
 } from '../servicios/almacenamiento.js';
+import { log } from '../observabilidad/logger.js';
 
 function base64ABuffer(valor) {
     if (typeof valor !== 'string' || !valor) return null;
@@ -45,7 +46,7 @@ async function guardarImagenChofer(codigo, tipo, base64) {
     // Sin Storage, en producción la foto no se guarda: el disco del servidor es
     // efímero y no es lugar para un DNI. La verificación ya se hizo en memoria.
     if (esProduccion()) {
-        console.error(`Foto ${tipo} del chofer ${codigo} descartada: falta configurar Supabase Storage.`);
+        log().error({ tipo, chofer: codigo }, 'Foto del chofer descartada: falta configurar Supabase Storage');
         return null;
     }
 

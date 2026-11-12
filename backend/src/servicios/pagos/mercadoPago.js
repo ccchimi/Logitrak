@@ -1,4 +1,5 @@
 import { MercadoPagoConfig, Preference, Payment, PaymentRefund } from 'mercadopago';
+import { log } from '../../observabilidad/logger.js';
 
 let clienteMp = null;
 
@@ -66,7 +67,7 @@ export async function consultarPagoMp(pagoExtId) {
             raw: data,
         };
     } catch (e) {
-        console.error('No se pudo consultar el pago en Mercado Pago:', e.message);
+        log().warn({ err: e }, 'No se pudo consultar el pago en Mercado Pago');
         return null;
     }
 }
@@ -97,7 +98,7 @@ export async function buscarPagoMpPorReferencia(externalReference) {
             raw: elegido,
         };
     } catch (e) {
-        console.error('No se pudo buscar el pago en Mercado Pago:', e.message);
+        log().warn({ err: e }, 'No se pudo buscar el pago en Mercado Pago');
         return null;
     }
 }

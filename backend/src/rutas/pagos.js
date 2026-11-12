@@ -11,6 +11,7 @@ import { limitePagos } from '../middleware/limites.js';
 import { validarRequest } from '../middleware/validar.js';
 import * as esquemas from '../esquemas/pagos.js';
 import { esReutilizable, leerClaveIdempotencia, minutosRestantes, mismaOperacion } from '../servicios/pagos/intentos.js';
+import { log, registrarError } from '../observabilidad/logger.js';
 
 export const rutasPagos = Router();
 
@@ -106,7 +107,7 @@ async function aprobarPago(cliente, pagoId, extra = {}) {
     const pago = rows[0];
 
     if (otro) {
-        console.error(`Pago ${pago.codigo} aprobado como DUPLICADO de ${otro.codigo}: hay que reembolsarlo.`);
+        registrarError(new Error('Pago aprobado duplicado'), `Pago ${pago.codigo} aprobado como DUPLICADO de ${otro.codigo}: hay que reembolsarlo.`, { pago: pago.codigo, duplicadoDe: otro.codigo });
         return pago;
     }
 
@@ -224,7 +225,7 @@ rutasPagos.post('/checkout', limitePagos, autenticar, validarRequest({ body: esq
             }
         } catch (e) {
             await cliente.query('ROLLBACK');
-            console.error('No se pudo iniciar el checkout:', e.message);
+            log().warn({ err: e }, 'La pasarela no pudo iniciar el checkout');
             return res.status(502).json({ exito: false, error: 'No pudimos iniciar el pago con la pasarela. Probá con otro método.' });
         }
 
@@ -242,7 +243,7 @@ rutasPagos.post('/checkout', limitePagos, autenticar, validarRequest({ body: esq
         if (e.code === VIOLACION_UNICA) {
             return res.status(409).json({ exito: false, error: 'Ya hay un pago en curso con esa clave de idempotencia.' });
         }
-        console.error('No se pudo iniciar el checkout:', e.message);
+        registrarError(e, 'No se pudo iniciar el checkout');
         return res.status(500).json({ exito: false, error: 'No se pudo iniciar el pago.' });
     } finally {
         cliente.release();
@@ -335,7 +336,7 @@ rutasPagos.post('/tarjeta', limitePagos, autenticar, validarRequest({ body: esqu
         if (e.code === VIOLACION_UNICA) {
             return res.status(409).json({ exito: false, error: 'Ya hay un pago en curso con esa clave de idempotencia.' });
         }
-        console.error('No se pudo procesar la tarjeta:', e.message);
+        registrarError(e, 'No se pudo procesar la tarjeta');
         return res.status(500).json({ exito: false, error: 'No se pudo procesar el pago con tarjeta.' });
     } finally {
         cliente.release();
@@ -365,7 +366,7 @@ rutasPagos.post('/:codigo/confirmar', limitePagos, autenticar, validarRequest({ 
         return res.json({ exito: true, pago: publicar(actualizado) });
     } catch (e) {
         await cliente.query('ROLLBACK');
-        console.error('No se pudo confirmar el pago sandbox:', e.message);
+        registrarError(e, 'No se pudo confirmar el pago sandbox');
         return res.status(500).json({ exito: false, error: 'No se pudo confirmar el pago.' });
     } finally {
         cliente.release();
@@ -494,7 +495,7 @@ rutasPagos.post('/webhook/mercadopago', exigirFirmaMercadoPago, async (req, res)
         }
         return res.sendStatus(200);
     } catch (e) {
-        console.error('Webhook Mercado Pago:', e.message);
+        registrarError(e, 'Falló el webhook de Mercado Pago');
         return res.sendStatus(500);
     }
 });
@@ -520,7 +521,7 @@ rutasPagos.post('/webhook/modo', async (req, res) => {
             }
         }
     } catch (e) {
-        console.error('Webhook MODO:', e.message);
+        registrarError(e, 'Falló el webhook de MODO');
     }
     return res.sendStatus(200);
 });

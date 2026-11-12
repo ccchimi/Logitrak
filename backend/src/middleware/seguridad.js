@@ -52,6 +52,7 @@ export function configurarSeguridad(app, env = process.env) {
             },
             methods: ['GET', 'POST', 'PUT', 'DELETE'],
             allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key', 'X-Logitrak-Sesion'],
+            exposedHeaders: ['X-Request-Id'],
             maxAge: 600,
         })
     );

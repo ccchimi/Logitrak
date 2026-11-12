@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { consultar } from '../db/pool.js';
 import { autenticar } from '../middleware/auth.js';
+import { registrarError } from '../observabilidad/logger.js';
 
 export const rutasCupones = Router();
 
@@ -64,7 +65,7 @@ rutasCupones.post('/', autenticar, async (req, res) => {
         );
         return res.status(201).json({ exito: true, cupon: publicar(rows[0]) });
     } catch (e) {
-        console.error('No se pudo emitir el cupón:', e.message);
+        registrarError(e, 'No se pudo emitir el cupón');
         return res.status(500).json({ exito: false, error: 'No se pudo emitir el cupón.' });
     }
 });

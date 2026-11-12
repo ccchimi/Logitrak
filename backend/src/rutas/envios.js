@@ -6,6 +6,7 @@ import { crearEnvio } from '../esquemas/envios.js';
 import { verificarCotizacionParaEnvio } from '../servicios/cotizador/index.js';
 import { expirarOfertasVencidas } from '../servicios/envios/expiracion.js';
 import { reembolsarPagoDelEnvio } from '../servicios/pagos/reembolsos.js';
+import { registrarError } from '../observabilidad/logger.js';
 
 export const rutasEnvios = Router();
 
@@ -174,7 +175,7 @@ rutasEnvios.post('/', autenticar, validarRequest({ body: crearEnvio }), async (r
         return res.status(201).json({ exito: true, envio: publicar(envio) });
     } catch (e) {
         await cliente.query('ROLLBACK');
-        console.error('No se pudo crear el envío:', e.message);
+        registrarError(e, 'No se pudo crear el envío');
         return res.status(500).json({ exito: false, error: 'No se pudo registrar el envío.' });
     } finally {
         cliente.release();
@@ -352,7 +353,7 @@ rutasEnvios.post('/:codigo/eventos', autenticar, async (req, res) => {
         });
     } catch (e) {
         await cliente.query('ROLLBACK');
-        console.error('No se pudo registrar el evento:', e.message);
+        registrarError(e, 'No se pudo registrar el evento');
         return res.status(500).json({ exito: false, error: 'No se pudo registrar el evento.' });
     } finally {
         cliente.release();
@@ -421,7 +422,7 @@ rutasEnvios.post('/:codigo/reembolsar', autenticar, exigirRol('admin'), async (r
         });
     } catch (e) {
         await cliente.query('ROLLBACK');
-        console.error('No se pudo reembolsar el envío:', e.message);
+        registrarError(e, 'No se pudo reembolsar el envío');
         return res.status(500).json({ exito: false, error: 'No se pudo procesar la devolución.' });
     } finally {
         cliente.release();
@@ -487,7 +488,7 @@ rutasEnvios.post('/:codigo/archivar', autenticar, exigirRol('admin'), async (req
         });
     } catch (e) {
         await cliente.query('ROLLBACK');
-        console.error('No se pudo archivar el envío:', e.message);
+        registrarError(e, 'No se pudo archivar el envío');
         return res.status(500).json({ exito: false, error: 'No se pudo archivar el envío.' });
     } finally {
         cliente.release();

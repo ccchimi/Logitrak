@@ -1,3 +1,4 @@
+import { log } from '../../observabilidad/logger.js';
 let tokenCache = { valor: null, expira: 0 };
 
 export function modoHabilitado() {
@@ -98,7 +99,7 @@ export async function consultarIntencionModo(intencionId) {
 
         return { estado, externalReference: data.external_reference, raw: data };
     } catch (e) {
-        console.error('No se pudo consultar la intención en MODO:', e.message);
+        log().warn({ err: e }, 'No se pudo consultar la intención en MODO');
         return null;
     }
 }

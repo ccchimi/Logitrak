@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { consultar, pool } from '../db/pool.js';
 import { autenticar, exigirRol } from '../middleware/auth.js';
 import { subirArchivo, urlFirmada, almacenamientoDisponible } from '../servicios/almacenamiento.js';
+import { registrarError } from '../observabilidad/logger.js';
 
 export const rutasSoporte = Router();
 
@@ -259,7 +260,7 @@ rutasSoporte.post('/tickets/:codigo/mensajes', autenticar, async (req, res) => {
         try {
             await subirArchivo(ruta, buffer, tipo);
         } catch (e) {
-            console.error('No se pudo subir el adjunto de soporte:', e.message);
+            registrarError(e, 'No se pudo subir el adjunto de soporte');
             return res.status(502).json({ exito: false, error: 'No pudimos guardar el archivo. Probá de nuevo.' });
         }
 
@@ -302,7 +303,7 @@ rutasSoporte.post('/tickets/:codigo/mensajes', autenticar, async (req, res) => {
         return res.status(201).json({ exito: true, mensaje: await publicarMensaje(fila) });
     } catch (e) {
         await cliente.query('ROLLBACK');
-        console.error('No se pudo guardar el mensaje de soporte:', e.message);
+        registrarError(e, 'No se pudo guardar el mensaje de soporte');
         return res.status(500).json({ exito: false, error: 'No se pudo enviar el mensaje.' });
     } finally {
         cliente.release();
@@ -335,7 +336,7 @@ rutasSoporte.post('/tickets/:codigo/escalar', autenticar, async (req, res) => {
         return res.json({ exito: true, mensaje: 'Consulta derivada al equipo.' });
     } catch (e) {
         await cliente.query('ROLLBACK');
-        console.error('No se pudo escalar la consulta:', e.message);
+        registrarError(e, 'No se pudo escalar la consulta');
         return res.status(500).json({ exito: false, error: 'No se pudo derivar la consulta.' });
     } finally {
         cliente.release();

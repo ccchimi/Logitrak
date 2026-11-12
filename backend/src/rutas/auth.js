@@ -14,6 +14,7 @@ import {
 } from '../servicios/sesiones.js';
 import { validarRequest } from '../middleware/validar.js';
 import * as esquemas from '../esquemas/auth.js';
+import { registrarError } from '../observabilidad/logger.js';
 
 export const rutasAuth = Router();
 
@@ -35,7 +36,7 @@ async function auditar(usuario, exito, motivo, req) {
             [usuario.slice(0, 20), exito, motivo, req.ip, (req.headers['user-agent'] || '').slice(0, 300)]
         );
     } catch (e) {
-        console.error('No se pudo auditar el acceso:', e.message);
+        registrarError(e, 'No se pudo auditar el acceso');
     }
 }
 
@@ -105,7 +106,7 @@ rutasAuth.post('/refresh', limiteRenovacion, validarRequest({ body: esquemas.ren
         });
     } catch (e) {
         await cliente.query('ROLLBACK').catch(() => {});
-        console.error('No se pudo renovar la sesión:', e.message);
+        registrarError(e, 'No se pudo renovar la sesión');
         return res.status(500).json({ exito: false, error: 'No se pudo renovar la sesión.' });
     } finally {
         cliente.release();

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { pool } from '../db/pool.js';
 import { autenticar, exigirRol } from '../middleware/auth.js';
+import { registrarError } from '../observabilidad/logger.js';
 
 export const rutasAdmin = Router();
 
@@ -26,7 +27,7 @@ rutasAdmin.post('/reset', autenticar, exigirRol('admin'), async (_req, res) => {
         });
     } catch (e) {
         await cliente.query('ROLLBACK');
-        console.error('No se pudo reiniciar la base:', e.message);
+        registrarError(e, 'No se pudo reiniciar la base');
         return res.status(500).json({ exito: false, error: 'No se pudo reiniciar la base.' });
     } finally {
         cliente.release();

@@ -1,4 +1,5 @@
 import { verificarFirmaMercadoPago } from '../servicios/pagos/firmaMercadoPago.js';
+import { log } from '../observabilidad/logger.js';
 
 // Solo deja pasar al webhook las notificaciones firmadas por Mercado Pago.
 // Falla cerrado: sin MP_WEBHOOK_SECRET no se procesa ninguna notificación (el
@@ -6,7 +7,7 @@ import { verificarFirmaMercadoPago } from '../servicios/pagos/firmaMercadoPago.j
 export function exigirFirmaMercadoPago(req, res, next) {
     const secreto = process.env.MP_WEBHOOK_SECRET;
     if (!secreto) {
-        console.error('Webhook Mercado Pago rechazado: falta MP_WEBHOOK_SECRET en el entorno.');
+        log().error('Webhook Mercado Pago rechazado: falta MP_WEBHOOK_SECRET en el entorno.');
         return res.status(503).json({ exito: false, error: 'Webhook de Mercado Pago sin configurar.' });
     }
 
@@ -21,7 +22,7 @@ export function exigirFirmaMercadoPago(req, res, next) {
     });
 
     if (!resultado.valida) {
-        console.error(`Webhook Mercado Pago rechazado: ${resultado.motivo} (ip ${req.ip}).`);
+        log().warn({ motivo: resultado.motivo, ip: req.ip }, 'Webhook Mercado Pago rechazado');
         return res.status(401).json({ exito: false, error: 'Firma inválida.' });
     }
 

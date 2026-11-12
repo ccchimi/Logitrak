@@ -1,5 +1,6 @@
 import { consultar, pool } from '../../db/pool.js';
 import { reembolsarPagoDelEnvio } from '../pagos/reembolsos.js';
+import { log, registrarError } from '../../observabilidad/logger.js';
 
 // Ventana que tiene la red para que algún chofer tome el envío. Se cuenta desde
 // que el pago queda aprobado, no desde que se crea el envío.
@@ -47,7 +48,7 @@ async function expirarUno(envioId) {
         // envío vivo para siempre es peor, porque ningún chofer lo va a tomar.
         if (r.estado === 'reintentar') {
             await cliente.query('ROLLBACK');
-            console.error(`Reembolso del envío ${envio.codigo} pospuesto: ${r.motivo}`);
+            log().error({ envio: envio.codigo, motivo: r.motivo }, 'Reembolso del envío pospuesto');
             return false;
         }
 
@@ -75,14 +76,14 @@ async function expirarUno(envioId) {
         );
 
         if (r.estado === 'reembolso_pendiente') {
-            console.error(`Envío ${envio.codigo} cancelado SIN reembolsar: ${r.motivo}`);
+            log().error({ envio: envio.codigo, motivo: r.motivo }, 'Envío cancelado SIN reembolsar');
         }
 
         await cliente.query('COMMIT');
         return true;
     } catch (e) {
         await cliente.query('ROLLBACK');
-        console.error('No se pudo expirar el envío:', e.message);
+        registrarError(e, 'No se pudo expirar el envío');
         return false;
     } finally {
         cliente.release();
@@ -106,7 +107,7 @@ async function barrer() {
         if (await expirarUno(fila.id)) expirados += 1;
     }
     if (expirados > 0) {
-        console.log(`Expiración de ofertas: ${expirados} envío(s) cancelado(s).`);
+        log().info({ expirados }, 'Expiración de ofertas: envíos cancelados');
     }
     return expirados;
 }
@@ -122,7 +123,7 @@ export async function expirarOfertasVencidas({ forzar = false } = {}) {
 
     barridoEnCurso = barrer()
         .catch((e) => {
-            console.error('Falló el barrido de ofertas vencidas:', e.message);
+            registrarError(e, 'Falló el barrido de ofertas vencidas');
             return 0;
         })
         .finally(() => {

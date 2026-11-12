@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { consultar, pool } from '../db/pool.js';
 import { autenticar, exigirRol } from '../middleware/auth.js';
 import { expirarOfertasVencidas } from '../servicios/envios/expiracion.js';
+import { registrarError } from '../observabilidad/logger.js';
 
 export const rutasAsignaciones = Router();
 
@@ -219,7 +220,7 @@ rutasAsignaciones.post('/:codigoEnvio/tomar', autenticar, exigirRol('chofer'), a
         });
     } catch (e) {
         await cliente.query('ROLLBACK');
-        console.error('No se pudo tomar el envío:', e.message);
+        registrarError(e, 'No se pudo tomar el envío');
         return res.status(500).json({ exito: false, error: 'No se pudo tomar el envío.' });
     } finally {
         cliente.release();
@@ -267,7 +268,7 @@ rutasAsignaciones.post('/:codigo/completar', autenticar, exigirRol('chofer'), as
         return res.json({ exito: true, asignacion: publicar(asignacion) });
     } catch (e) {
         await cliente.query('ROLLBACK');
-        console.error('No se pudo completar la asignación:', e.message);
+        registrarError(e, 'No se pudo completar la asignación');
         return res.status(500).json({ exito: false, error: 'No se pudo completar la asignación.' });
     } finally {
         cliente.release();

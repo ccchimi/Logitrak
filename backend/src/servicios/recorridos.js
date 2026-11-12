@@ -3,6 +3,7 @@
 // ese pedido sale del JavaScript del teléfono, sin paquete Android ni dominio,
 // así que la clave no se podía restringir y cualquiera podía sacarla y gastar la
 // cuota. Ahora la clave vive solo en el backend (GOOGLE_DIRECTIONS_KEY).
+import { log } from '../observabilidad/logger.js';
 
 const URL_DIRECTIONS = 'https://maps.googleapis.com/maps/api/directions/json';
 const TTL_MS = 30 * 60 * 1000;
@@ -83,7 +84,7 @@ export async function obtenerRecorrido(origen, destino, { clave = process.env.GO
         const r = await fetchImpl(url, { signal: AbortSignal.timeout(ESPERA_MS) });
         datos = await r.json();
     } catch (e) {
-        console.error('Directions: Google no respondió:', e.message);
+        log().warn({ err: e }, 'Directions: Google no respondió');
         throw new ErrorRecorrido(502, 'No se pudo calcular la ruta. Probá de nuevo en un rato.');
     }
 
@@ -93,7 +94,7 @@ export async function obtenerRecorrido(origen, destino, { clave = process.env.GO
     if (datos.status !== 'OK' || !datos.routes?.length) {
         // REQUEST_DENIED, OVER_QUERY_LIMIT, etc.: es un problema de la clave o la
         // cuota, no del pedido. El detalle va al log, no al cliente.
-        console.error('Directions respondió', datos.status, datos.error_message ?? '');
+        log().error({ googleStatus: datos.status, detalle: datos.error_message }, 'Directions rechazó el pedido (clave o cuota)');
         throw new ErrorRecorrido(502, 'No se pudo calcular la ruta. Probá de nuevo en un rato.');
     }
 

@@ -19,6 +19,12 @@ export default ({ config }) => ({
   },
   plugins: [
     ...(config.plugins ?? []),
+    // Sube los source maps a Sentry en los builds de EAS, para ver los errores
+    // con el código original. Necesita SENTRY_AUTH_TOKEN (secreto de EAS); sin
+    // él el plugin no se agrega y el build no intenta subir nada.
+    ...(process.env.SENTRY_AUTH_TOKEN && process.env.SENTRY_ORG && process.env.SENTRY_PROJECT
+      ? [['@sentry/react-native/expo', { organization: process.env.SENTRY_ORG, project: process.env.SENTRY_PROJECT }]]
+      : []),
     [
       'expo-location',
       {

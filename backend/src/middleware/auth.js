@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import { agregarAlContexto } from '../observabilidad/logger.js';
 
 export function firmarToken(usuario, { expiresIn = process.env.JWT_EXPIRA || '8h' } = {}) {
     return jwt.sign(
@@ -23,6 +24,7 @@ export function autenticar(req, res, next) {
 
     try {
         req.usuario = jwt.verify(token, process.env.JWT_SECRET);
+        agregarAlContexto({ userId: req.usuario.id });
         next();
     } catch (e) {
         // La app usa `codigo` para saber si alcanza con renovar la sesión.

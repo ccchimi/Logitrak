@@ -407,6 +407,34 @@ memoria y el endpoint exige sesión y tiene un límite de 60 consultas cada 10
 minutos por IP, así que no sirve como proxy gratuito. Sin la clave responde 503
 y la app muestra solo los puntos de retiro y entrega.
 
+**Logs y errores** (`src/observabilidad/`): los logs salen con `pino`, en JSON,
+una línea por evento. Cada pedido HTTP deja una línea al terminar:
+
+```json
+{ "level": "info", "time": "2026-11-12T23:45:24.906Z", "requestId": "054eaf04-…",
+  "userId": 4, "method": "POST", "path": "/api/cotizaciones", "status": 201,
+  "responseTime": 11.3, "ip": "181.95.67.131", "msg": "POST /api/cotizaciones 201 11.3ms" }
+```
+
+El `requestId` se devuelve en el encabezado `X-Request-Id` y en el cuerpo de los
+500, así que si alguien reporta un error se busca ese id en los logs de Render y
+aparecen juntas la línea del pedido y la del error. Los servicios loguean con
+`log()`, que ya trae el `requestId` y el `userId` del pedido en curso aunque no
+reciban el `req`. Contraseñas, tokens, números de tarjeta, DNI y el encabezado
+`Authorization` se reemplazan por `[oculto]` antes de escribir. El chequeo de
+salud solo se loguea cuando falla.
+
+Los errores inesperados pasan por `registrarError`, que además del log los manda
+a Sentry si está configurado `SENTRY_DSN`. A Sentry va solo el id del usuario:
+nada del cuerpo del pedido, ni cookies, ni el token. `npm start` carga Sentry
+con `node --import` antes que el resto, para capturar también los errores del
+arranque y las promesas sin manejar. La app hace lo mismo con
+`EXPO_PUBLIC_SENTRY_DSN`, y cuando la API responde un 5xx guarda su `requestId`
+como rastro, de modo que el error de la app se puede cruzar con el del servidor.
+
+Si se corta una conexión inactiva con PostgreSQL (reinicio del pooler, corte de
+red), el pool lo registra y abre otra: antes ese evento tiraba abajo el proceso.
+
 **Dependencias**: `npm audit` del backend da 0 vulnerabilidades. La CI no lo
 exige todavía, así que conviene correrlo antes de cada entrega.
 

@@ -5,6 +5,7 @@ import { cotizarEnServidor } from '../servicios/cotizador/index.js';
 import { limiteCotizaciones } from '../middleware/limites.js';
 import { validarRequest } from '../middleware/validar.js';
 import { guardarCotizacion } from '../esquemas/envios.js';
+import { registrarError } from '../observabilidad/logger.js';
 
 export const rutasCotizaciones = Router();
 
@@ -94,7 +95,7 @@ rutasCotizaciones.post('/', limiteCotizaciones, autenticar, exigirRol('cliente',
             precioAjustado: precioCliente !== null && precioCliente !== num(fila.precio),
         });
     } catch (e) {
-        console.error('No se pudo guardar la cotización:', e.message);
+        registrarError(e, 'No se pudo guardar la cotización');
         return res.status(500).json({ exito: false, error: 'No se pudo guardar la cotización.' });
     }
 });

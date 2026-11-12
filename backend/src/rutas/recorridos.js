@@ -4,6 +4,7 @@ import { limiteRecorridos } from '../middleware/limites.js';
 import { validarRequest } from '../middleware/validar.js';
 import { consultaRecorrido } from '../esquemas/recorridos.js';
 import { ErrorRecorrido, obtenerRecorrido } from '../servicios/recorridos.js';
+import { registrarError } from '../observabilidad/logger.js';
 
 export const rutasRecorridos = Router();
 
@@ -16,7 +17,7 @@ rutasRecorridos.get('/', limiteRecorridos, autenticar, validarRequest({ query: c
         res.json({ exito: true, ...recorrido });
     } catch (e) {
         if (e instanceof ErrorRecorrido) return res.status(e.status).json({ exito: false, error: e.message });
-        console.error('Error calculando el recorrido:', e);
+        registrarError(e, 'Error calculando el recorrido');
         res.status(500).json({ exito: false, error: 'No se pudo calcular la ruta.' });
     }
 });

@@ -71,3 +71,9 @@ y verificado se saca de acá; el historial queda en los commits.
     existen (no pisa una contraseña ya cambiada). Hay que confirmar que en
     producción se cambiaron y pasar la contraseña inicial a una variable de
     entorno, o crear los admins con una migración sin contraseña conocida.
+17. Activar Sentry: crear en sentry.io un proyecto de Node y uno de React
+    Native (el plan gratis alcanza), cargar `SENTRY_DSN` en Render y
+    `EXPO_PUBLIC_SENTRY_DSN` en el `.env` de la app y como variable del repo
+    (Settings > Secrets and variables > Actions > Variables) para la Web App.
+    Para ver los errores del móvil con el código original hay que agregar
+    `SENTRY_AUTH_TOKEN`, `SENTRY_ORG` y `SENTRY_PROJECT` como secretos de EAS.

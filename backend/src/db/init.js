@@ -2,6 +2,7 @@ import 'dotenv/config';
 import bcrypt from 'bcryptjs';
 import { pool } from './pool.js';
 import { migrar } from './migrar.js';
+import { registrarError, logger } from '../observabilidad/logger.js';
 
 const ADMINS = [
     { usuario: 'ccchimi', contrasena: 'ccchimi' },
@@ -58,7 +59,8 @@ export async function inicializarBaseDeDatos() {
     const aplicadas = await migrar();
     await sembrarAdmins();
     await sembrarVehiculos();
-    console.log(
+    logger.info(
+        { migraciones: aplicadas },
         aplicadas.length
             ? `Base de datos lista. Migraciones aplicadas: ${aplicadas.join(', ')}.`
             : 'Base de datos lista (sin migraciones pendientes).'
@@ -69,7 +71,7 @@ if (process.argv.includes('--standalone')) {
     inicializarBaseDeDatos()
         .then(() => process.exit(0))
         .catch((e) => {
-            console.error('Error inicializando la base de datos:', e.message);
+            registrarError(e, 'Error inicializando la base de datos');
             process.exit(1);
         });
 }

@@ -1,5 +1,6 @@
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { log } from '../observabilidad/logger.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const MODELOS_DIR = process.env.FACE_MODELS_DIR || join(__dirname, '..', '..', 'models');
@@ -33,7 +34,7 @@ async function cargarRuntime() {
         runtime = { faceapi };
         return runtime;
     } catch (e) {
-        console.warn('Match facial no disponible (runtime/modelos):', e.message);
+        log().warn({ err: e }, 'Match facial no disponible (runtime/modelos)');
         runtime = 'no_disponible';
         return null;
     }

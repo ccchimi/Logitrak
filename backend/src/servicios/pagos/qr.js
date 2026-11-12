@@ -1,3 +1,5 @@
+import { logger } from '../../observabilidad/logger.js';
+
 let qrcodeModulo;
 let intentado = false;
 
@@ -8,10 +10,7 @@ async function cargarQrcode() {
         qrcodeModulo = (await import('qrcode')).default;
     } catch {
         qrcodeModulo = null;
-        console.warn(
-            'Paquete "qrcode" no instalado: los pagos por QR mostrarán el deeplink en texto. ' +
-            'Instalalo con: npm install qrcode'
-        );
+        logger.warn('Paquete "qrcode" no instalado: los pagos por QR mostrarán el deeplink en texto.');
     }
     return qrcodeModulo;
 }

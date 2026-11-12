@@ -136,6 +136,8 @@ en el panel de Render (backend) y en EAS (builds de la app), no en archivos.
 | `RENAPER_API_URL`, `RENAPER_API_KEY` | No | Verificación contra RENAPER (vacío = lectura offline del DNI) |
 | `MINUTOS_ESPERA_CHOFER` | No | Minutos que espera un envío pago a que lo tome un chofer (5) |
 | `GOOGLE_DIRECTIONS_KEY` | Para mapas | Ruta por calles del seguimiento en la app móvil (solo servidor) |
+| `SENTRY_DSN` | No | Envía los errores del backend a Sentry (vacío = solo logs) |
+| `LOG_LEVEL` | No | Nivel de los logs: `debug`, `info` (por defecto), `warn`, `error` |
 
 **Frontend** (`frontend/.env`)
 
@@ -144,6 +146,7 @@ en el panel de Render (backend) y en EAS (builds de la app), no en archivos.
 | `EXPO_PUBLIC_API_URL` | Sí | URL del backend (en local, la IP LAN de la PC, no `localhost`) |
 | `EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_KEY` | Para mapas | Mapa nativo en Android |
 | `EXPO_PUBLIC_GOOGLE_MAPS_WEB_KEY` | Para mapas | Mapa de la versión web |
+| `EXPO_PUBLIC_SENTRY_DSN` | No | Envía los errores de la app a Sentry (vacío = desactivado) |
 
 Todo lo que empieza con `EXPO_PUBLIC_` queda dentro de la app, así que ahí nunca
 van secretos de servidor. Las dos claves de Google que sí viajan en la app van

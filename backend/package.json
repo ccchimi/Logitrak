@@ -5,8 +5,8 @@
   "type": "module",
   "main": "src/index.js",
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "node --watch src/index.js",
+    "start": "node --import ./src/observabilidad/instrument.js src/index.js",
+    "dev": "node --watch --import ./src/observabilidad/instrument.js src/index.js",
     "db:init": "node src/db/init.js --standalone",
     "generar:cotizador": "node scripts/generar-cotizador.js",
     "test": "node --test",
@@ -14,6 +14,7 @@
     "migrar:crear": "node-pg-migrate create --migrations-dir migrations --migration-file-language js"
   },
   "dependencies": {
+    "@sentry/node": "^10.78.0",
     "@supabase/supabase-js": "^2.112.3",
     "@vladmandic/face-api": "^1.7.15",
     "bcryptjs": "^2.4.3",
@@ -27,12 +28,14 @@
     "mercadopago": "^3.1.0",
     "node-pg-migrate": "^9.0.0",
     "pg": "^8.13.1",
+    "pino": "^10.4.0",
     "qrcode": "^1.5.4",
     "zod": "^4.6.7"
   },
   "private": true,
   "devDependencies": {
-    "esbuild": "0.25.11"
+    "esbuild": "0.25.11",
+    "pino-pretty": "^13.2.0"
   },
   "overrides": {
     "node-pg-migrate": {
