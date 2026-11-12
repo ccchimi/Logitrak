@@ -1,7 +1,26 @@
 import { llamarApi } from './api';
+import { nuevoUuid } from '../helpers/uuid';
+
+// Clave de idempotencia por operación. Si el pedido no llegó a tener respuesta
+// (sin conexión) se conserva, para que el reintento sea el mismo cobro y el
+// servidor no lo procese dos veces. Con cualquier respuesta se descarta.
+const clavesPendientes = new Map<string, string>();
+
+function claveIdempotencia(operacion: string): string {
+    let clave = clavesPendientes.get(operacion);
+    if (!clave) {
+        clave = nuevoUuid();
+        clavesPendientes.set(operacion, clave);
+    }
+    return clave;
+}
+
+function cerrarOperacion(operacion: string, respuesta: unknown) {
+    if (!(respuesta as { sinConexion?: boolean })?.sinConexion) clavesPendientes.delete(operacion);
+}
 
 export type MetodoPago = 'mercadopago' | 'modo' | 'tarjeta';
-export type EstadoPago = 'pendiente' | 'aprobado' | 'rechazado' | 'cancelado' | 'expirado';
+export type EstadoPago = 'pendiente' | 'aprobado' | 'rechazado' | 'cancelado' | 'expirado' | 'reembolsado';
 
 export interface Pago {
     id: number;
@@ -33,11 +52,14 @@ export async function iniciarCheckout(
     envioCodigo: string,
     metodo: 'mercadopago' | 'modo'
 ): Promise<{ pago: Pago; checkout: CheckoutPago } | null> {
+    const operacion = `checkout:${envioCodigo}:${metodo}`;
     const r = await llamarApi<{ exito: true; pago: Pago; checkout: CheckoutPago }>('/api/pagos/checkout', {
         metodo: 'POST',
         cuerpo: { envioCodigo, metodo },
         conAuth: true,
+        encabezados: { 'Idempotency-Key': claveIdempotencia(operacion) },
     });
+    cerrarOperacion(operacion, r);
     return r.exito ? { pago: r.pago, checkout: r.checkout } : null;
 }
 
@@ -59,11 +81,14 @@ export async function pagarConTarjeta(
     envioCodigo: string,
     datos: DatosTarjeta
 ): Promise<ResultadoTarjeta> {
+    const operacion = `tarjeta:${envioCodigo}`;
     const r = (await llamarApi<{ exito: boolean }>('/api/pagos/tarjeta', {
         metodo: 'POST',
         cuerpo: { envioCodigo, ...datos },
         conAuth: true,
+        encabezados: { 'Idempotency-Key': claveIdempotencia(operacion) },
     })) as any;
+    cerrarOperacion(operacion, r);
 
     return {
         aprobado: Boolean(r.aprobado),

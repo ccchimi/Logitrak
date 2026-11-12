@@ -9,10 +9,12 @@ y verificado se saca de acá; el historial queda en los commits.
    falla permanente —cancela el envío pero no marca el dinero como devuelto— y
    `MP_REEMBOLSOS_SIMULADOS=true` permite ejercitar el flujo completo en pruebas.
    Queda verificarlo recién con credenciales productivas.
-2. Reintentos de pago sobre el mismo envío: hoy cada intento crea un pago y una
-   preferencia nuevos, así que un envío puede terminar con dos pagos aprobados.
-   Pasó con `TRK-2026-000002`. Convendría reusar la preferencia pendiente en vez
-   de emitir otra.
+2. Reembolsar los pagos marcados como duplicados. Desde el Hito 0.1 ya no se
+   crean pagos duplicados por reintentos, pero si dos cobros llegan a aprobarse
+   para el mismo envío (por ejemplo, un QR viejo pagado tarde), el segundo queda
+   con `detalle.duplicadoDe` y `detalle.reembolsoPendiente`. Falta devolverlo
+   automáticamente o desde el panel del admin. `TRK-2026-000002` es anterior y
+   hay que revisarlo a mano.
 3. Handoff por QR para la verificación de DNI: generar un QR en desktop,
    continuar el escaneo en el teléfono y mostrar el resultado en tiempo real en
    el desktop. Se apoya en Supabase Realtime, que entra en el plan Free.
@@ -29,11 +31,11 @@ y verificado se saca de acá; el historial queda en los commits.
    (`npm test` en `backend/`, corren en la CI), pero las rutas no tienen tests
    contra la base. La expiración de ofertas y el reembolso son los primeros
    candidatos: se probaron a mano contra la base, pero no quedó test que lo cubra.
-8. Validar la firma del webhook de Mercado Pago con la clave secreta del panel.
-   Hoy no se valida, pero no es explotable: antes de aprobar, el backend
-   reconsulta el pago contra la API de MP, así que una notificación falsa no
-   alcanza para marcar un envío como pagado. El SDK ya trae
-   `WebhookSignatureValidator`. Suma en "Calidad de integración".
+8. Verificar la firma del webhook con notificaciones reales de Mercado Pago.
+   El backend ya exige la firma (`MP_WEBHOOK_SECRET`) y está probado con
+   vectores calculados aparte, pero falta confirmar en Render que los avisos que
+   llegan por el `notification_url` de las preferencias traen `x-signature`. Si
+   no la trajeran, se rechazan con 401 y el pago se confirma igual por consulta.
 9. Backend en Render plan Free: el spin-down por inactividad afecta los webhooks
    de pago. Para producción, plan pago o keep-alive. Mitigado en parte por el
    fallback de polling por `external_reference`.

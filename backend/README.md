@@ -239,10 +239,26 @@ comprobante con el formato `COMP-AAAA-NNNNNN` y el envío pasa a
 
 Mercado Pago funciona con Checkout Pro a través del SDK oficial: creamos una
 preferencia, devolvemos el `init_point` con su QR y confirmamos por webhook o por
-consulta. El webhook no confía en el aviso que llega: vuelve a pedirle el pago a
-Mercado Pago para verificar el estado antes de aprobar. Para activarlo hace falta
-`MP_ACCESS_TOKEN` y `PUBLIC_API_URL` apuntando a una URL que Mercado Pago pueda
-alcanzar (en producción, la de Render).
+consulta. Para activarlo hace falta `MP_ACCESS_TOKEN` y `PUBLIC_API_URL`
+apuntando a una URL que Mercado Pago pueda alcanzar (en producción, la de Render).
+
+El webhook tiene dos controles. Primero valida la **firma HMAC-SHA256** de
+Mercado Pago (`x-signature` y `x-request-id`) con `MP_WEBHOOK_SECRET`: sin firma
+válida responde 401, y si la clave no está configurada responde 503 y no procesa
+nada. Después no confía en el contenido del aviso: toma solo el id firmado de la
+URL y le vuelve a pedir el pago a Mercado Pago antes de aprobar. Si algo falla de
+nuestro lado responde 500, para que Mercado Pago reintente.
+
+**Idempotencia.** `POST /api/pagos/checkout` y `POST /api/pagos/tarjeta` aceptan
+el encabezado opcional `Idempotency-Key` (un UUID, que la app genera en cada
+intento): repetir el pedido con la misma clave devuelve el resultado original en
+vez de cobrar de nuevo, y usarla para otro envío o método responde 422. Además,
+cada pedido bloquea el envío dentro de una transacción, así que reintentos y
+doble clic se serializan; un checkout pendiente y vigente (15 minutos) del mismo
+envío y método se reutiliza en lugar de crear otro pago y otra preferencia, y si
+la pasarela falla no queda ninguna fila huérfana. Aprobar también es
+idempotente, y si un envío llegara a recibir un segundo cobro aprobado, ese pago
+queda marcado como duplicado (`detalle.duplicadoDe`) para reembolsarlo.
 
 Un punto importante para el alcance: como el QR de Mercado Pago es interoperable
 bajo el estándar de Transferencias 3.0 del BCRA, un usuario de MODO puede escanear

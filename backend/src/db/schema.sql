@@ -393,3 +393,20 @@ BEGIN
     END IF;
 END
 $realtime$;
+
+-- ---------------------------------------------------------------------------
+-- Idempotencia de pagos. Cada intento tiene una clave única por cliente: si la
+-- app reintenta con la misma clave (header Idempotency-Key), se le devuelve el
+-- intento original en vez de crear otro. checkout_datos guarda el link y el
+-- deeplink de la pasarela para poder reutilizar un intento pendiente.
+-- El DEFAULT es volátil, así que las filas existentes reciben cada una su clave.
+-- ---------------------------------------------------------------------------
+ALTER TABLE pagos ADD COLUMN IF NOT EXISTS idempotency_key UUID NOT NULL DEFAULT gen_random_uuid();
+ALTER TABLE pagos ADD COLUMN IF NOT EXISTS checkout_datos JSONB;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_pagos_cliente_idempotency
+    ON pagos (cliente_id, idempotency_key);
+
+CREATE INDEX IF NOT EXISTS idx_pagos_intento_pendiente
+    ON pagos (envio_id, metodo, creado_en DESC)
+    WHERE estado = 'pendiente';
