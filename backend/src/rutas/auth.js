@@ -3,6 +3,8 @@ import bcrypt from 'bcryptjs';
 import { consultar } from '../db/pool.js';
 import { autenticar, firmarToken } from '../middleware/auth.js';
 import { limiteLogin, limiteRegistro } from '../middleware/limites.js';
+import { validarRequest } from '../middleware/validar.js';
+import * as esquemas from '../esquemas/auth.js';
 
 export const rutasAuth = Router();
 
@@ -28,13 +30,8 @@ async function auditar(usuario, exito, motivo, req) {
     }
 }
 
-rutasAuth.post('/login', limiteLogin, async (req, res) => {
-    const usuario = (req.body?.usuario || '').trim().toLowerCase();
-    const contrasena = (req.body?.contrasena || '').trim();
-
-    if (!usuario || !contrasena) {
-        return res.status(400).json({ exito: false, error: 'Por favor, completá todos los campos.' });
-    }
+rutasAuth.post('/login', limiteLogin, validarRequest({ body: esquemas.login }), async (req, res) => {
+    const { usuario, contrasena } = req.body;
 
     const { rows } = await consultar('SELECT * FROM usuarios WHERE usuario = $1', [usuario]);
     const fila = rows[0];
@@ -55,27 +52,8 @@ rutasAuth.post('/login', limiteLogin, async (req, res) => {
     return res.json({ exito: true, token: firmarToken(fila), usuario: publicar(fila, chofer) });
 });
 
-rutasAuth.post('/registro', limiteRegistro, async (req, res) => {
-    const nombre = (req.body?.nombreCompleto || '').trim();
-    const usuario = (req.body?.usuario || '').trim().toLowerCase();
-    const contrasena = req.body?.contrasena || '';
-    const confirmacion = req.body?.confirmacion || '';
-
-    if (nombre.length < 3) {
-        return res.status(400).json({ exito: false, error: 'Ingresá tu nombre completo.' });
-    }
-    if (!/^[a-z0-9._-]{3,20}$/.test(usuario)) {
-        return res.status(400).json({
-            exito: false,
-            error: 'El usuario debe tener entre 3 y 20 caracteres (letras, números, punto, guión).',
-        });
-    }
-    if (contrasena.length < 8) {
-        return res.status(400).json({ exito: false, error: 'La contraseña debe tener al menos 8 caracteres.' });
-    }
-    if (contrasena !== confirmacion) {
-        return res.status(400).json({ exito: false, error: 'Las contraseñas no coinciden.' });
-    }
+rutasAuth.post('/registro', limiteRegistro, validarRequest({ body: esquemas.registro }), async (req, res) => {
+    const { nombreCompleto: nombre, usuario, contrasena } = req.body;
 
     const hash = await bcrypt.hash(contrasena, 10);
     const insercion = await consultar(
@@ -93,16 +71,14 @@ rutasAuth.post('/registro', limiteRegistro, async (req, res) => {
     return res.status(201).json({ exito: true, mensaje: `Cuenta creada. Ya podés ingresar como "${usuario}".` });
 });
 
-rutasAuth.get('/existe/:usuario', limiteLogin, async (req, res) => {
-    const usuario = (req.params.usuario || '').trim().toLowerCase();
+rutasAuth.get('/existe/:usuario', limiteLogin, validarRequest({ params: esquemas.existe }), async (req, res) => {
+    const { usuario } = req.params;
     const { rows } = await consultar('SELECT 1 FROM usuarios WHERE usuario = $1', [usuario]);
     return res.json({ exito: true, existe: rows.length > 0 });
 });
 
-rutasAuth.post('/recuperar', limiteLogin, async (req, res) => {
-    const usuario = (req.body?.usuario || '').trim().toLowerCase();
-    const nueva = req.body?.nueva || '';
-    const confirmacion = req.body?.confirmacion || '';
+rutasAuth.post('/recuperar', limiteLogin, validarRequest({ body: esquemas.recuperar }), async (req, res) => {
+    const { usuario, nueva } = req.body;
 
     const { rows } = await consultar('SELECT id, rol FROM usuarios WHERE usuario = $1', [usuario]);
     const fila = rows[0];
@@ -113,13 +89,6 @@ rutasAuth.post('/recuperar', limiteLogin, async (req, res) => {
     if (fila.rol === 'admin') {
         return res.status(403).json({ exito: false, error: 'Las cuentas de administrador no se pueden restablecer desde acá.' });
     }
-    if (nueva.length < 8) {
-        return res.status(400).json({ exito: false, error: 'La nueva contraseña debe tener al menos 8 caracteres.' });
-    }
-    if (nueva !== confirmacion) {
-        return res.status(400).json({ exito: false, error: 'Las contraseñas no coinciden.' });
-    }
-
     const hash = await bcrypt.hash(nueva, 10);
     await consultar('UPDATE usuarios SET contrasena_hash = $1 WHERE id = $2', [hash, fila.id]);
 

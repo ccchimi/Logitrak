@@ -8,6 +8,8 @@ import { procesarTarjeta } from '../servicios/pagos/tarjeta.js';
 import { MINUTOS_ESPERA_CHOFER } from '../servicios/envios/expiracion.js';
 import { exigirFirmaMercadoPago } from '../middleware/webhookMercadoPago.js';
 import { limitePagos } from '../middleware/limites.js';
+import { validarRequest } from '../middleware/validar.js';
+import * as esquemas from '../esquemas/pagos.js';
 import { esReutilizable, leerClaveIdempotencia, minutosRestantes, mismaOperacion } from '../servicios/pagos/intentos.js';
 
 export const rutasPagos = Router();
@@ -140,14 +142,8 @@ async function responderCheckout(res, pago, { estado, reutilizado = false }) {
     });
 }
 
-rutasPagos.post('/checkout', limitePagos, autenticar, async (req, res) => {
-    const b = req.body ?? {};
-    const metodo = (b.metodo || '').trim();
-    const envioCodigo = (b.envioCodigo || '').trim();
-
-    if (metodo !== 'mercadopago' && metodo !== 'modo') {
-        return res.status(400).json({ exito: false, error: 'Método de checkout inválido (usá mercadopago o modo).' });
-    }
+rutasPagos.post('/checkout', limitePagos, autenticar, validarRequest({ body: esquemas.checkout }), async (req, res) => {
+    const { metodo, envioCodigo } = req.body;
 
     const idem = leerClaveIdempotencia(req.get('Idempotency-Key'));
     if (idem.error) return res.status(400).json({ exito: false, error: idem.error });
@@ -253,9 +249,9 @@ rutasPagos.post('/checkout', limitePagos, autenticar, async (req, res) => {
     }
 });
 
-rutasPagos.post('/tarjeta', limitePagos, autenticar, async (req, res) => {
-    const b = req.body ?? {};
-    const envioCodigo = (b.envioCodigo || '').trim();
+rutasPagos.post('/tarjeta', limitePagos, autenticar, validarRequest({ body: esquemas.tarjeta }), async (req, res) => {
+    const b = req.body;
+    const { envioCodigo } = b;
 
     const idem = leerClaveIdempotencia(req.get('Idempotency-Key'));
     if (idem.error) return res.status(400).json({ exito: false, error: idem.error });
@@ -346,7 +342,7 @@ rutasPagos.post('/tarjeta', limitePagos, autenticar, async (req, res) => {
     }
 });
 
-rutasPagos.post('/:codigo/confirmar', limitePagos, autenticar, async (req, res) => {
+rutasPagos.post('/:codigo/confirmar', limitePagos, autenticar, validarRequest({ params: esquemas.codigoPago }), async (req, res) => {
     const { rows } = await consultar('SELECT * FROM pagos WHERE codigo = $1', [req.params.codigo]);
     const pago = rows[0];
     if (!pago) return res.status(404).json({ exito: false, error: 'Pago no encontrado.' });
@@ -386,7 +382,7 @@ rutasPagos.get('/retorno', (_req, res) => {
     );
 });
 
-rutasPagos.get('/:codigo', autenticar, async (req, res) => {
+rutasPagos.get('/:codigo', autenticar, validarRequest({ params: esquemas.codigoPago }), async (req, res) => {
     const { rows } = await consultar('SELECT * FROM pagos WHERE codigo = $1', [req.params.codigo]);
     let pago = rows[0];
     if (!pago) return res.status(404).json({ exito: false, error: 'Pago no encontrado.' });

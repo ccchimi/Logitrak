@@ -3,6 +3,8 @@ import { consultar } from '../db/pool.js';
 import { autenticar, exigirRol } from '../middleware/auth.js';
 import { cotizarEnServidor } from '../servicios/cotizador/index.js';
 import { limiteCotizaciones } from '../middleware/limites.js';
+import { validarRequest } from '../middleware/validar.js';
+import { guardarCotizacion } from '../esquemas/envios.js';
 
 export const rutasCotizaciones = Router();
 
@@ -38,13 +40,11 @@ function publicar(fila) {
 // distancia los recalcula el servidor (DEF-02); si el precio que vio el
 // cliente no coincide, la respuesta lo marca para que la app lo actualice.
 // Un chofer sigue siendo cliente: puede cotizar y mandar sus propios envíos.
-rutasCotizaciones.post('/', limiteCotizaciones, autenticar, exigirRol('cliente', 'chofer', 'admin'), async (req, res) => {
-    const b = req.body ?? {};
-    const codigo = typeof b.codigo === 'string' ? b.codigo.trim() : '';
+const validarCotizacion = validarRequest({ body: guardarCotizacion });
 
-    if (!codigo || codigo.length > 40) {
-        return res.status(400).json({ exito: false, error: 'Falta el código de la cotización.' });
-    }
+rutasCotizaciones.post('/', limiteCotizaciones, autenticar, exigirRol('cliente', 'chofer', 'admin'), validarCotizacion, async (req, res) => {
+    const b = req.body;
+    const { codigo } = b;
 
     const calculo = cotizarEnServidor(b);
     if (!calculo.exito) {

@@ -288,6 +288,23 @@ soportadas, y es una decisión deliberada.
 
 ## Seguridad
 
+**Validación de entradas** (`src/middleware/validar.js` y `src/esquemas/`): cada
+ruta que recibe datos declara un esquema de Zod (auth, cotizaciones, envíos,
+pagos y postulación de chofer). Si el pedido no lo cumple se corta antes de
+tocar la base con un 400 estándar:
+
+```json
+{ "exito": false, "status": "fail", "error": "Ingresá un email válido.",
+  "errors": [{ "campo": "email", "mensaje": "Ingresá un email válido." }] }
+```
+
+`error` repite el primer mensaje porque es el campo que muestra la app. Si el
+pedido es válido, la ruta recibe los datos ya normalizados (recortados,
+convertidos y sin campos desconocidos), así que los campos de más que mandan las
+versiones viejas de la app se descartan sin error. Las reglas que dependen de la
+base (usuario existente, DNI ya registrado, vehículo de la flota) siguen en cada
+ruta.
+
 **Seguridad HTTP** (`src/middleware/seguridad.js` y `limites.js`):
 
 - **Cabeceras** con `helmet`: HSTS, `X-Content-Type-Options: nosniff`,

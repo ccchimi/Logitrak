@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 import { Router } from 'express';
 import { consultar, pool } from '../db/pool.js';
 import { autenticar, exigirRol, firmarToken } from '../middleware/auth.js';
+import { validarRequest } from '../middleware/validar.js';
+import { postulacion } from '../esquemas/choferes.js';
 import { verificarIdentidad } from '../servicios/verificacionIdentidad.js';
 import { compararCaras } from '../servicios/faceMatch.js';
 import {
@@ -44,35 +46,13 @@ async function guardarImagenChofer(codigo, tipo, base64) {
     return `uploads/choferes/${codigo}/${tipo}.jpg`;
 }
 
-rutasChoferes.post('/postulacion', autenticar, exigirRol('cliente'), async (req, res) => {
-    const nombreCompleto = (req.body?.nombreCompleto || '').trim();
-    const email = (req.body?.email || '').trim().toLowerCase();
-    const telefono = (req.body?.telefono || '').trim();
-    const domicilio = (req.body?.domicilio || '').trim();
-    const dni = (req.body?.dni || '').replace(/\D/g, '');
-    const escaneoFacialOk = Boolean(req.body?.escaneoFacialOk);
-    const dniEscaneado = typeof req.body?.dniEscaneado === 'string' ? req.body.dniEscaneado : '';
-    const selfieBase64 = typeof req.body?.selfieBase64 === 'string' ? req.body.selfieBase64 : null;
-    const dniFrenteBase64 = typeof req.body?.dniFrenteBase64 === 'string' ? req.body.dniFrenteBase64 : null;
-    const livenessOk = typeof req.body?.livenessOk === 'boolean' ? req.body.livenessOk : null;
-    const vehiculoId = (req.body?.vehiculoId || '').trim();
-
-    if (nombreCompleto.length < 5) {
-        return res.status(400).json({ exito: false, error: 'Ingresá tu nombre completo como figura en el DNI.' });
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        return res.status(400).json({ exito: false, error: 'Ingresá un email válido.' });
-    }
-    if (telefono.replace(/\D/g, '').length < 8) {
-        return res.status(400).json({ exito: false, error: 'Ingresá un teléfono válido.' });
-    }
-    if (domicilio.length < 6) {
-        return res.status(400).json({ exito: false, error: 'Ingresá tu domicilio de residencia completo.' });
-    }
-
-    if (!vehiculoId) {
-        return res.status(400).json({ exito: false, error: 'Elegí el vehículo con el que vas a trabajar.' });
-    }
+rutasChoferes.post('/postulacion', autenticar, exigirRol('cliente'), validarRequest({ body: postulacion }), async (req, res) => {
+    const { nombreCompleto, email, telefono, domicilio, dni, vehiculoId } = req.body;
+    const escaneoFacialOk = Boolean(req.body.escaneoFacialOk);
+    const dniEscaneado = req.body.dniEscaneado ?? '';
+    const selfieBase64 = req.body.selfieBase64 ?? null;
+    const dniFrenteBase64 = req.body.dniFrenteBase64 ?? null;
+    const livenessOk = req.body.livenessOk ?? null;
     const vehiculo = await consultar('SELECT id FROM vehiculos WHERE id = $1', [vehiculoId]);
     if (vehiculo.rowCount === 0) {
         return res.status(400).json({ exito: false, error: 'El vehículo seleccionado no pertenece a la flota.' });

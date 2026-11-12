@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { consultar, pool } from '../db/pool.js';
 import { autenticar, exigirRol } from '../middleware/auth.js';
+import { validarRequest } from '../middleware/validar.js';
+import { crearEnvio } from '../esquemas/envios.js';
 import { verificarCotizacionParaEnvio } from '../servicios/cotizador/index.js';
 import { expirarOfertasVencidas } from '../servicios/envios/expiracion.js';
 import { reembolsarPagoDelEnvio } from '../servicios/pagos/reembolsos.js';
@@ -118,14 +120,10 @@ async function choferIdDe(usuarioId) {
 
 // El envío se arma siempre desde una cotización guardada por el servidor
 // (DEF-02): precio, vehículo, carga y distancia salen de ahí, no del body.
-rutasEnvios.post('/', autenticar, async (req, res) => {
-    const b = req.body ?? {};
-    const cotizacionId = num(b.cotizacionId);
-    const cotizacionCodigo = typeof b.cotizacionCodigo === 'string' ? b.cotizacionCodigo.trim() : '';
-
-    if (!cotizacionId && !cotizacionCodigo) {
-        return res.status(400).json({ exito: false, error: 'Falta la cotización del envío.' });
-    }
+rutasEnvios.post('/', autenticar, validarRequest({ body: crearEnvio }), async (req, res) => {
+    const b = req.body;
+    const cotizacionId = b.cotizacionId ?? null;
+    const cotizacionCodigo = b.cotizacionCodigo ?? '';
 
     const cliente = await pool.connect();
     try {
