@@ -9,7 +9,9 @@
     "dev": "node --watch src/index.js",
     "db:init": "node src/db/init.js --standalone",
     "generar:cotizador": "node scripts/generar-cotizador.js",
-    "test": "node --test"
+    "test": "node --test",
+    "migrar": "node scripts/migrar.js",
+    "migrar:crear": "node-pg-migrate create --migrations-dir migrations --migration-file-language js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.3",
@@ -23,6 +25,7 @@
     "jpeg-js": "^0.4.4",
     "jsonwebtoken": "^9.0.2",
     "mercadopago": "^3.1.0",
+    "node-pg-migrate": "^9.0.0",
     "pg": "^8.13.1",
     "qrcode": "^1.5.4",
     "zod": "^4.6.7"
@@ -30,5 +33,10 @@
   "private": true,
   "devDependencies": {
     "esbuild": "0.25.11"
+  },
+  "overrides": {
+    "node-pg-migrate": {
+      "glob": "^14.0.6"
+    }
   }
 }

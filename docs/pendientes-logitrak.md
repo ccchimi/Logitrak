@@ -66,3 +66,8 @@ y verificado se saca de acá; el historial queda en los commits.
     (`@expo/cli`, metro, `image-size`), no en el código que llega al teléfono, y
     su arreglo exige el salto de SDK. Conviene hacerlo de a una versión, con
     `npx expo install --fix`, probando el mapa, la cámara y la detección facial.
+16. Admins sembrados con contraseña igual al usuario. `src/db/init.js` crea
+    `ccchimi`, `melirm` y `claukev` con la contraseña igual al nombre si no
+    existen (no pisa una contraseña ya cambiada). Hay que confirmar que en
+    producción se cambiaron y pasar la contraseña inicial a una variable de
+    entorno, o crear los admins con una migración sin contraseña conocida.

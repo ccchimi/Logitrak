@@ -5,10 +5,6 @@ import { randomBytes } from 'node:crypto';
 export const URL_PRUEBA = process.env.TEST_DATABASE_URL;
 export const SALTEAR = !URL_PRUEBA && 'definí TEST_DATABASE_URL para correrlas';
 
-// Los archivos de prueba corren en paralelo: un candado evita que dos procesos
-// apliquen el esquema a la vez sobre la misma base vacía.
-const CANDADO_ESQUEMA = 7_400_401;
-
 export async function levantarApi() {
     process.env.DATABASE_URL = URL_PRUEBA;
     process.env.PGSSL ??= 'false';
@@ -19,14 +15,9 @@ export async function levantarApi() {
     const { pool } = await import('../db/pool.js');
     const { app } = await import('../app.js');
 
-    const candado = await pool.connect();
-    try {
-        await candado.query('SELECT pg_advisory_lock($1)', [CANDADO_ESQUEMA]);
-        await inicializarBaseDeDatos();
-    } finally {
-        await candado.query('SELECT pg_advisory_unlock($1)', [CANDADO_ESQUEMA]).catch(() => {});
-        candado.release();
-    }
+    // Las migraciones esperan su propio advisory lock: los archivos de prueba
+    // corren en paralelo sobre la misma base sin pisarse.
+    await inicializarBaseDeDatos();
 
     const servidor = app.listen(0);
     await new Promise((r) => servidor.once('listening', r));

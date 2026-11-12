@@ -7,10 +7,10 @@ seguimiento, asignación a choferes, pagos y cupones de compensación.
 
 ## Modelo de datos
 
-El esquema completo está en `src/db/schema.sql` y se aplica solo al arrancar, así
-que no manejamos migraciones a mano. Es idempotente: las tablas se crean si no
-existen y las columnas nuevas se agregan con `ALTER TABLE ... IF NOT EXISTS`, de
-modo que un despliegue sobre una base ya poblada no rompe nada.
+El esquema se maneja con migraciones versionadas (`node-pg-migrate`), en
+`migrations/`. Al arrancar, la API aplica las pendientes y después siembra los
+datos base (admins y flota); cada migración corre una sola vez y queda
+registrada en la tabla `pgmigrations`. Ver [Migraciones](#migraciones).
 
 Las cuentas y sus roles viven en `usuarios`, y cuando alguien se convierte en
 chofer se le crea además una ficha en `choferes` con su verificación de identidad
@@ -64,7 +64,7 @@ DATABASE_URL=postgresql://postgres.turef:TU-PASSWORD@aws-1-<region>.pooler.supab
 Con eso alcanza para inicializar y levantar:
 
 ```bash
-npm run db:init   # aplica el esquema y siembra admins y flota
+npm run db:init   # aplica las migraciones y siembra admins y flota
 npm run dev
 ```
 
@@ -75,6 +75,35 @@ validamos la cadena salvo que definas `PGSSL_STRICT=true`.
 Si querés conectarte desde un cliente como DBeaver o IntelliJ, los datos salen
 del mismo connection string: el host es el del pooler, el puerto 5432, la base
 `postgres` y el SSL es obligatorio (`sslmode=require`).
+
+## Migraciones
+
+Cada cambio de esquema es un archivo nuevo en `migrations/`, con su `up` y su
+`down`. Nunca se edita una migración ya desplegada: se agrega otra.
+
+```bash
+npm run migrar:crear -- agregar-telefono-cliente   # crea migrations/<timestamp>_agregar-telefono-cliente.js
+npm run migrar                                     # aplica las pendientes
+npm run migrar -- estado                           # lista aplicadas y pendientes
+npm run migrar -- down                             # revierte la última (down 3: las últimas 3)
+```
+
+Dentro de la migración se puede usar la API de `pgm` (`pgm.addColumn`,
+`pgm.createIndex`, etc.) o SQL directo con `pgm.sql(...)`. Todas las pendientes
+corren en una sola transacción: si una falla, no queda ninguna a medias y la API
+no arranca, que es preferible a correr con un esquema inconsistente.
+
+La primera, `1794520000000_esquema-inicial`, contiene el esquema completo que
+había antes de adoptar migraciones (`src/db/sql/esquema-inicial.sql`). Es
+idempotente, así que en una base vacía crea todo y en la de producción, que ya
+lo tenía, no cambia nada: solo queda registrada. Su `down` borra todas las
+tablas y por eso se niega a correr en producción (`RENDER=true` o
+`NODE_ENV=production`).
+
+El runner toma un advisory lock de PostgreSQL y, si otra instancia está
+migrando, espera. Por eso `DATABASE_URL` tiene que usar el pooler de Supabase en
+modo sesión (puerto 5432), no el de transacciones (6543), donde los locks de
+sesión no funcionan.
 
 ## Despliegue
 

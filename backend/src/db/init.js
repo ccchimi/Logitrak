@@ -1,11 +1,7 @@
 import 'dotenv/config';
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import bcrypt from 'bcryptjs';
 import { pool } from './pool.js';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
+import { migrar } from './migrar.js';
 
 const ADMINS = [
     { usuario: 'ccchimi', contrasena: 'ccchimi' },
@@ -19,11 +15,6 @@ const VEHICULOS = [
     { id: 'furgon',     nombre: 'Furgón mediano',          maxKg: 1500,  maxBultos: 40,  maxVolumenDm3: 9000,  tarifaBase: 7800,  porKg: 70,  porBulto: 100, porKm: 185, velocidadMediaKmh: 42, capacidades: ['cadena_frio', 'carga_voluminosa'] },
     { id: 'camion',     nombre: 'Camión de carga pesada',  maxKg: 12000, maxBultos: 200, maxVolumenDm3: 45000, tarifaBase: 14500, porKg: 55,  porBulto: 85,  porKm: 260, velocidadMediaKmh: 58, capacidades: ['cadena_frio', 'carga_voluminosa', 'mercancia_peligrosa'] },
 ];
-
-async function aplicarEsquema() {
-    const sql = readFileSync(join(__dirname, 'schema.sql'), 'utf8');
-    await pool.query(sql);
-}
 
 async function sembrarAdmins() {
     for (const admin of ADMINS) {
@@ -61,11 +52,17 @@ async function sembrarVehiculos() {
     }
 }
 
+// Al arrancar se aplican las migraciones pendientes y después los datos base
+// (admins y flota), que no son esquema y se reafirman en cada arranque.
 export async function inicializarBaseDeDatos() {
-    await aplicarEsquema();
+    const aplicadas = await migrar();
     await sembrarAdmins();
     await sembrarVehiculos();
-    console.log('Base de datos lista (esquema aplicado, admins y flota sembrados).');
+    console.log(
+        aplicadas.length
+            ? `Base de datos lista. Migraciones aplicadas: ${aplicadas.join(', ')}.`
+            : 'Base de datos lista (sin migraciones pendientes).'
+    );
 }
 
 if (process.argv.includes('--standalone')) {
