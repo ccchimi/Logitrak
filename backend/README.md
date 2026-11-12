@@ -288,6 +288,23 @@ soportadas, y es una decisión deliberada.
 
 ## Seguridad
 
+**Sesiones** (`src/servicios/sesiones.js`): la app recibe un token de acceso
+(JWT) de 15 minutos y un refresh token de 30 días. El refresh token es un valor
+aleatorio del que en la base solo se guarda el SHA-256 (tabla `sesiones`).
+`POST /api/auth/refresh` lo cambia por uno nuevo (rotación) junto con un token
+de acceso fresco, releyendo el usuario de la base. Si un refresh token ya usado
+vuelve a aparecer, se revoca toda su cadena, porque probablemente lo copiaron;
+si aparece dentro de los 30 segundos de rotado, se responde 409 sin revocar
+nada, porque suelen ser dos pestañas renovando a la vez. `POST /api/auth/logout`
+revoca la sesión del dispositivo, y cambiar la contraseña cierra todas las de la
+cuenta. Un token de acceso vencido responde 401 con `codigo: 'token_vencido'`, y
+la app lo renueva sola y repite el pedido.
+
+Compatibilidad: la app nueva se identifica con el encabezado
+`X-Logitrak-Sesion: refresh`. Las versiones viejas no lo mandan y siguen
+recibiendo el token de `JWT_EXPIRA` (8 h) sin refresh token, como antes; ese
+camino se puede quitar cuando nadie las use.
+
 **Validación de entradas** (`src/middleware/validar.js` y `src/esquemas/`): cada
 ruta que recibe datos declara un esquema de Zod (auth, cotizaciones, envíos,
 pagos y postulación de chofer). Si el pedido no lo cumple se corta antes de

@@ -51,7 +51,7 @@ export function configurarSeguridad(app, env = process.env) {
                 listo(null, origenPermitido(origen, permitidos, { redLocal }));
             },
             methods: ['GET', 'POST', 'PUT', 'DELETE'],
-            allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key'],
+            allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key', 'X-Logitrak-Sesion'],
             maxAge: 600,
         })
     );

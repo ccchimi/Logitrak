@@ -28,6 +28,11 @@ export const crearLimiteGeneral = () =>
 export const crearLimiteLogin = () =>
     limite({ minutos: 15, maximo: 10, mensaje: `Demasiados intentos. ${ESPERA}` });
 
+// La app renueva la sesión cada 15 minutos; esto deja margen de sobra y frena a
+// quien intente adivinar refresh tokens.
+export const crearLimiteRenovacion = () =>
+    limite({ minutos: 15, maximo: 60, mensaje: `Demasiadas renovaciones de sesión. ${ESPERA}` });
+
 export const crearLimiteRegistro = () =>
     limite({ minutos: 60, maximo: 5, mensaje: `Se crearon demasiadas cuentas desde esta red. ${ESPERA}` });
 
@@ -41,5 +46,6 @@ export const crearLimitePagos = () =>
 export const limiteGeneral = crearLimiteGeneral();
 export const limiteLogin = crearLimiteLogin();
 export const limiteRegistro = crearLimiteRegistro();
+export const limiteRenovacion = crearLimiteRenovacion();
 export const limiteCotizaciones = crearLimiteCotizaciones();
 export const limitePagos = crearLimitePagos();

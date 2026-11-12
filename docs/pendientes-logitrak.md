@@ -43,3 +43,8 @@ y verificado se saca de acá; el historial queda en los commits.
    embebidas en el bundle sin restricción.
 11. Verificación de identidad tiers 2 y 3 (liveness y match facial). Funcionan
     solo con dev build, no en Expo Go ni web. Se activan por variable de entorno.
+12. Guardar el refresh token en el almacenamiento seguro del teléfono
+    (`expo-secure-store`) en lugar de AsyncStorage. En web no hay equivalente:
+    queda en localStorage, protegido por la rotación y la detección de reuso.
+13. Quitar el token largo de compatibilidad (`JWT_EXPIRA`) cuando ya nadie use
+    versiones de la app anteriores al Hito 0.4.

@@ -1,7 +1,8 @@
 import bcrypt from 'bcryptjs';
 import { Router } from 'express';
 import { consultar, pool } from '../db/pool.js';
-import { autenticar, firmarToken } from '../middleware/auth.js';
+import { autenticar } from '../middleware/auth.js';
+import { emitirAccessToken } from '../servicios/sesiones.js';
 
 export const rutasPerfil = Router();
 
@@ -127,7 +128,7 @@ rutasPerfil.put('/', autenticar, async (req, res) => {
 
         return res.json({
             exito: true,
-            token: firmarToken(fila),
+            token: emitirAccessToken(fila, req),
             usuario: {
                 id: fila.id,
                 usuario: fila.usuario,

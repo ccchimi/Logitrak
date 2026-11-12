@@ -124,7 +124,9 @@ en el panel de Render (backend) y en EAS (builds de la app), no en archivos.
 |---|---|---|
 | `DATABASE_URL` | Sí | Conexión a PostgreSQL (Supabase, *session pooler*) |
 | `JWT_SECRET` | Sí | Firma de los tokens de sesión |
-| `JWT_EXPIRA` | No | Duración de la sesión (por defecto `8h`) |
+| `ACCESS_TOKEN_EXPIRA` | No | Duración del token de acceso de la app (por defecto `15m`) |
+| `REFRESH_TOKEN_DIAS` | No | Días que dura el refresh token sin usarse (por defecto `30`) |
+| `JWT_EXPIRA` | No | Token largo para versiones viejas de la app que no renuevan (por defecto `8h`) |
 | `PORT` | No | Puerto de la API en local (por defecto `4000`) |
 | `PUBLIC_API_URL` | No | URL pública del backend, para los callbacks de pago |
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_BUCKET` | No | Bucket privado para las fotos de verificación |

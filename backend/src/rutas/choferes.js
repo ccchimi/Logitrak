@@ -4,7 +4,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Router } from 'express';
 import { consultar, pool } from '../db/pool.js';
-import { autenticar, exigirRol, firmarToken } from '../middleware/auth.js';
+import { autenticar, exigirRol } from '../middleware/auth.js';
+import { emitirAccessToken } from '../servicios/sesiones.js';
 import { validarRequest } from '../middleware/validar.js';
 import { postulacion } from '../esquemas/choferes.js';
 import { verificarIdentidad } from '../servicios/verificacionIdentidad.js';
@@ -114,7 +115,7 @@ rutasChoferes.post('/postulacion', autenticar, exigirRol('cliente'), validarRequ
         return res.status(201).json({
             exito: true,
             mensaje: `¡Bienvenido al equipo! Tu ID de chofer es ${codigo}.`,
-            token: firmarToken(fila),
+            token: emitirAccessToken(fila, req),
             usuario: {
                 id: fila.id,
                 usuario: fila.usuario,

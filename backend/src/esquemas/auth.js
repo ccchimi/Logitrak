@@ -44,3 +44,12 @@ export const recuperar = z
 export const existe = z.object({
     usuario: textoRequerido(50, 'Indicá el usuario a consultar.').toLowerCase(),
 });
+
+const refreshToken = z
+    .string({ error: 'Falta el token de sesión.' })
+    .trim()
+    .min(20, 'El token de sesión no es válido.')
+    .max(200, 'El token de sesión no es válido.');
+
+export const renovar = z.object({ refreshToken });
+export const salir = z.object({ refreshToken });

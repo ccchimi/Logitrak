@@ -94,13 +94,14 @@ describe('CORS', () => {
             headers: {
                 Origin: 'https://ccchimi.github.io',
                 'Access-Control-Request-Method': 'POST',
-                'Access-Control-Request-Headers': 'content-type,authorization,idempotency-key',
+                'Access-Control-Request-Headers': 'content-type,authorization,idempotency-key,x-logitrak-sesion',
             },
         });
 
         assert.equal(r.status, 204);
         assert.equal(r.headers.get('access-control-allow-origin'), 'https://ccchimi.github.io');
         assert.match(r.headers.get('access-control-allow-headers'), /Idempotency-Key/);
+        assert.match(r.headers.get('access-control-allow-headers'), /X-Logitrak-Sesion/);
     });
 });
 

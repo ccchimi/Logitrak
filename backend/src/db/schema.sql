@@ -410,3 +410,24 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_pagos_cliente_idempotency
 CREATE INDEX IF NOT EXISTS idx_pagos_intento_pendiente
     ON pagos (envio_id, metodo, creado_en DESC)
     WHERE estado = 'pendiente';
+
+-- ---------------------------------------------------------------------------
+-- Sesiones con refresh token (Hito 0.4). El token nunca se guarda: solo su
+-- SHA-256. Cada renovación revoca el anterior y crea otro de la misma
+-- "familia"; si alguien reusa uno ya rotado se revoca la familia entera.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS sesiones (
+    id                SERIAL PRIMARY KEY,
+    usuario_id        INTEGER      NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    familia           UUID         NOT NULL,
+    token_hash        CHAR(64)     NOT NULL UNIQUE,
+    creado_en         TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    expira_en         TIMESTAMPTZ  NOT NULL,
+    revocado_en       TIMESTAMPTZ,
+    motivo_revocacion VARCHAR(20),
+    ip                VARCHAR(64),
+    user_agent        VARCHAR(300)
+);
+
+CREATE INDEX IF NOT EXISTS idx_sesiones_usuario_activas ON sesiones (usuario_id) WHERE revocado_en IS NULL;
+CREATE INDEX IF NOT EXISTS idx_sesiones_familia ON sesiones (familia);

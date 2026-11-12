@@ -1,5 +1,5 @@
 import {
-    cerrarSesion as limpiarSesion,
+    cerrarSesionRemota,
     guardarSesion,
     hayToken,
     llamarApi,
@@ -25,14 +25,14 @@ export async function iniciarSesion(usuario: string, contrasena: string): Promis
         return { exito: false, error: 'Por favor, completá todos los campos.' };
     }
 
-    const r = await llamarApi<{ exito: true; token: string; usuario: UsuarioSesion }>(
+    const r = await llamarApi<{ exito: true; token: string; refreshToken?: string; usuario: UsuarioSesion }>(
         '/api/auth/login',
         { metodo: 'POST', cuerpo: { usuario, contrasena } }
     );
 
     if (!r.exito) return { exito: false, error: (r as any).error ?? 'No se pudo iniciar sesión.' };
 
-    guardarSesion(r.token, r.usuario);
+    guardarSesion(r.token, r.usuario, r.refreshToken);
     return { exito: true, usuario: r.usuario };
 }
 
@@ -75,7 +75,7 @@ export async function restablecerContrasena(
 }
 
 export function cerrarSesion() {
-    limpiarSesion();
+    void cerrarSesionRemota();
     // El token de Realtime queda inválido junto con la sesión.
     void import('./realtimeSoporte').then((m) => m.olvidarCredencialRealtime());
 }

@@ -1,8 +1,17 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
-import { consultar } from '../db/pool.js';
+import { consultar, pool } from '../db/pool.js';
 import { autenticar, firmarToken } from '../middleware/auth.js';
-import { limiteLogin, limiteRegistro } from '../middleware/limites.js';
+import { limiteLogin, limiteRegistro, limiteRenovacion } from '../middleware/limites.js';
+import {
+    cerrarSesion,
+    clienteUsaRefresh,
+    crearSesion,
+    duracionAccess,
+    emitirAccessToken,
+    revocarSesionesDeUsuario,
+    rotarSesion,
+} from '../servicios/sesiones.js';
 import { validarRequest } from '../middleware/validar.js';
 import * as esquemas from '../esquemas/auth.js';
 
@@ -49,7 +58,65 @@ rutasAuth.post('/login', limiteLogin, validarRequest({ body: esquemas.login }), 
     }
 
     await auditar(usuario, true, null, req);
-    return res.json({ exito: true, token: firmarToken(fila), usuario: publicar(fila, chofer) });
+
+    // La app nueva recibe además un refresh token para renovar la sesión sola;
+    // las versiones viejas, el token largo de siempre.
+    const respuesta = { exito: true, token: emitirAccessToken(fila, req), usuario: publicar(fila, chofer) };
+    if (clienteUsaRefresh(req)) respuesta.refreshToken = await crearSesion(pool, fila.id, req);
+    return res.json(respuesta);
+});
+
+const SESION_VENCIDA = { exito: false, codigo: 'sesion_vencida', error: 'Tu sesión venció. Volvé a ingresar.' };
+
+// Cambia el refresh token por uno nuevo y entrega un access token corto, con
+// los datos del usuario releídos de la base (por si cambió el rol o el nombre).
+rutasAuth.post('/refresh', limiteRenovacion, validarRequest({ body: esquemas.renovar }), async (req, res) => {
+    const cliente = await pool.connect();
+    try {
+        await cliente.query('BEGIN');
+        const r = await rotarSesion(cliente, req.body.refreshToken, req);
+
+        let fila = null;
+        if (!r.error) {
+            fila = (await cliente.query('SELECT * FROM usuarios WHERE id = $1', [r.usuarioId])).rows[0] ?? null;
+        }
+        // COMMIT también en los errores: si detectó un token reutilizado, la
+        // revocación de la cadena tiene que quedar guardada.
+        await cliente.query('COMMIT');
+
+        if (r.error === 'rotado') {
+            return res.status(409).json({
+                exito: false,
+                codigo: 'refresh_rotado',
+                error: 'La sesión se renovó hace un instante en otra pestaña. Reintentá.',
+            });
+        }
+        if (r.error || !fila) return res.status(401).json(SESION_VENCIDA);
+
+        let chofer = null;
+        if (fila.rol === 'chofer') {
+            chofer = (await consultar('SELECT codigo FROM choferes WHERE usuario_id = $1', [fila.id])).rows[0] ?? null;
+        }
+        return res.json({
+            exito: true,
+            token: firmarToken(fila, { expiresIn: duracionAccess() }),
+            refreshToken: r.refreshToken,
+            usuario: publicar(fila, chofer),
+        });
+    } catch (e) {
+        await cliente.query('ROLLBACK').catch(() => {});
+        console.error('No se pudo renovar la sesión:', e.message);
+        return res.status(500).json({ exito: false, error: 'No se pudo renovar la sesión.' });
+    } finally {
+        cliente.release();
+    }
+});
+
+// Cierra la sesión del dispositivo: revoca su refresh token y toda su cadena.
+// Responde igual exista o no el token, para no revelar nada.
+rutasAuth.post('/logout', validarRequest({ body: esquemas.salir }), async (req, res) => {
+    await cerrarSesion(pool, req.body.refreshToken);
+    return res.json({ exito: true });
 });
 
 rutasAuth.post('/registro', limiteRegistro, validarRequest({ body: esquemas.registro }), async (req, res) => {
@@ -91,6 +158,9 @@ rutasAuth.post('/recuperar', limiteLogin, validarRequest({ body: esquemas.recupe
     }
     const hash = await bcrypt.hash(nueva, 10);
     await consultar('UPDATE usuarios SET contrasena_hash = $1 WHERE id = $2', [hash, fila.id]);
+
+    // Con la contraseña nueva se cierran todas las sesiones abiertas de la cuenta.
+    await revocarSesionesDeUsuario(pool, fila.id, 'cambio_clave');
 
     return res.json({ exito: true, mensaje: 'Contraseña actualizada. Ya podés iniciar sesión.' });
 });

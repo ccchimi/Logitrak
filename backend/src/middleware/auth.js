@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 
-export function firmarToken(usuario) {
+export function firmarToken(usuario, { expiresIn = process.env.JWT_EXPIRA || '8h' } = {}) {
     return jwt.sign(
         {
             id: usuario.id,
@@ -9,7 +9,7 @@ export function firmarToken(usuario) {
             nombreCompleto: usuario.nombre_completo ?? usuario.nombreCompleto,
         },
         process.env.JWT_SECRET,
-        { expiresIn: process.env.JWT_EXPIRA || '8h' }
+        { expiresIn }
     );
 }
 
@@ -24,8 +24,14 @@ export function autenticar(req, res, next) {
     try {
         req.usuario = jwt.verify(token, process.env.JWT_SECRET);
         next();
-    } catch {
-        return res.status(401).json({ exito: false, error: 'Sesión inválida o vencida. Volvé a ingresar.' });
+    } catch (e) {
+        // La app usa `codigo` para saber si alcanza con renovar la sesión.
+        const vencido = e?.name === 'TokenExpiredError';
+        return res.status(401).json({
+            exito: false,
+            codigo: vencido ? 'token_vencido' : 'token_invalido',
+            error: 'Sesión inválida o vencida. Volvé a ingresar.',
+        });
     }
 }
 
