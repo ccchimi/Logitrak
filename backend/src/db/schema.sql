@@ -431,3 +431,9 @@ CREATE TABLE IF NOT EXISTS sesiones (
 
 CREATE INDEX IF NOT EXISTS idx_sesiones_usuario_activas ON sesiones (usuario_id) WHERE revocado_en IS NULL;
 CREATE INDEX IF NOT EXISTS idx_sesiones_familia ON sesiones (familia);
+
+-- ---------------------------------------------------------------------------
+-- Derecho de supresión (Ley 25.326): la cuenta eliminada queda anonimizada y
+-- marcada; sus envíos y pagos se conservan sin datos personales.
+-- ---------------------------------------------------------------------------
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS eliminado_en TIMESTAMPTZ;

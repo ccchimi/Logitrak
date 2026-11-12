@@ -48,3 +48,8 @@ y verificado se saca de acá; el historial queda en los commits.
     queda en localStorage, protegido por la rotación y la detección de reuso.
 13. Quitar el token largo de compatibilidad (`JWT_EXPIRA`) cuando ya nadie use
     versiones de la app anteriores al Hito 0.4.
+14. Exportar los datos de la cuenta (derecho de acceso de la Ley 25.326). La
+    eliminación ya está (Hito 0.5); falta que el usuario pueda descargar lo que
+    tenemos guardado de él. Y un trabajo periódico que borre del Storage los
+    archivos que hayan quedado si la eliminación no pudo borrarlos en el momento
+    (hoy solo se registra en el log).

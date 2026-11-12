@@ -12,6 +12,7 @@ import { verificarIdentidad } from '../servicios/verificacionIdentidad.js';
 import { compararCaras } from '../servicios/faceMatch.js';
 import {
     almacenamientoDisponible,
+    esProduccion,
     subirImagen,
     urlFirmada,
 } from '../servicios/almacenamiento.js';
@@ -39,6 +40,13 @@ async function guardarImagenChofer(codigo, tipo, base64) {
     const ruta = `choferes/${codigo}/${tipo}.jpg`;
     if (almacenamientoDisponible()) {
         return subirImagen(ruta, buffer, 'image/jpeg');
+    }
+
+    // Sin Storage, en producción la foto no se guarda: el disco del servidor es
+    // efímero y no es lugar para un DNI. La verificación ya se hizo en memoria.
+    if (esProduccion()) {
+        console.error(`Foto ${tipo} del chofer ${codigo} descartada: falta configurar Supabase Storage.`);
+        return null;
     }
 
     const dir = join(__dirname, '..', '..', 'uploads', 'choferes', codigo);

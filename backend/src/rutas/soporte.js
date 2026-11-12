@@ -57,7 +57,7 @@ async function publicarMensaje(fila) {
                   tipo: fila.adjunto_tipo,
                   bytes: fila.adjunto_bytes,
                   // URL temporal: el bucket es privado, nunca exponemos la ruta.
-                  url: await urlFirmada(fila.adjunto_ruta, 3600),
+                  url: await urlFirmada(fila.adjunto_ruta, 600),
               }
             : null,
     };

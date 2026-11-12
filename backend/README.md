@@ -126,6 +126,7 @@ haría falta un plan que mantenga el servicio activo.
 | GET | `/api/pagos` | Pagos del cliente (admin ve todos) |
 | POST | `/api/pagos/webhook/mercadopago` | Webhook de Mercado Pago, sin auth |
 | GET | `/api/perfil/resumen` | Resumen de cuenta para la pantalla de Perfil |
+| POST | `/api/perfil/eliminar-cuenta` | Elimina la cuenta propia (pide la contraseña) |
 
 ## Cómo se calcula el precio
 
@@ -213,8 +214,10 @@ La selfie y la foto del DNI se suben a Supabase Storage, en un bucket privado qu
 por defecto se llama `verificacion-identidad`. En la base guardamos únicamente la
 ruta interna del objeto, en `selfie_path` y `dni_frente_path`, nunca la imagen ni
 una URL pública. Para revisarlas está `GET /api/choferes/:codigo/documentos`,
-que solo responde a un admin y devuelve URLs firmadas que expiran, de manera que
-el bucket nunca queda expuesto.
+que solo responde a un admin y devuelve URLs firmadas que vencen a los 5 minutos,
+de manera que el bucket nunca queda expuesto. Los adjuntos del chat de soporte
+usan el mismo bucket con URLs de 10 minutos. Antes de la primera subida, el servidor revisa que
+el bucket sea privado y se niega a subir nada si alguien lo marcó como público.
 
 La configuración va en el `.env` y en el panel de Render:
 
@@ -225,8 +228,9 @@ La configuración va en el `.env` y en el panel de Render:
 | `SUPABASE_BUCKET` | Nombre del bucket privado |
 
 El bucket hay que crearlo antes del primer uso. Si estas variables quedan vacías
-las imágenes caen al disco local, lo cual alcanza para desarrollo, pero en Render
-el disco se borra en cada despliegue: en producción son obligatorias.
+las imágenes caen al disco local, lo cual alcanza para desarrollo. En producción
+(`RENDER=true` o `NODE_ENV=production`) nunca se escriben fotos de documentos en
+disco: sin Storage, el alta sigue sin las fotos y queda registrado en el log.
 
 ## Pagos
 
@@ -342,6 +346,29 @@ ruta.
 | Registro | 5 cada hora |
 | Guardar cotización | 30 cada 10 minutos |
 | Checkout, pago con tarjeta y confirmación | 20 cada 10 minutos |
+
+**Derecho de supresión** (Ley 25.326, `src/servicios/eliminacionCuenta.js`):
+`POST /api/perfil/eliminar-cuenta` pide la contraseña y elimina la cuenta. No
+hace un `DELETE`: los envíos, pagos y comprobantes se tienen que conservar por
+obligaciones fiscales, y el borrado en cascada se los llevaría. En cambio, en
+una sola transacción:
+
+- el usuario pasa a llamarse `eliminado-<id>`, pierde nombre y contraseña
+  (queda un hash al azar) y se marca `eliminado_en`; el nombre de usuario queda
+  libre para otra persona;
+- se cierran todas sus sesiones;
+- si era chofer, se borran nombre, email, teléfono, domicilio, DNI y las fotos
+  de verificación (también del Storage);
+- los envíos sin pagar se cancelan, y en envíos y cotizaciones se borran
+  direcciones, coordenadas y descripción de la carga; el precio queda;
+- los pagos conservan monto, estado y comprobante, pero el detalle del pagador
+  y los últimos dígitos de la tarjeta se descartan;
+- se borran sus tickets de soporte con los adjuntos;
+- la auditoría de accesos se conserva sin IP ni user-agent.
+
+No se puede eliminar una cuenta de admin, ni la de un cliente con un envío pago
+todavía en curso, ni la de un chofer con un viaje asignado: primero tienen que
+terminar (responde 409 explicando el motivo).
 
 Las contraseñas se guardan hasheadas con bcrypt y nunca en texto plano, y las
 sesiones viajan en un JWT firmado con expiración configurable a través de

@@ -1,8 +1,16 @@
+import { rm } from 'node:fs/promises';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import bcrypt from 'bcryptjs';
 import { Router } from 'express';
 import { consultar, pool } from '../db/pool.js';
 import { autenticar } from '../middleware/auth.js';
 import { emitirAccessToken } from '../servicios/sesiones.js';
+import { limiteLogin } from '../middleware/limites.js';
+import { validarRequest } from '../middleware/validar.js';
+import { eliminarCuenta } from '../esquemas/perfil.js';
+import { anonimizarCuenta, impedimentoParaEliminar } from '../servicios/eliminacionCuenta.js';
+import { borrarArchivos } from '../servicios/almacenamiento.js';
 
 export const rutasPerfil = Router();
 
@@ -184,5 +192,57 @@ rutasPerfil.get('/resumen', autenticar, async (req, res) => {
             cuponesActivos: cupones.rows[0].activos,
             clienteDesde: new Date(u.creado_en).getFullYear(),
         },
+    });
+});
+
+const RAIZ_BACKEND = fileURLToPath(new URL('../../', import.meta.url));
+
+// Elimina la cuenta del usuario que hace el pedido (derecho de supresión, Ley
+// 25.326). Anonimiza sus datos y conserva solo los registros que la ley obliga a
+// guardar; ver servicios/eliminacionCuenta.js.
+rutasPerfil.post('/eliminar-cuenta', limiteLogin, autenticar, validarRequest({ body: eliminarCuenta }), async (req, res) => {
+    const cliente = await pool.connect();
+    let archivos = [];
+    try {
+        await cliente.query('BEGIN');
+        const usuario = (await cliente.query('SELECT * FROM usuarios WHERE id = $1 FOR UPDATE', [req.usuario.id])).rows[0];
+
+        if (!usuario || usuario.eliminado_en) {
+            await cliente.query('ROLLBACK');
+            return res.status(404).json({ exito: false, error: 'La cuenta ya no existe.' });
+        }
+        if (!(await bcrypt.compare(req.body.contrasena, usuario.contrasena_hash))) {
+            await cliente.query('ROLLBACK');
+            return res.status(401).json({ exito: false, error: 'La contraseña no es correcta.' });
+        }
+
+        const impedimento = await impedimentoParaEliminar(cliente, usuario);
+        if (impedimento) {
+            await cliente.query('ROLLBACK');
+            return res.status(impedimento.estado).json({ exito: false, error: impedimento.error });
+        }
+
+        archivos = await anonimizarCuenta(cliente, usuario);
+        await cliente.query('COMMIT');
+    } catch (e) {
+        await cliente.query('ROLLBACK').catch(() => {});
+        console.error('No se pudo eliminar la cuenta:', e.message);
+        return res.status(500).json({ exito: false, error: 'No se pudo eliminar la cuenta. Probá de nuevo.' });
+    } finally {
+        cliente.release();
+    }
+
+    // Los archivos se borran después de confirmar: si falla, la cuenta ya quedó
+    // anonimizada y el archivo queda huérfano, sin nada que lo vincule.
+    const pendientes = await borrarArchivos(archivos);
+    for (const ruta of archivos.filter((r) => r.startsWith('uploads/'))) {
+        await rm(join(RAIZ_BACKEND, ruta), { force: true }).catch(() => pendientes.push(ruta));
+    }
+    if (pendientes.length) console.error(`Archivos de la cuenta ${req.usuario.id} sin borrar: ${pendientes.join(', ')}`);
+    console.log(`Cuenta ${req.usuario.id} eliminada por pedido de su titular.`);
+
+    return res.json({
+        exito: true,
+        mensaje: 'Tu cuenta fue eliminada. Conservamos solo los comprobantes de pago que la ley obliga a guardar, sin tus datos.',
     });
 });

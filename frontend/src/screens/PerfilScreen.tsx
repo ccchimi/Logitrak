@@ -2,11 +2,12 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { styles } from '../styles/PerfilStyles';
-import { obtenerUsuarioSesion } from '../services/authService';
+import { cerrarSesion, obtenerUsuarioSesion } from '../services/authService';
 import { obtenerResumenPerfil, ResumenPerfil } from '../services/perfilService';
 import { Cupon, listarCupones } from '../services/cuponesService';
 import { reiniciarBase } from '../services/adminService';
 import EditarPerfilModal from '../components/EditarPerfilModal';
+import EliminarCuentaModal from '../components/EliminarCuentaModal';
 
 const ETIQUETA_CUENTA: Record<string, string> = {
     admin: 'Cuenta Administrador',
@@ -23,6 +24,7 @@ export default function PerfilScreen({ navigation }: any) {
     const [confirmarReset, setConfirmarReset] = useState(false);
     const [reseteando, setReseteando] = useState(false);
     const [avisoReset, setAvisoReset] = useState('');
+    const [mostrarEliminar, setMostrarEliminar] = useState(false);
 
     const cargar = useCallback(async () => {
         const [r, c] = await Promise.all([obtenerResumenPerfil(), listarCupones()]);
@@ -42,6 +44,12 @@ export default function PerfilScreen({ navigation }: any) {
         setConfirmarReset(false);
         setAvisoReset(r.mensaje);
         if (r.exito) void cargar();
+    };
+
+    const cuentaEliminada = () => {
+        setMostrarEliminar(false);
+        cerrarSesion();
+        navigation.navigate('Login');
     };
 
     const nombre = resumen?.nombreCompleto ?? sesion?.nombreCompleto ?? 'Mi cuenta';
@@ -164,9 +172,32 @@ export default function PerfilScreen({ navigation }: any) {
                             <Text style={styles.cuponMotivo}>{item.motivo}</Text>
                         </View>
                     )}
+                    ListFooterComponent={
+                        rol === 'admin' ? null : (
+                            <View style={extra.zonaCuenta}>
+                                <Text style={extra.zonaCuentaTitulo}>Tus datos</Text>
+                                <Text style={extra.zonaAdminSub}>
+                                    Podés eliminar tu cuenta y tus datos personales cuando quieras.
+                                </Text>
+                                <TouchableOpacity
+                                    style={extra.botonEliminarCuenta}
+                                    onPress={() => setMostrarEliminar(true)}
+                                    accessibilityRole="button"
+                                >
+                                    <Text style={extra.botonEliminarCuentaTexto}>Eliminar mi cuenta</Text>
+                                </TouchableOpacity>
+                            </View>
+                        )
+                    }
                     showsVerticalScrollIndicator={false}
                 />
             </View>
+
+            <EliminarCuentaModal
+                visible={mostrarEliminar}
+                onClose={() => setMostrarEliminar(false)}
+                onEliminada={cuentaEliminada}
+            />
 
             <EditarPerfilModal
                 visible={mostrarEditor}
@@ -239,6 +270,22 @@ const extra = StyleSheet.create({
     },
     botonPeligroTexto: { color: '#fff', fontWeight: '700', fontSize: 14 },
     avisoOk: { color: '#4ADE80', fontSize: 13, marginTop: 12, textAlign: 'center' },
+    zonaCuenta: {
+        marginTop: 28,
+        marginHorizontal: 4,
+        paddingTop: 20,
+        borderTopWidth: 1,
+        borderTopColor: 'rgba(255,255,255,0.08)',
+    },
+    zonaCuentaTitulo: { color: '#fff', fontSize: 15, fontWeight: '700', marginBottom: 6 },
+    botonEliminarCuenta: {
+        borderWidth: 1,
+        borderColor: 'rgba(255,90,90,0.5)',
+        borderRadius: 8,
+        paddingVertical: 12,
+        alignItems: 'center',
+    },
+    botonEliminarCuentaTexto: { color: '#FF6B6B', fontWeight: '700', fontSize: 14 },
     overlay: {
         flex: 1,
         backgroundColor: 'rgba(0,0,0,0.7)',
