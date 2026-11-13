@@ -43,6 +43,8 @@ export interface Envio {
     estado: EstadoEnvio;
     estadoPago: EstadoPago;
     ofertaVenceEn: string | null;
+    /** Límite para pagar; pasado, el pedido se borra. null si ya está pago. */
+    pagoVenceEn?: string | null;
     archivadoEn: string | null;
     archivadoMotivo: string | null;
     slaMin: number | null;

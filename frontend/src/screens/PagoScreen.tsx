@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { styles, COLORS } from '../styles/PagoStyles';
 import { formatearARS } from '../helpers/formato';
+import { obtenerEnvio } from '../services/enviosService';
 import { ToastStack, useToasts } from '../components/Toasts';
 import {
     iniciarCheckout,
@@ -71,6 +72,31 @@ export default function PagoScreen({ navigation, route }: any) {
     const [cuotas, setCuotas] = useState(1);
 
     const aprobado = pago?.estado === 'aprobado';
+
+    // El pedido tiene unos minutos para pagarse; después el servidor lo borra.
+    const [venceEn, setVenceEn] = useState<number | null>(null);
+    const [restanteSeg, setRestanteSeg] = useState<number | null>(null);
+    useEffect(() => {
+        let activo = true;
+        if (envioCodigo) {
+            void obtenerEnvio(envioCodigo).then((datos) => {
+                const limite = datos?.envio.pagoVenceEn;
+                if (activo && limite) setVenceEn(Date.parse(limite));
+            });
+        }
+        return () => {
+            activo = false;
+        };
+    }, [envioCodigo]);
+    useEffect(() => {
+        if (venceEn === null) return;
+        const actualizar = () => setRestanteSeg(Math.max(0, Math.round((venceEn - Date.now()) / 1000)));
+        actualizar();
+        const id = setInterval(actualizar, 1000);
+        return () => clearInterval(id);
+    }, [venceEn]);
+    const vencido = !aprobado && restanteSeg === 0;
+    const formatearRestante = (seg: number) => `${Math.floor(seg / 60)}:${String(seg % 60).padStart(2, '0')}`;
     const marcaUI = detectarMarcaUI(numero);
 
     useEffect(() => {
@@ -178,6 +204,14 @@ export default function PagoScreen({ navigation, route }: any) {
             <Text style={tema.estilo(styles.montoLabel)}>Total a pagar</Text>
             <Text style={tema.estilo(styles.montoValor)}>{formatearARS(monto)}</Text>
             <Text style={tema.estilo(styles.montoRef)}>Envío {envioCodigo}</Text>
+            {!aprobado && restanteSeg !== null && restanteSeg > 0 ? (
+                <Text
+                    style={tema.estilo([styles.montoRef, { marginTop: 6, color: tema.color(restanteSeg <= 60 ? COLORS.red : COLORS.accent) }])}
+                    accessibilityLiveRegion="polite"
+                >
+                    Tenés {formatearRestante(restanteSeg)} para pagar
+                </Text>
+            ) : null}
         </View>
     );
 
@@ -396,8 +430,25 @@ export default function PagoScreen({ navigation, route }: any) {
         </View>
     );
 
+    const renderVencido = () => (
+        <View style={tema.estilo([styles.panel, { alignItems: 'center' }])}>
+            <Text style={tema.estilo(styles.exitoTitulo)}>El pedido venció</Text>
+            <Text style={tema.estilo([styles.exitoSub, { textAlign: 'center' }])}>
+                No se pagó a tiempo, así que lo eliminamos y no se te cobró nada. Si todavía lo necesitás, cotizalo de nuevo.
+            </Text>
+            <TouchableOpacity
+                style={tema.estilo([styles.botonPrimario, { marginTop: 18, alignSelf: 'stretch' }])}
+                onPress={() => navigation.replace('SolicitudEnvio')}
+                accessibilityRole="button"
+            >
+                <Text style={tema.estilo(styles.botonPrimarioTexto)}>Cotizar de nuevo</Text>
+            </TouchableOpacity>
+        </View>
+    );
+
     const renderContenido = () => {
         if (aprobado) return renderExito();
+        if (vencido) return renderVencido();
         if (metodo === 'tarjeta') return renderFormTarjeta();
         if (metodo && checkout) return renderCheckoutQr();
         if (metodo && procesando) {
