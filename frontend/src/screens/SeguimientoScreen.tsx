@@ -29,6 +29,7 @@ import {
   type PuntoRuta,
 } from "../services/seguimientoService";
 import { obtenerEnvio } from "../services/enviosService";
+import { escucharEnvio, type SuscripcionEnvio } from "../services/realtimeEnvios";
 
 const SLA_DEMO_SEG = 1200;
 
@@ -58,7 +59,10 @@ const ETAPA_POR_ESTADO: Record<string, number> = {
   entregado: 3,
 };
 
-const INTERVALO_SONDEO_MS = 5000;
+// Con Realtime los cambios llegan solos y la consulta queda solo de respaldo;
+// sin Realtime (no configurado o caído) se consulta más seguido.
+const SONDEO_CON_REALTIME_MS = 60000;
+const SONDEO_SIN_REALTIME_MS = 10000;
 
 async function resolverPuntoNativo(texto: string): Promise<PuntoRuta | null> {
   const punto = await geocodificarDireccion(texto);
@@ -172,12 +176,34 @@ export default function SeguimientoScreen({ navigation, route }: any) {
 
     let activo = true;
     let etapaPrevia = -1;
+    let suscripcion: SuscripcionEnvio | null = null;
+    let escuchando = false;
+    let intervalo: ReturnType<typeof setInterval> | null = null;
+    const programar = (ms: number) => {
+      if (intervalo) clearInterval(intervalo);
+      intervalo = setInterval(() => void sondear(), ms);
+    };
 
     const sondear = async () => {
       const datos = await obtenerEnvio(envioCodigo);
       if (!activo || !datos) return;
 
       const { envio, eventos } = datos;
+
+      // La primera vez que se conoce el id del envío, se escucha por Realtime.
+      if (!escuchando) {
+        escuchando = true;
+        void escucharEnvio(
+          envio.id,
+          () => void sondear(),
+          (conectado) => {
+            if (activo) programar(conectado ? SONDEO_CON_REALTIME_MS : SONDEO_SIN_REALTIME_MS);
+          },
+        ).then((s) => {
+          if (activo) suscripcion = s;
+          else s?.cerrar();
+        });
+      }
       const vence = Date.parse(envio.slaVenceEn ?? "");
       setSla(Number.isFinite(vence) && envio.slaMin && envio.estado !== "cancelado"
         ? { codigo: envioCodigo, vence, total: envio.slaMin * 60,
@@ -220,11 +246,12 @@ export default function SeguimientoScreen({ navigation, route }: any) {
     };
 
     void sondear();
-    const id = setInterval(sondear, INTERVALO_SONDEO_MS);
+    programar(SONDEO_SIN_REALTIME_MS);
 
     return () => {
       activo = false;
-      clearInterval(id);
+      if (intervalo) clearInterval(intervalo);
+      suscripcion?.cerrar();
     };
   }, [envioCodigo, mostrar]);
 

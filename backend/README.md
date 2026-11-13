@@ -219,6 +219,37 @@ notificaciones (`notificaciones`) son la bandeja de cada usuario en la app y se
 borran al eliminar la cuenta. No hay mail: el modelo no guarda el email de los
 clientes. El push a los teléfonos (Hito 2.3) se suma como otro manejador.
 
+## Tiempo real y push
+
+**Seguimiento en tiempo real.** La pantalla de seguimiento escucha por Supabase
+Realtime los cambios de su envío (`envios`) y sus eventos nuevos
+(`envio_eventos`), con el mismo token que el chat de soporte (lo firma el
+backend en `GET /api/soporte/realtime`). El aviso no trae datos: dispara una
+consulta a la API. Con Realtime conectado, la consulta queda como respaldo cada
+60 segundos; sin Realtime, cada 10 (antes era cada 5). Las políticas de solo
+lectura dejan escuchar al cliente sus envíos, al chofer los que tiene asignados
+y al admin todos. Realtime se activa solo si están `SUPABASE_URL`,
+`SUPABASE_ANON_KEY` y `SUPABASE_JWT_SECRET`.
+
+**RLS en todas las tablas.** La app recibe la anon key de Supabase para
+conectarse a Realtime, y con esa clave la API REST de Supabase expone cualquier
+tabla del schema `public` sin RLS. Por eso todas las tablas tienen RLS activo:
+sin políticas, quien entre con la anon key o con el token de Realtime no lee
+nada, salvo lo que habilitan las políticas de solo lectura de soporte y
+seguimiento. El backend no se ve afectado porque es el dueño de las tablas. Una
+prueba de integración verifica que no quede ninguna tabla sin RLS: toda tabla
+nueva tiene que activarlo en su migración.
+
+**Push.** La app registra el token de Expo del teléfono al iniciar sesión y lo
+da de baja al cerrarla (hasta 5 teléfonos por usuario). Cada notificación nueva
+del outbox sale también como push, y cuando se aprueba un pago, los choferes
+cuyo vehículo puede llevar el envío reciben "Nuevo envío disponible". Cuando un
+chofer toma un envío, el cliente recibe "Chofer asignado". El push se manda con
+`expo-server-sdk` después de confirmar la transacción del evento; si falla,
+queda en el log y la notificación igual está en la bandeja. Los tokens que Expo
+reporta como `DeviceNotRegistered` se borran. `EXPO_ACCESS_TOKEN` hace falta solo
+si en expo.dev está activa la seguridad reforzada de push.
+
 ## Migraciones
 
 Cada cambio de esquema es un archivo nuevo en `migrations/`, con su `up` y su
@@ -301,6 +332,8 @@ haría falta un plan que mantenga el servicio activo.
 | GET | `/api/recorridos` | Ruta por calles entre dos puntos (Google Directions, con caché) |
 | GET | `/api/notificaciones` | Bandeja del usuario (`?soloNoLeidas=true`, `?limite=`) y cantidad sin leer |
 | POST | `/api/notificaciones/leidas` | Marca como leídas las indicadas en `ids`, o todas |
+| POST | `/api/notificaciones/push-token` | Registra el teléfono (token de Expo) para recibir push |
+| DELETE | `/api/notificaciones/push-token` | Da de baja el token del teléfono (al cerrar sesión) |
 | POST | `/api/perfil/eliminar-cuenta` | Elimina la cuenta propia (pide la contraseña) |
 
 ## Cómo se calcula el precio

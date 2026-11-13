@@ -8,6 +8,7 @@ import {
     RolUsuario,
     UsuarioSesion,
 } from './api';
+import { darDeBajaTelefono, registrarTelefono } from './pushService';
 
 export type { RolUsuario, UsuarioSesion };
 export { obtenerUsuarioSesion, restaurarSesion, hayToken };
@@ -33,6 +34,7 @@ export async function iniciarSesion(usuario: string, contrasena: string): Promis
     if (!r.exito) return { exito: false, error: (r as any).error ?? 'No se pudo iniciar sesión.' };
 
     guardarSesion(r.token, r.usuario, r.refreshToken);
+    void registrarTelefono();
     return { exito: true, usuario: r.usuario };
 }
 
@@ -75,6 +77,9 @@ export async function restablecerContrasena(
 }
 
 export function cerrarSesion() {
+    // Primero la baja del push: el pedido sale con el token de acceso actual,
+    // que cerrarSesionRemota borra enseguida.
+    void darDeBajaTelefono();
     void cerrarSesionRemota();
     // El token de Realtime queda inválido junto con la sesión.
     void import('./realtimeSoporte').then((m) => m.olvidarCredencialRealtime());

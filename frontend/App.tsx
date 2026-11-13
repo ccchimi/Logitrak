@@ -35,6 +35,7 @@ import AppNavigator from "./src/navigation/AppNavigator";
 import Inicio from "./src/screens/Inicio";
 import { RootFlowProvider } from "./src/navigation/RootFlowContext";
 import { restaurarSesion } from "./src/services/authService";
+import { registrarTelefono } from "./src/services/pushService";
 
 
 export default function App() {
@@ -72,6 +73,7 @@ export default function App() {
       .then((usuario) => {
         if (!activo) return;
         if (usuario) {
+          void registrarTelefono();
           setRutaInicial(usuario.rol === "chofer" ? "Chofer" : "Home");
           setMostrarApp(true);
         }

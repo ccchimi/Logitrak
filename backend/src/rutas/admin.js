@@ -24,7 +24,7 @@ rutasAdmin.post('/reset', autenticar, exigirRol('admin'), async (_req, res) => {
     try {
         await cliente.query('BEGIN');
         await cliente.query(
-            `TRUNCATE TABLE notificaciones, outbox_events, pagos, cupones, asignaciones, envio_eventos, envios,
+            `TRUNCATE TABLE push_tokens, notificaciones, outbox_events, pagos, cupones, asignaciones, envio_eventos, envios,
                             cotizaciones, choferes, auditoria_accesos
              RESTART IDENTITY CASCADE`
         );

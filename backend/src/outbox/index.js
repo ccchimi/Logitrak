@@ -16,6 +16,7 @@
 import { pool } from '../db/pool.js';
 import { log, registrarError } from '../observabilidad/logger.js';
 import { MANEJADORES } from './manejadores.js';
+import { enviarPush } from '../servicios/push.js';
 
 export const MAX_INTENTOS = 8;
 // Espera entre intentos: 30 s, 1 min, 2 min, 4 min... (se duplica cada vez).
@@ -60,9 +61,15 @@ async function procesarUno(id, manejadores) {
 
         // Los efectos en la base (por ejemplo, la notificación) van en la misma
         // transacción que la marca de procesado: o quedan los dos, o ninguno.
-        await manejador(cliente, evento);
+        // Los manejadores dejan en ctx.push lo que hay que mandar al teléfono;
+        // se manda recién después del COMMIT (un push no se puede deshacer).
+        const ctx = { push: [] };
+        await manejador(cliente, evento, ctx);
         await cliente.query('UPDATE outbox_events SET processed = TRUE, processed_at = now(), last_error = NULL WHERE id = $1', [id]);
         await cliente.query('COMMIT');
+        if (ctx.push.length) {
+            enviarPush(ctx.push).catch((e) => log().warn({ err: e, eventoId: id }, 'Falló el envío de push'));
+        }
         return 'procesado';
     } catch (e) {
         await cliente.query('ROLLBACK').catch(() => {});

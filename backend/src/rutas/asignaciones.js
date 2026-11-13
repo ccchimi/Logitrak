@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { consultar, pool } from '../db/pool.js';
 import { autenticar, exigirRol } from '../middleware/auth.js';
 import { registrarError } from '../observabilidad/logger.js';
+import { registrarEvento } from '../outbox/index.js';
 
 export const rutasAsignaciones = Router();
 
@@ -208,6 +209,14 @@ rutasAsignaciones.post('/:codigoEnvio/tomar', autenticar, exigirRol('chofer'), a
                 `${chofer.nombre_completo} (${chofer.codigo}) va en camino en ${chofer.vehiculo_nombre}.`,
             ]
         );
+
+        // Aviso al cliente (bandeja + push), confirmado junto con la asignación.
+        await registrarEvento(cliente, {
+            tipoAgregado: 'envio',
+            idAgregado: envio.codigo,
+            tipo: 'envio.asignado',
+            datos: { clienteId: envio.cliente_id, envioCodigo: envio.codigo },
+        });
 
         await cliente.query('COMMIT');
 

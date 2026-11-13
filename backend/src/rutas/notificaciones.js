@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { consultar } from '../db/pool.js';
 import { autenticar } from '../middleware/auth.js';
 import { validarRequest } from '../middleware/validar.js';
+import { esTokenValido } from '../servicios/push.js';
 
 export const rutasNotificaciones = Router();
 
@@ -56,4 +57,37 @@ rutasNotificaciones.post('/leidas', autenticar, validarRequest({ body: cuerpoLei
         [req.usuario.id, ids ?? null]
     );
     res.json({ exito: true, marcadas: rowCount });
+});
+
+// --- Tokens de push del teléfono ---------------------------------------------
+
+const MAX_TELEFONOS_POR_USUARIO = 5;
+
+const cuerpoToken = z.object({
+    token: z.string({ error: 'Falta el token del teléfono.' }).trim().max(200).refine(esTokenValido, 'El token del teléfono no es válido.'),
+    plataforma: z.enum(['android', 'ios'], { error: 'La plataforma debe ser android o ios.' }).optional(),
+});
+
+// Registra el teléfono para recibir push. Si el token ya era de otra cuenta
+// (alguien cambió de usuario en el mismo teléfono), pasa a la actual.
+rutasNotificaciones.post('/push-token', autenticar, validarRequest({ body: cuerpoToken }), async (req, res) => {
+    const { token, plataforma = 'android' } = req.body;
+    await consultar(
+        `INSERT INTO push_tokens (usuario_id, token, plataforma) VALUES ($1, $2, $3)
+         ON CONFLICT (token) DO UPDATE SET usuario_id = EXCLUDED.usuario_id, plataforma = EXCLUDED.plataforma, actualizado_en = now()`,
+        [req.usuario.id, token, plataforma]
+    );
+    // Un usuario no necesita más que unos pocos teléfonos: se quedan los más recientes.
+    await consultar(
+        `DELETE FROM push_tokens WHERE usuario_id = $1 AND id NOT IN (
+             SELECT id FROM push_tokens WHERE usuario_id = $1 ORDER BY actualizado_en DESC LIMIT $2)`,
+        [req.usuario.id, MAX_TELEFONOS_POR_USUARIO]
+    );
+    res.status(201).json({ exito: true });
+});
+
+// Al cerrar sesión la app da de baja su token. Solo puede borrar los propios.
+rutasNotificaciones.delete('/push-token', autenticar, validarRequest({ body: cuerpoToken.pick({ token: true }) }), async (req, res) => {
+    const { rowCount } = await consultar('DELETE FROM push_tokens WHERE token = $1 AND usuario_id = $2', [req.body.token, req.usuario.id]);
+    res.json({ exito: true, borrados: rowCount });
 });

@@ -27,10 +27,12 @@ y verificado se saca de acá; el historial queda en los commits.
    para pagar.
 5. Que el admin pueda editar los perfiles de otros usuarios. Hoy cada rol edita
    solo el suyo; falta una pantalla de listado de usuarios.
-6. Seguimiento de envíos en tiempo real por push, en lugar del polling actual.
-   El chat de soporte ya funciona así y dejó el camino hecho: JWT propio firmado
-   por el backend, políticas RLS de solo lectura y `REPLICA IDENTITY FULL`. Falta
-   aplicar el mismo patrón a `envios` y `envio_eventos`.
+6. Activar Realtime y push en producción. El código está desde el Hito 2.3,
+   pero Realtime necesita `SUPABASE_URL` en Render (hoy falta) y el push en
+   Android necesita las credenciales de FCM cargadas en EAS (Firebase > clave de
+   cuenta de servicio, `eas credentials`) y un build de desarrollo o de
+   producción: en Expo Go no hay push en Android. Probar los dos con un
+   teléfono real.
 7. Más tests del backend. Ya hay pruebas del cálculo de precio en el servidor
    (`npm test` en `backend/`, corren en la CI), pero las rutas no tienen tests
    contra la base. La expiración de ofertas y el reembolso son los primeros
@@ -85,6 +87,7 @@ y verificado se saca de acá; el historial queda en los commits.
     (Settings > Health Check Path) y, si se arma staging, crear un segundo
     servicio con `ENTORNO=staging` y su propia base y credenciales.
 19. Mostrar las notificaciones en la app. Desde el Hito 2.2 el backend las
-    genera (`GET /api/notificaciones`); falta la bandeja o el contador en la
-    app, que conviene armar junto con el push del Hito 2.3. Para mandar mails
+    genera (`GET /api/notificaciones`) y desde el 2.3 también llegan como push;
+    falta la bandeja o el contador dentro de la app, y abrir la pantalla del
+    envío al tocar un push. Para mandar mails
     también haría falta guardar el email de los clientes, que hoy no se pide.

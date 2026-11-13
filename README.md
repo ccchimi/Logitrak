@@ -140,6 +140,7 @@ en el panel de Render (backend) y en EAS (builds de la app), no en archivos.
 | `TRABAJOS_DESHABILITADOS` | No | `true` apaga los trabajos en segundo plano (pg-boss) |
 | `GOOGLE_DIRECTIONS_KEY` | Para mapas | Ruta por calles del seguimiento en la app móvil (solo servidor) |
 | `SENTRY_DSN` | No | Envía los errores del backend a Sentry (vacío = solo logs) |
+| `EXPO_ACCESS_TOKEN` | No | Token de Expo para push, solo si se activó la seguridad reforzada |
 | `LOG_LEVEL` | No | Nivel de los logs: `debug`, `info` (por defecto), `warn`, `error` |
 | `ENTORNO` | No | `desarrollo`, `staging` o `produccion` (por defecto: `produccion` en Render, `desarrollo` en local). Carga `backend/.env.<entorno>` antes que `.env` |
 
