@@ -1,12 +1,20 @@
-import React, { useEffect, useRef } from 'react';
-import { Animated, Easing, Text, TouchableOpacity, View } from 'react-native';
-import type { DimensionValue } from 'react-native';
-import { styles } from '../../styles/InicioStyles';
+import { useTema } from "../../hooks/useTema";
+import { useMovimientoReducido } from "../../hooks/useMovimientoReducido";
+import React, { useEffect, useRef } from "react";
+import { Animated, Easing, Text, TouchableOpacity, View } from "react-native";
+import type { DimensionValue } from "react-native";
+import { styles } from "../../styles/InicioStyles";
 
 export default function SeccionApp({ isMobile }: { isMobile: boolean }) {
+  const tema = useTema();
+  const reducido = useMovimientoReducido();
   const phoneFloat = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    if (reducido) {
+      phoneFloat.setValue(0);
+      return;
+    }
     const animation = Animated.loop(
       Animated.sequence([
         Animated.timing(phoneFloat, {
@@ -21,7 +29,7 @@ export default function SeccionApp({ isMobile }: { isMobile: boolean }) {
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
-      ])
+      ]),
     );
 
     animation.start();
@@ -29,7 +37,7 @@ export default function SeccionApp({ isMobile }: { isMobile: boolean }) {
     return () => {
       animation.stop();
     };
-  }, [phoneFloat]);
+  }, [phoneFloat, reducido]);
 
   const phoneTranslateY = phoneFloat.interpolate({
     inputRange: [0, 1],
@@ -37,39 +45,41 @@ export default function SeccionApp({ isMobile }: { isMobile: boolean }) {
   });
 
   return (
-    <View style={[styles.appSection, isMobile && styles.sectionM]}>
-      <View style={[styles.inner, !isMobile && styles.appRow]}>
-        <View style={[styles.appTextBlock, isMobile && styles.appTextBlockM]}>
-          <Text style={styles.sectionKickerDark}>App logitrak.</Text>
-          <Text style={[styles.sectionTitleDark, isMobile && styles.sectionTitleM]}>
+    <View style={tema.estilo([styles.appSection, isMobile && styles.sectionM])}>
+      <View style={tema.estilo([styles.inner, !isMobile && styles.appRow])}>
+        <View style={tema.estilo([styles.appTextBlock, isMobile && styles.appTextBlockM])}>
+          <Text style={tema.estilo(styles.sectionKickerDark)}>App logitrak.</Text>
+          <Text
+            style={tema.estilo([styles.sectionTitleDark, isMobile && styles.sectionTitleM])}
+          >
             Todo tu negocio en tu bolsillo
           </Text>
-          <Text style={styles.appParagraph}>
+          <Text style={tema.estilo(styles.appParagraph)}>
             Gestioná envíos, rastreá paquetes y recibí notificaciones desde
             cualquier lugar. Disponible para iOS y Android.
           </Text>
 
-          <View style={styles.storeButtons}>
-            <TouchableOpacity style={styles.storeButton}>
-              <Text style={styles.storeButtonText}>App Store</Text>
+          <View style={tema.estilo(styles.storeButtons)}>
+            <TouchableOpacity style={tema.estilo(styles.storeButton)}>
+              <Text style={tema.estilo(styles.storeButtonText)}>App Store</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.storeButton}>
-              <Text style={styles.storeButtonText}>Google Play</Text>
+            <TouchableOpacity style={tema.estilo(styles.storeButton)}>
+              <Text style={tema.estilo(styles.storeButtonText)}>Google Play</Text>
             </TouchableOpacity>
           </View>
         </View>
 
         <Animated.View
-          style={[
+          style={tema.estilo([
             styles.appVisual,
             isMobile && styles.appVisualM,
             { transform: [{ translateY: phoneTranslateY }] },
-          ]}
+          ])}
         >
-          <View style={styles.phoneMock}>
-            <View style={styles.phoneScreen}>
-              <View style={[styles.phoneBar, styles.phoneBarAccent]} />
-              <View style={styles.phoneSpacer} />
+          <View style={tema.estilo(styles.phoneMock)}>
+            <View style={tema.estilo(styles.phoneScreen)}>
+              <View style={tema.estilo([styles.phoneBar, styles.phoneBarAccent])} />
+              <View style={tema.estilo(styles.phoneSpacer)} />
               <PhoneCard width="70%" active />
               <PhoneCard width="50%" />
               <PhoneCard width="85%" />
@@ -89,10 +99,11 @@ function PhoneCard({
   width: DimensionValue;
   active?: boolean;
 }) {
+  const tema = useTema();
   return (
-    <View style={styles.phoneCard}>
-      <View style={[styles.phoneDot, !active && styles.phoneDotMuted]} />
-      <View style={[styles.phoneBar, { width }]} />
+    <View style={tema.estilo(styles.phoneCard)}>
+      <View style={tema.estilo([styles.phoneDot, !active && styles.phoneDotMuted])} />
+      <View style={tema.estilo([styles.phoneBar, { width }])} />
     </View>
   );
 }

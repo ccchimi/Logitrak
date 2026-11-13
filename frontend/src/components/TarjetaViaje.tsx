@@ -1,3 +1,4 @@
+import { useTema } from "../hooks/useTema";
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Viaje } from '../services/viajesService';
@@ -9,6 +10,7 @@ interface TarjetaProps {
 }
 
 export default function TarjetaViaje({ viaje, onPress, onVerMapa }: TarjetaProps) {
+  const tema = useTema();
     const obtenerColorEstado = (estado: string) => {
         switch (estado) {
             case 'En Viaje':
@@ -23,82 +25,82 @@ export default function TarjetaViaje({ viaje, onPress, onVerMapa }: TarjetaProps
     };
 
     const contenido = (
-        <View style={styles.card}>
-            <View style={styles.header}>
-                <View style={styles.headerTopRow}>
-                    <Text style={styles.label}>Código de seguimiento</Text>
+        <View style={tema.estilo(styles.card)}>
+            <View style={tema.estilo(styles.header)}>
+                <View style={tema.estilo(styles.headerTopRow)}>
+                    <Text style={tema.estilo(styles.label)}>Código de seguimiento</Text>
 
                     <View
-                        style={[
+                        style={tema.estilo([
                             styles.estadoBadge,
                             { backgroundColor: `${obtenerColorEstado(viaje.estado)}22` },
-                        ]}
+                        ])}
                     >
                         <View
-                            style={[
+                            style={tema.estilo([
                                 styles.estadoDot,
                                 { backgroundColor: obtenerColorEstado(viaje.estado) },
-                            ]}
+                            ])}
                         />
                         <Text
-                            style={[
+                            style={tema.estilo([
                                 styles.estadoTexto,
                                 { color: obtenerColorEstado(viaje.estado) },
-                            ]}
+                            ])}
                         >
                             {viaje.estado}
                         </Text>
                     </View>
                 </View>
 
-                <Text style={styles.codigo}>{viaje.codigo}</Text>
+                <Text style={tema.estilo(styles.codigo)}>{viaje.codigo}</Text>
             </View>
 
-            <View style={styles.rutaContainer}>
-                <View style={styles.iconBox}>
-                    <Text style={styles.icon}>{viaje.codigo.slice(-3)}</Text>
+            <View style={tema.estilo(styles.rutaContainer)}>
+                <View style={tema.estilo(styles.iconBox)}>
+                    <Text style={tema.estilo(styles.icon)}>{viaje.codigo.slice(-3)}</Text>
                 </View>
 
-                <View style={styles.rutaInfo}>
-                    <Text style={styles.rutaLabel}>Ruta</Text>
-                    <Text style={styles.destino}>{viaje.destino}</Text>
+                <View style={tema.estilo(styles.rutaInfo)}>
+                    <Text style={tema.estilo(styles.rutaLabel)}>Ruta</Text>
+                    <Text style={tema.estilo(styles.destino)}>{viaje.destino}</Text>
                 </View>
             </View>
 
-            <View style={styles.spacer} />
+            <View style={tema.estilo(styles.spacer)} />
 
-            <View style={styles.footer}>
-                <View style={styles.choferBox}>
-                    <Text style={styles.footerLabel}>Chofer</Text>
-                    <Text style={styles.footerText}>
+            <View style={tema.estilo(styles.footer)}>
+                <View style={tema.estilo(styles.choferBox)}>
+                    <Text style={tema.estilo(styles.footerLabel)}>Chofer</Text>
+                    <Text style={tema.estilo(styles.footerText)}>
                         {viaje.chofer}
                         {viaje.vehiculo ? ` · ${viaje.vehiculo}` : ''}
                     </Text>
                 </View>
 
                 {viaje.fecha ? (
-                    <View style={styles.fechaBox}>
-                        <Text style={styles.footerLabel}>Fecha</Text>
-                        <Text style={styles.footerText}>{viaje.fecha}</Text>
+                    <View style={tema.estilo(styles.fechaBox)}>
+                        <Text style={tema.estilo(styles.footerLabel)}>Fecha</Text>
+                        <Text style={tema.estilo(styles.footerText)}>{viaje.fecha}</Text>
                     </View>
                 ) : null}
             </View>
 
             {onPress ? (
-                <View style={styles.verMapaRow}>
-                    <Text style={styles.verMapaText}>Ver detalle del envío</Text>
-                    <Text style={styles.verMapaArrow}>→</Text>
+                <View style={tema.estilo(styles.verMapaRow)}>
+                    <Text style={tema.estilo(styles.verMapaText)}>Ver detalle del envío</Text>
+                    <Text style={tema.estilo(styles.verMapaArrow)}>→</Text>
                 </View>
             ) : null}
 
             {onVerMapa ? (
                 <TouchableOpacity
-                    style={styles.verMapaSecundario}
+                    style={tema.estilo(styles.verMapaSecundario)}
                     onPress={onVerMapa}
                     accessibilityRole="button"
                     accessibilityLabel={`Ver el envío ${viaje.codigo} en el mapa`}
                 >
-                    <Text style={styles.verMapaSecundarioTexto}>Seguir en el mapa</Text>
+                    <Text style={tema.estilo(styles.verMapaSecundarioTexto)}>Seguir en el mapa</Text>
                 </TouchableOpacity>
             ) : null}
         </View>
@@ -110,7 +112,7 @@ export default function TarjetaViaje({ viaje, onPress, onVerMapa }: TarjetaProps
         <TouchableOpacity
             activeOpacity={0.85}
             onPress={onPress}
-            style={styles.pressable}
+            style={tema.estilo(styles.pressable)}
             accessibilityRole="button"
             accessibilityLabel={`Ver el seguimiento del envío ${viaje.codigo} en el mapa`}
         >

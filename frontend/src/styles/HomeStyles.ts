@@ -1,15 +1,16 @@
+import { DISENO } from '../theme/diseno';
 import { Platform, StyleSheet } from 'react-native';
 
 export const COLORS = {
-  bg: '#0E0E0E',
-  surface: '#161616',
-  card: '#1B1B1B',
-  cardDeep: '#111111',
+  bg: DISENO.fondo,
+  surface: DISENO.superficie,
+  card: DISENO.tarjeta,
+  cardDeep: DISENO.profundo,
   white: '#FFFFFF',
-  accent: '#FFD700',
-  accentDark: '#F0C800',
+  accent: DISENO.amarillo,
+  accentDark: DISENO.amarilloOscuro,
   accentSoft: 'rgba(255, 215, 0, 0.12)',
-  ink: '#0E0E0E',
+  ink: DISENO.fondo,
   muted: 'rgba(255, 255, 255, 0.55)',
   mutedStrong: 'rgba(255, 255, 255, 0.78)',
   border: 'rgba(255, 255, 255, 0.08)',
@@ -30,10 +31,10 @@ export const ESTADO_COLORS = {
 };
 
 export const FONTS = {
-  title: 'DMSans_700Bold',
-  titleBold: 'DMSans_700Bold',
-  text: 'DMSans_400Regular',
-  textMedium: 'DMSans_500Medium',
+  title: 'Poppins_600SemiBold',
+  titleBold: 'Poppins_600SemiBold',
+  text: 'Poppins_400Regular',
+  textMedium: 'Poppins_500Medium',
   textLight: 'DMSans_300Light',
 };
 
@@ -55,7 +56,7 @@ export const styles = StyleSheet.create({
 
   scrollContent: {
     alignItems: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingBottom: 48,
   },
 
@@ -429,7 +430,7 @@ export const styles = StyleSheet.create({
 
   contentRow: { flexDirection: 'row', gap: 22, alignItems: 'flex-start', width: '100%' },
   mainCol: { flex: 1, minWidth: 0 },
-  rail: { width: 322, gap: 16 },
+  rail: { width: 270, gap: 16 },
   railStack: { width: '100%', gap: 16, marginTop: 8 },
 
   railPanel: {
@@ -438,7 +439,7 @@ export const styles = StyleSheet.create({
   },
   railTitle: { color: COLORS.white, fontSize: 14, fontFamily: FONTS.titleBold },
 
-  liveBand: { height: 132, overflow: 'hidden', backgroundColor: '#0E0E0E' },
+  liveBand: { height: 132, overflow: 'hidden', backgroundColor: DISENO.fondo },
   liveTag: {
     position: 'absolute', top: 12, left: 12, flexDirection: 'row', alignItems: 'center', gap: 7,
     backgroundColor: 'rgba(10,10,11,0.82)', borderWidth: 1, borderColor: COLORS.borderStrong,

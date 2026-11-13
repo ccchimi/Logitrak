@@ -1,3 +1,4 @@
+import { useTema } from "../hooks/useTema";
 import React, { useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
@@ -51,6 +52,7 @@ const detectarMarcaUI = (numero: string): string | null => {
 };
 
 export default function PagoScreen({ navigation, route }: any) {
+  const tema = useTema();
     const { toasts, mostrar, cerrar } = useToasts();
 
     const envioCodigo: string = route?.params?.envioCodigo;
@@ -155,161 +157,161 @@ export default function PagoScreen({ navigation, route }: any) {
     };
 
     const renderHeader = () => (
-        <View style={styles.header}>
+        <View style={tema.estilo(styles.header)}>
             <TouchableOpacity
-                style={styles.backButton}
+                style={tema.estilo(styles.backButton)}
                 onPress={() => navigation.goBack()}
                 accessibilityRole="button"
                 accessibilityLabel="Volver"
             >
-                <Text style={styles.backButtonText}>←</Text>
+                <Text style={tema.estilo(styles.backButtonText)}>←</Text>
             </TouchableOpacity>
             <View>
-                <Text style={styles.headerKicker}>logitrak · Pago</Text>
-                <Text style={styles.headerTitle}>Pagá tu envío</Text>
+                <Text style={tema.estilo(styles.headerKicker)}>logitrak · Pago</Text>
+                <Text style={tema.estilo(styles.headerTitle)}>Pagá tu envío</Text>
             </View>
         </View>
     );
 
     const renderMonto = () => (
-        <View style={styles.montoCard}>
-            <Text style={styles.montoLabel}>Total a pagar</Text>
-            <Text style={styles.montoValor}>{formatearARS(monto)}</Text>
-            <Text style={styles.montoRef}>Envío {envioCodigo}</Text>
+        <View style={tema.estilo(styles.montoCard)}>
+            <Text style={tema.estilo(styles.montoLabel)}>Total a pagar</Text>
+            <Text style={tema.estilo(styles.montoValor)}>{formatearARS(monto)}</Text>
+            <Text style={tema.estilo(styles.montoRef)}>Envío {envioCodigo}</Text>
         </View>
     );
 
     const renderSelector = () => (
         <>
-            <Text style={styles.seccionTitulo}>Elegí cómo pagar</Text>
+            <Text style={tema.estilo(styles.seccionTitulo)}>Elegí cómo pagar</Text>
 
-            <TouchableOpacity style={styles.metodoCard} onPress={() => void elegirQr('mercadopago')} activeOpacity={0.85}>
-                <View style={[styles.metodoIcono, { backgroundColor: 'rgba(0, 177, 234, 0.16)' }]}>
-                    <Text style={styles.metodoIconoTexto}>MP</Text>
+            <TouchableOpacity style={tema.estilo(styles.metodoCard)} onPress={() => void elegirQr('mercadopago')} activeOpacity={0.85}>
+                <View style={tema.estilo([styles.metodoIcono, { backgroundColor: 'rgba(0, 177, 234, 0.16)' }])}>
+                    <Text style={tema.estilo(styles.metodoIconoTexto)}>MP</Text>
                 </View>
-                <View style={styles.metodoTextos}>
-                    <Text style={styles.metodoNombre}>Mercado Pago</Text>
-                    <Text style={styles.metodoDetalle}>Escaneá el QR con Mercado Pago o MODO</Text>
+                <View style={tema.estilo(styles.metodoTextos)}>
+                    <Text style={tema.estilo(styles.metodoNombre)}>Mercado Pago</Text>
+                    <Text style={tema.estilo(styles.metodoDetalle)}>Escaneá el QR con Mercado Pago o MODO</Text>
                 </View>
-                <Text style={styles.metodoChevron}>›</Text>
+                <Text style={tema.estilo(styles.metodoChevron)}>›</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.metodoCard} onPress={() => setMetodo('tarjeta')} activeOpacity={0.85}>
-                <View style={[styles.metodoIcono, { backgroundColor: COLORS.accentSoft }]}>
-                    <Text style={styles.metodoIconoTexto}>TC</Text>
+            <TouchableOpacity style={tema.estilo(styles.metodoCard)} onPress={() => setMetodo('tarjeta')} activeOpacity={0.85}>
+                <View style={tema.estilo([styles.metodoIcono, { backgroundColor: COLORS.accentSoft }])}>
+                    <Text style={tema.estilo(styles.metodoIconoTexto)}>TC</Text>
                 </View>
-                <View style={styles.metodoTextos}>
-                    <Text style={styles.metodoNombre}>Tarjeta de débito/crédito</Text>
-                    <Text style={styles.metodoDetalle}>Pagá con tu tarjeta, sin salir de la app</Text>
+                <View style={tema.estilo(styles.metodoTextos)}>
+                    <Text style={tema.estilo(styles.metodoNombre)}>Tarjeta de débito/crédito</Text>
+                    <Text style={tema.estilo(styles.metodoDetalle)}>Pagá con tu tarjeta, sin salir de la app</Text>
                 </View>
-                <Text style={styles.metodoChevron}>›</Text>
+                <Text style={tema.estilo(styles.metodoChevron)}>›</Text>
             </TouchableOpacity>
         </>
     );
 
     const renderCheckoutQr = () => (
-        <View style={styles.panel}>
-            <View style={styles.panelHeaderRow}>
-                <Text style={styles.panelTitulo}>{NOMBRE_METODO[metodo as MetodoPago]}</Text>
+        <View style={tema.estilo(styles.panel)}>
+            <View style={tema.estilo(styles.panelHeaderRow)}>
+                <Text style={tema.estilo(styles.panelTitulo)}>{NOMBRE_METODO[metodo as MetodoPago]}</Text>
                 <TouchableOpacity onPress={volverASeleccion}>
-                    <Text style={styles.cambiarMetodo}>Cambiar</Text>
+                    <Text style={tema.estilo(styles.cambiarMetodo)}>Cambiar</Text>
                 </TouchableOpacity>
             </View>
 
-            {checkout?.sandbox ? <Text style={styles.sandboxBadge}>MODO PRUEBA · SANDBOX</Text> : null}
+            {checkout?.sandbox ? <Text style={tema.estilo(styles.sandboxBadge)}>MODO PRUEBA · SANDBOX</Text> : null}
 
-            <View style={styles.qrWrapper}>
+            <View style={tema.estilo(styles.qrWrapper)}>
                 {checkout?.qr ? (
-                    <Image style={styles.qrImage} source={{ uri: checkout.qr }} resizeMode="contain" />
+                    <Image style={tema.estilo(styles.qrImage)} source={{ uri: checkout.qr }} resizeMode="contain" />
                 ) : (
-                    <View style={styles.qrFallback}>
-                        <Text style={styles.qrFallbackTexto}>{checkout?.deeplink || 'Generando QR…'}</Text>
+                    <View style={tema.estilo(styles.qrFallback)}>
+                        <Text style={tema.estilo(styles.qrFallbackTexto)}>{checkout?.deeplink || 'Generando QR…'}</Text>
                     </View>
                 )}
             </View>
 
-            <Text style={styles.qrInstruccion}>
+            <Text style={tema.estilo(styles.qrInstruccion)}>
                 Escaneá el QR con {metodo === 'modo' ? 'la app MODO' : 'Mercado Pago o MODO'} para pagar{' '}
                 {formatearARS(monto)}.
             </Text>
 
-            <TouchableOpacity style={styles.botonPrimario} onPress={() => void abrirApp()}>
-                <Text style={styles.botonPrimarioTexto}>Abrir {NOMBRE_METODO[metodo as MetodoPago]}</Text>
+            <TouchableOpacity style={tema.estilo(styles.botonPrimario)} onPress={() => void abrirApp()}>
+                <Text style={tema.estilo(styles.botonPrimarioTexto)}>Abrir {NOMBRE_METODO[metodo as MetodoPago]}</Text>
             </TouchableOpacity>
 
             {checkout?.sandbox ? (
                 <TouchableOpacity
-                    style={[styles.botonSecundario, procesando && styles.botonDeshabilitado]}
+                    style={tema.estilo([styles.botonSecundario, procesando && styles.botonDeshabilitado])}
                     onPress={() => void confirmarSandbox()}
                     disabled={procesando}
                 >
-                    <Text style={styles.botonSecundarioTexto}>
+                    <Text style={tema.estilo(styles.botonSecundarioTexto)}>
                         {procesando ? 'Confirmando…' : 'Ya pagué (simular aprobación)'}
                     </Text>
                 </TouchableOpacity>
             ) : (
-                <View style={styles.esperandoRow}>
-                    <ActivityIndicator color={COLORS.accent} />
-                    <Text style={styles.esperandoTexto}>Esperando la confirmación del pago…</Text>
+                <View style={tema.estilo(styles.esperandoRow)}>
+                    <ActivityIndicator color={tema.color(COLORS.accent)} />
+                    <Text style={tema.estilo(styles.esperandoTexto)}>Esperando la confirmación del pago…</Text>
                 </View>
             )}
         </View>
     );
 
     const renderFormTarjeta = () => (
-        <View style={styles.panel}>
-            <View style={styles.panelHeaderRow}>
-                <Text style={styles.panelTitulo}>Tarjeta</Text>
+        <View style={tema.estilo(styles.panel)}>
+            <View style={tema.estilo(styles.panelHeaderRow)}>
+                <Text style={tema.estilo(styles.panelTitulo)}>Tarjeta</Text>
                 <TouchableOpacity onPress={volverASeleccion}>
-                    <Text style={styles.cambiarMetodo}>Cambiar</Text>
+                    <Text style={tema.estilo(styles.cambiarMetodo)}>Cambiar</Text>
                 </TouchableOpacity>
             </View>
 
-            <View style={styles.inputMarcaRow}>
-                <Text style={styles.inputLabel}>Número de tarjeta</Text>
-                {marcaUI ? <Text style={styles.marcaPill}>{marcaUI}</Text> : null}
+            <View style={tema.estilo(styles.inputMarcaRow)}>
+                <Text style={tema.estilo(styles.inputLabel)}>Número de tarjeta</Text>
+                {marcaUI ? <Text style={tema.estilo(styles.marcaPill)}>{marcaUI}</Text> : null}
             </View>
             <TextInput
-                style={styles.input}
+                style={tema.estilo(styles.input)}
                 value={numero}
                 onChangeText={(t) => setNumero(formatearNumeroTarjeta(t))}
                 placeholder="1234 5678 9012 3456"
-                placeholderTextColor={COLORS.muted}
+                placeholderTextColor={tema.color(COLORS.muted)}
                 keyboardType="number-pad"
                 maxLength={19}
             />
 
-            <Text style={styles.inputLabel}>Titular</Text>
+            <Text style={tema.estilo(styles.inputLabel)}>Titular</Text>
             <TextInput
-                style={styles.input}
+                style={tema.estilo(styles.input)}
                 value={titular}
                 onChangeText={setTitular}
                 placeholder="Como figura en la tarjeta"
-                placeholderTextColor={COLORS.muted}
+                placeholderTextColor={tema.color(COLORS.muted)}
                 autoCapitalize="characters"
             />
 
-            <View style={styles.filaDoble}>
-                <View style={styles.columna}>
-                    <Text style={styles.inputLabel}>Vencimiento</Text>
+            <View style={tema.estilo(styles.filaDoble)}>
+                <View style={tema.estilo(styles.columna)}>
+                    <Text style={tema.estilo(styles.inputLabel)}>Vencimiento</Text>
                     <TextInput
-                        style={styles.input}
+                        style={tema.estilo(styles.input)}
                         value={vencimiento}
                         onChangeText={(t) => setVencimiento(formatearVencimiento(t))}
                         placeholder="MM/AA"
-                        placeholderTextColor={COLORS.muted}
+                        placeholderTextColor={tema.color(COLORS.muted)}
                         keyboardType="number-pad"
                         maxLength={5}
                     />
                 </View>
-                <View style={styles.columna}>
-                    <Text style={styles.inputLabel}>CVV</Text>
+                <View style={tema.estilo(styles.columna)}>
+                    <Text style={tema.estilo(styles.inputLabel)}>CVV</Text>
                     <TextInput
-                        style={styles.input}
+                        style={tema.estilo(styles.input)}
                         value={cvv}
                         onChangeText={(t) => setCvv(t.replace(/\D/g, '').slice(0, 4))}
                         placeholder="123"
-                        placeholderTextColor={COLORS.muted}
+                        placeholderTextColor={tema.color(COLORS.muted)}
                         keyboardType="number-pad"
                         maxLength={4}
                         secureTextEntry
@@ -317,17 +319,17 @@ export default function PagoScreen({ navigation, route }: any) {
                 </View>
             </View>
 
-            <Text style={styles.inputLabel}>Cuotas</Text>
-            <View style={styles.cuotasRow}>
+            <Text style={tema.estilo(styles.inputLabel)}>Cuotas</Text>
+            <View style={tema.estilo(styles.cuotasRow)}>
                 {CUOTAS_OPCIONES.map((c) => {
                     const activa = cuotas === c;
                     return (
                         <TouchableOpacity
                             key={c}
-                            style={[styles.cuotaChip, activa && styles.cuotaChipActiva]}
+                            style={tema.estilo([styles.cuotaChip, activa && styles.cuotaChipActiva])}
                             onPress={() => setCuotas(c)}
                         >
-                            <Text style={[styles.cuotaChipTexto, activa && styles.cuotaChipTextoActiva]}>
+                            <Text style={tema.estilo([styles.cuotaChipTexto, activa && styles.cuotaChipTextoActiva])}>
                                 {c === 1 ? '1 pago' : `${c} cuotas`}
                             </Text>
                         </TouchableOpacity>
@@ -336,16 +338,16 @@ export default function PagoScreen({ navigation, route }: any) {
             </View>
 
             <TouchableOpacity
-                style={[styles.botonPrimario, { marginTop: 20 }, procesando && styles.botonDeshabilitado]}
+                style={tema.estilo([styles.botonPrimario, { marginTop: 20 }, procesando && styles.botonDeshabilitado])}
                 onPress={() => void pagarTarjeta()}
                 disabled={procesando}
             >
-                <Text style={styles.botonPrimarioTexto}>
+                <Text style={tema.estilo(styles.botonPrimarioTexto)}>
                     {procesando ? 'Procesando…' : `Pagar ${formatearARS(monto)}`}
                 </Text>
             </TouchableOpacity>
 
-            <Text style={styles.aclaracionSimulado}>
+            <Text style={tema.estilo(styles.aclaracionSimulado)}>
                 Procesamiento simulado para la demo. No se guarda el número de tarjeta,
                 solo la marca y los últimos 4 dígitos.
             </Text>
@@ -353,43 +355,43 @@ export default function PagoScreen({ navigation, route }: any) {
     );
 
     const renderExito = () => (
-        <View style={styles.panel}>
-            <View style={styles.exitoIcono}>
-                <Text style={styles.exitoIconoTexto}>✓</Text>
+        <View style={tema.estilo(styles.panel)}>
+            <View style={tema.estilo(styles.exitoIcono)}>
+                <Text style={tema.estilo(styles.exitoIconoTexto)}>✓</Text>
             </View>
-            <Text style={styles.exitoTitulo}>Pago aprobado</Text>
-            <Text style={styles.exitoSub}>Ya podés seguir tu envío en tiempo real.</Text>
+            <Text style={tema.estilo(styles.exitoTitulo)}>Pago aprobado</Text>
+            <Text style={tema.estilo(styles.exitoSub)}>Ya podés seguir tu envío en tiempo real.</Text>
 
-            <View style={styles.comprobanteBox}>
-                <View style={styles.comprobanteLinea}>
-                    <Text style={styles.comprobanteLabel}>Comprobante</Text>
-                    <Text style={styles.comprobanteValor}>{pago?.comprobante ?? '—'}</Text>
+            <View style={tema.estilo(styles.comprobanteBox)}>
+                <View style={tema.estilo(styles.comprobanteLinea)}>
+                    <Text style={tema.estilo(styles.comprobanteLabel)}>Comprobante</Text>
+                    <Text style={tema.estilo(styles.comprobanteValor)}>{pago?.comprobante ?? '—'}</Text>
                 </View>
-                <View style={styles.comprobanteLinea}>
-                    <Text style={styles.comprobanteLabel}>Método</Text>
-                    <Text style={styles.comprobanteValor}>{pago ? NOMBRE_METODO[pago.metodo] : '—'}</Text>
+                <View style={tema.estilo(styles.comprobanteLinea)}>
+                    <Text style={tema.estilo(styles.comprobanteLabel)}>Método</Text>
+                    <Text style={tema.estilo(styles.comprobanteValor)}>{pago ? NOMBRE_METODO[pago.metodo] : '—'}</Text>
                 </View>
                 {pago?.tarjetaUltimos ? (
-                    <View style={styles.comprobanteLinea}>
-                        <Text style={styles.comprobanteLabel}>Tarjeta</Text>
-                        <Text style={styles.comprobanteValor}>
+                    <View style={tema.estilo(styles.comprobanteLinea)}>
+                        <Text style={tema.estilo(styles.comprobanteLabel)}>Tarjeta</Text>
+                        <Text style={tema.estilo(styles.comprobanteValor)}>
                             {(pago.tarjetaMarca ?? '').toUpperCase()} ···· {pago.tarjetaUltimos}
                             {pago.cuotas && pago.cuotas > 1 ? ` · ${pago.cuotas} cuotas` : ''}
                         </Text>
                     </View>
                 ) : null}
-                <View style={styles.comprobanteLinea}>
-                    <Text style={styles.comprobanteLabel}>Importe</Text>
-                    <Text style={styles.comprobanteValor}>{formatearARS(monto)}</Text>
+                <View style={tema.estilo(styles.comprobanteLinea)}>
+                    <Text style={tema.estilo(styles.comprobanteLabel)}>Importe</Text>
+                    <Text style={tema.estilo(styles.comprobanteValor)}>{formatearARS(monto)}</Text>
                 </View>
-                <View style={styles.comprobanteLinea}>
-                    <Text style={styles.comprobanteLabel}>Envío</Text>
-                    <Text style={styles.comprobanteValor}>{envioCodigo}</Text>
+                <View style={tema.estilo(styles.comprobanteLinea)}>
+                    <Text style={tema.estilo(styles.comprobanteLabel)}>Envío</Text>
+                    <Text style={tema.estilo(styles.comprobanteValor)}>{envioCodigo}</Text>
                 </View>
             </View>
 
-            <TouchableOpacity style={styles.botonPrimario} onPress={irASeguimiento}>
-                <Text style={styles.botonPrimarioTexto}>Ver seguimiento del envío</Text>
+            <TouchableOpacity style={tema.estilo(styles.botonPrimario)} onPress={irASeguimiento}>
+                <Text style={tema.estilo(styles.botonPrimarioTexto)}>Ver seguimiento del envío</Text>
             </TouchableOpacity>
         </View>
     );
@@ -400,9 +402,9 @@ export default function PagoScreen({ navigation, route }: any) {
         if (metodo && checkout) return renderCheckoutQr();
         if (metodo && procesando) {
             return (
-                <View style={[styles.panel, { alignItems: 'center' }]}>
-                    <ActivityIndicator color={COLORS.accent} size="large" />
-                    <Text style={[styles.esperandoTexto, { marginTop: 14 }]}>Iniciando el pago…</Text>
+                <View style={tema.estilo([styles.panel, { alignItems: 'center' }])}>
+                    <ActivityIndicator color={tema.color(COLORS.accent)} size="large" />
+                    <Text style={tema.estilo([styles.esperandoTexto, { marginTop: 14 }])}>Iniciando el pago…</Text>
                 </View>
             );
         }
@@ -410,14 +412,14 @@ export default function PagoScreen({ navigation, route }: any) {
     };
 
     return (
-        <SafeAreaView style={styles.safeArea}>
+        <SafeAreaView style={tema.estilo(styles.safeArea)}>
             <KeyboardAvoidingView
-                style={{ flex: 1 }}
+                style={tema.estilo({ flex: 1 })}
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
             >
                 <ScrollView
-                    style={styles.scroll}
+                    style={tema.estilo(styles.scroll)}
                     contentContainerStyle={styles.scrollContent}
                     keyboardShouldPersistTaps="handled"
                     showsVerticalScrollIndicator={false}

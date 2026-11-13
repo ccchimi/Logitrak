@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useTema } from "./src/hooks/useTema";
+import React, { useEffect, useRef, useState } from "react";
 
 import {
   Animated,
@@ -7,18 +8,18 @@ import {
   Text,
   useWindowDimensions,
   View,
-} from 'react-native';
+} from "react-native";
 
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
 
-import { useFonts } from 'expo-font';
+import { useFonts } from "expo-font";
 
 import {
   Syne_400Regular,
   Syne_700Bold,
   Syne_800ExtraBold,
-} from '@expo-google-fonts/syne';
+} from "@expo-google-fonts/syne";
 
 import {
   DMSans_300Light,
@@ -26,15 +27,20 @@ import {
   DMSans_500Medium,
   DMSans_600SemiBold,
   DMSans_700Bold,
-} from '@expo-google-fonts/dm-sans';
+} from "@expo-google-fonts/dm-sans";
 
-import AppNavigator from './src/navigation/AppNavigator';
-import Inicio from './src/screens/Inicio';
-import { RootFlowProvider } from './src/navigation/RootFlowContext';
-import { restaurarSesion } from './src/services/authService';
+import MejorasWeb from "./src/components/MejorasWeb";
+import { useMovimientoReducido } from "./src/hooks/useMovimientoReducido";
+import AppNavigator from "./src/navigation/AppNavigator";
+import Inicio from "./src/screens/Inicio";
+import { RootFlowProvider } from "./src/navigation/RootFlowContext";
+import { restaurarSesion } from "./src/services/authService";
+
 
 export default function App() {
+  const tema = useTema();
   const { height } = useWindowDimensions();
+  const reducido = useMovimientoReducido();
 
   const [fontsLoaded, fontError] = useFonts({
     Syne_400Regular,
@@ -45,10 +51,14 @@ export default function App() {
     DMSans_500Medium,
     DMSans_600SemiBold,
     DMSans_700Bold,
+    Poppins_400Regular: require("./assets/fonts/Poppins-Regular.ttf"),
+    Poppins_500Medium: require("./assets/fonts/Poppins-Medium.ttf"),
+    Poppins_600SemiBold: require("./assets/fonts/Poppins-SemiBold.ttf"),
+    Poppins_700Bold: require("./assets/fonts/Poppins-Bold.ttf"),
+    MaterialIcons: require("./assets/fonts/MaterialIcons.ttf"),
   });
 
   const [mostrarApp, setMostrarApp] = useState(false);
-
   // null = todavía no sabemos; 'Login' = sin sesión; otra ruta = sesión viva.
   const [rutaInicial, setRutaInicial] = useState<string | null>(null);
   const [sesionVerificada, setSesionVerificada] = useState(false);
@@ -62,7 +72,7 @@ export default function App() {
       .then((usuario) => {
         if (!activo) return;
         if (usuario) {
-          setRutaInicial(usuario.rol === 'chofer' ? 'Chofer' : 'Home');
+          setRutaInicial(usuario.rol === "chofer" ? "Chofer" : "Home");
           setMostrarApp(true);
         }
       })
@@ -82,7 +92,7 @@ export default function App() {
 
     Animated.timing(transitionY, {
       toValue: 0,
-      duration: 550,
+      duration: reducido ? 0 : 260,
       easing: Easing.bezier(0.77, 0, 0.175, 1),
       useNativeDriver: true,
     }).start(() => {
@@ -92,7 +102,7 @@ export default function App() {
       requestAnimationFrame(() => {
         Animated.timing(transitionY, {
           toValue: -height,
-          duration: 550,
+          duration: reducido ? 0 : 260,
           easing: Easing.bezier(0.77, 0, 0.175, 1),
           useNativeDriver: true,
         }).start(() => {
@@ -107,7 +117,7 @@ export default function App() {
 
     Animated.timing(transitionY, {
       toValue: 0,
-      duration: 550,
+      duration: reducido ? 0 : 260,
       easing: Easing.bezier(0.77, 0, 0.175, 1),
       useNativeDriver: true,
     }).start(() => {
@@ -116,7 +126,7 @@ export default function App() {
       requestAnimationFrame(() => {
         Animated.timing(transitionY, {
           toValue: -height,
-          duration: 550,
+          duration: reducido ? 0 : 260,
           easing: Easing.bezier(0.77, 0, 0.175, 1),
           useNativeDriver: true,
         }).start(() => {
@@ -128,16 +138,17 @@ export default function App() {
 
   if ((!fontsLoaded && !fontError) || !sesionVerificada) {
     return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Cargando...</Text>
+      <View style={tema.estilo(styles.loadingContainer)}>
+        <Text style={tema.estilo(styles.loadingText)}>Cargando...</Text>
       </View>
     );
   }
 
   return (
     <SafeAreaProvider>
-      <View style={styles.root}>
-        <StatusBar style="light" />
+      <View testID="logitrak-root" style={tema.estilo(styles.root)}>
+        <StatusBar style={tema.claro ? "dark" : "light"} />
+        <MejorasWeb />
 
         {!mostrarApp ? (
           <Inicio onGoLogin={irAlLoginReal} />
@@ -149,15 +160,15 @@ export default function App() {
 
         <Animated.View
           pointerEvents="none"
-          style={[
+          style={tema.estilo([
             styles.pageTransition,
             {
               transform: [{ translateY: transitionY }],
             },
-          ]}
+          ])}
         >
-          <Text style={styles.transitionLogo}>
-            logitrak<Text style={styles.logoDot}>.</Text>
+          <Text style={tema.estilo(styles.transitionLogo)}>
+            logitrak<Text style={tema.estilo(styles.logoDot)}>.</Text>
           </Text>
         </Animated.View>
       </View>
@@ -168,41 +179,42 @@ export default function App() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
+    overflow: "hidden",
   },
 
   pageTransition: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: '#0e0e0e',
+    backgroundColor: "#0e0e0e",
     zIndex: 9999,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
 
   transitionLogo: {
-    color: '#FFD700',
+    color: "#FFD700",
     fontSize: 32,
-    fontWeight: '800',
-    fontFamily: 'DMSans_700Bold',
+    fontWeight: "800",
+    fontFamily: "DMSans_700Bold",
   },
 
   logoDot: {
-    color: '#FFD700',
+    color: "#FFD700",
   },
 
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#0e0e0e',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#0e0e0e",
+    justifyContent: "center",
+    alignItems: "center",
   },
 
   loadingText: {
-    color: '#FFD700',
+    color: "#FFD700",
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: "700",
   },
 });

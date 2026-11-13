@@ -1,586 +1,354 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTema } from "../hooks/useTema";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Platform,
-  View,
-  Text,
+  ActivityIndicator,
+  Pressable,
   ScrollView,
   StyleSheet,
-  TouchableOpacity,
+  Text,
   useWindowDimensions,
-} from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+  View,
+} from "react-native";
+import { obtenerPanelEnvios, Viaje } from "../services/viajesService";
+import { obtenerUsuarioSesion } from "../services/authService";
+import {
+  BannerBoxy,
+  BuscadorCanva,
+  NoticiasCanva,
+} from "../components/PanelCanva";
+import CargaLista from "../components/CargaLista";
+import Icono from "../components/Icono";
+import { DISENO as D } from "../theme/diseno";
+import { formatearARS } from "../helpers/formato";
 
-import { styles, COLORS, ESTADO_COLORS } from '../styles/HomeStyles';
-import { obtenerPanelEnvios, Viaje } from '../services/viajesService';
-import { cerrarSesion, obtenerUsuarioSesion } from '../services/authService';
-import TarjetaViaje from '../components/TarjetaViaje';
-import MapaSeguimiento from '../components/MapaSeguimiento';
-
-type Filtro = 'Todos' | 'En Viaje' | 'Pendiente' | 'Entregado';
-
-const FILTROS: Filtro[] = ['Todos', 'En Viaje', 'Pendiente', 'Entregado'];
-
-const NAV = [
-  { label: 'Panel', ruta: 'Home' },
-  { label: 'Solicitar envío', ruta: 'SolicitudEnvio' },
-  { label: 'Historial', ruta: 'Historial' },
-  { label: 'Perfil', ruta: 'Perfil' },
-  { label: 'Soporte', ruta: 'Soporte' },
-];
-
-const DIAS =['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-const MESES = [
-  'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
-  'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
-];
-
-function obtenerSaludo(): string {
-  const h = new Date().getHours();
-  if (h < 12) return 'Buenos días';
-  if (h < 19) return 'Buenas tardes';
-  return 'Buenas noches';
-}
-
-function obtenerFechaHoy(): string {
-  const d = new Date();
-  return `${DIAS[d.getDay()]} ${d.getDate()} de ${MESES[d.getMonth()]} de ${d.getFullYear()}`;
-}
-
-export default function HomeScreen({ navigation, route }: any) {
-  const insets = useSafeAreaInsets();
+export default function HomeScreen({ navigation }: any) {
+  const tema = useTema();
+  const usuario = obtenerUsuarioSesion();
   const { width } = useWindowDimensions();
-
-  const sesion = obtenerUsuarioSesion();
-  const nombre: string = sesion?.nombreCompleto ?? route?.params?.nombre ?? 'Usuario';
-  const usuario: string = sesion?.usuario ?? route?.params?.usuario ?? '';
-  const rol: 'admin' | 'cliente' =
-    (sesion?.rol ?? route?.params?.rol ?? 'cliente') === 'admin' ? 'admin' : 'cliente';
-  const esCliente = rol === 'cliente';
-  const etiquetaRol = esCliente ? 'Cliente' : 'Administrador';
-  const primerNombre = nombre.split(' ')[0];
-
-  const salir = () => {
-    cerrarSesion();
-    navigation.navigate('Login');
-  };
-
-  const esEscritorio = width >= 1000;
-  const railAlLado = width >= 1120;
-
+  const desktop = width >= 900;
   const [viajes, setViajes] = useState<Viaje[]>([]);
-  const [buscandoChofer, setBuscandoChofer] = useState(0);
-  const [proximoVencimiento, setProximoVencimiento] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
-  const [filtro, setFiltro] = useState<Filtro>('Todos');
-
-  const [gridW, setGridW] = useState(0);
-
-  const cargarViajes = useCallback(() => {
-    return obtenerPanelEnvios({ verPendientes: !esCliente }).then((datos) => {
-      setViajes(datos.viajes);
-      setBuscandoChofer(datos.buscandoChofer);
-      setProximoVencimiento(datos.proximoVencimiento);
+  const [busqueda, setBusqueda] = useState("");
+  const [filtro, setFiltro] = useState("Todos");
+  const [desc, setDesc] = useState(true);
+  const [esperando, setEsperando] = useState(0);
+  const [error, setError] = useState("");
+  const cargar = useCallback(async () => {
+    try {
+      const d = await obtenerPanelEnvios({
+        verPendientes: usuario?.rol === "admin",
+      });
+      setViajes(d.viajes);
+      setEsperando(d.buscandoChofer);
+      setError("");
+    } catch {
+      setError("No pudimos cargar los envíos. Volvé a intentar.");
+    } finally {
       setCargando(false);
-    });
-  }, [esCliente]);
-
+    }
+  }, [usuario?.rol]);
   useEffect(() => {
-    void cargarViajes();
-    return navigation.addListener('focus', () => void cargarViajes());
-  }, [navigation, cargarViajes]);
-
-  // Mientras haya envíos esperando chofer el estado cambia solo (lo toma
-  // alguien o vence la oferta), así que refrescamos seguido. Sin nada en
-  // espera no hacemos polling.
+    void cargar();
+    return navigation.addListener("focus", cargar);
+  }, [navigation, cargar]);
   useEffect(() => {
-    if (buscandoChofer === 0) return;
-    const intervalo = setInterval(() => void cargarViajes(), 15000);
-    return () => clearInterval(intervalo);
-  }, [buscandoChofer, cargarViajes]);
-
-  const metricas = useMemo(() => {
-    const total = viajes.length;
-    const enViaje = viajes.filter((v) => v.estado === 'En Viaje').length;
-    const pendientes = viajes.filter((v) => v.estado === 'Pendiente').length;
-    const entregados = viajes.filter((v) => v.estado === 'Entregado').length;
-    const cumplimiento = total > 0 ? Math.round((entregados / total) * 100) : 0;
-    return { total, enViaje, pendientes, entregados, cumplimiento };
-  }, [viajes]);
-
-  const viajesFiltrados = useMemo(() => {
-    if (filtro === 'Todos') return viajes;
-    return viajes.filter((v) => v.estado === filtro);
-  }, [viajes, filtro]);
-
-  const conteoPorFiltro = (f: Filtro) =>
-    f === 'Todos' ? viajes.length : viajes.filter((v) => v.estado === f).length;
-
-  const viajeVivo = useMemo(
-    () => viajes.find((v) => v.estado === 'En Viaje') ?? null,
-    [viajes]
-  );
-
-  const [ahora, setAhora] = useState(() => Date.now());
-
-  useEffect(() => {
-    if (!proximoVencimiento) return;
-    const t = setInterval(() => setAhora(Date.now()), 1000);
-    return () => clearInterval(t);
-  }, [proximoVencimiento]);
-
-  const restanteBusqueda = useMemo(() => {
-    if (!proximoVencimiento) return null;
-    const ms = new Date(proximoVencimiento).getTime() - ahora;
-    if (!Number.isFinite(ms) || ms <= 0) return null;
-    const total = Math.floor(ms / 1000);
-    return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
-  }, [proximoVencimiento, ahora]);
-
-  const partirRuta = (texto: string) => {
-    const partes = texto.split('→').map((s) => s.trim());
-    if (partes.length < 2 || !partes[0] || !partes[1]) return null;
-    return { origen: partes[0], destino: partes[1] };
-  };
-
-  const rutaVivo = useMemo(
-    () => (viajeVivo ? partirRuta(viajeVivo.destino) : null),
-    [viajeVivo]
-  );
-
-  const abrirSeguimiento = (viaje: Viaje) => {
-    const ruta = partirRuta(viaje.destino);
-    navigation.navigate('Seguimiento', {
-      envioCodigo: viaje.codigo,
-      referencia: viaje.codigo,
-      origen: ruta?.origen,
-      destino: ruta?.destino,
-      vehiculo: viaje.vehiculo ?? undefined,
-    });
-  };
-
-  const esWeb = Platform.OS === 'web';
-
-  // Entran tantas columnas como quepan sin bajar de ANCHO_MIN_TARJETA. Con
-  // breakpoints fijos las tarjetas quedaban de ~258px y el contenido no entraba.
-  const GAP = 16;
-  const ANCHO_MIN_TARJETA = 300;
-  const columnas =
-    gridW > 0
-      ? Math.max(1, Math.min(4, Math.floor((gridW + GAP) / (ANCHO_MIN_TARJETA + GAP))))
-      : 1;
-  const anchoTarjeta =
-    gridW > 0 ? Math.floor((gridW - GAP * (columnas - 1)) / columnas) : undefined;
-
-  const irA = (ruta: string) => {
-    if (ruta !== 'Home') navigation.navigate(ruta);
-  };
-
-  const stats: { label: string; valor: number; sub: string; dot?: string }[] = [
-    { label: 'Total envíos', valor: metricas.total, sub: 'En el sistema' },
-    { label: 'En viaje', valor: metricas.enViaje, sub: 'En tránsito ahora', dot: ESTADO_COLORS.blue },
-    { label: 'Pendientes', valor: metricas.pendientes, sub: 'Por despachar', dot: ESTADO_COLORS.amber },
-    { label: 'Entregados', valor: metricas.entregados, sub: 'Completados', dot: ESTADO_COLORS.green },
-  ];
-
-  const distribucion = [
-    { name: 'En viaje', valor: metricas.enViaje, color: ESTADO_COLORS.blue },
-    { name: 'Pendiente', valor: metricas.pendientes, color: ESTADO_COLORS.amber },
-    { name: 'Entregado', valor: metricas.entregados, color: ESTADO_COLORS.green },
-  ];
-
-  const Sidebar = (
-    <View style={[styles.sidebar, { paddingTop: insets.top + 26 }]}>
-      <View style={styles.sbBrandRow}>
-        <Text style={styles.sbLogo}>
-          logitrak<Text style={styles.sbDot}>.</Text>
-        </Text>
-      </View>
-      <Text style={styles.sbTag}>Panel de gestión</Text>
-
-      <Text style={styles.sbNavLabel}>Menú</Text>
-      {NAV.map((item) => {
-        const activo = item.ruta === 'Home';
-        return (
-          <TouchableOpacity
-            key={item.ruta}
-            style={[styles.navItem, activo && styles.navItemActive]}
-            onPress={() => irA(item.ruta)}
-          >
-            <Text style={[styles.navLabel, activo && styles.navLabelActive]}>
-              {item.label}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
-
-      <View style={styles.sbSpacer} />
-
-      <View style={styles.sbUserCard}>
-        <View style={styles.sbAvatar}>
-          <Text style={styles.sbAvatarText}>{primerNombre.charAt(0).toUpperCase()}</Text>
-        </View>
-        <View>
-          <Text style={styles.sbUserName}>{primerNombre}</Text>
-          <Text style={styles.sbUserMail}>@{usuario} · {etiquetaRol}</Text>
-        </View>
-      </View>
-
-      <TouchableOpacity style={styles.sbSalir} onPress={salir}>
-        <Text style={styles.sbSalirText}>Cerrar sesión</Text>
-      </TouchableOpacity>
-    </View>
-  );
-
-  const Encabezado = (
-    <View style={styles.block}>
-      {!esEscritorio && (
-        <>
-          <View style={[styles.mTop, { marginTop: insets.top + 8 }]}>
-            <View style={styles.mBrandRow}>
-              <Text style={styles.mLogo}>
-                logitrak<Text style={styles.mDot}>.</Text>
-              </Text>
-              <View style={styles.mRolePill}>
-                <Text style={styles.mRolePillText}>{esCliente ? 'CLIENTE' : 'ADMIN'}</Text>
-              </View>
-            </View>
-
-            <TouchableOpacity style={styles.mSalir} onPress={salir}>
-              <Text style={styles.mSalirText}>Salir</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.mNavRow}>
-            {NAV.filter((n) => n.ruta !== 'Home').map((item) => (
-              <TouchableOpacity key={item.ruta} style={styles.mChip} onPress={() => irA(item.ruta)}>
-                <Text style={styles.mChipText}>{item.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </>
-      )}
-
-      <View style={[styles.heroLite, esEscritorio && { marginTop: insets.top + 12 }]}>
-        <View style={styles.heroLiteLeft}>
-          <Text style={styles.eyebrow}>Panel de operaciones</Text>
-          <Text style={styles.greeting}>
-            {obtenerSaludo()}, {primerNombre}
-          </Text>
-          <Text style={styles.subline}>
-            {obtenerFechaHoy()}
-            {'   '}
-            <Text style={styles.sublineDot}>·</Text>
-            {'   '}
-            {cargando ? '—' : metricas.total}{' '}
-            {metricas.total === 1 ? 'envío activo' : 'envíos activos'}
-          </Text>
-        </View>
-
-        <View style={styles.heroLiteActions}>
-          <View style={styles.statusPill}>
-            <View style={styles.statusDot} />
-            <Text style={styles.statusText}>Operativa en línea</Text>
-          </View>
-
-          {esCliente && (
-            <TouchableOpacity
-              style={styles.ctaGhost}
-              onPress={() => navigation.navigate('TrabajaConNosotros')}
-            >
-              <Text style={styles.ctaGhostText}>Trabajá con nosotros</Text>
-            </TouchableOpacity>
-          )}
-
-          <TouchableOpacity
-            activeOpacity={0.85}
-            style={styles.ctaPrimary}
-            onPress={() => navigation.navigate('SolicitudEnvio')}
-          >
-            <LinearGradient
-              colors={[COLORS.accent, COLORS.accentDark]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.ctaPrimaryInner}
-            >
-              <Text style={styles.ctaPrimaryText}>＋  Nuevo envío con Boxy</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <View style={styles.ribbon}>
-        {stats.map((s, i) => (
-          <View key={s.label} style={[styles.stat, i > 0 && styles.statDivider]}>
-            <View style={styles.statKRow}>
-              {s.dot ? <View style={[styles.statDot, { backgroundColor: s.dot }]} /> : null}
-              <Text style={styles.statK}>{s.label}</Text>
-            </View>
-            <Text style={styles.statV}>{cargando ? '—' : s.valor}</Text>
-            <Text style={styles.statS}>{s.sub}</Text>
-          </View>
-        ))}
-
-        <View style={[styles.stat, styles.statDivider]}>
-          <Text style={styles.statK}>Cumplimiento</Text>
-          <Text style={[styles.statV, styles.statVAccent]}>
-            {cargando ? '—' : `${metricas.cumplimiento}%`}
-          </Text>
-          <View style={styles.statBar}>
-            <View style={[styles.statBarFill, { width: `${metricas.cumplimiento}%` }]} />
-          </View>
-        </View>
-      </View>
-    </View>
-  );
-
-  const SeccionEnvios = (
-    <>
-      <View style={styles.filtersRow}>
-        {FILTROS.map((f) => {
-          const activo = filtro === f;
-          return (
-            <TouchableOpacity
-              key={f}
-              onPress={() => setFiltro(f)}
-              style={[styles.chip, activo && styles.chipActive]}
-            >
-              <Text style={[styles.chipText, activo && styles.chipTextActive]}>
-                {f}{'  '}
-                <Text style={[styles.chipCount, activo && styles.chipCountActive]}>
-                  {conteoPorFiltro(f)}
-                </Text>
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      {buscandoChofer > 0 && (
-        <View style={estilosEspera.aviso}>
-          <View style={estilosEspera.punto} />
-          <View style={estilosEspera.textos}>
-            <Text style={estilosEspera.titulo}>
-              {buscandoChofer === 1
-                ? 'Buscando chofer para tu envío'
-                : `Buscando chofer para ${buscandoChofer} envíos`}
-            </Text>
-            <Text style={estilosEspera.detalle}>
-              Aparecen en el panel apenas un chofer los tome.
-              {restanteBusqueda ? ` Si nadie los toma en ${restanteBusqueda}, se cancelan y te devolvemos el importe.` : ''}
-            </Text>
-          </View>
-        </View>
-      )}
-
-      <View style={styles.sectionRow}>
-        <View>
-          <Text style={styles.sectionTitle}>Envíos recientes</Text>
-          <Text style={styles.sectionSub}>
-            {viajesFiltrados.length}{' '}
-            {viajesFiltrados.length === 1 ? 'envío' : 'envíos'}
-            {filtro !== 'Todos' ? ` · ${filtro}` : ''}
-          </Text>
-        </View>
-
-        <TouchableOpacity onPress={() => navigation.navigate('Historial')}>
-          <Text style={styles.linkText}>Ver historial →</Text>
-        </TouchableOpacity>
-      </View>
-
+    if (!esperando) return;
+    const id = setInterval(cargar, 15000);
+    return () => clearInterval(id);
+  }, [esperando, cargar]);
+  const visibles = useMemo(() => {
+    const q = busqueda.toLocaleLowerCase();
+    let a = viajes.filter(
+      (v) =>
+        (filtro === "Todos" || v.estado === filtro) &&
+        `${v.codigo} ${v.destino} ${v.chofer}`.toLocaleLowerCase().includes(q),
+    );
+    return desc ? a : [...a].reverse();
+  }, [viajes, filtro, busqueda, desc]);
+  const filtros = ["Todos", "En Viaje", "Pendiente", "Entregado"];
+  const lista = (
+    <View style={tema.estilo({ flex: 1, minWidth: 0 })}>
+      <BuscadorCanva
+        value={busqueda}
+        onChange={setBusqueda}
+        filtroLabel="Mostrar todos los envíos"
+        onFilter={() => setFiltro("Todos")}
+      />
       <View
-        style={styles.cardsGrid}
-        onLayout={(e) => setGridW(e.nativeEvent.layout.width)}
+        accessibilityRole="tablist"
+        accessibilityLabel="Filtrar envíos por estado"
+        style={tema.estilo(s.filters)}
       >
-        {viajesFiltrados.length === 0 && !cargando ? (
-          <View style={styles.emptyWrap}>
-            <Text style={styles.emptyIcon}>—</Text>
-            <Text style={styles.emptyTitle}>Sin envíos en esta vista</Text>
-            <Text style={styles.emptyText}>
-              No hay envíos con el estado “{filtro}”. Probá con otro filtro o
-              creá un envío nuevo.
+        {filtros.map((f) => (
+          <Pressable
+            key={f}
+            accessibilityRole="tab"
+            aria-selected={filtro === f}
+            accessibilityState={{ selected: filtro === f }}
+            onPress={() => setFiltro(f)}
+            style={tema.estilo([s.chip, filtro === f && s.selectedChip])}
+          >
+            <Text style={tema.estilo([s.chipText, filtro === f && { color: D.amarillo }])}>
+              {f}
             </Text>
-          </View>
-        ) : (
-          viajesFiltrados.map((item) => (
-            <View key={item.id} style={[styles.cell, { width: anchoTarjeta ?? '100%' }]}>
-              <TarjetaViaje
-                viaje={item}
-                onPress={() => navigation.navigate('DetalleEnvio', { codigo: item.codigo })}
-                onVerMapa={() => abrirSeguimiento(item)}
-              />
-            </View>
-          ))
-        )}
+          </Pressable>
+        ))}
       </View>
-    </>
-  );
-
-  const renderRail = (stack: boolean) => (
-    <View style={stack ? styles.railStack : styles.rail}>
-      {viajeVivo && (
-        <TouchableOpacity
-          activeOpacity={0.85}
-          style={styles.railPanel}
-          onPress={() =>
-            navigation.navigate('Seguimiento', { referencia: viajeVivo.codigo })
-          }
-        >
-          <View style={styles.liveBand}>
-            {esWeb && rutaVivo ? (
-              <View style={StyleSheet.absoluteFill} pointerEvents="none">
-                <MapaSeguimiento
-                  compacto
-                  chofer={viajeVivo.chofer}
-                  origen={{ latitude: 0, longitude: 0, direccion: rutaVivo.origen }}
-                  destino={{ latitude: 0, longitude: 0, direccion: rutaVivo.destino }}
-                />
-              </View>
-            ) : (
-              <LinearGradient
-                colors={['#16181C', '#101215']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={[StyleSheet.absoluteFill, { justifyContent: 'center' }]}
-              >
-                <View style={styles.liveRoute}>
-                  <View style={styles.liveDotO} />
-                  <View style={styles.liveLine} />
-                  <View style={styles.liveDotMid} />
-                  <View style={styles.liveLineDim} />
-                  <View style={styles.liveDotD} />
-                </View>
-              </LinearGradient>
-            )}
-
-            <View style={styles.liveTag}>
-              <View style={styles.liveTagDot} />
-              <Text style={styles.liveTagText}>En vivo</Text>
-            </View>
-          </View>
-          <View style={styles.liveBody}>
-            <Text style={styles.liveTitle}>{viajeVivo.codigo}</Text>
-            <Text style={styles.liveSub} numberOfLines={1}>
-              {viajeVivo.chofer}
-              {viajeVivo.vehiculo ? ` · ${viajeVivo.vehiculo}` : ''}
-            </Text>
-            <View style={styles.liveEtaRow}>
-              <Text style={styles.liveEtaLabel}>Arribo estimado</Text>
-              <Text style={styles.liveEtaValue}>19:57</Text>
-            </View>
-          </View>
-        </TouchableOpacity>
-      )}
-
-      <View style={[styles.railPanel, styles.railDist]}>
-        <Text style={styles.railDistTitle}>Distribución por estado</Text>
-        {distribucion.map((d) => {
-          const prop = metricas.total > 0 ? d.valor / metricas.total : 0;
-          return (
-            <View key={d.name} style={styles.distRow}>
-              <View style={styles.distLabelRow}>
-                <View style={styles.distLabel}>
-                  <View style={[styles.distDot, { backgroundColor: d.color }]} />
-                  <Text style={styles.distName}>{d.name}</Text>
-                </View>
-                <Text style={styles.distCount}>{d.valor}</Text>
-              </View>
-              <View style={styles.distBarTrack}>
-                <View
-                  style={[
-                    styles.distBarFill,
-                    { backgroundColor: d.color, width: `${Math.round(prop * 100)}%` },
-                  ]}
-                />
-              </View>
-            </View>
-          );
-        })}
-      </View>
-
-      <View style={styles.railBoxy}>
-        <Text style={styles.railBoxyKicker}>Asistente Boxy</Text>
-        <Text style={styles.railBoxyTitle}>Cotizá con Boxy</Text>
-        <Text style={styles.railBoxyText}>
-          El asistente verifica direcciones y arma la tarifa en tiempo real.
+      <View style={tema.estilo([s.listHeader, width < 1200 && { flexWrap: "wrap" }])}>
+        <Text style={tema.estilo(s.listTitle)}>
+          Envíos{filtro !== "Todos" ? ` · ${filtro}` : ""}
         </Text>
-        <TouchableOpacity
-          style={styles.railBoxyBtn}
-          onPress={() => navigation.navigate('SolicitudEnvio')}
+        <Pressable
+          accessibilityLabel="Cambiar orden de envíos"
+          onPress={() => setDesc(!desc)}
         >
-          <Text style={styles.railBoxyBtnText}>Cotizar ahora</Text>
-        </TouchableOpacity>
+          <Text style={tema.estilo(s.sort)}>
+            Ordenados{" "}
+            <Text style={tema.estilo({ color: "#FFF" })}>
+              {" "}
+              {desc ? "Reciente" : "Antiguo"} ▼
+            </Text>
+          </Text>
+        </Pressable>
       </View>
+      {cargando ? (
+        <CargaLista />
+      ) : error ? (
+        <Pressable onPress={cargar}>
+          <Text style={tema.estilo(s.empty)}>{error}</Text>
+        </Pressable>
+      ) : visibles.length === 0 ? (
+        <View style={tema.estilo(s.emptyCard)}>
+          <Icono nombre="box" color={tema.color(D.amarillo)} size={32} />
+          <Text style={tema.estilo(s.rowTitle)}>
+            {busqueda || filtro !== "Todos"
+              ? "No encontramos envíos"
+              : "Tus envíos empiezan acá"}
+          </Text>
+          <Text style={tema.estilo(s.empty)}>
+            {busqueda || filtro !== "Todos"
+              ? "Probá con otro destino o cambiá los filtros."
+              : "Cotizá tu primer envío con Boxy y seguí cada etapa desde tu panel."}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            style={tema.estilo(s.history)}
+            onPress={() =>
+              busqueda || filtro !== "Todos"
+                ? (setBusqueda(""), setFiltro("Todos"))
+                : navigation.navigate("SolicitudEnvio")
+            }
+          >
+            <Text style={tema.estilo(s.link)}>
+              {busqueda || filtro !== "Todos"
+                ? "Limpiar búsqueda y filtros"
+                : "Cotizar un envío"}
+            </Text>
+          </Pressable>
+        </View>
+      ) : (
+        visibles.map((v) => (
+          <View key={v.id} style={tema.estilo([s.row, width < 1200 && s.compactRow])}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Ver envío ${v.codigo}`}
+              onPress={() =>
+                navigation.navigate("DetalleEnvio", { codigo: v.codigo })
+              }
+              style={tema.estilo([s.rowMain, { minHeight: 44 }])}
+            >
+              <View style={tema.estilo(s.rowIcon)}>
+                <Icono
+                  nombre={v.vehiculo?.includes("Moto") ? "truck" : "box"}
+                  size={23}
+                />
+              </View>
+              <View style={tema.estilo(s.info)}>
+                <Text numberOfLines={width < 1200 ? 2 : 1} style={tema.estilo(s.rowTitle)}>
+                  {v.destino}
+                </Text>
+                <Text style={tema.estilo(s.date)}>{v.codigo}</Text>
+              </View>
+            </Pressable>
+            <View
+              style={tema.estilo([
+                s.rowMeta,
+                width < 1200 && {
+                  width: "100%",
+                  paddingLeft: 49,
+                  justifyContent: "space-between",
+                },
+              ])}
+            >
+              <Text style={tema.estilo(s.amount)}>{formatearARS(v.precio)}</Text>
+              <Pressable
+                accessibilityRole="button"
+                style={tema.estilo({ minHeight: 44, justifyContent: "center" })}
+                accessibilityLabel={`Ver seguimiento ${v.codigo}`}
+                onPress={() =>
+                  navigation.navigate("Seguimiento", {
+                    envioCodigo: v.codigo,
+                    referencia: v.codigo,
+                  })
+                }
+              >
+                <Text
+                  style={tema.estilo([
+                    s.state,
+
+                    {
+                      color:
+                        v.estado === "Entregado"
+                          ? "#74C83E"
+                          : v.estado === "Pendiente"
+                            ? "#E8D342"
+                            : "#F3D415",
+                    },
+                  ])}
+                >
+                  {v.estado}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        ))
+      )}
+      {esperando > 0 && (
+        <Text style={tema.estilo(s.empty)}>
+          Buscando chofer para {esperando} envío(s). Se actualiza
+          automáticamente.
+        </Text>
+      )}
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => navigation.navigate("Historial")}
+        style={tema.estilo(s.history)}
+      >
+        <Text style={tema.estilo(s.link)}>Ver historial completo</Text>
+      </Pressable>
     </View>
   );
-
   return (
-    <View style={[styles.screen, esEscritorio && styles.screenRow]}>
-      {esEscritorio && Sidebar}
-
-      <View style={styles.main}>
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
+    <ScrollView
+      showsVerticalScrollIndicator={false}
+      style={tema.estilo([s.root, desktop && { backgroundColor: "#080808" }])}
+      contentContainerStyle={[
+        s.content,
+        !desktop && s.mobileContent,
+        desktop && width < 1200 && { paddingRight: 24 },
+      ]}
+    >
+      <BannerBoxy
+        nombre={usuario?.nombreCompleto.split(" ")[0] ?? "Usuario"}
+        onPress={() => navigation.navigate("SolicitudEnvio")}
+      />
+      <View
+        style={tema.estilo([s.columns, width < 1200 && { flexDirection: "column-reverse" }])}
+      >
+        <View
+          style={tema.estilo(desktop
+              ? { width: width < 1200 ? "100%" : "44%" }
+              : { display: "none" })}
         >
-          {Encabezado}
-
-          <View style={styles.block}>
-            {railAlLado ? (
-              <View style={styles.contentRow}>
-                <View style={styles.mainCol}>{SeccionEnvios}</View>
-                {renderRail(false)}
-              </View>
-            ) : (
-              <>
-                {SeccionEnvios}
-                {renderRail(true)}
-              </>
-            )}
-          </View>
-        </ScrollView>
+          <NoticiasCanva />
+        </View>
+        {lista}
       </View>
-    </View>
+      {usuario?.rol === "admin" && (
+        <View style={tema.estilo(s.metrics)}>
+          <Text style={tema.estilo(s.rowTitle)}>Resumen de operaciones</Text>
+          <Text style={tema.estilo(s.empty)}>
+            {viajes.length} envíos ·{" "}
+            {viajes.filter((v) => v.estado === "En Viaje").length} en viaje ·{" "}
+            {viajes.filter((v) => v.estado === "Entregado").length} entregados
+          </Text>
+          <Pressable onPress={() => navigation.navigate("Perfil")}>
+            <Text style={tema.estilo(s.link)}>Administrar cuenta</Text>
+          </Pressable>
+        </View>
+      )}
+    </ScrollView>
   );
 }
-const estilosEspera = StyleSheet.create({
-  aviso: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-    backgroundColor: 'rgba(255, 215, 0, 0.07)',
+const s = StyleSheet.create({
+  filters: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 20 },
+  chip: {
+    minHeight: 44,
+    paddingHorizontal: 12,
+    justifyContent: "center",
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: 'rgba(255, 215, 0, 0.28)',
-    borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    marginBottom: 18,
+    borderColor: "#647166",
   },
-
-  punto: {
-    width: 9,
-    height: 9,
-    borderRadius: 999,
-    backgroundColor: '#FFD700',
-    marginTop: 5,
-  },
-
-  textos: {
+  selectedChip: { backgroundColor: "#373F28", borderColor: D.amarillo },
+  chipText: { fontFamily: D.medio, color: "#C3CFC7", fontSize: 12 },
+  rowMain: {
     flex: 1,
     minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 13,
   },
-
-  titulo: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontFamily: 'DMSans_700Bold',
-    marginBottom: 3,
+  rowMeta: { flexDirection: "row", alignItems: "center", gap: 16 },
+  compactRow: {
+    flexDirection: "column",
+    alignItems: "stretch",
+    paddingVertical: 16,
+    gap: 12,
   },
-
-  detalle: {
-    color: 'rgba(255, 255, 255, 0.62)',
-    fontSize: 12.5,
-    lineHeight: 18,
-    fontFamily: 'DMSans_400Regular',
+  emptyCard: {
+    padding: 24,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: D.borde,
+    gap: 12,
+    backgroundColor: "#252E28",
+  },
+  root: { flex: 1, backgroundColor: D.fondo },
+  content: { padding: 20, paddingRight: 46, paddingBottom: 60 },
+  mobileContent: { padding: 20, paddingTop: 0, paddingBottom: 110 },
+  columns: { flexDirection: "row", gap: 26 },
+  listHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 8,
+    marginBottom: 10,
+  },
+  listTitle: { color: "#FFF", fontFamily: D.titulo, fontSize: 14 },
+  sort: { fontFamily: D.cuerpo, color: "#888", fontSize: 13 },
+  row: {
+    minHeight: 66,
+    borderBottomWidth: 1,
+    borderColor: "#343837",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 13,
+  },
+  rowIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 5,
+    backgroundColor: "#424645",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  info: { flex: 1, minWidth: 0 },
+  rowTitle: { color: "#FFF", fontFamily: D.medio, fontSize: 13 },
+  date: { fontFamily: D.cuerpo, color: "#B8C3BC", fontSize: 12, marginTop: 3 },
+  amount: { fontFamily: D.medio, color: "#FFF", fontSize: 12 },
+  state: { fontFamily: D.medio, fontSize: 11 },
+  empty: {
+    fontFamily: D.cuerpo,
+    color: D.secundario,
+    fontSize: 13,
+    paddingVertical: 20,
+  },
+  history: { paddingVertical: 16 },
+  link: { fontFamily: D.cuerpo, fontSize: 12, color: D.amarillo },
+  metrics: {
+    padding: 22,
+    marginTop: 26,
+    backgroundColor: D.superficie,
+    borderRadius: 8,
   },
 });

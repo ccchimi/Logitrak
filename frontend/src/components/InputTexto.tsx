@@ -1,3 +1,4 @@
+import { useTema } from "../hooks/useTema";
 import React from 'react';
 import { View, TextInput, Text, StyleSheet } from 'react-native';
 import { TEMA } from '../theme/colores';
@@ -11,13 +12,14 @@ interface InputProps {
 }
 
 export default function InputTexto({ label, placeholder, secureTextEntry, value, onChangeText }: InputProps) {
+  const tema = useTema();
     return (
-        <View style={styles.container}>
-            <Text style={styles.label}>{label}</Text>
+        <View style={tema.estilo(styles.container)}>
+            <Text style={tema.estilo(styles.label)}>{label}</Text>
             <TextInput
-                style={styles.input}
+                style={tema.estilo(styles.input)}
                 placeholder={placeholder}
-                placeholderTextColor={TEMA.colores.textoSecundario}
+                placeholderTextColor={tema.color(TEMA.colores.textoSecundario)}
                 secureTextEntry={secureTextEntry}
                 value={value}
                 onChangeText={onChangeText}
@@ -33,7 +35,7 @@ const styles = StyleSheet.create({
     input: {
         width: '100%',
         height: 50,
-        backgroundColor: TEMA.colores.blanco,
+        backgroundColor: TEMA.colores.superficie,
         borderRadius: 8,
         paddingHorizontal: 15,
         borderWidth: 1,

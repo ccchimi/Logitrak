@@ -1,3 +1,4 @@
+import { useTema } from "../../hooks/useTema";
 import React from 'react';
 import { Animated, Text, View } from 'react-native';
 import { styles } from '../../styles/SolicitudEnvioStyles';
@@ -22,22 +23,23 @@ type Props = {
 };
 
 export default function MensajeChat({ mensaje, pulso, opacidadPensando, confirmando, onConfirmar }: Props) {
+  const tema = useTema();
     const isBot = mensaje.sender === 'bot';
 
     return (
-        <View style={[styles.messageRow, isBot ? styles.botRow : styles.userRow]}>
+        <View style={tema.estilo([styles.messageRow, isBot ? styles.botRow : styles.userRow])}>
             {isBot && <AvatarBoxy pulso={pulso} />}
 
-            <View style={[styles.messageContent, isBot ? styles.botMessageContent : styles.userMessageContent]}>
-                <Text style={styles.messageAuthor}>{isBot ? BOT_META.nombre : 'Vos'}</Text>
+            <View style={tema.estilo([styles.messageContent, isBot ? styles.botMessageContent : styles.userMessageContent])}>
+                <Text style={tema.estilo(styles.messageAuthor)}>{isBot ? BOT_META.nombre : 'Vos'}</Text>
 
                 {mensaje.kind === 'thinking' ? (
-                    <Animated.Text style={[styles.thinkingText, { opacity: opacidadPensando }]}>
+                    <Animated.Text style={tema.estilo([styles.thinkingText, { opacity: opacidadPensando }])}>
                         Analizando...
                     </Animated.Text>
                 ) : (
                     <>
-                        <Text style={isBot ? styles.botMessageText : styles.userMessageText}>
+                        <Text style={tema.estilo(isBot ? styles.botMessageText : styles.userMessageText)}>
                             {mensaje.text}
                         </Text>
 
@@ -53,8 +55,8 @@ export default function MensajeChat({ mensaje, pulso, opacidadPensando, confirma
             </View>
 
             {!isBot && (
-                <View style={styles.userAvatar}>
-                    <Text style={styles.userAvatarText}>TÚ</Text>
+                <View style={tema.estilo(styles.userAvatar)}>
+                    <Text style={tema.estilo(styles.userAvatarText)}>TÚ</Text>
                 </View>
             )}
         </View>

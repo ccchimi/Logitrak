@@ -1,7 +1,9 @@
+import { useTema } from "../hooks/useTema";
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { analizarDireccion } from '../services/botLogistica';
 import { calcularRumbo, type Coordenada, type PuntoRuta } from '../services/seguimientoService';
+
 
 const WEB_MAPS_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_WEB_KEY?.trim();
 
@@ -101,6 +103,11 @@ async function resolverPunto(geocoder: any, punto: PuntoRuta): Promise<PuntoResu
 }
 
 export default function MapaSeguimiento({ origen, destino, chofer, onEvento, compacto = false }: Props) {
+  const tema = useTema();
+    const mapaRef = useRef<any>(null);
+    const temaActual = useRef(tema.claro);
+    temaActual.current = tema.claro;
+    useEffect(() => { mapaRef.current?.setOptions({ styles: tema.claro ? [] : ESTILO_NOCTURNO }); }, [tema.claro]);
     const contenedorRef = useRef<HTMLDivElement | null>(null);
     const limpiezaRef = useRef<(() => void) | null>(null);
     const eventoRef = useRef(onEvento);
@@ -171,7 +178,7 @@ export default function MapaSeguimiento({ origen, destino, chofer, onEvento, com
                     lng: (puntoOrigen.lng + puntoDestino.lng) / 2,
                 },
                 zoom: 12,
-                styles: ESTILO_NOCTURNO,
+                styles: temaActual.current ? [] : ESTILO_NOCTURNO,
                 disableDefaultUI: true,
                 zoomControl: !compacto,
                 zoomControlOptions: { position: maps.ControlPosition.RIGHT_CENTER },
@@ -181,6 +188,7 @@ export default function MapaSeguimiento({ origen, destino, chofer, onEvento, com
                 backgroundColor: '#0E0E0E',
             });
 
+            mapaRef.current = mapa;
             const crearPin = (color: string) => ({
                 path: PIN_PATH,
                 fillColor: color,
@@ -343,26 +351,26 @@ export default function MapaSeguimiento({ origen, destino, chofer, onEvento, com
     }, [origen.direccion, destino.direccion, origen.latitude, destino.latitude, compacto]);
 
     return (
-        <View style={estilos.contenedor}>
-            <div ref={contenedorRef} style={{ width: '100%', height: '100%' }} />
+        <View style={tema.estilo(estilos.contenedor)}>
+            <div ref={contenedorRef} style={tema.estilo({ width: '100%', height: '100%' })} />
 
             {estado === 'cargando' && (
-                <View style={estilos.overlay}>
-                    <ActivityIndicator color="#FFD700" size={compacto ? 'small' : 'large'} />
-                    {!compacto && <Text style={estilos.overlayTexto}>Cargando mapa satelital…</Text>}
+                <View style={tema.estilo(estilos.overlay)}>
+                    <ActivityIndicator color={tema.color("#FFD700")} size={compacto ? 'small' : 'large'} />
+                    {!compacto && <Text style={tema.estilo(estilos.overlayTexto)}>Cargando mapa satelital…</Text>}
                 </View>
             )}
 
             {estado === 'error' && (
-                <View style={estilos.overlay}>
-                    <Text style={estilos.errorIcono}>—</Text>
-                    <Text style={estilos.errorTitulo}>No pudimos mostrar el mapa</Text>
-                    <Text style={estilos.errorTexto}>{mensajeError}</Text>
+                <View style={tema.estilo(estilos.overlay)}>
+                    <Text style={tema.estilo(estilos.errorIcono)}>—</Text>
+                    <Text style={tema.estilo(estilos.errorTitulo)}>No pudimos mostrar el mapa</Text>
+                    <Text style={tema.estilo(estilos.errorTexto)}>{mensajeError}</Text>
 
-                    <View style={estilos.rutaFallback}>
-                        <Text style={estilos.rutaPunto}>Retiro: {origen.direccion}</Text>
-                        <Text style={estilos.rutaFlecha}>↓</Text>
-                        <Text style={estilos.rutaPunto}>Entrega: {destino.direccion}</Text>
+                    <View style={tema.estilo(estilos.rutaFallback)}>
+                        <Text style={tema.estilo(estilos.rutaPunto)}>Retiro: {origen.direccion}</Text>
+                        <Text style={tema.estilo(estilos.rutaFlecha)}>↓</Text>
+                        <Text style={tema.estilo(estilos.rutaPunto)}>Entrega: {destino.direccion}</Text>
                     </View>
                 </View>
             )}

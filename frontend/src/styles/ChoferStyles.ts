@@ -1,15 +1,16 @@
+import { DISENO } from '../theme/diseno';
 import { Platform, StyleSheet } from 'react-native';
 
 export const COLORS = {
-    bg: '#0E0E0E',
-    surface: '#161616',
-    card: '#1B1B1B',
-    cardDeep: '#111111',
+    bg: DISENO.fondo,
+    surface: DISENO.superficie,
+    card: DISENO.tarjeta,
+    cardDeep: DISENO.profundo,
     white: '#FFFFFF',
-    accent: '#FFD700',
-    accentDark: '#F0C800',
+    accent: DISENO.amarillo,
+    accentDark: DISENO.amarilloOscuro,
     accentSoft: 'rgba(255, 215, 0, 0.12)',
-    ink: '#0E0E0E',
+    ink: DISENO.fondo,
     muted: 'rgba(255, 255, 255, 0.55)',
     mutedStrong: 'rgba(255, 255, 255, 0.78)',
     border: 'rgba(255, 255, 255, 0.08)',
@@ -23,10 +24,10 @@ export const COLORS = {
 };
 
 export const FONTS = {
-    title: 'DMSans_700Bold',
-    titleBold: 'DMSans_700Bold',
-    text: 'DMSans_400Regular',
-    textMedium: 'DMSans_500Medium',
+    title: 'Poppins_600SemiBold',
+    titleBold: 'Poppins_600SemiBold',
+    text: 'Poppins_400Regular',
+    textMedium: 'Poppins_500Medium',
 };
 
 const cardShadow = Platform.select({
@@ -53,9 +54,9 @@ export const styles = StyleSheet.create({
 
     scrollContent: {
         padding: 18,
-        paddingBottom: 40,
+        paddingBottom: 110,
         width: '100%',
-        maxWidth: 760,
+        maxWidth: 1400,
         alignSelf: 'center',
     },
 

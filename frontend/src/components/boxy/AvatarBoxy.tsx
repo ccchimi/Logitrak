@@ -1,26 +1,19 @@
-import React from 'react';
-import { Animated, View } from 'react-native';
-import { styles } from '../../styles/SolicitudEnvioStyles';
+import { useTema } from "../../hooks/useTema";
+import React from "react";
+import { Animated, View } from "react-native";
+import BoxyMark from "../BoxyMark";
+import { styles } from "../../styles/SolicitudEnvioStyles";
 
 export type PulsoBoxy = {
-    opacity: Animated.AnimatedInterpolation<number>;
-    scale: Animated.AnimatedInterpolation<number>;
+  opacity: Animated.AnimatedInterpolation<number>;
+  scale: Animated.AnimatedInterpolation<number>;
 };
 
 export default function AvatarBoxy({ pulso }: { pulso: PulsoBoxy }) {
-    return (
-        <View style={styles.boxyLogoWrapper}>
-            <Animated.View
-                style={[
-                    styles.boxyPulseGlow,
-                    {
-                        opacity: pulso.opacity,
-                        transform: [{ scale: pulso.scale }],
-                    },
-                ]}
-            />
-
-            <View style={styles.boxyAuraCore} />
-        </View>
-    );
+  const tema = useTema();
+  return (
+    <View style={tema.estilo(styles.boxyLogoWrapper)}>
+      <BoxyMark size={42} expresion="pensando" />
+    </View>
+  );
 }

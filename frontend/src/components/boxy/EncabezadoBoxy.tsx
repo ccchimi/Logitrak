@@ -1,59 +1,11 @@
+import { useTema } from "../../hooks/useTema";
 import React from 'react';
-import { Text, TouchableOpacity, View } from 'react-native';
-import { styles } from '../../styles/SolicitudEnvioStyles';
-import { BOT_META } from '../../services/botLogistica';
-import AvatarBoxy, { PulsoBoxy } from './AvatarBoxy';
-
-type Props = {
-    compacto: boolean;
-    pulso: PulsoBoxy;
-    onVolver: () => void;
-};
-
-// Con el teclado abierto se achica a una sola línea para dejarle lugar al chat.
-export default function EncabezadoBoxy({ compacto, pulso, onVolver }: Props) {
-    return compacto ? (
-        <View style={styles.headerCompact}>
-            <TouchableOpacity
-                style={styles.backButton}
-                onPress={onVolver}
-                activeOpacity={0.75}
-                accessibilityRole="button"
-                accessibilityLabel="Volver atrás"
-            >
-                <Text style={styles.backButtonText}>←</Text>
-            </TouchableOpacity>
-
-            <View style={styles.headerCompactTextos}>
-                <Text style={styles.headerCompactKicker}>logitrak IA</Text>
-                <Text style={styles.headerCompactTitle}>{BOT_META.nombre}</Text>
-            </View>
-        </View>
-    ) : (
-        <View style={styles.headerCard}>
-            <View style={styles.headerTopRow}>
-                <TouchableOpacity
-                    style={styles.backButton}
-                    onPress={onVolver}
-                    activeOpacity={0.75}
-                    accessibilityRole="button"
-                    accessibilityLabel="Volver atrás"
-                >
-                    <Text style={styles.backButtonText}>←</Text>
-                </TouchableOpacity>
-            </View>
-
-            <View style={styles.headerInfo}>
-                <AvatarBoxy pulso={pulso} />
-
-                <View style={styles.headerTextBox}>
-                    <Text style={styles.headerKicker}>logitrak IA</Text>
-                    <Text style={styles.headerTitle}>{BOT_META.nombre}</Text>
-                    <Text style={styles.headerSubtitle}>
-                        Asistente logístico con verificación de direcciones en tiempo real.
-                    </Text>
-                </View>
-            </View>
-        </View>
-    );
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import Icono from '../Icono';
+import { DISENO as D } from '../../theme/diseno';
+import type { PulsoBoxy } from './AvatarBoxy';
+export default function EncabezadoBoxy({onVolver}:{compacto:boolean;pulso:PulsoBoxy;onVolver:()=>void}){
+  const tema = useTema();
+ return <View style={tema.estilo(s.row)}><Pressable accessibilityLabel="Volver atrás" style={tema.estilo(s.back)} onPress={onVolver}><Icono nombre="back" color={tema.color(D.fondo)} size={20}/></Pressable><Text style={tema.estilo(s.title)}>Boxy <Text style={tema.estilo({color:D.amarillo})}>IA</Text></Text></View>;
 }
+const s=StyleSheet.create({row:{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:15,paddingVertical:8,marginBottom:20},back:{backgroundColor:'#FFF',width:32,height:32,borderRadius:16,alignItems:'center',justifyContent:'center'},title:{fontFamily:D.cuerpo,color:'#FFF',fontSize:22}});

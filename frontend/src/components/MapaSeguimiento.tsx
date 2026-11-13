@@ -1,3 +1,4 @@
+import { useTema } from "../hooks/useTema";
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
@@ -36,6 +37,7 @@ const ESTILO_NOCTURNO = [
 ];
 
 export default function MapaSeguimiento({ origen, destino, chofer, onEvento }: Props) {
+  const tema = useTema();
     const mapRef = useRef<MapView>(null);
     const [rutaCoords, setRutaCoords] = useState<Coordenada[]>([]);
     const [idx, setIdx] = useState(0);
@@ -93,9 +95,9 @@ export default function MapaSeguimiento({ origen, destino, chofer, onEvento }: P
     return (
         <MapView
             ref={mapRef}
-            style={{ flex: 1 }}
+            style={tema.estilo({ flex: 1 })}
             provider={PROVIDER_GOOGLE}
-            customMapStyle={ESTILO_NOCTURNO}
+            customMapStyle={tema.claro ? [] : ESTILO_NOCTURNO}
             showsUserLocation
             showsMyLocationButton
             initialRegion={{
@@ -126,8 +128,8 @@ export default function MapaSeguimiento({ origen, destino, chofer, onEvento }: P
                     flat
                     rotation={rumbo}
                 >
-                    <View style={estilos.coche}>
-                        <Text style={estilos.cocheEmoji}>●</Text>
+                    <View style={tema.estilo(estilos.coche)}>
+                        <Text style={tema.estilo(estilos.cocheEmoji)}>●</Text>
                     </View>
                 </Marker>
             )}

@@ -1,3 +1,4 @@
+import { useTema } from "../hooks/useTema";
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
@@ -75,74 +76,77 @@ const pesoLegible = (bytes: number) =>
     bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.round(bytes / 1024)} KB`;
 
 function Badge({ estado }: { estado: string }) {
+  const tema = useTema();
     const color = ESTADO_TICKET_COLOR[estado] ?? COLORS.muted;
     return (
-        <View style={[styles.badge, { backgroundColor: `${color}22` }]}>
-            <View style={[styles.badgePunto, { backgroundColor: color }]} />
-            <Text style={[styles.badgeTexto, { color }]}>{ESTADO_TICKET_TEXTO[estado] ?? estado}</Text>
+        <View style={tema.estilo([styles.badge, { backgroundColor: `${color}22` }])}>
+            <View style={tema.estilo([styles.badgePunto, { backgroundColor: color }])} />
+            <Text style={tema.estilo([styles.badgeTexto, { color }])}>{ESTADO_TICKET_TEXTO[estado] ?? estado}</Text>
         </View>
     );
 }
 
 function Burbuja({ mensaje, propio }: { mensaje: MensajeSoporte; propio: boolean }) {
+  const tema = useTema();
     const esImagen = mensaje.adjunto?.tipo?.startsWith('image/');
 
     return (
-        <View style={[styles.burbujaFila, propio && styles.burbujaFilaPropia]}>
+        <View style={tema.estilo([styles.burbujaFila, propio && styles.burbujaFilaPropia])}>
             <View
-                style={[
+                style={tema.estilo([
                     styles.burbuja,
                     propio
                         ? styles.burbujaPropia
                         : mensaje.autor === 'admin'
                           ? styles.burbujaAdmin
                           : styles.burbujaBot,
-                ]}
+                ])}
             >
                 {!propio && (
                     <Text
-                        style={[
+                        style={tema.estilo([
                             styles.autor,
                             mensaje.autor === 'admin' ? styles.autorAdmin : styles.autorBot,
-                        ]}
+                        ])}
                     >
                         {mensaje.autor === 'bot' ? 'Boxy' : mensaje.autorNombre || 'Equipo logitrak'}
                     </Text>
                 )}
 
-                {mensaje.texto ? <Text style={styles.mensajeTexto}>{mensaje.texto}</Text> : null}
+                {mensaje.texto ? <Text style={tema.estilo(styles.mensajeTexto)}>{mensaje.texto}</Text> : null}
 
                 {mensaje.adjunto ? (
                     <TouchableOpacity
-                        style={styles.adjunto}
+                        style={tema.estilo(styles.adjunto)}
                         disabled={!mensaje.adjunto.url}
                         onPress={() => mensaje.adjunto?.url && Linking.openURL(mensaje.adjunto.url)}
                     >
                         {esImagen && mensaje.adjunto.url ? (
                             <Image
                                 source={{ uri: mensaje.adjunto.url }}
-                                style={styles.adjuntoImagen}
+                                style={tema.estilo(styles.adjuntoImagen)}
                                 resizeMode="cover"
                             />
                         ) : (
-                            <View style={styles.adjuntoArchivo}>
-                                <Text style={styles.botonIconoTexto}>📎</Text>
-                                <View style={{ flex: 1, minWidth: 0 }}>
-                                    <Text style={styles.adjuntoNombre}>{mensaje.adjunto.nombre}</Text>
-                                    <Text style={styles.adjuntoPeso}>{pesoLegible(mensaje.adjunto.bytes)}</Text>
+                            <View style={tema.estilo(styles.adjuntoArchivo)}>
+                                <Text style={tema.estilo(styles.botonIconoTexto)}>📎</Text>
+                                <View style={tema.estilo({ flex: 1, minWidth: 0 })}>
+                                    <Text style={tema.estilo(styles.adjuntoNombre)}>{mensaje.adjunto.nombre}</Text>
+                                    <Text style={tema.estilo(styles.adjuntoPeso)}>{pesoLegible(mensaje.adjunto.bytes)}</Text>
                                 </View>
                             </View>
                         )}
                     </TouchableOpacity>
                 ) : null}
 
-                <Text style={styles.hora}>{hora(mensaje.creadoEn)}</Text>
+                <Text style={tema.estilo(styles.hora)}>{hora(mensaje.creadoEn)}</Text>
             </View>
         </View>
     );
 }
 
 export default function SoporteScreen({ navigation }: any) {
+  const tema = useTema();
     const { toasts, mostrar, cerrar } = useToasts();
     const sesion = obtenerUsuarioSesion();
     const esAdmin = sesion?.rol === 'admin';
@@ -329,23 +333,23 @@ export default function SoporteScreen({ navigation }: any) {
     // ---------------------------------------------------------------- listado
     if (!activo) {
         return (
-            <SafeAreaView style={styles.safeArea}>
-                <View style={styles.header}>
-                    <TouchableOpacity style={styles.volver} onPress={() => navigation.goBack()}>
-                        <Text style={styles.volverTexto}>‹</Text>
+            <SafeAreaView style={tema.estilo(styles.safeArea)}>
+                <View style={tema.estilo(styles.header)}>
+                    <TouchableOpacity style={tema.estilo(styles.volver)} onPress={() => navigation.goBack()}>
+                        <Text style={tema.estilo(styles.volverTexto)}>‹</Text>
                     </TouchableOpacity>
-                    <View style={styles.headerTextos}>
-                        <Text style={styles.kicker}>Soporte</Text>
-                        <Text style={styles.titulo}>{esAdmin ? 'Consultas del equipo' : 'Centro de ayuda'}</Text>
+                    <View style={tema.estilo(styles.headerTextos)}>
+                        <Text style={tema.estilo(styles.kicker)}>Soporte</Text>
+                        <Text style={tema.estilo(styles.titulo)}>{esAdmin ? 'Consultas del equipo' : 'Centro de ayuda'}</Text>
                     </View>
                 </View>
 
                 <ScrollView contentContainerStyle={styles.lista}>
-                    <View style={styles.contenido}>
+                    <View style={tema.estilo(styles.contenido)}>
                         {!esAdmin && (
                             <>
-                                <Text style={styles.bloqueTitulo}>¿Con qué necesitás ayuda?</Text>
-                                <Text style={styles.bloqueTexto}>
+                                <Text style={tema.estilo(styles.bloqueTitulo)}>¿Con qué necesitás ayuda?</Text>
+                                <Text style={tema.estilo(styles.bloqueTexto)}>
                                     Boxy atiende primero. Si no puede resolverlo, deriva la consulta a una persona
                                     del equipo y siguen conversando en el mismo hilo.
                                 </Text>
@@ -353,27 +357,27 @@ export default function SoporteScreen({ navigation }: any) {
                                 {PRESETS.map((p) => (
                                     <TouchableOpacity
                                         key={p.categoria}
-                                        style={[styles.preset, enviando && styles.deshabilitado]}
+                                        style={tema.estilo([styles.preset, enviando && styles.deshabilitado])}
                                         disabled={enviando}
                                         onPress={() => void empezarConPreset(p)}
                                     >
-                                        <Text style={styles.presetTexto}>{p.etiqueta}</Text>
-                                        <Text style={styles.presetFlecha}>→</Text>
+                                        <Text style={tema.estilo(styles.presetTexto)}>{p.etiqueta}</Text>
+                                        <Text style={tema.estilo(styles.presetFlecha)}>→</Text>
                                     </TouchableOpacity>
                                 ))}
 
-                                <View style={styles.separador} />
+                                <View style={tema.estilo(styles.separador)} />
                             </>
                         )}
 
-                        <Text style={styles.bloqueTitulo}>
+                        <Text style={tema.estilo(styles.bloqueTitulo)}>
                             {esAdmin ? 'Consultas abiertas' : 'Tus consultas'}
                         </Text>
 
                         {cargando ? (
-                            <ActivityIndicator color={COLORS.accent} style={{ marginTop: 20 }} />
+                            <ActivityIndicator color={tema.color(COLORS.accent)} style={tema.estilo({ marginTop: 20 })} />
                         ) : tickets.length === 0 ? (
-                            <Text style={styles.vacio}>
+                            <Text style={tema.estilo(styles.vacio)}>
                                 {esAdmin
                                     ? 'No hay consultas abiertas ahora mismo.'
                                     : 'Todavía no abriste ninguna consulta.'}
@@ -382,14 +386,14 @@ export default function SoporteScreen({ navigation }: any) {
                             tickets.map((t) => (
                                 <TouchableOpacity
                                     key={t.codigo}
-                                    style={styles.ticketFila}
+                                    style={tema.estilo(styles.ticketFila)}
                                     onPress={() => void abrirTicket(t.codigo)}
                                 >
-                                    <View style={styles.ticketTop}>
-                                        <Text style={styles.ticketAsunto}>{t.asunto}</Text>
+                                    <View style={tema.estilo(styles.ticketTop)}>
+                                        <Text style={tema.estilo(styles.ticketAsunto)}>{t.asunto}</Text>
                                         <Badge estado={t.estado} />
                                     </View>
-                                    <Text style={styles.ticketMeta}>
+                                    <Text style={tema.estilo(styles.ticketMeta)}>
                                         {t.codigo}
                                         {esAdmin && t.usuarioNombre ? ` · ${t.usuarioNombre}` : ''}
                                         {t.envioCodigo ? ` · ${t.envioCodigo}` : ''}
@@ -410,34 +414,34 @@ export default function SoporteScreen({ navigation }: any) {
     const preset = presetDe(activo.categoria);
 
     return (
-        <SafeAreaView style={styles.safeArea}>
-            <View style={styles.header}>
+        <SafeAreaView style={tema.estilo(styles.safeArea)}>
+            <View style={tema.estilo(styles.header)}>
                 <TouchableOpacity
-                    style={styles.volver}
+                    style={tema.estilo(styles.volver)}
                     onPress={() => {
                         setActivo(null);
                         void cargarLista();
                     }}
                 >
-                    <Text style={styles.volverTexto}>‹</Text>
+                    <Text style={tema.estilo(styles.volverTexto)}>‹</Text>
                 </TouchableOpacity>
-                <View style={styles.headerTextos}>
-                    <Text style={styles.kicker}>{activo.codigo}</Text>
-                    <Text style={styles.titulo}>{activo.asunto}</Text>
+                <View style={tema.estilo(styles.headerTextos)}>
+                    <Text style={tema.estilo(styles.kicker)}>{activo.codigo}</Text>
+                    <Text style={tema.estilo(styles.titulo)}>{activo.asunto}</Text>
                 </View>
                 <Badge estado={activo.estado} />
             </View>
 
-            <View style={styles.barraEstado}>
-                <View style={[styles.badgePunto, { backgroundColor: enVivo ? COLORS.green : COLORS.muted }]} />
-                <Text style={styles.barraEstadoTexto}>
+            <View style={tema.estilo(styles.barraEstado)}>
+                <View style={tema.estilo([styles.badgePunto, { backgroundColor: enVivo ? COLORS.green : COLORS.muted }])} />
+                <Text style={tema.estilo(styles.barraEstadoTexto)}>
                     {enVivo ? 'Conectado en tiempo real' : 'Actualizando cada pocos segundos'}
                     {activo.adminNombre ? ` · Te atiende ${activo.adminNombre}` : ''}
                 </Text>
             </View>
 
             <KeyboardAvoidingView
-                style={styles.flex}
+                style={tema.estilo(styles.flex)}
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             >
                 <ScrollView
@@ -454,17 +458,17 @@ export default function SoporteScreen({ navigation }: any) {
                     ))}
 
                     {!esAdmin && activo.estado === 'bot' && (
-                        <View style={styles.accionesFila}>
-                            <TouchableOpacity style={styles.botonTexto} onPress={() => void pedirPersona()}>
-                                <Text style={styles.botonTextoTexto}>Hablar con una persona</Text>
+                        <View style={tema.estilo(styles.accionesFila)}>
+                            <TouchableOpacity style={tema.estilo(styles.botonTexto)} onPress={() => void pedirPersona()}>
+                                <Text style={tema.estilo(styles.botonTextoTexto)}>Hablar con una persona</Text>
                             </TouchableOpacity>
                         </View>
                     )}
 
                     {activo.estado !== 'resuelto' && activo.estado !== 'cerrado' && (
-                        <View style={styles.accionesFila}>
-                            <TouchableOpacity style={styles.botonTexto} onPress={() => void marcarResuelta()}>
-                                <Text style={styles.botonTextoTexto}>
+                        <View style={tema.estilo(styles.accionesFila)}>
+                            <TouchableOpacity style={tema.estilo(styles.botonTexto)} onPress={() => void marcarResuelta()}>
+                                <Text style={tema.estilo(styles.botonTextoTexto)}>
                                     {esAdmin ? 'Marcar como resuelta' : 'Ya se resolvió'}
                                 </Text>
                             </TouchableOpacity>
@@ -473,38 +477,38 @@ export default function SoporteScreen({ navigation }: any) {
                 </ScrollView>
 
                 {cerrada ? (
-                    <View style={styles.composer}>
-                        <Text style={styles.vacio}>Esta consulta está cerrada. Abrí una nueva si necesitás algo.</Text>
+                    <View style={tema.estilo(styles.composer)}>
+                        <Text style={tema.estilo(styles.vacio)}>Esta consulta está cerrada. Abrí una nueva si necesitás algo.</Text>
                     </View>
                 ) : (
-                    <View style={styles.composer}>
+                    <View style={tema.estilo(styles.composer)}>
                         {adjunto ? (
-                            <View style={styles.adjuntoPreview}>
-                                <View style={{ flex: 1, minWidth: 0 }}>
-                                    <Text style={styles.adjuntoNombre} numberOfLines={1}>
+                            <View style={tema.estilo(styles.adjuntoPreview)}>
+                                <View style={tema.estilo({ flex: 1, minWidth: 0 })}>
+                                    <Text style={tema.estilo(styles.adjuntoNombre)} numberOfLines={1}>
                                         {adjunto.nombre}
                                     </Text>
-                                    <Text style={styles.adjuntoPeso}>{pesoLegible(adjunto.bytes)}</Text>
+                                    <Text style={tema.estilo(styles.adjuntoPeso)}>{pesoLegible(adjunto.bytes)}</Text>
                                 </View>
                                 <TouchableOpacity onPress={() => setAdjunto(null)}>
-                                    <Text style={styles.quitar}>✕</Text>
+                                    <Text style={tema.estilo(styles.quitar)}>✕</Text>
                                 </TouchableOpacity>
                             </View>
                         ) : null}
 
-                        <View style={styles.composerFila}>
-                            <TouchableOpacity style={styles.botonIcono} onPress={() => void elegirAdjunto()}>
-                                <Text style={styles.botonIconoTexto}>📎</Text>
+                        <View style={tema.estilo(styles.composerFila)}>
+                            <TouchableOpacity style={tema.estilo(styles.botonIcono)} onPress={() => void elegirAdjunto()}>
+                                <Text style={tema.estilo(styles.botonIconoTexto)}>📎</Text>
                             </TouchableOpacity>
 
                             <TextInput
-                                style={styles.entrada}
+                                style={tema.estilo(styles.entrada)}
                                 placeholder={
                                     preset.pideAdjunto
                                         ? 'Contanos qué pasó, o adjuntá el comprobante'
                                         : 'Escribí tu mensaje…'
                                 }
-                                placeholderTextColor="rgba(255,255,255,0.35)"
+                                placeholderTextColor={tema.color("rgba(255,255,255,0.35)")}
                                 value={texto}
                                 onChangeText={setTexto}
                                 multiline
@@ -513,15 +517,15 @@ export default function SoporteScreen({ navigation }: any) {
                             />
 
                             <TouchableOpacity
-                                style={[
+                                style={tema.estilo([
                                     styles.botonIcono,
                                     styles.enviar,
                                     (enviando || (!texto.trim() && !adjunto)) && styles.deshabilitado,
-                                ]}
+                                ])}
                                 disabled={enviando || (!texto.trim() && !adjunto)}
                                 onPress={() => void enviar()}
                             >
-                                <Text style={styles.enviarTexto}>➜</Text>
+                                <Text style={tema.estilo(styles.enviarTexto)}>➜</Text>
                             </TouchableOpacity>
                         </View>
                     </View>

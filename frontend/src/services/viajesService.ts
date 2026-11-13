@@ -9,6 +9,7 @@ export interface Viaje {
     choferCodigo: string | null;
     vehiculo: string | null;
     fecha: string;
+    precio: number;
 }
 
 function estadoVisible(estado: EstadoEnvio): Viaje['estado'] {
@@ -35,6 +36,7 @@ function mapearEnvio(e: Envio): Viaje {
         choferCodigo: e.choferCodigo,
         vehiculo: e.choferVehiculo ?? e.vehiculoNombre,
         fecha: formatearFecha(e.creadoEn),
+        precio: e.precio,
     };
 }
 

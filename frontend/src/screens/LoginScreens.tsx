@@ -1,6 +1,8 @@
-import React, { useRef, useState } from 'react';
+import { useTema } from "../hooks/useTema";
+import React, { useRef, useState } from "react";
 import {
   Keyboard,
+  ScrollView,
   Platform,
   Text,
   TextInput,
@@ -8,22 +10,23 @@ import {
   TouchableWithoutFeedback,
   useWindowDimensions,
   View,
-} from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS, styles, tamanosAuth } from '../styles/LoginStyles';
-import { useRootFlow } from '../navigation/RootFlowContext';
-import SpinnerFondo from '../components/SpinnerFondo';
-import { iniciarSesion } from '../services/authService';
+} from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { COLORS, styles, tamanosAuth } from "../styles/LoginStyles";
+import { useRootFlow } from "../navigation/RootFlowContext";
+import AuthFrame from "../components/AuthFrame";
+import { iniciarSesion } from "../services/authService";
 
 export default function LoginScreens({ navigation }: any) {
-  const usuarioRef = useRef('');
-  const contrasenaRef = useRef('');
+  const tema = useTema();
+  const usuarioRef = useRef("");
+  const contrasenaRef = useRef("");
   const campoContrasenaRef = useRef<TextInput | null>(null);
 
   const { width } = useWindowDimensions();
-  const { circulo, caja } = tamanosAuth(width);
+  const { caja } = tamanosAuth(width >= 900 ? width * 0.56 : width);
 
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [cargando, setCargando] = useState(false);
 
   const { volverAlInicio, puedeVolver } = useRootFlow();
@@ -32,7 +35,10 @@ export default function LoginScreens({ navigation }: any) {
     if (cargando) return;
     setCargando(true);
 
-    const resultado = await iniciarSesion(usuarioRef.current, contrasenaRef.current);
+    const resultado = await iniciarSesion(
+      usuarioRef.current,
+      contrasenaRef.current,
+    );
     setCargando(false);
 
     if (!resultado.exito) {
@@ -40,17 +46,17 @@ export default function LoginScreens({ navigation }: any) {
       return;
     }
 
-    setError('');
+    setError("");
 
     const { usuario } = resultado;
-    if (usuario.rol === 'chofer') {
-      navigation.navigate('Chofer', {
+    if (usuario.rol === "chofer") {
+      navigation.navigate("Chofer", {
         nombre: usuario.nombreCompleto,
         usuario: usuario.usuario,
         codigo: usuario.chofer?.codigo ?? null,
       });
     } else {
-      navigation.navigate('Home', {
+      navigation.navigate("Home", {
         nombre: usuario.nombreCompleto,
         usuario: usuario.usuario,
         rol: usuario.rol,
@@ -59,47 +65,91 @@ export default function LoginScreens({ navigation }: any) {
   };
 
   const contenido = (
-      <LinearGradient
-        colors={[COLORS.black, '#121212']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.container}
+    <AuthFrame>
+      <ScrollView
+        contentContainerStyle={[
+          styles.authScroll,
+          width >= 900 && { justifyContent: "flex-start" },
+        ]}
+        keyboardShouldPersistTaps="handled"
       >
-        <View style={[styles.circleArea, { width: circulo, height: circulo }]}>
-        <SpinnerFondo />
-
-        <View style={[styles.loginBox, { width: caja }]}>
+        <View
+          style={tema.estilo([
+            styles.loginBox,
+            { width: caja, paddingTop: width >= 900 ? 110 : 22 },
+          ])}
+        >
           {puedeVolver && (
             <TouchableOpacity
-              style={styles.closeButton}
+              style={tema.estilo(styles.closeButton)}
               onPress={volverAlInicio}
               accessibilityLabel="Volver al inicio"
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Text style={styles.closeButtonText}>✕</Text>
+              <Text style={tema.estilo(styles.closeButtonText)}>✕</Text>
             </TouchableOpacity>
           )}
 
-          <Text style={styles.kicker}>Acceso al sistema</Text>
-
-          <Text style={styles.titulo}>
-            logitrak<Text style={styles.logoDot}>.</Text>
+          <Text
+            style={tema.estilo([
+              styles.titulo,
+              width >= 900 ? { display: "none" } : { marginBottom: 36 },
+            ])}
+          >
+            logitrak<Text style={tema.estilo(styles.logoDot)}>.</Text>
           </Text>
 
-          <Text style={styles.subtitulo}>
-            Gestión de Logística y Transporte
+          <Text
+            style={tema.estilo([
+              styles.subtitulo,
+              width >= 900 && { fontSize: 50, lineHeight: 60 },
+            ])}
+          >
+            Iniciar sesión
           </Text>
 
-          {error ? <Text style={styles.errorTexto}>{error}</Text> : null}
+          <Text
+            style={tema.estilo([
+              styles.hintText,
+              {
+                color: "#FFFFFF",
+                marginBottom: width >= 900 ? 76 : 64,
+                width: width >= 900 ? 300 : 180,
+                alignSelf: "center",
+                fontSize: width >= 900 ? 24 : 14,
+                lineHeight: width >= 900 ? 32 : 18,
+              },
+            ])}
+          >
+            No tenés cuenta todavía?{" "}
+            <Text
+              style={tema.estilo({ textDecorationLine: "underline" })}
+              onPress={() => navigation.navigate("Registro")}
+            >
+              Registrate
+            </Text>
+          </Text>
+          {error ? (
+            <Text accessibilityRole="alert" style={tema.estilo(styles.errorTexto)}>
+              {error}
+            </Text>
+          ) : null}
 
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Usuario / Legajo</Text>
-
-            <View style={styles.inputContainer}>
+          <View style={tema.estilo(styles.formGroup)}>
+            <View
+              style={tema.estilo([
+                styles.inputContainer,
+                { height: width >= 900 ? 86 : 58 },
+              ])}
+            >
               <TextInput
-                style={styles.input}
-                placeholder="Usuario o Legajo"
-                placeholderTextColor="rgba(255,255,255,0.35)"
+                style={tema.estilo([
+                  styles.input,
+                  { fontSize: width >= 900 ? 18 : 16, letterSpacing: 0.5 },
+                ])}
+                accessibilityLabel="Email o usuario"
+                placeholder="EMAIL / USUARIO"
+                placeholderTextColor={tema.color("#B9C4BD")}
                 autoCapitalize="none"
                 autoCorrect={false}
                 autoComplete="off"
@@ -116,15 +166,22 @@ export default function LoginScreens({ navigation }: any) {
             </View>
           </View>
 
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Contraseña</Text>
-
-            <View style={styles.inputContainer}>
+          <View style={tema.estilo(styles.formGroup)}>
+            <View
+              style={tema.estilo([
+                styles.inputContainer,
+                { height: width >= 900 ? 86 : 58 },
+              ])}
+            >
               <TextInput
                 ref={campoContrasenaRef}
-                style={styles.input}
-                placeholder="Contraseña"
-                placeholderTextColor="rgba(255,255,255,0.35)"
+                style={tema.estilo([
+                  styles.input,
+                  { fontSize: width >= 900 ? 18 : 16, letterSpacing: 0.5 },
+                ])}
+                accessibilityLabel="Contraseña"
+                placeholder="CONTRASEÑA"
+                placeholderTextColor={tema.color("#B9C4BD")}
                 secureTextEntry
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -141,45 +198,56 @@ export default function LoginScreens({ navigation }: any) {
             </View>
           </View>
 
-          <View style={styles.linksRow}>
-            <TouchableOpacity onPress={() => navigation.navigate('Registro')}>
-              <Text style={styles.linkCrear}>Crear cuenta</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity onPress={() => navigation.navigate('Recuperar')}>
-              <Text style={styles.linkOlvido}>¿Olvidaste tu contraseña?</Text>
-            </TouchableOpacity>
-          </View>
-
           <TouchableOpacity
             activeOpacity={0.85}
-            style={styles.buttonShadow}
+            style={tema.estilo([styles.buttonShadow, cargando && { opacity: 0.6 }])}
+            disabled={cargando}
+            accessibilityState={{ busy: cargando }}
             onPress={manejarIngreso}
           >
             <LinearGradient
-              colors={[COLORS.accent, '#f0c800']}
+              colors={tema.degradado([COLORS.accent, COLORS.accent])}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
-              style={styles.loginButton}
+              style={tema.estilo([
+                styles.loginButton,
+                { minHeight: width >= 900 ? 86 : 58 },
+              ])}
             >
-              <Text style={styles.loginButtonText}>
-                {cargando ? 'Ingresando…' : 'Ingresar al sistema'}
+              <Text
+                style={tema.estilo([
+                  styles.loginButtonText,
+                  {
+                    color: COLORS.black,
+                    fontFamily: "Poppins_500Medium",
+                    fontSize: width >= 900 ? 18 : 16,
+                  },
+                ])}
+              >
+                {cargando ? "Ingresando…" : "Iniciar sesión"}
               </Text>
             </LinearGradient>
           </TouchableOpacity>
 
-          <View style={styles.hintBox}>
-            <Text style={styles.hintText}>
-              ¿No tenés cuenta? Registrate como cliente y empezá a enviar.
+          <TouchableOpacity
+            style={tema.estilo({ alignItems: "center", marginTop: width >= 900 ? 70 : 60 })}
+            onPress={() => navigation.navigate("Recuperar")}
+          >
+            <Text
+              style={tema.estilo([
+                styles.linkOlvido,
+                { textAlign: "center", maxWidth: 180 },
+              ])}
+            >
+              ¿Te olvidaste la contraseña?
             </Text>
-          </View>
+          </TouchableOpacity>
         </View>
-        </View>
-      </LinearGradient>
+      </ScrollView>
+    </AuthFrame>
   );
 
-
-  if (Platform.OS === 'web') return contenido;
+  if (Platform.OS === "web") return contenido;
 
   return (
     <TouchableWithoutFeedback accessible={false} onPress={Keyboard.dismiss}>
