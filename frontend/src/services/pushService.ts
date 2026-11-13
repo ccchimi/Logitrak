@@ -2,7 +2,8 @@ import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
-import { llamarApi } from './api';
+import { hayToken, llamarApi, obtenerUsuarioSesion } from './api';
+import { avisarCambio, destinoDeNotificacion } from './notificacionesService';
 
 // Notificaciones push (Hito 2.3). Al iniciar sesión, la app pide permiso y le
 // pasa al backend el token de Expo de este teléfono; al cerrar sesión lo da de
@@ -66,4 +67,32 @@ export async function darDeBajaTelefono(): Promise<void> {
     } catch {
         /* sin red: el token se reasigna o se borra cuando Expo avise que no sirve */
     }
+}
+
+type Navegar = (ruta: string, params?: Record<string, unknown>) => void;
+
+function abrirDesdePush(respuesta: Notifications.NotificationResponse | null, navegar: Navegar) {
+    if (!respuesta || !hayToken()) return;
+    const datos = respuesta.notification.request.content.data as { tipo?: string; envioCodigo?: string } | undefined;
+    const destino = destinoDeNotificacion(datos, obtenerUsuarioSesion()?.rol);
+    navegar(destino.ruta, destino.params);
+}
+
+/**
+ * Tocar un push abre el envío (o las ofertas, si es una oferta para el chofer),
+ * también si la app estaba cerrada. Un push que llega con la app abierta
+ * actualiza la campana. Devuelve la función para dejar de escuchar.
+ */
+export function escucharPush(navegar: Navegar): () => void {
+    if (Platform.OS === 'web') return () => {};
+    const toque = Notifications.addNotificationResponseReceivedListener((r) => abrirDesdePush(r, navegar));
+    const llegada = Notifications.addNotificationReceivedListener(() => void avisarCambio());
+    // La app se abrió tocando un push (estaba cerrada).
+    void Notifications.getLastNotificationResponseAsync()
+        .then((r) => abrirDesdePush(r, navegar))
+        .catch(() => {});
+    return () => {
+        toque.remove();
+        llegada.remove();
+    };
 }

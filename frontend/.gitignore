@@ -34,3 +34,6 @@ yarn-error.*
 /ios
 /android
 coverage/
+
+# Credenciales de Firebase (push en Android): van como variable de archivo de EAS.
+google-services.json

@@ -1,4 +1,11 @@
 import 'dotenv/config';
+import { existsSync } from 'node:fs';
+
+// FCM (push en Android): EAS entrega google-services.json como variable de tipo
+// archivo (GOOGLE_SERVICES_JSON); en local se puede dejar el archivo en la
+// carpeta frontend (está en el .gitignore).
+const googleServicesFile =
+  process.env.GOOGLE_SERVICES_JSON || (existsSync('./google-services.json') ? './google-services.json' : undefined);
 
 export default ({ config }) => ({
   ...config,
@@ -10,6 +17,7 @@ export default ({ config }) => ({
   },
   android: {
     ...config.android,
+    ...(googleServicesFile ? { googleServicesFile } : {}),
     config: {
       ...(config.android?.config ?? {}),
       googleMaps: {
@@ -19,6 +27,7 @@ export default ({ config }) => ({
   },
   plugins: [
     ...(config.plugins ?? []),
+    ['expo-notifications', { color: '#FFDE00' }],
     // Sube los source maps a Sentry en los builds de EAS, para ver los errores
     // con el código original. Necesita SENTRY_AUTH_TOKEN (secreto de EAS); sin
     // él el plugin no se agrega y el build no intenta subir nada.

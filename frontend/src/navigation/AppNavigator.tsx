@@ -5,11 +5,16 @@ import {
   DarkTheme,
   NavigationContainer,
   NavigationState,
+  createNavigationContainerRef,
   useIsFocused,
 } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
 import LoginScreens from "../screens/LoginScreens";
+import { escucharPush } from "../services/pushService";
+
+const navegacion = createNavigationContainerRef<any>();
+let pushEscuchado = false;
 import RegistroScreen from "../screens/RegistroScreen";
 import RecuperarScreen from "../screens/RecuperarScreen";
 import HomeScreen from "../screens/HomeScreen";
@@ -34,6 +39,7 @@ import AppShell from "../components/AppShell";
 import CuponeraScreen from "../screens/CuponeraScreen";
 import MetodosScreen from "../screens/MetodosScreen";
 import EstadisticasScreen from "../screens/EstadisticasScreen";
+import NotificacionesScreen from "../screens/NotificacionesScreen";
 
 function conMarco(Screen: React.ComponentType<any>) {
   return function PantallaConMarco(props: any) {
@@ -71,6 +77,7 @@ const PANTALLAS = {
   TrabajaConNosotros: conMarco(TrabajaConNosotrosScreen),
   Cuponera: conMarco(CuponeraScreen),
   Estadisticas: conMarco(EstadisticasScreen),
+  Notificaciones: conMarco(NotificacionesScreen),
 };
 
 const Stack = createNativeStackNavigator();
@@ -133,6 +140,16 @@ export default function AppNavigator({
 
   return (
     <NavigationContainer
+      ref={navegacion}
+      onReady={() => {
+        // Una sola vez: tocar un push navega al envío correspondiente.
+        if (!pushEscuchado) {
+          pushEscuchado = true;
+          escucharPush((ruta, params) => {
+            if (navegacion.isReady()) navegacion.navigate(ruta, params);
+          });
+        }
+      }}
       theme={{ ...(tema.claro ? DefaultTheme : DarkTheme), colors: { ...(tema.claro ? DefaultTheme : DarkTheme).colors, background: tema.colores.fondo, card: tema.colores.superficie, text: tema.colores.texto, border: tema.colores.borde, primary: tema.colores.acento } }}
       initialState={estadoInicial}
       onStateChange={(estado) => {
@@ -253,6 +270,11 @@ export default function AppNavigator({
         <Stack.Screen
           name="Estadisticas"
           component={PANTALLAS.Estadisticas}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Notificaciones"
+          component={PANTALLAS.Notificaciones}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>

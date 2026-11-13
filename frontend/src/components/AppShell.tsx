@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { obtenerUsuarioSesion } from "../services/authService";
 import { DISENO as D } from "../theme/diseno";
 import Icono, { NombreIcono } from "./Icono";
+import Campana from "./Campana";
 
 const CLIENTE: { ruta: string; icono: NombreIcono; label: string }[] = [
   { ruta: "Home", icono: "dashboard", label: "Dashboard" },
@@ -44,6 +45,7 @@ const TITULOS: Record<string, string> = {
   Pago: "Método de pago",
   MetodosPago: "Método de pago",
   MetodoCobro: "Método de cobro",
+  Notificaciones: "Notificaciones",
 };
 
 export default function AppShell({ children, navigation, route }: any) {
@@ -134,6 +136,9 @@ export default function AppShell({ children, navigation, route }: any) {
       </View>
     </Pressable>
   );
+  const campana = (
+    <Campana ruta={route.name} onPress={() => navigation.navigate("Notificaciones")} />
+  );
   return (
     <View
       style={tema.estilo([
@@ -201,7 +206,13 @@ export default function AppShell({ children, navigation, route }: any) {
               <Text style={tema.estilo(s.page)}>{title}</Text>
             </View>
           )}
-          {desktop && user}
+          {desktop && (
+            <View style={tema.estilo({ flexDirection: "row", alignItems: "center", gap: 14 })}>
+              {campana}
+              {user}
+            </View>
+          )}
+          {!desktop && !metodo && campana}
           {cabeceraSimple && (
             <Pressable
               accessibilityRole="button"
@@ -214,7 +225,10 @@ export default function AppShell({ children, navigation, route }: any) {
           )}
         </View>
       ) : (
-        <View style={tema.estilo(s.homeHeader)}>{user}</View>
+        <View style={tema.estilo([s.homeHeader, { flexDirection: "row", alignItems: "center", gap: 8 }])}>
+          <View style={tema.estilo({ flex: 1 })}>{user}</View>
+          {campana}
+        </View>
       )}
       <View style={tema.estilo(s.body)}>
         {desktop && !chat && !tracking && (

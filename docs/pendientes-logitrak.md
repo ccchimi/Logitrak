@@ -86,8 +86,6 @@ y verificado se saca de acá; el historial queda en los commits.
 18. Configurar en Render el health check del servicio en `/api/salud/vivo`
     (Settings > Health Check Path) y, si se arma staging, crear un segundo
     servicio con `ENTORNO=staging` y su propia base y credenciales.
-19. Mostrar las notificaciones en la app. Desde el Hito 2.2 el backend las
-    genera (`GET /api/notificaciones`) y desde el 2.3 también llegan como push;
-    falta la bandeja o el contador dentro de la app, y abrir la pantalla del
-    envío al tocar un push. Para mandar mails
-    también haría falta guardar el email de los clientes, que hoy no se pide.
+19. Mails: para mandar las notificaciones también por mail haría falta guardar
+    el email de los clientes, que hoy no se pide. La bandeja en la app y el
+    push ya están.
