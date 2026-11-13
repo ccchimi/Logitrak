@@ -50,7 +50,10 @@
     "web": "expo start --web",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "typecheck": "tsc --noEmit",
+    "build:web": "expo export --platform web",
+    "verify:backend": "node scripts/verificar-backend.mjs"
   },
   "private": true
 }
