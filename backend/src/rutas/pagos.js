@@ -12,6 +12,7 @@ import { validarRequest } from '../middleware/validar.js';
 import * as esquemas from '../esquemas/pagos.js';
 import { esReutilizable, leerClaveIdempotencia, minutosRestantes, mismaOperacion } from '../servicios/pagos/intentos.js';
 import { log, registrarError } from '../observabilidad/logger.js';
+import { registrarEvento } from '../outbox/index.js';
 
 export const rutasPagos = Router();
 
@@ -105,9 +106,19 @@ async function aprobarPago(cliente, pagoId, extra = {}) {
         [pagoId, extra.pagoExtId ?? null, detalleFinal ? JSON.stringify(detalleFinal) : null]
     );
     const pago = rows[0];
+    const envioCodigo = (await cliente.query('SELECT codigo FROM envios WHERE id = $1', [pago.envio_id])).rows[0].codigo;
+    const datosEvento = {
+        clienteId: pago.cliente_id,
+        pagoCodigo: pago.codigo,
+        envioCodigo,
+        monto: Number(pago.monto),
+        moneda: pago.moneda,
+        metodo: pago.metodo,
+    };
 
     if (otro) {
         registrarError(new Error('Pago aprobado duplicado'), `Pago ${pago.codigo} aprobado como DUPLICADO de ${otro.codigo}: hay que reembolsarlo.`, { pago: pago.codigo, duplicadoDe: otro.codigo });
+        await registrarEvento(cliente, { tipoAgregado: 'pago', idAgregado: pago.codigo, tipo: 'pago.duplicado', datos: { ...datosEvento, duplicadoDe: otro.codigo } });
         return pago;
     }
 
@@ -125,6 +136,13 @@ async function aprobarPago(cliente, pagoId, extra = {}) {
          WHERE id = $1`,
         [pago.envio_id, MINUTOS_ESPERA_CHOFER]
     );
+    // En la misma transacción: si algo de arriba se revierte, el aviso tampoco existe.
+    await registrarEvento(cliente, {
+        tipoAgregado: 'pago',
+        idAgregado: pago.codigo,
+        tipo: 'pago.aprobado',
+        datos: { ...datosEvento, comprobante: pago.comprobante },
+    });
     return pago;
 }
 

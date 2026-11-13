@@ -1,6 +1,7 @@
 import { consultar, pool } from '../../db/pool.js';
 import { reembolsarPagoDelEnvio } from '../pagos/reembolsos.js';
 import { log } from '../../observabilidad/logger.js';
+import { registrarEvento } from '../../outbox/index.js';
 
 // Ventana que tiene la red para que algún chofer tome el envío. Se cuenta desde
 // que el pago queda aprobado, no desde que se crea el envío.
@@ -82,6 +83,13 @@ export async function expirarOferta(envioId) {
                     : `Ningún chofer tomó el envío en ${MINUTOS_ESPERA_CHOFER} minutos. La devolución quedó pendiente de revisión.`,
             ]
         );
+
+        await registrarEvento(cliente, {
+            tipoAgregado: 'envio',
+            idAgregado: envio.codigo,
+            tipo: 'envio.cancelado_sin_chofer',
+            datos: { clienteId: envio.cliente_id, envioCodigo: envio.codigo, reembolsado },
+        });
 
         if (r.estado === 'reembolso_pendiente') {
             log().error({ envio: envio.codigo, motivo: r.motivo }, 'Envío cancelado SIN reembolsar');

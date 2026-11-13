@@ -175,6 +175,39 @@ no reciben cupón: se les devuelve el pago. Antes el cupón lo pedía la app y
 ruta emite cupones a mano solo para un admin, y para un cliente funciona como
 "revisá el SLA de mi envío" (así las versiones viejas de la app no se rompen).
 
+## Eventos y notificaciones (outbox)
+
+Lo que un hecho de negocio tiene que disparar afuera de su transacción (avisarle
+al cliente, y más adelante un push o un mail) pasa por el patrón outbox
+(`src/outbox/`):
+
+1. La transacción que produce el hecho inserta una fila en `outbox_events` con
+   `registrarEvento(cliente, …)`. Si la transacción se revierte, el evento no
+   existe; si se confirma, queda garantizado aunque el proceso se caiga justo
+   después. Desde adentro de la transacción nunca se llama a un tercero.
+2. El trabajo `despachar-outbox` (pg-boss) toma los pendientes y ejecuta el
+   manejador de cada tipo. Cada evento se procesa en su propia transacción con
+   `FOR UPDATE SKIP LOCKED`, junto con la marca `processed`: los efectos en la
+   base quedan una sola vez aunque el evento se reprocese.
+3. Si un manejador falla, el evento se reintenta con espera creciente (30 s,
+   1 min, 2 min…); al octavo intento queda con `failed_at` y va al log y a
+   Sentry. Los procesados se borran a los 30 días.
+
+El despachador corre cada minuto y, además, 2 segundos después de cada evento
+registrado: un pago aprobado se notifica en unos 3 segundos.
+
+| Evento | Lo produce | Efecto |
+|---|---|---|
+| `pago.aprobado` | Aprobación del pago (tarjeta, webhook, consulta, sandbox) | Notificación al cliente con monto y comprobante |
+| `pago.duplicado` | Un segundo pago aprobado sobre el mismo envío | Notificación a los admins para devolverlo |
+| `envio.cancelado_sin_chofer` | Trabajo de expiración de ofertas | Notificación al cliente con el estado de la devolución |
+| `cupon.acreditado` | Trabajo de revisión del SLA | Notificación al cliente con el cupón |
+
+Los payloads llevan ids, códigos y montos, nunca nombres ni direcciones. Las
+notificaciones (`notificaciones`) son la bandeja de cada usuario en la app y se
+borran al eliminar la cuenta. No hay mail: el modelo no guarda el email de los
+clientes. El push a los teléfonos (Hito 2.3) se suma como otro manejador.
+
 ## Migraciones
 
 Cada cambio de esquema es un archivo nuevo en `migrations/`, con su `up` y su
@@ -255,6 +288,8 @@ haría falta un plan que mantenga el servicio activo.
 | POST | `/api/pagos/webhook/mercadopago` | Webhook de Mercado Pago, sin auth |
 | GET | `/api/perfil/resumen` | Resumen de cuenta para la pantalla de Perfil |
 | GET | `/api/recorridos` | Ruta por calles entre dos puntos (Google Directions, con caché) |
+| GET | `/api/notificaciones` | Bandeja del usuario (`?soloNoLeidas=true`, `?limite=`) y cantidad sin leer |
+| POST | `/api/notificaciones/leidas` | Marca como leídas las indicadas en `ids`, o todas |
 | POST | `/api/perfil/eliminar-cuenta` | Elimina la cuenta propia (pide la contraseña) |
 
 ## Cómo se calcula el precio

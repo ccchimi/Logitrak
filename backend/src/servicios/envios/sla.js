@@ -10,6 +10,7 @@
 // compensan con cupón: se les devuelve el pago.
 import { consultar, pool } from '../../db/pool.js';
 import { log } from '../../observabilidad/logger.js';
+import { registrarEvento } from '../../outbox/index.js';
 
 const entero = (valor, porDefecto) => (Number(valor) > 0 ? Math.round(Number(valor)) : porDefecto);
 
@@ -66,10 +67,16 @@ export async function revisarSla(envioId) {
 
         const yaTiene = await cliente.query('SELECT 1 FROM cupones WHERE envio_id = $1 LIMIT 1', [envio.id]);
         if (!yaTiene.rowCount) {
-            await cliente.query(
-                `INSERT INTO cupones (cliente_id, envio_id, descuento_pct, motivo) VALUES ($1, $2, $3, $4)`,
+            const cupon = await cliente.query(
+                `INSERT INTO cupones (cliente_id, envio_id, descuento_pct, motivo) VALUES ($1, $2, $3, $4) RETURNING codigo`,
                 [envio.cliente_id, envio.id, DESCUENTO_SLA_PCT, MOTIVO_SLA]
             );
+            await registrarEvento(cliente, {
+                tipoAgregado: 'envio',
+                idAgregado: envio.codigo,
+                tipo: 'cupon.acreditado',
+                datos: { clienteId: envio.cliente_id, envioCodigo: envio.codigo, descuentoPct: DESCUENTO_SLA_PCT, cuponCodigo: cupon.rows[0].codigo },
+            });
             await cliente.query(
                 `INSERT INTO envio_eventos (envio_id, tipo, titulo, detalle) VALUES ($1, 'sla_excedido', 'SLA excedido', $2)`,
                 [envio.id, `Se acreditó un cupón de compensación del ${DESCUENTO_SLA_PCT} % al cliente.`]

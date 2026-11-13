@@ -11,13 +11,28 @@ import { PgBoss } from 'pg-boss';
 import { log, logger, registrarError } from '../observabilidad/logger.js';
 import { enviosConOfertaVencida, expirarOferta } from '../servicios/envios/expiracion.js';
 import { enviosConSlaParaRevisar, revisarSla } from '../servicios/envios/sla.js';
+import { alRegistrarEvento, despachar, purgarProcesados } from '../outbox/index.js';
 
 export const COLAS = {
     barrerOfertas: 'barrer-ofertas-vencidas',
     expirarOferta: 'expirar-oferta',
     barrerSla: 'barrer-sla',
     revisarSla: 'revisar-sla',
+    despacharOutbox: 'despachar-outbox',
 };
+
+// El despachador del outbox: procesa los eventos pendientes y, como mucho una
+// vez por hora, borra los ya procesados viejos.
+let ultimaPurga = 0;
+export async function despacharOutbox() {
+    const resumen = await despachar();
+    if (Date.now() - ultimaPurga > 3_600_000) {
+        ultimaPurga = Date.now();
+        const borrados = await purgarProcesados();
+        if (borrados) log().info({ borrados }, 'Outbox: eventos procesados viejos borrados');
+    }
+    return resumen;
+}
 
 // Para /api/salud: 'no_iniciado' (por ejemplo en las pruebas), 'ok', 'error' o
 // 'deshabilitado'.
@@ -72,6 +87,11 @@ export async function iniciarTrabajos({ pool, env = process.env } = {}) {
         schema: 'pgboss',
     });
     boss.on('error', (e) => registrarError(e, 'Error interno de pg-boss'));
+    // Al detenerse, los eventos nuevos esperan al próximo arranque (el barrido los toma).
+    boss.once('stopped', () => {
+        alRegistrarEvento(null);
+        estado = 'detenido';
+    });
     try {
         await iniciarColas(boss);
     } catch (e) {
@@ -90,9 +110,12 @@ async function iniciarColas(boss) {
     await boss.createQueue(COLAS.barrerSla, { policy: 'exclusive', retryLimit: 2 });
     await boss.createQueue(COLAS.expirarOferta, { policy: 'exclusive', ...REINTENTOS });
     await boss.createQueue(COLAS.revisarSla, { policy: 'exclusive', ...REINTENTOS });
+    // Los reintentos de cada evento los maneja el propio outbox.
+    await boss.createQueue(COLAS.despacharOutbox, { policy: 'exclusive', retryLimit: 2 });
 
     await boss.schedule(COLAS.barrerOfertas, '* * * * *');
     await boss.schedule(COLAS.barrerSla, '* * * * *');
+    await boss.schedule(COLAS.despacharOutbox, '* * * * *');
 
     const sondeo = { pollingIntervalSeconds: 5 };
     await boss.work(COLAS.barrerOfertas, sondeo, conRegistro(COLAS.barrerOfertas, 2, () =>
@@ -103,9 +126,18 @@ async function iniciarColas(boss) {
     ));
     await boss.work(COLAS.expirarOferta, sondeo, conRegistro(COLAS.expirarOferta, REINTENTOS.retryLimit, (t) => procesarExpiracion(t.data.envioId)));
     await boss.work(COLAS.revisarSla, sondeo, conRegistro(COLAS.revisarSla, REINTENTOS.retryLimit, (t) => revisarSla(t.data.envioId)));
+    await boss.work(COLAS.despacharOutbox, { pollingIntervalSeconds: 2 }, conRegistro(COLAS.despacharOutbox, 2, () => despacharOutbox()));
+
+    // Cada evento registrado pide un despacho a los 2 segundos (lo justo para que
+    // su transacción se confirme). Si ya hay uno pendiente, la política
+    // exclusive no encola otro; y si alguno se escapa, lo toma el del minuto.
+    alRegistrarEvento(() => {
+        boss.send(COLAS.despacharOutbox, null, { startAfter: 2 }).catch((e) => log().warn({ err: e }, 'No se pudo pedir el despacho del outbox'));
+    });
 
     // Render Free duerme el servicio: al despertar no esperamos al próximo
     // minuto para ponernos al día.
     await boss.send(COLAS.barrerOfertas);
     await boss.send(COLAS.barrerSla);
+    await boss.send(COLAS.despacharOutbox);
 }

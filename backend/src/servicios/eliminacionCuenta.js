@@ -76,6 +76,8 @@ export async function anonimizarCuenta(db, usuario) {
         [id, alias, hashInutilizable]
     );
     await db.query('DELETE FROM sesiones WHERE usuario_id = $1', [id]);
+    // Las notificaciones repiten montos y códigos de sus envíos: se borran.
+    await db.query('DELETE FROM notificaciones WHERE usuario_id = $1', [id]);
 
     // 2) Ficha de chofer: identidad, contacto y fotos fuera. Se conserva la
     //    fila porque los viajes que hizo la referencian.
