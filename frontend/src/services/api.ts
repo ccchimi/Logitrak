@@ -48,6 +48,7 @@ export const CLAVE_NAVEGACION = 'logitrak.navegacion';
 const ENCABEZADO_SESION = { 'X-Logitrak-Sesion': 'refresh' };
 
 const MS_ESPERA_VALIDACION = 6000;
+const MS_ESPERA_API = 60000;
 
 // refreshToken solo viene al iniciar sesión o al renovar; cuando otra pantalla
 // re-emite el token de acceso (perfil, alta de chofer) se conserva el actual.
@@ -106,16 +107,16 @@ const esperar = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 // Pide un token de acceso nuevo. Si varias pantallas se encuentran con el token
 // vencido a la vez, comparten una sola renovación.
-function renovarSesion(): Promise<ResultadoRenovacion> {
+function renovarSesion(signal: AbortSignal): Promise<ResultadoRenovacion> {
     if (!renovacionEnCurso) {
-        renovacionEnCurso = intentarRenovacion().finally(() => {
+        renovacionEnCurso = intentarRenovacion(signal).finally(() => {
             renovacionEnCurso = null;
         });
     }
     return renovacionEnCurso;
 }
 
-async function intentarRenovacion(): Promise<ResultadoRenovacion> {
+async function intentarRenovacion(signal: AbortSignal): Promise<ResultadoRenovacion> {
     const usado = refreshActual ?? (await leer(CLAVE_REFRESH));
     if (!usado) return 'vencida';
 
@@ -125,6 +126,7 @@ async function intentarRenovacion(): Promise<ResultadoRenovacion> {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', ...ENCABEZADO_SESION },
             body: JSON.stringify({ refreshToken: usado }),
+            signal,
         });
     } catch {
         return 'sin_conexion';
@@ -132,6 +134,7 @@ async function intentarRenovacion(): Promise<ResultadoRenovacion> {
 
     if (respuesta.ok) {
         const datos = await respuesta.json();
+        if (refreshActual !== usado) return 'vencida';
         guardarSesion(datos.token, datos.usuario, datos.refreshToken);
         return 'ok';
     }
@@ -142,6 +145,7 @@ async function intentarRenovacion(): Promise<ResultadoRenovacion> {
         for (let intento = 0; intento < 3; intento++) {
             const guardado = await leer(CLAVE_REFRESH);
             const acceso = await leer(CLAVE_TOKEN);
+            if (refreshActual !== usado) return 'vencida';
             if (guardado && guardado !== usado && acceso) {
                 refreshActual = guardado;
                 tokenActual = acceso;
@@ -214,47 +218,55 @@ export async function llamarApi<T extends { exito: boolean }>(
     ruta: string,
     opciones: OpcionesApi = {}
 ): Promise<T | { exito: false; error: string; sinConexion?: boolean }> {
-    return ejecutar<T>(ruta, opciones, true);
+    const controlador = new AbortController();
+    const limiteEspera = setTimeout(() => controlador.abort(), MS_ESPERA_API);
+    try {
+        return await ejecutar<T>(ruta, opciones, controlador.signal, true);
+    } catch {
+        return {
+            exito: false,
+            sinConexion: true,
+            error: controlador.signal.aborted
+                ? 'El servidor tardó demasiado en responder. Intentá nuevamente en unos instantes.'
+                : 'No pudimos conectar con el servidor. Verificá tu conexión e intentá nuevamente.',
+        };
+    } finally {
+        clearTimeout(limiteEspera);
+    }
 }
 
 async function ejecutar<T extends { exito: boolean }>(
     ruta: string,
     opciones: OpcionesApi,
+    signal: AbortSignal,
     puedeRenovar: boolean
 ): Promise<T | { exito: false; error: string; sinConexion?: boolean }> {
     const { metodo = 'GET', cuerpo, conAuth = false, encabezados: extra } = opciones;
-    try {
-        const encabezados: Record<string, string> = {
-            'Content-Type': 'application/json',
-            ...ENCABEZADO_SESION,
-            ...extra,
-        };
-        if (conAuth && tokenActual) encabezados.Authorization = `Bearer ${tokenActual}`;
-
-        const respuesta = await fetch(`${BASE_URL}${ruta}`, {
-            method: metodo,
-            headers: encabezados,
-            body: cuerpo !== undefined ? JSON.stringify(cuerpo) : undefined,
-        });
-
-        // Token de acceso vencido: se renueva una vez y se repite el pedido. Es
-        // seguro repetirlo porque el backend lo rechazó antes de procesarlo.
-        if (respuesta.status === 401 && conAuth && puedeRenovar && refreshActual) {
-            const renovacion = await renovarSesion();
-            if (renovacion === 'ok') return ejecutar<T>(ruta, opciones, false);
-            if (renovacion === 'vencida') cerrarSesion();
-        }
-
-        if (respuesta.status >= 500) {
-            registrarFallaApi(metodo, ruta, respuesta.status, respuesta.headers.get('X-Request-Id'));
-        }
-
-        return (await respuesta.json()) as T;
-    } catch {
-        return {
-            exito: false,
-            sinConexion: true,
-            error: 'No pudimos conectar con el servidor. Verificá que el backend esté corriendo.',
-        } as any;
+    const encabezados: Record<string, string> = {
+        'Content-Type': 'application/json',
+        ...ENCABEZADO_SESION,
+        ...extra,
+    };
+    if (conAuth && tokenActual) encabezados.Authorization = `Bearer ${tokenActual}`;
+    const respuesta = await fetch(`${BASE_URL}${ruta}`, {
+        method: metodo,
+        headers: encabezados,
+        body: cuerpo !== undefined ? JSON.stringify(cuerpo) : undefined,
+        signal,
+    });
+    if (respuesta.status >= 500) {
+        registrarFallaApi(metodo, ruta, respuesta.status, respuesta.headers.get('X-Request-Id'));
     }
+    const datos = await respuesta.json();
+    if (respuesta.status === 401 && datos?.codigo === 'token_vencido' && conAuth && puedeRenovar && refreshActual) {
+        const refreshDelPedido = refreshActual;
+        const renovacion = await renovarSesion(signal);
+        if (signal.aborted) throw new Error('Tiempo agotado');
+        if (renovacion === 'ok') return ejecutar<T>(ruta, opciones, signal, false);
+        if (renovacion === 'sin_conexion') {
+            return { exito: false, sinConexion: true, error: 'No pudimos renovar la sesión. Intentá nuevamente.' };
+        }
+        if (refreshActual === refreshDelPedido) cerrarSesion();
+    }
+    return datos as T;
 }

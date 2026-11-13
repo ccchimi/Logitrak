@@ -60,6 +60,10 @@ rutasAuth.post('/login', limiteLogin, validarRequest({ body: esquemas.login }), 
 
     await auditar(usuario, true, null, req);
 
+    if (req.get('X-Logitrak-Sesion') === 'verificar') {
+        return res.json({ exito: true, usuario: publicar(fila, chofer) });
+    }
+
     // La app nueva recibe además un refresh token para renovar la sesión sola;
     // las versiones viejas, el token largo de siempre.
     const respuesta = { exito: true, token: emitirAccessToken(fila, req), usuario: publicar(fila, chofer) };
