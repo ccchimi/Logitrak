@@ -135,6 +135,7 @@ en el panel de Render (backend) y en EAS (builds de la app), no en archivos.
 | `MODO_API_URL`, `MODO_CLIENT_ID`, `MODO_CLIENT_SECRET`, `MODO_STORE_ID` | No | MODO (vacío = sandbox simulado) |
 | `RENAPER_API_URL`, `RENAPER_API_KEY` | No | Verificación contra RENAPER (vacío = lectura offline del DNI) |
 | `MINUTOS_ESPERA_CHOFER` | No | Minutos que espera un envío pago a que lo tome un chofer (5) |
+| `MINUTOS_PARA_PAGAR` | No | Minutos para pagar un pedido antes de que se borre (5) |
 | `MINUTOS_SLA`, `DESCUENTO_SLA_PCT` | No | Plazo de entrega desde el pago (20) y cupón si se excede (15 %) |
 | `TRABAJOS_DESHABILITADOS` | No | `true` apaga los trabajos en segundo plano (pg-boss) |
 | `GOOGLE_DIRECTIONS_KEY` | Para mapas | Ruta por calles del seguimiento en la app móvil (solo servidor) |

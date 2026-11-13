@@ -27,13 +27,21 @@ describe('cargarEntorno', () => {
         const raiz = mkdtempSync(join(tmpdir(), 'logitrak-env-')) + '/';
         writeFileSync(join(raiz, '.env.staging'), 'A=staging\nB=staging\n');
         writeFileSync(join(raiz, '.env'), 'A=comun\nB=comun\nC=comun\n');
-        const env = { ENTORNO: 'staging', A: 'real' };
+        const env = { ENTORNO: 'staging', A: 'real', LOGITRAK_PRUEBA_CARGA_ENV: '1' };
 
         const r = cargarEntorno({ env, raiz });
 
         assert.equal(r.entorno, 'staging');
         assert.deepEqual(r.archivos, ['.env.staging', '.env']);
         assert.deepEqual([env.A, env.B, env.C], ['real', 'staging', 'comun']);
+    });
+
+    test('bajo node --test no lee ningún .env', () => {
+        const raiz = mkdtempSync(join(tmpdir(), 'logitrak-env-')) + '/';
+        writeFileSync(join(raiz, '.env'), 'DATABASE_URL=postgres://produccion\n');
+        const env = { NODE_TEST_CONTEXT: 'child' };
+        assert.deepEqual(cargarEntorno({ env, raiz }).archivos, []);
+        assert.equal(env.DATABASE_URL, undefined);
     });
 
     test('sin archivos no falla', () => {

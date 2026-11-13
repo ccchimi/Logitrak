@@ -13,6 +13,7 @@ import * as esquemas from '../esquemas/pagos.js';
 import { esReutilizable, leerClaveIdempotencia, minutosRestantes, mismaOperacion } from '../servicios/pagos/intentos.js';
 import { log, registrarError } from '../observabilidad/logger.js';
 import { registrarEvento } from '../outbox/index.js';
+import { pedidoVencido, RESPUESTA_VENCIDO } from '../servicios/envios/impagos.js';
 
 export const rutasPagos = Router();
 
@@ -197,6 +198,10 @@ rutasPagos.post('/checkout', limitePagos, autenticar, validarRequest({ body: esq
             await cliente.query('ROLLBACK');
             return res.status(409).json({ exito: false, error: 'Este envío ya está pagado.' });
         }
+        if (pedidoVencido(envio)) {
+            await cliente.query('ROLLBACK');
+            return res.status(409).json(RESPUESTA_VENCIDO);
+        }
 
         const real = metodo === 'mercadopago' ? mpHabilitado() : modoHabilitado();
         const modoProc = real ? 'real' : 'sandbox';
@@ -313,6 +318,10 @@ rutasPagos.post('/tarjeta', limitePagos, autenticar, validarRequest({ body: esqu
             await cliente.query('ROLLBACK');
             return res.status(409).json({ exito: false, error: 'Este envío ya está pagado.' });
         }
+        if (pedidoVencido(envio)) {
+            await cliente.query('ROLLBACK');
+            return res.status(409).json(RESPUESTA_VENCIDO);
+        }
 
         const resultado = procesarTarjeta({
             numero: b.numero,
@@ -382,6 +391,11 @@ rutasPagos.post('/:codigo/confirmar', limitePagos, autenticar, validarRequest({ 
     const cliente = await pool.connect();
     try {
         await cliente.query('BEGIN');
+        const envio = (await cliente.query('SELECT * FROM envios WHERE id = $1 FOR UPDATE', [pago.envio_id])).rows[0];
+        if (envio && pedidoVencido(envio)) {
+            await cliente.query('ROLLBACK');
+            return res.status(409).json(RESPUESTA_VENCIDO);
+        }
         const actualizado = await aprobarPago(cliente, pago.id, { detalle: { confirmadoEn: 'sandbox' } });
         await cliente.query('COMMIT');
         return res.json({ exito: true, pago: publicar(actualizado) });

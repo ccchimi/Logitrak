@@ -15,6 +15,12 @@ export async function levantarApi() {
     const { pool } = await import('../db/pool.js');
     const { app } = await import('../app.js');
 
+    // Si algún módulo creó la conexión antes de este punto, apunta a otra base.
+    // Mejor cortar acá que correr las pruebas contra datos reales.
+    if (pool.options.connectionString !== URL_PRUEBA) {
+        throw new Error('La conexión a la base se creó antes de levantarApi() y no apunta a TEST_DATABASE_URL. Importá los módulos que usan la base dentro de before().');
+    }
+
     // Las migraciones esperan su propio advisory lock: los archivos de prueba
     // corren en paralelo sobre la misma base sin pisarse.
     await inicializarBaseDeDatos();

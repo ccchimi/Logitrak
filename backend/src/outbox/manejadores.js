@@ -62,6 +62,18 @@ export const MANEJADORES = {
         });
     },
 
+    async 'envio.eliminado_sin_pago'(cliente, evento) {
+        const p = evento.payload;
+        await notificar(cliente, {
+            usuarioId: p.clienteId,
+            eventoId: evento.id,
+            tipo: evento.event_type,
+            titulo: 'Pedido sin pagar eliminado',
+            cuerpo: `El pedido ${p.envioCodigo} no se pagó dentro de los ${p.minutos} minutos y se eliminó. Si todavía lo necesitás, volvé a cotizarlo.`,
+            datos: { envioCodigo: p.envioCodigo },
+        });
+    },
+
     async 'cupon.acreditado'(cliente, evento) {
         const p = evento.payload;
         await notificar(cliente, {

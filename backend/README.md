@@ -154,6 +154,17 @@ instancia).
 | `expirar-oferta` | Cancela el envío y devuelve el pago | Por envío, con reintentos |
 | `barrer-sla` | Busca envíos pagos con el SLA vencido sin entrega, o entregados tarde | Cada minuto y al arrancar |
 | `revisar-sla` | Acredita un cupón de compensación y registra el evento `sla_excedido` | Por envío, con reintentos |
+| `barrer-impagos` | Busca pedidos que no se pagaron dentro de `MINUTOS_PARA_PAGAR` (5) | Cada minuto y al arrancar |
+| `eliminar-impago` | Borra el pedido de la base, con sus intentos de pago y eventos | Por envío, con reintentos |
+
+**Pedidos sin pagar.** Cada envío nace con `pago_vence_en` (5 minutos). Pasado
+ese límite el checkout, la tarjeta y la confirmación sandbox responden 409 con
+`codigo: 'pedido_vencido'`, y la preferencia de Mercado Pago vence a la misma
+hora. Un minuto después, el trabajo borra el pedido: en cascada se van sus
+eventos y sus intentos de pago, la cotización queda `vencida` y el cliente
+recibe una notificación. Antes de borrar se le pregunta a la pasarela por los
+intentos reales pendientes: si figura un pago aprobado o en proceso, el pedido
+no se borra; si la pasarela no responde, se reintenta.
 
 Cada trabajo por envío se reintenta hasta 6 veces con espera creciente (de 30
 segundos a 15 minutos): un reembolso que la pasarela rechaza por un rato no

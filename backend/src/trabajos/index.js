@@ -12,6 +12,7 @@ import { log, logger, registrarError } from '../observabilidad/logger.js';
 import { enviosConOfertaVencida, expirarOferta } from '../servicios/envios/expiracion.js';
 import { enviosConSlaParaRevisar, revisarSla } from '../servicios/envios/sla.js';
 import { alRegistrarEvento, despachar, purgarProcesados } from '../outbox/index.js';
+import { eliminarImpago, enviosImpagosVencidos } from '../servicios/envios/impagos.js';
 
 export const COLAS = {
     barrerOfertas: 'barrer-ofertas-vencidas',
@@ -19,6 +20,8 @@ export const COLAS = {
     barrerSla: 'barrer-sla',
     revisarSla: 'revisar-sla',
     despacharOutbox: 'despachar-outbox',
+    barrerImpagos: 'barrer-impagos',
+    eliminarImpago: 'eliminar-impago',
 };
 
 // El despachador del outbox: procesa los eventos pendientes y, como mucho una
@@ -110,12 +113,15 @@ async function iniciarColas(boss) {
     await boss.createQueue(COLAS.barrerSla, { policy: 'exclusive', retryLimit: 2 });
     await boss.createQueue(COLAS.expirarOferta, { policy: 'exclusive', ...REINTENTOS });
     await boss.createQueue(COLAS.revisarSla, { policy: 'exclusive', ...REINTENTOS });
+    await boss.createQueue(COLAS.barrerImpagos, { policy: 'exclusive', retryLimit: 2 });
+    await boss.createQueue(COLAS.eliminarImpago, { policy: 'exclusive', ...REINTENTOS });
     // Los reintentos de cada evento los maneja el propio outbox.
     await boss.createQueue(COLAS.despacharOutbox, { policy: 'exclusive', retryLimit: 2 });
 
     await boss.schedule(COLAS.barrerOfertas, '* * * * *');
     await boss.schedule(COLAS.barrerSla, '* * * * *');
     await boss.schedule(COLAS.despacharOutbox, '* * * * *');
+    await boss.schedule(COLAS.barrerImpagos, '* * * * *');
 
     const sondeo = { pollingIntervalSeconds: 5 };
     await boss.work(COLAS.barrerOfertas, sondeo, conRegistro(COLAS.barrerOfertas, 2, () =>
@@ -126,6 +132,10 @@ async function iniciarColas(boss) {
     ));
     await boss.work(COLAS.expirarOferta, sondeo, conRegistro(COLAS.expirarOferta, REINTENTOS.retryLimit, (t) => procesarExpiracion(t.data.envioId)));
     await boss.work(COLAS.revisarSla, sondeo, conRegistro(COLAS.revisarSla, REINTENTOS.retryLimit, (t) => revisarSla(t.data.envioId)));
+    await boss.work(COLAS.barrerImpagos, sondeo, conRegistro(COLAS.barrerImpagos, 2, () =>
+        encolarPendientes(boss, { buscar: enviosImpagosVencidos, cola: COLAS.eliminarImpago, prefijo: 'impago' })
+    ));
+    await boss.work(COLAS.eliminarImpago, sondeo, conRegistro(COLAS.eliminarImpago, REINTENTOS.retryLimit, (t) => eliminarImpago(t.data.envioId)));
     await boss.work(COLAS.despacharOutbox, { pollingIntervalSeconds: 2 }, conRegistro(COLAS.despacharOutbox, 2, () => despacharOutbox()));
 
     // Cada evento registrado pide un despacho a los 2 segundos (lo justo para que
@@ -140,4 +150,5 @@ async function iniciarColas(boss) {
     await boss.send(COLAS.barrerOfertas);
     await boss.send(COLAS.barrerSla);
     await boss.send(COLAS.despacharOutbox);
+    await boss.send(COLAS.barrerImpagos);
 }

@@ -77,7 +77,7 @@ export async function crearIntencionModo({ pago, envio, baseUrl }) {
     };
 }
 
-export async function consultarIntencionModo(intencionId) {
+export async function consultarIntencionModo(intencionId, { estricto = false } = {}) {
     if (!modoHabilitado() || !intencionId) return null;
 
     try {
@@ -87,7 +87,10 @@ export async function consultarIntencionModo(intencionId) {
             `${process.env.MODO_API_URL}/payment-intention/${intencionId}`;
 
         const resp = await fetch(estadoUrl, { headers: { Authorization: `Bearer ${token}` } });
-        if (!resp.ok) return null;
+        if (!resp.ok) {
+            if (estricto) throw new Error(`MODO respondió ${resp.status}`);
+            return null;
+        }
 
         const data = await resp.json();
         const crudo = String(data.status || data.state || '').toLowerCase();
@@ -100,6 +103,7 @@ export async function consultarIntencionModo(intencionId) {
         return { estado, externalReference: data.external_reference, raw: data };
     } catch (e) {
         log().warn({ err: e }, 'No se pudo consultar la intención en MODO');
+        if (estricto) throw e;
         return null;
     }
 }

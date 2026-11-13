@@ -5,6 +5,7 @@ import { validarRequest } from '../middleware/validar.js';
 import { crearEnvio } from '../esquemas/envios.js';
 import { verificarCotizacionParaEnvio } from '../servicios/cotizador/index.js';
 import { MINUTOS_SLA } from '../servicios/envios/sla.js';
+import { MINUTOS_PARA_PAGAR } from '../servicios/envios/impagos.js';
 import { reembolsarPagoDelEnvio } from '../servicios/pagos/reembolsos.js';
 import { registrarError } from '../observabilidad/logger.js';
 
@@ -72,6 +73,8 @@ function publicar(fila) {
         slaMin: fila.sla_min,
         slaVenceEn: fila.sla_vence_en,
         ofertaVenceEn: fila.oferta_vence_en ?? null,
+        // Límite para pagar: pasado, el pedido se borra (servicios/envios/impagos.js).
+        pagoVenceEn: fila.estado_pago === 'pagado' ? null : fila.pago_vence_en ?? null,
         archivadoEn: fila.archivado_en ?? null,
         archivadoMotivo: fila.archivado_motivo ?? null,
         creadoEn: fila.creado_en,
@@ -153,16 +156,17 @@ rutasEnvios.post('/', autenticar, validarRequest({ body: crearEnvio }), async (r
                  (cliente_id, cotizacion_id, origen, destino, origen_lat, origen_lng,
                   destino_lat, destino_lng, descripcion_carga, categoria_carga, peso_kg,
                   bultos, vehiculo_id, vehiculo_nombre, distancia_km, precio, moneda,
-                  sla_min, sla_vence_en)
+                  sla_min, sla_vence_en, pago_vence_en)
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,COALESCE($17,'ARS'),$18,
-                     CASE WHEN $18::int IS NULL THEN NULL ELSE now() + make_interval(mins => $18::int) END)
+                     CASE WHEN $18::int IS NULL THEN NULL ELSE now() + make_interval(mins => $18::int) END,
+                     now() + make_interval(mins => $19::int))
              RETURNING *`,
             [
                 req.usuario.id, cotizacion.id, cotizacion.origen, cotizacion.destino,
                 num(b.origenLat), num(b.origenLng), num(b.destinoLat), num(b.destinoLng),
                 cotizacion.descripcion_carga, cotizacion.categoria_carga, cotizacion.peso_kg, cotizacion.bultos,
                 cotizacion.vehiculo_id, cotizacion.vehiculo_nombre, cotizacion.distancia_km, cotizacion.precio,
-                cotizacion.moneda, slaMin,
+                cotizacion.moneda, slaMin, MINUTOS_PARA_PAGAR,
             ]
         );
         const envio = insercion.rows[0];

@@ -29,6 +29,9 @@ const RAIZ = fileURLToPath(new URL('../../', import.meta.url));
 export function cargarEntorno({ env = process.env, raiz = RAIZ } = {}) {
     const entorno = nombreEntorno(env);
     const cargados = [];
+    // Bajo `node --test` nunca se leen los .env: tienen las credenciales reales
+    // (la base de producción) y una prueba no puede tocarlas ni por accidente.
+    if (env.NODE_TEST_CONTEXT && !env.LOGITRAK_PRUEBA_CARGA_ENV) return { entorno, archivos: cargados };
     for (const archivo of [`.env.${entorno}`, '.env']) {
         const ruta = `${raiz}${archivo}`;
         if (existsSync(ruta)) {

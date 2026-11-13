@@ -38,6 +38,11 @@ export async function crearPreferenciaMp({ pago, envio, baseUrl }) {
             external_reference: pago.codigo,
             notification_url: `${baseUrl}/api/pagos/webhook/mercadopago`,
             metadata: { pago_codigo: pago.codigo, envio_codigo: envio.codigo },
+            // Vence junto con el pedido: después de esa hora Mercado Pago no
+            // acepta el pago y el pedido se puede borrar sin cobros colgados.
+            ...(envio.pago_vence_en
+                ? { expires: true, expiration_date_to: new Date(envio.pago_vence_en).toISOString() }
+                : {}),
             back_urls: {
                 success: `${baseUrl}/api/pagos/retorno`,
                 failure: `${baseUrl}/api/pagos/retorno`,
@@ -72,7 +77,9 @@ export async function consultarPagoMp(pagoExtId) {
     }
 }
 
-export async function buscarPagoMpPorReferencia(externalReference) {
+// estricto: si la consulta falla, lanza en vez de devolver null. Sirve para
+// distinguir "no hay pago" de "no se pudo saber" antes de borrar algo.
+export async function buscarPagoMpPorReferencia(externalReference, { estricto = false } = {}) {
     const cliente = obtenerCliente();
     if (!cliente || !externalReference) return null;
 
@@ -99,6 +106,7 @@ export async function buscarPagoMpPorReferencia(externalReference) {
         };
     } catch (e) {
         log().warn({ err: e }, 'No se pudo buscar el pago en Mercado Pago');
+        if (estricto) throw e;
         return null;
     }
 }
