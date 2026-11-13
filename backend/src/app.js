@@ -29,6 +29,9 @@ app.use('/api', limiteGeneral);
 // 16mb: un adjunto de soporte de 10 MB viaja en base64, que infla un 33 %.
 app.use(express.json({ limit: '16mb' }));
 
+// La raíz responde para los sondeos de Render (HEAD / y GET /).
+app.get('/', (_req, res) => res.json({ servicio: 'logitrak-api', estado: 'ok' }));
+
 app.get('/api/salud', async (_req, res) => {
     try {
         await pool.query('SELECT 1');

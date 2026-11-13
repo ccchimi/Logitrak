@@ -49,6 +49,7 @@ describe('registro de pedidos', () => {
         const app = express();
         app.use(registroPedidos({ logger: captura.logger }));
         app.get('/api/salud', (_req, res) => res.json({ ok: true }));
+        app.get('/', (_req, res) => res.json({ ok: true }));
         app.get('/api/privado', autenticar, (_req, res) => {
             // Un servicio que no recibe `req` igual loguea con el contexto del pedido.
             log().info('dentro del servicio');
@@ -94,9 +95,10 @@ describe('registro de pedidos', () => {
         assert.notEqual(raro.headers.get('x-request-id'), 'x"><script>');
     });
 
-    test('el chequeo de salud correcto no se loguea; un 500 sí, como error', async () => {
+    test('los sondeos de salud correctos no se loguean; un 500 sí, como error', async () => {
         lineas.length = 0;
         await fetch(`${base}/api/salud`);
+        await fetch(`${base}/`, { method: 'HEAD' });
         await fetch(`${base}/api/falla`);
         await esperarLineas(1);
 

@@ -8,8 +8,10 @@ import { conContexto, logger as loggerBase } from './logger.js';
 
 const ID_VALIDO = /^[A-Za-z0-9._-]{8,100}$/;
 
-// El chequeo de salud lo consulta Render seguido: si responde bien, no ensucia.
-const esSaludOk = (req, res) => req.path === '/api/salud' && res.statusCode < 400;
+// Render consulta la raíz y el chequeo de salud seguido para saber si el servicio
+// está vivo: si responden bien, no ensucian los logs.
+const RUTAS_DE_SONDEO = new Set(['/', '/api/salud']);
+const esSaludOk = (req, res) => RUTAS_DE_SONDEO.has(req.path) && res.statusCode < 400;
 
 export function registroPedidos({ logger = loggerBase } = {}) {
     return (req, res, next) => {
