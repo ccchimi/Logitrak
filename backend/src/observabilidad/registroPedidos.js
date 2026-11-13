@@ -10,7 +10,7 @@ const ID_VALIDO = /^[A-Za-z0-9._-]{8,100}$/;
 
 // Render consulta la raíz y el chequeo de salud seguido para saber si el servicio
 // está vivo: si responden bien, no ensucian los logs.
-const RUTAS_DE_SONDEO = new Set(['/', '/api/salud']);
+const RUTAS_DE_SONDEO = new Set(['/', '/api/salud', '/api/salud/vivo']);
 const esSaludOk = (req, res) => RUTAS_DE_SONDEO.has(req.path) && res.statusCode < 400;
 
 export function registroPedidos({ logger = loggerBase } = {}) {

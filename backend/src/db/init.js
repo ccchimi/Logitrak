@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import '../config/entorno.js';
 import bcrypt from 'bcryptjs';
 import { pool } from './pool.js';
 import { migrar } from './migrar.js';

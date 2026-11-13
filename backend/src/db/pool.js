@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import '../config/entorno.js';
 import pg from 'pg';
 import { logger } from '../observabilidad/logger.js';
 

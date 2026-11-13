@@ -138,6 +138,7 @@ en el panel de Render (backend) y en EAS (builds de la app), no en archivos.
 | `GOOGLE_DIRECTIONS_KEY` | Para mapas | Ruta por calles del seguimiento en la app móvil (solo servidor) |
 | `SENTRY_DSN` | No | Envía los errores del backend a Sentry (vacío = solo logs) |
 | `LOG_LEVEL` | No | Nivel de los logs: `debug`, `info` (por defecto), `warn`, `error` |
+| `ENTORNO` | No | `desarrollo`, `staging` o `produccion` (por defecto: `produccion` en Render, `desarrollo` en local). Carga `backend/.env.<entorno>` antes que `.env` |
 
 **Frontend** (`frontend/.env`)
 

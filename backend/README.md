@@ -76,6 +76,70 @@ Si querés conectarte desde un cliente como DBeaver o IntelliJ, los datos salen
 del mismo connection string: el host es el del pooler, el puerto 5432, la base
 `postgres` y el SSL es obligatorio (`sslmode=require`).
 
+## Entornos y configuración
+
+El backend distingue tres entornos con la variable `ENTORNO`: `desarrollo`,
+`staging` y `produccion`. Si no está definida, en Render es `produccion` y en
+cualquier otro lado `desarrollo`. Al arrancar se carga `backend/.env.<entorno>`
+y después `backend/.env`; ninguno pisa lo que ya viene del entorno real (el
+panel de Render o la línea de comandos), así que el orden de prioridad es:
+entorno real, archivo del entorno, `.env` común.
+
+```bash
+ENTORNO=staging npm start   # usa backend/.env.staging + backend/.env
+```
+
+`backend/.env.staging.example` y `backend/.env.produccion.example` listan qué va
+en cada uno; los archivos reales están en el `.gitignore`. Staging tiene que
+tener base, `JWT_SECRET` y credenciales propias, nunca las de producción.
+`staging` y `produccion` cuentan como despliegues: nunca guardan fotos en disco y
+la migración base no se puede revertir.
+
+Antes de tocar la base, la API revisa la configuración
+(`src/config/entorno.js`). Sin `DATABASE_URL` o `JWT_SECRET` no arranca. Lo
+recomendado que falte (Storage, Directions, Sentry, el secreto del webhook,
+credenciales de prueba de Mercado Pago en producción, un `JWT_SECRET` corto)
+queda como aviso en el log al arrancar.
+
+## Salud
+
+| Ruta | Qué revisa | Status |
+|---|---|---|
+| `GET /api/salud/vivo` | Que el proceso responda (no toca la base) | 200 |
+| `GET /api/salud` | Base, migraciones y servicios externos | 200, o 503 si la base no responde |
+
+`/api/salud` devuelve el estado general (`ok`, `degradado` o `error`) y el de
+cada componente:
+
+```json
+{ "exito": true, "estado": "degradado", "baseDeDatos": "conectada",
+  "entorno": "produccion", "version": "6e7430e", "activoDesdeSeg": 5,
+  "componentes": {
+    "baseDeDatos": { "estado": "ok", "latenciaMs": 9, "migracionesPendientes": 0 },
+    "mercadoPago": { "estado": "ok" },
+    "almacenamiento": { "estado": "no_configurado" },
+    "googleDirections": { "estado": "configurado" },
+    "modo": { "estado": "no_configurado" },
+    "sentry": { "estado": "no_configurado" } },
+  "avisosDeConfiguracion": 2 }
+```
+
+- **Base de datos**: `SELECT 1` con un límite de 3 segundos, la latencia y las
+  migraciones del repo que todavía no se aplicaron. Si no responde, el estado es
+  `error` y la ruta devuelve 503.
+- **Mercado Pago** (`GET /users/me` con el access token) y **Storage** (el
+  bucket existe y sigue siendo privado) se consultan de verdad, pero el
+  resultado se guarda un minuto: el endpoint es público y no tiene que servir
+  para gastar APIs de terceros. Si fallan, el estado es `degradado` y la ruta
+  sigue en 200, porque el resto de la API funciona.
+- **Directions, MODO y Sentry** solo informan si están configurados: consultar
+  Directions cuesta cuota.
+
+La respuesta nunca incluye el motivo de un error (va al log) y `version` es el
+commit desplegado, útil para confirmar qué versión está corriendo. Como health
+check de Render conviene `/api/salud/vivo`: si Supabase tiene un corte, no tiene
+sentido que Render reinicie la API.
+
 ## Migraciones
 
 Cada cambio de esquema es un archivo nuevo en `migrations/`, con su `up` y su

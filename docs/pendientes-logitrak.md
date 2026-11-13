@@ -77,3 +77,6 @@ y verificado se saca de acá; el historial queda en los commits.
     (Settings > Secrets and variables > Actions > Variables) para la Web App.
     Para ver los errores del móvil con el código original hay que agregar
     `SENTRY_AUTH_TOKEN`, `SENTRY_ORG` y `SENTRY_PROJECT` como secretos de EAS.
+18. Configurar en Render el health check del servicio en `/api/salud/vivo`
+    (Settings > Health Check Path) y, si se arma staging, crear un segundo
+    servicio con `ENTORNO=staging` y su propia base y credenciales.

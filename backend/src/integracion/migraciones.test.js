@@ -28,6 +28,15 @@ describe('migraciones (integración)', { skip: SALTEAR }, () => {
         assert.deepEqual(await migrar(), []);
     });
 
+    test('/api/salud informa la base conectada y sin migraciones pendientes', async () => {
+        const r = await entorno.api('/api/salud');
+        assert.equal(r.status, 200);
+        assert.equal(r.body.baseDeDatos, 'conectada');
+        assert.equal(r.body.componentes.baseDeDatos.estado, 'ok');
+        assert.equal(r.body.componentes.baseDeDatos.migracionesPendientes, 0);
+        assert.equal((await entorno.api('/api/salud/vivo')).body.estado, 'vivo');
+    });
+
     test('la migración base no se revierte en producción', async () => {
         const antes = process.env.RENDER;
         process.env.RENDER = 'true';

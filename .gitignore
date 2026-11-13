@@ -17,6 +17,10 @@ $RECYCLE.BIN/
 .env
 .env.local
 .env.*.local
+# Configuración por entorno del backend (ver backend/.env.*.example).
+.env.desarrollo
+.env.staging
+.env.produccion
 *.local.env
 
 node_modules/

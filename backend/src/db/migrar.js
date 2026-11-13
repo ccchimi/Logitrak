@@ -3,7 +3,7 @@
 // toma un advisory lock y, si otra instancia está migrando (un deploy que
 // arranca mientras la anterior sigue viva, o pruebas en paralelo), espera a que
 // termine en vez de fallar o aplicar la misma migración dos veces.
-import 'dotenv/config';
+import '../config/entorno.js';
 import { fileURLToPath } from 'node:url';
 import { runner } from 'node-pg-migrate';
 import { pool } from './pool.js';

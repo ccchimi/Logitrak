@@ -27,7 +27,8 @@ export function almacenamientoDisponible() {
 
 // En Render (o con NODE_ENV=production) no se escriben datos personales en el
 // disco del servidor: es efímero y no está pensado para guardarlos.
-export const esProduccion = (env = process.env) => env.RENDER === 'true' || env.NODE_ENV === 'production';
+// Staging y producción: nunca se escriben fotos de documentos en disco.
+export { esDesplegado as esProduccion } from '../config/entorno.js';
 
 // Antes de subir el primer archivo se confirma que el bucket no sea público.
 // Si alguien lo cambió en el panel, se deja de subir en lugar de exponer datos.
@@ -40,6 +41,16 @@ async function exigirBucketPrivado(supa) {
         throw new Error(`El bucket ${BUCKET} es público: no se suben datos personales hasta hacerlo privado.`);
     }
     bucketPrivado = true;
+}
+
+// Para /api/salud: el bucket existe, responde y sigue siendo privado.
+export async function verificarAlmacenamiento() {
+    const supa = obtenerCliente();
+    if (!supa) return { estado: 'no_configurado' };
+    const { data, error } = await supa.storage.getBucket(BUCKET);
+    if (error) return { estado: 'error', motivo: error.message };
+    if (data.public) return { estado: 'error', motivo: `El bucket ${BUCKET} es público.` };
+    return { estado: 'ok' };
 }
 
 export async function subirArchivo(ruta, buffer, contentType = 'application/octet-stream') {

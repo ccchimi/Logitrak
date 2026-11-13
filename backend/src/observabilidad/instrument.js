@@ -1,7 +1,7 @@
 // Sentry se inicializa antes que todo lo demás (npm start lo carga con
 // `node --import`), para que capture también los errores del arranque y las
 // promesas rechazadas sin manejar. Sin SENTRY_DSN no hace nada.
-import 'dotenv/config';
+import { nombreEntorno } from '../config/entorno.js';
 import * as Sentry from '@sentry/node';
 
 // No mandamos datos personales: ni cuerpos, ni cookies, ni el header de auth.
@@ -24,7 +24,7 @@ const dsn = process.env.SENTRY_DSN?.trim();
 if (dsn) {
     Sentry.init({
         dsn,
-        environment: process.env.SENTRY_ENTORNO || (process.env.RENDER === 'true' ? 'produccion' : 'desarrollo'),
+        environment: process.env.SENTRY_ENTORNO || nombreEntorno(),
         release: process.env.RENDER_GIT_COMMIT || undefined,
         sendDefaultPii: false,
         tracesSampleRate: Number(process.env.SENTRY_TRACES_SAMPLE_RATE ?? 0),

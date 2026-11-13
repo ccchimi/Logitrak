@@ -10,6 +10,7 @@
 // una migración nueva (npm run migrar:crear -- nombre).
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { esDesplegado } from '../src/config/entorno.js';
 
 const ESQUEMA = readFileSync(fileURLToPath(new URL('../src/db/sql/esquema-inicial.sql', import.meta.url)), 'utf8');
 
@@ -17,9 +18,9 @@ export const up = (pgm) => {
     pgm.sql(ESQUEMA);
 };
 
-// Borra todo. Solo para bases de desarrollo: en producción se niega.
+// Borra todo. Solo para bases de desarrollo: en staging y producción se niega.
 export const down = (pgm) => {
-    if (process.env.RENDER === 'true' || process.env.NODE_ENV === 'production') {
+    if (esDesplegado()) {
         throw new Error('La migración base no se revierte en producción: borraría todos los datos.');
     }
     pgm.sql(`

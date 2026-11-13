@@ -1,6 +1,9 @@
-import 'dotenv/config';
+import './config/entorno.js';
 import express from 'express';
 import { pool } from './db/pool.js';
+import { DIR_MIGRACIONES, TABLA_MIGRACIONES } from './db/migrar.js';
+import { crearChequeoSalud } from './servicios/salud.js';
+import { verificarAlmacenamiento } from './servicios/almacenamiento.js';
 import { configurarSeguridad } from './middleware/seguridad.js';
 import { registroPedidos } from './observabilidad/registroPedidos.js';
 import { registrarError } from './observabilidad/logger.js';
@@ -32,13 +35,22 @@ app.use(express.json({ limit: '16mb' }));
 // La raíz responde para los sondeos de Render (HEAD / y GET /).
 app.get('/', (_req, res) => res.json({ servicio: 'logitrak-api', estado: 'ok' }));
 
+// Vivo: el proceso responde. No toca la base; es lo que conviene usar como
+// health check de Render, para que un corte de Supabase no reinicie la API.
+app.get('/api/salud/vivo', (_req, res) => res.json({ exito: true, estado: 'vivo' }));
+
+// Salud completa: base, migraciones y servicios externos (ver servicios/salud.js).
+const chequearSalud = crearChequeoSalud({
+    consultar: (sql) => pool.query(sql),
+    dirMigraciones: DIR_MIGRACIONES,
+    tablaMigraciones: TABLA_MIGRACIONES,
+    verificarAlmacenamiento,
+});
+
 app.get('/api/salud', async (_req, res) => {
-    try {
-        await pool.query('SELECT 1');
-        res.json({ exito: true, estado: 'ok', baseDeDatos: 'conectada' });
-    } catch {
-        res.status(503).json({ exito: false, estado: 'error', baseDeDatos: 'sin conexión' });
-    }
+    const salud = await chequearSalud();
+    res.set('Cache-Control', 'no-store');
+    res.status(salud.estado === 'error' ? 503 : 200).json(salud);
 });
 
 app.use('/api/auth', rutasAuth);
