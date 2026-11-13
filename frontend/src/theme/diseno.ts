@@ -1,0 +1,16 @@
+export const DISENO = {
+  fondo: "#1D2321",
+  superficie: "#2C2C2C",
+  tarjeta: "#353535",
+  profundo: "#171B19",
+  amarillo: "#FFDE00",
+  amarilloOscuro: "#D8B600",
+  texto: "#FFFFFF",
+  secundario: "#B3BEB6",
+  borde: "rgba(255,255,255,0.14)",
+  titulo: "Poppins_600SemiBold",
+  cuerpo: "Poppins_400Regular",
+  medio: "Poppins_500Medium",
+  negrita: "Poppins_700Bold",
+  campo: "#505050",
+};
