@@ -140,6 +140,41 @@ commit desplegado, útil para confirmar qué versión está corriendo. Como heal
 check de Render conviene `/api/salud/vivo`: si Supabase tiene un corte, no tiene
 sentido que Render reinicie la API.
 
+## Trabajos en segundo plano
+
+Lo que tiene que pasar aunque nadie esté mirando la app corre con `pg-boss`
+(`src/trabajos/`), sobre la misma base PostgreSQL: pg-boss crea y mantiene su
+propio schema `pgboss` y usa el pool de la API, sin conexiones aparte. Los
+workers corren dentro del proceso de la API (en Render Free hay una sola
+instancia).
+
+| Cola | Qué hace | Cuándo |
+|---|---|---|
+| `barrer-ofertas-vencidas` | Busca envíos pagos que ningún chofer tomó a tiempo y encola uno por envío | Cada minuto y al arrancar |
+| `expirar-oferta` | Cancela el envío y devuelve el pago | Por envío, con reintentos |
+| `barrer-sla` | Busca envíos pagos con el SLA vencido sin entrega, o entregados tarde | Cada minuto y al arrancar |
+| `revisar-sla` | Acredita un cupón de compensación y registra el evento `sla_excedido` | Por envío, con reintentos |
+
+Cada trabajo por envío se reintenta hasta 6 veces con espera creciente (de 30
+segundos a 15 minutos): un reembolso que la pasarela rechaza por un rato no
+frena al resto. Si agota los reintentos, queda como fallido en pg-boss y va al
+log y a Sentry. Las colas usan la política `exclusive`, así que no puede haber
+dos trabajos pendientes para el mismo envío ni dos barridos a la vez. Al
+arrancar se barre enseguida: Render Free duerme el servicio y al despertar no
+esperamos al próximo minuto. El estado de los trabajos aparece en `/api/salud`.
+
+Listar y tomar ofertas ya excluyen las vencidas por su cuenta, así que entre que
+una oferta vence y el trabajo la cancela ningún chofer puede tomarla.
+
+**SLA y cupones.** El plazo (`MINUTOS_SLA`, 20 minutos) lo fija el servidor y
+empieza a correr cuando se aprueba el pago; el `slaMin` que manda la app se
+ignora. Si el envío no se entregó a tiempo, el trabajo acredita un único cupón
+de `DESCUENTO_SLA_PCT` (15 %) y marca `sla_revisado_en`. Los envíos cancelados
+no reciben cupón: se les devuelve el pago. Antes el cupón lo pedía la app y
+`POST /api/cupones` aceptaba el porcentaje que mandara el cliente; ahora esa
+ruta emite cupones a mano solo para un admin, y para un cliente funciona como
+"revisá el SLA de mi envío" (así las versiones viejas de la app no se rompen).
+
 ## Migraciones
 
 Cada cambio de esquema es un archivo nuevo en `migrations/`, con su `up` y su

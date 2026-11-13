@@ -18,9 +18,13 @@ y verificado se saca de acá; el historial queda en los commits.
 3. Handoff por QR para la verificación de DNI: generar un QR en desktop,
    continuar el escaneo en el teléfono y mostrar el resultado en tiempo real en
    el desktop. Se apoya en Supabase Realtime, que entra en el plan Free.
-4. Compensación por SLA automatizada del lado del servidor. Hoy el cupón se
-   dispara desde la app. Puede reusar el patrón de expiración perezosa que ya
-   está en `backend/src/servicios/envios/expiracion.js`.
+4. Alinear la promesa de SLA de la cotización con la compensación. La
+   cotización promete "chofer en el retiro en menos de N min o bonificamos el
+   10 %", pero el servidor compensa con 15 % si el envío no se entrega en 20
+   minutos desde el pago (la regla que antes aplicaba la app). Desde el Hito 2.1
+   es configurable (`MINUTOS_SLA`, `DESCUENTO_SLA_PCT`); falta decidir la regla y
+   usar los tiempos de cada cotización. Los cupones todavía no se pueden usar
+   para pagar.
 5. Que el admin pueda editar los perfiles de otros usuarios. Hoy cada rol edita
    solo el suyo; falta una pantalla de listado de usuarios.
 6. Seguimiento de envíos en tiempo real por push, en lugar del polling actual.

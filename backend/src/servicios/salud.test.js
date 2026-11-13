@@ -50,6 +50,7 @@ describe('chequeo de salud', () => {
         assert.equal(s.componentes.almacenamiento.estado, 'ok');
         assert.equal(s.componentes.googleDirections.estado, 'configurado');
         assert.equal(s.componentes.modo.estado, 'no_configurado');
+        assert.equal(s.componentes.trabajos.estado, 'no_iniciado');
     });
 
     test('base caída: estado error (la ruta responde 503)', async () => {

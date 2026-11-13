@@ -112,12 +112,15 @@ async function aprobarPago(cliente, pagoId, extra = {}) {
     }
 
     // Recién con el pago aprobado el envío se ofrece a los choferes, así que es
-    // acá donde arranca la ventana de espera. COALESCE para que un segundo
-    // aviso de la pasarela no reinicie el reloj.
+    // acá donde arrancan la ventana de espera y el SLA. Un segundo aviso de la
+    // pasarela no reinicia ninguno de los dos relojes.
     await cliente.query(
         `UPDATE envios
-         SET estado_pago = 'pagado',
-             oferta_vence_en = COALESCE(oferta_vence_en, now() + make_interval(mins => $2::int)),
+         SET oferta_vence_en = COALESCE(oferta_vence_en, now() + make_interval(mins => $2::int)),
+             sla_vence_en = CASE
+                 WHEN estado_pago <> 'pagado' AND sla_min IS NOT NULL THEN now() + make_interval(mins => sla_min)
+                 ELSE sla_vence_en END,
+             estado_pago = 'pagado',
              actualizado_en = now()
          WHERE id = $1`,
         [pago.envio_id, MINUTOS_ESPERA_CHOFER]

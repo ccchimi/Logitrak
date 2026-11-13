@@ -16,17 +16,5 @@ export async function listarCupones(): Promise<Cupon[]> {
     return r.exito ? r.cupones : [];
 }
 
-export interface NuevoCupon {
-    descuentoPct: number;
-    motivo: string;
-    envioCodigo?: string;
-}
-
-export async function emitirCupon(datos: NuevoCupon): Promise<Cupon | null> {
-    const r = await llamarApi<{ exito: true; cupon: Cupon }>('/api/cupones', {
-        metodo: 'POST',
-        cuerpo: datos,
-        conAuth: true,
-    });
-    return r.exito ? r.cupon : null;
-}
+// Los cupones por SLA incumplido los acredita el servidor (Hito 2.1): la app
+// solo los lista.

@@ -1,6 +1,6 @@
 import { consultar, pool } from '../../db/pool.js';
 import { reembolsarPagoDelEnvio } from '../pagos/reembolsos.js';
-import { log, registrarError } from '../../observabilidad/logger.js';
+import { log } from '../../observabilidad/logger.js';
 
 // Ventana que tiene la red para que algún chofer tome el envío. Se cuenta desde
 // que el pago queda aprobado, no desde que se crea el envío.
@@ -9,36 +9,44 @@ export const MINUTOS_ESPERA_CHOFER =
         ? Number(process.env.MINUTOS_ESPERA_CHOFER)
         : 5;
 
-// Expiración perezosa: no hay cron ni worker. El barrido se dispara desde las
-// lecturas (panel del cliente, ofertas del chofer), que es cuando el estado
-// importa. El throttle evita repetirlo en cada request de una misma ráfaga.
-const MS_ENTRE_BARRIDOS = 5000;
-let ultimoBarrido = 0;
-let barridoEnCurso = null;
+// Desde el Hito 2.1 la expiración la hace un job (src/trabajos): un barrido por
+// minuto encola un trabajo por envío vencido, con reintentos. Listar y tomar
+// ofertas ya excluyen las vencidas por su cuenta, así que entre que la oferta
+// vence y el job la cancela ningún chofer puede tomarla.
 
-async function expirarUno(envioId) {
+const CONDICION_VENCIDA = `
+    chofer_id IS NULL
+    AND archivado_en IS NULL
+    AND estado = 'pendiente'
+    AND estado_pago = 'pagado'
+    AND oferta_vence_en IS NOT NULL
+    AND oferta_vence_en <= now()`;
+
+export async function enviosConOfertaVencida(limite = 200) {
+    const { rows } = await consultar(
+        `SELECT id FROM envios WHERE ${CONDICION_VENCIDA} ORDER BY oferta_vence_en LIMIT $1`,
+        [limite]
+    );
+    return rows.map((r) => r.id);
+}
+
+// Cancela el envío y devuelve el pago. Resultado:
+//   'expirado'   → cancelado (con reembolso, o con la devolución pendiente de revisión)
+//   'no_aplica'  → ya no corresponde (un chofer lo tomó, ya estaba cancelado...)
+//   'reintentar' → la pasarela no pudo reembolsar ahora: el job lo reintenta
+// Un error inesperado se propaga para que el job también lo reintente.
+export async function expirarOferta(envioId) {
     const cliente = await pool.connect();
     try {
         await cliente.query('BEGIN');
 
         // Recheck dentro de la transacción y con lock: entre que lo listamos y
         // llegamos acá, un chofer pudo haberlo tomado.
-        const { rows } = await cliente.query(
-            `SELECT * FROM envios
-             WHERE id = $1
-               AND archivado_en IS NULL
-               AND chofer_id IS NULL
-               AND estado = 'pendiente'
-               AND estado_pago = 'pagado'
-               AND oferta_vence_en IS NOT NULL
-               AND oferta_vence_en <= now()
-             FOR UPDATE`,
-            [envioId]
-        );
+        const { rows } = await cliente.query(`SELECT * FROM envios WHERE id = $1 AND ${CONDICION_VENCIDA} FOR UPDATE`, [envioId]);
         const envio = rows[0];
         if (!envio) {
             await cliente.query('ROLLBACK');
-            return false;
+            return 'no_aplica';
         }
 
         const r = await reembolsarPagoDelEnvio(cliente, envio.id);
@@ -48,8 +56,8 @@ async function expirarUno(envioId) {
         // envío vivo para siempre es peor, porque ningún chofer lo va a tomar.
         if (r.estado === 'reintentar') {
             await cliente.query('ROLLBACK');
-            log().error({ envio: envio.codigo, motivo: r.motivo }, 'Reembolso del envío pospuesto');
-            return false;
+            log().warn({ envio: envio.codigo, motivo: r.motivo }, 'Reembolso del envío pospuesto: se reintenta');
+            return 'reintentar';
         }
 
         const reembolsado = r.estado === 'reembolsado';
@@ -80,55 +88,12 @@ async function expirarUno(envioId) {
         }
 
         await cliente.query('COMMIT');
-        return true;
+        log().info({ envio: envio.codigo, reembolsado }, 'Oferta vencida: envío cancelado');
+        return 'expirado';
     } catch (e) {
-        await cliente.query('ROLLBACK');
-        registrarError(e, 'No se pudo expirar el envío');
-        return false;
+        await cliente.query('ROLLBACK').catch(() => {});
+        throw e;
     } finally {
         cliente.release();
     }
-}
-
-async function barrer() {
-    const { rows } = await consultar(
-        `SELECT id FROM envios
-         WHERE chofer_id IS NULL
-           AND archivado_en IS NULL
-           AND estado = 'pendiente'
-           AND estado_pago = 'pagado'
-           AND oferta_vence_en IS NOT NULL
-           AND oferta_vence_en <= now()
-         LIMIT 50`
-    );
-
-    let expirados = 0;
-    for (const fila of rows) {
-        if (await expirarUno(fila.id)) expirados += 1;
-    }
-    if (expirados > 0) {
-        log().info({ expirados }, 'Expiración de ofertas: envíos cancelados');
-    }
-    return expirados;
-}
-
-// Se puede llamar sin await desde una ruta de lectura: nunca lanza y comparte
-// una sola corrida entre requests concurrentes.
-export async function expirarOfertasVencidas({ forzar = false } = {}) {
-    if (barridoEnCurso) return barridoEnCurso;
-
-    const ahora = Date.now();
-    if (!forzar && ahora - ultimoBarrido < MS_ENTRE_BARRIDOS) return 0;
-    ultimoBarrido = ahora;
-
-    barridoEnCurso = barrer()
-        .catch((e) => {
-            registrarError(e, 'Falló el barrido de ofertas vencidas');
-            return 0;
-        })
-        .finally(() => {
-            barridoEnCurso = null;
-        });
-
-    return barridoEnCurso;
 }

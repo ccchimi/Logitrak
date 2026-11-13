@@ -23,10 +23,11 @@ import {
     geocodificarDireccion,
     type PuntoRuta,
 } from '../services/seguimientoService';
-import { agregarEvento, obtenerEnvio } from '../services/enviosService';
-import { emitirCupon } from '../services/cuponesService';
+import { obtenerEnvio } from '../services/enviosService';
 
-const SLA_TOTAL_SEG = 1200;
+// Solo para la vista de demostración sin envío real. Con un envío, el plazo sale
+// del servidor (slaVenceEn), que lo empieza a contar cuando se aprueba el pago.
+const SLA_DEMO_SEG = 1200;
 
 const ETAPAS = [
     {
@@ -84,7 +85,9 @@ export default function SeguimientoScreen({ navigation, route }: any) {
     const precio: number | undefined = route?.params?.precio;
     const referencia: string = route?.params?.referencia ?? 'TRK-EN-VIVO';
     const envioCodigo: string | null = route?.params?.envioCodigo ?? null;
-    const [tiempoRestante, setTiempoRestante] = useState(SLA_TOTAL_SEG);
+    const [tiempoRestante, setTiempoRestante] = useState(SLA_DEMO_SEG);
+    const [slaTotalSeg, setSlaTotalSeg] = useState(SLA_DEMO_SEG);
+    const slaVenceEnRef = useRef<number | null>(null);
     const [etapa, setEtapa] = useState(0);
     const [chofer, setChofer] = useState<string | null>(null);
     const [choferDetalle, setChoferDetalle] = useState<string | null>(null);
@@ -135,7 +138,12 @@ export default function SeguimientoScreen({ navigation, route }: any) {
         mostrar('exito', 'Seguimiento iniciado', `Orden ${referencia} confirmada en la red.`);
 
         const intervalo = setInterval(() => {
-            setTiempoRestante((prev) => (prev > 0 ? prev - 1 : 0));
+            const vence = slaVenceEnRef.current;
+            if (vence !== null) {
+                setTiempoRestante(Math.max(0, Math.round((vence - Date.now()) / 1000)));
+            } else {
+                setTiempoRestante((prev) => (prev > 0 ? prev - 1 : 0));
+            }
         }, 1000);
 
         return () => clearInterval(intervalo);
@@ -151,8 +159,20 @@ export default function SeguimientoScreen({ navigation, route }: any) {
             const datos = await obtenerEnvio(envioCodigo);
             if (!activo || !datos) return;
 
-            const { envio } = datos;
+            const { envio, eventos } = datos;
             const nuevaEtapa = ETAPA_POR_ESTADO[envio.estado] ?? 0;
+
+            if (envio.slaVenceEn) {
+                slaVenceEnRef.current = Date.parse(envio.slaVenceEn);
+                setTiempoRestante(Math.max(0, Math.round((slaVenceEnRef.current - Date.now()) / 1000)));
+            }
+            if (envio.slaMin) setSlaTotalSeg(envio.slaMin * 60);
+
+            // El cupón lo acredita el servidor; acá solo avisamos cuando aparece.
+            if (!slaAvisadoRef.current && eventos.some((e) => e.tipo === 'sla_excedido')) {
+                slaAvisadoRef.current = true;
+                mostrar('alerta', 'SLA excedido', 'Se acreditó un cupón de compensación en tu perfil.');
+            }
             setEtapa(nuevaEtapa);
 
             if (envio.choferNombre) {
@@ -187,26 +207,11 @@ export default function SeguimientoScreen({ navigation, route }: any) {
         };
     }, [envioCodigo, mostrar]);
 
+    // Sin envío real (demostración) no hay servidor que compense: solo se avisa.
     useEffect(() => {
-        if (tiempoRestante === 0 && !slaAvisadoRef.current) {
+        if (!envioCodigo && tiempoRestante === 0 && !slaAvisadoRef.current) {
             slaAvisadoRef.current = true;
-            mostrar(
-                'alerta',
-                'SLA excedido',
-                'Se acreditó un cupón de compensación en tu perfil.'
-            );
-            if (envioCodigo) {
-                void agregarEvento(envioCodigo, {
-                    tipo: 'sla_excedido',
-                    titulo: 'SLA excedido',
-                    detalle: 'Se acreditó un cupón de compensación al cliente.',
-                });
-                void emitirCupon({
-                    descuentoPct: 15,
-                    motivo: 'Compensación: el envío excedió su SLA de arribo.',
-                    envioCodigo,
-                });
-            }
+            mostrar('alerta', 'SLA excedido', 'El envío superó el plazo comprometido.');
         }
     }, [tiempoRestante, mostrar, envioCodigo]);
 
@@ -266,7 +271,7 @@ export default function SeguimientoScreen({ navigation, route }: any) {
 
 
     const slaVencido = tiempoRestante === 0;
-    const progresoSla = tiempoRestante / SLA_TOTAL_SEG;
+    const progresoSla = Math.min(1, tiempoRestante / slaTotalSeg);
 
     return (
         <View style={styles.container}>

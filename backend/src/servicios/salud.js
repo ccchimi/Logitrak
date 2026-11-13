@@ -8,6 +8,7 @@
 //    la API sigue atendiendo el resto.
 //  · googleDirections, modo y sentry: solo si están configurados. Consultar
 //    Directions cuesta cuota.
+//  · trabajos: si pg-boss arrancó (ok), falló (error: degradado) o está apagado.
 //
 // La respuesta pública dice el estado de cada componente, nunca el detalle del
 // error, que va al log.
@@ -30,6 +31,7 @@ export function crearChequeoSalud({
     dirMigraciones,
     tablaMigraciones = 'pgmigrations',
     verificarAlmacenamiento,
+    estadoTrabajos = () => ({ estado: 'no_iniciado' }),
     fetchImpl = fetch,
     env = process.env,
     reloj = Date.now,
@@ -97,6 +99,7 @@ export function crearChequeoSalud({
             googleDirections: configurado('GOOGLE_DIRECTIONS_KEY'),
             modo: configurado('MODO_API_URL', 'MODO_CLIENT_ID', 'MODO_CLIENT_SECRET'),
             sentry: configurado('SENTRY_DSN'),
+            trabajos: estadoTrabajos(),
         };
 
         let estado = 'ok';

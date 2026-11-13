@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import { consultar, pool } from '../db/pool.js';
 import { autenticar, exigirRol } from '../middleware/auth.js';
-import { expirarOfertasVencidas } from '../servicios/envios/expiracion.js';
 import { registrarError } from '../observabilidad/logger.js';
 
 export const rutasAsignaciones = Router();
@@ -87,7 +86,6 @@ async function choferDe(usuarioId) {
 }
 
 rutasAsignaciones.get('/disponibles', autenticar, exigirRol('chofer'), async (req, res) => {
-    await expirarOfertasVencidas();
     const chofer = await choferDe(req.usuario.id);
     if (!chofer) {
         return res.status(403).json({ exito: false, error: 'Tu ficha de chofer no está disponible.' });

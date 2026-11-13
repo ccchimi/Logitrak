@@ -4,7 +4,7 @@ import { autenticar, exigirRol } from '../middleware/auth.js';
 import { validarRequest } from '../middleware/validar.js';
 import { crearEnvio } from '../esquemas/envios.js';
 import { verificarCotizacionParaEnvio } from '../servicios/cotizador/index.js';
-import { expirarOfertasVencidas } from '../servicios/envios/expiracion.js';
+import { MINUTOS_SLA } from '../servicios/envios/sla.js';
 import { reembolsarPagoDelEnvio } from '../servicios/pagos/reembolsos.js';
 import { registrarError } from '../observabilidad/logger.js';
 
@@ -145,7 +145,9 @@ rutasEnvios.post('/', autenticar, validarRequest({ body: crearEnvio }), async (r
 
         await cliente.query(`UPDATE cotizaciones SET estado = 'confirmada' WHERE id = $1`, [cotizacion.id]);
 
-        const slaMin = num(b.slaMin);
+        // El plazo lo fija el servidor: si lo eligiera el cliente, podría pedir
+        // uno imposible de cumplir para cobrarse el cupón de compensación.
+        const slaMin = MINUTOS_SLA;
         const insercion = await cliente.query(
             `INSERT INTO envios
                  (cliente_id, cotizacion_id, origen, destino, origen_lat, origen_lng,
@@ -183,7 +185,6 @@ rutasEnvios.post('/', autenticar, validarRequest({ body: crearEnvio }), async (r
 });
 
 rutasEnvios.get('/metricas', autenticar, async (req, res) => {
-    await expirarOfertasVencidas();
     const esAdmin = req.usuario.rol === 'admin';
     const choferId = esAdmin ? null : await choferIdDe(req.usuario.id);
 
@@ -224,7 +225,6 @@ rutasEnvios.get('/metricas', autenticar, async (req, res) => {
 });
 
 rutasEnvios.get('/', autenticar, async (req, res) => {
-    await expirarOfertasVencidas();
     const esAdmin = req.usuario.rol === 'admin';
     const choferId = esAdmin ? null : await choferIdDe(req.usuario.id);
 
@@ -256,7 +256,6 @@ rutasEnvios.get('/', autenticar, async (req, res) => {
 });
 
 rutasEnvios.get('/:codigo', autenticar, async (req, res) => {
-    await expirarOfertasVencidas();
     const { rows } = await consultar(`${SELECT_ENVIO} WHERE e.codigo = $1`, [req.params.codigo]);
     const envio = rows[0];
     if (!envio) {

@@ -4,6 +4,7 @@ import { pool } from './db/pool.js';
 import { DIR_MIGRACIONES, TABLA_MIGRACIONES } from './db/migrar.js';
 import { crearChequeoSalud } from './servicios/salud.js';
 import { verificarAlmacenamiento } from './servicios/almacenamiento.js';
+import { estadoTrabajos } from './trabajos/index.js';
 import { configurarSeguridad } from './middleware/seguridad.js';
 import { registroPedidos } from './observabilidad/registroPedidos.js';
 import { registrarError } from './observabilidad/logger.js';
@@ -45,6 +46,7 @@ const chequearSalud = crearChequeoSalud({
     dirMigraciones: DIR_MIGRACIONES,
     tablaMigraciones: TABLA_MIGRACIONES,
     verificarAlmacenamiento,
+    estadoTrabajos,
 });
 
 app.get('/api/salud', async (_req, res) => {

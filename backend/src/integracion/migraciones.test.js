@@ -37,16 +37,29 @@ describe('migraciones (integración)', { skip: SALTEAR }, () => {
         assert.equal((await entorno.api('/api/salud/vivo')).body.estado, 'vivo');
     });
 
-    test('la migración base no se revierte en producción', async () => {
-        const antes = process.env.RENDER;
-        process.env.RENDER = 'true';
+    test('la migración base no se revierte en staging ni en producción', async () => {
+        // Se llama al down directamente: revertir de verdad tocaría la base que
+        // comparten las otras pruebas.
+        const base = await import('../../migrations/1794520000000_esquema-inicial.js');
+        const sqls = [];
+        const pgm = { sql: (t) => sqls.push(t) };
+        const antes = { RENDER: process.env.RENDER, ENTORNO: process.env.ENTORNO };
         try {
-            await assert.rejects(migrar({ direction: 'down', count: 1 }), /no se revierte en producción/);
+            for (const env of [{ RENDER: 'true' }, { ENTORNO: 'staging' }]) {
+                delete process.env.RENDER;
+                delete process.env.ENTORNO;
+                Object.assign(process.env, env);
+                assert.throws(() => base.down(pgm), /no se revierte en producción/);
+            }
+            delete process.env.RENDER;
+            process.env.ENTORNO = 'desarrollo';
+            base.down(pgm);
+            assert.match(sqls.join(''), /DROP TABLE/);
         } finally {
-            if (antes === undefined) delete process.env.RENDER;
-            else process.env.RENDER = antes;
+            for (const [k, v] of Object.entries(antes)) {
+                if (v === undefined) delete process.env[k];
+                else process.env[k] = v;
+            }
         }
-        const { rowCount } = await entorno.pool.query('SELECT 1 FROM usuarios LIMIT 1');
-        assert.ok(rowCount >= 0, 'las tablas siguen ahí');
     });
 });
