@@ -37,3 +37,5 @@ coverage/
 
 # Credenciales de Firebase (push en Android): van como variable de archivo de EAS.
 google-services.json
+# Clave de la cuenta de servicio de Firebase (FCM V1): se sube con `eas credentials`.
+fcm-cuenta-servicio.json
