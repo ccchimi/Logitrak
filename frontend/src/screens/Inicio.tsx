@@ -17,7 +17,6 @@ import {
   coverageCities,
   coverageStats,
   features,
-  HERO_IMAGE,
   solutions,
   stats,
   steps,
@@ -45,21 +44,17 @@ export default function Inicio({ onGoLogin }: InicioProps) {
   const insets = useSafeAreaInsets();
 
   const isMobile = width < 900;
-  const solWidth: DimensionValue = isMobile ? "100%" : "31%";
+  const cardColumns = isMobile ? 1 : width < 1100 ? 2 : 3;
+  const contentWidth = Math.min(width - (isMobile ? 40 : 96), 1180);
+  const solWidth: DimensionValue =
+    (contentWidth - 20 * (cardColumns - 1)) / cardColumns;
 
   const navH = (isMobile ? 64 : 70) + insets.top;
 
   const [loginHover, setLoginHover] = useState(false);
   const [menuAbierto, setMenuAbierto] = useState(false);
 
-  const [sectionY, setSectionY] = useState<Record<SectionKey, number>>({
-    services: 0,
-    solutions: 0,
-    how: 0,
-    coverage: 0,
-    plans: 0,
-  });
-
+  const sectionRefs = useRef<Partial<Record<SectionKey, View | null>>>({});
   const scrollRef = useRef<ScrollView | null>(null);
   const irArriba = () => {
     setMenuAbierto(false);
@@ -68,9 +63,11 @@ export default function Inicio({ onGoLogin }: InicioProps) {
 
   const irASeccion = (section: SectionKey) => {
     setMenuAbierto(false);
-    scrollRef.current?.scrollTo({
-      y: Math.max(sectionY[section] - (navH + 6), 0),
-      animated: !reducido,
+    const content = scrollRef.current?.getInnerViewNode();
+    if (!content) return;
+    // Medir al navegar evita posiciones viejas al cargar fuentes o redimensionar.
+    sectionRefs.current[section]?.measureLayout(content, (_x, y) => {
+      scrollRef.current?.scrollTo({ y: Math.max(y, 0), animated: !reducido });
     });
   };
 
@@ -79,9 +76,8 @@ export default function Inicio({ onGoLogin }: InicioProps) {
     onGoLogin();
   };
 
-  const medirSeccion = (section: SectionKey) => (event: any) => {
-    const y = event.nativeEvent.layout.y;
-    setSectionY((prev) => ({ ...prev, [section]: y }));
+  const guardarSeccion = (section: SectionKey) => (node: View | null) => {
+    sectionRefs.current[section] = node;
   };
 
   return (
@@ -206,14 +202,13 @@ export default function Inicio({ onGoLogin }: InicioProps) {
         <ImageBackground
           source={require("../../assets/hero-warehouse.jpg")}
           resizeMode="cover"
-          style={tema.estilo([styles.hero, { minHeight: height }])}
+          style={tema.estilo([styles.hero, { minHeight: height - navH }])}
         >
-          <View style={tema.estilo(styles.heroOverlay)} />
+          <View style={styles.heroOverlay} />
 
           <View
             style={tema.estilo([
               styles.heroContent,
-              { paddingTop: navH + 16 },
               isMobile && styles.heroContentM,
             ])}
           >
@@ -286,7 +281,7 @@ export default function Inicio({ onGoLogin }: InicioProps) {
 
         <View
           style={tema.estilo([styles.features, isMobile && styles.sectionM])}
-          onLayout={medirSeccion("services")}
+          ref={guardarSeccion("services")}
         >
           <View style={tema.estilo(styles.inner)}>
             <View style={tema.estilo(styles.sectionHead)}>
@@ -327,7 +322,7 @@ export default function Inicio({ onGoLogin }: InicioProps) {
 
         <View
           style={tema.estilo([styles.solutions, isMobile && styles.sectionM])}
-          onLayout={medirSeccion("solutions")}
+          ref={guardarSeccion("solutions")}
         >
           <View style={tema.estilo(styles.inner)}>
             <View style={tema.estilo(styles.sectionHead)}>
@@ -366,7 +361,7 @@ export default function Inicio({ onGoLogin }: InicioProps) {
 
         <View
           style={tema.estilo([styles.how, isMobile && styles.sectionM])}
-          onLayout={medirSeccion("how")}
+          ref={guardarSeccion("how")}
         >
           <View style={tema.estilo(styles.inner)}>
             <Text style={tema.estilo(styles.sectionKickerLight)}>El Proceso</Text>
@@ -398,7 +393,7 @@ export default function Inicio({ onGoLogin }: InicioProps) {
 
         <View
           style={tema.estilo([styles.coverage, isMobile && styles.sectionM])}
-          onLayout={medirSeccion("coverage")}
+          ref={guardarSeccion("coverage")}
         >
           <View
             style={tema.estilo([
@@ -454,7 +449,7 @@ export default function Inicio({ onGoLogin }: InicioProps) {
 
         <SeccionPlanes
           isMobile={isMobile}
-          onLayout={medirSeccion("plans")}
+          sectionRef={guardarSeccion("plans")}
           onElegirPlan={irAlLogin}
         />
 

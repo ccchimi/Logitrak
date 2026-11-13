@@ -8,8 +8,8 @@ export const COLORS = {
   offwhite: "#fafafa",
   accent: DISENO.amarillo,
   accentSoft: "rgba(255, 215, 0, 0.12)",
-  muted: "#8a8880",
-  mutedLight: "rgba(255, 255, 255, 0.6)",
+  muted: "#66665F",
+  mutedLight: "rgba(255, 255, 255, 0.75)",
   border: "rgba(255, 255, 255, 0.1)",
   borderDark: "rgba(14, 14, 14, 0.1)",
 };
@@ -29,10 +29,7 @@ export const styles = StyleSheet.create({
   scrollContent: { backgroundColor: COLORS.white },
 
   nav: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
+    flexShrink: 0,
     zIndex: 100,
     height: 70,
     paddingHorizontal: 48,
@@ -88,7 +85,7 @@ export const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0,0,0,0.7)",
   },
-  heroContent: { paddingHorizontal: "15%", paddingTop: 70, zIndex: 2 },
+  heroContent: { paddingHorizontal: "15%", paddingVertical: 48, zIndex: 2 },
   heroKicker: {
     color: COLORS.accent,
     letterSpacing: 2,
@@ -154,7 +151,7 @@ export const styles = StyleSheet.create({
     borderTopColor: COLORS.border,
   },
   trustedLabel: {
-    color: COLORS.muted,
+    color: COLORS.mutedLight,
     fontSize: 12,
     textTransform: "uppercase",
     letterSpacing: 1,
@@ -182,7 +179,7 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 48,
     backgroundColor: COLORS.white,
   },
-  sectionHead: { marginBottom: 48 },
+  sectionHead: { marginBottom: 32 },
   sectionKickerDark: {
     color: COLORS.muted,
     fontSize: 12,
@@ -202,7 +199,7 @@ export const styles = StyleSheet.create({
   sectionTitleDark: {
     color: COLORS.black,
     fontSize: 40,
-    marginVertical: 16,
+    lineHeight: 52,
     fontFamily: FONTS.title,
     letterSpacing: -1,
     maxWidth: 620,
@@ -210,7 +207,7 @@ export const styles = StyleSheet.create({
   sectionTitleLight: {
     color: COLORS.white,
     fontSize: 40,
-    marginTop: 10,
+    lineHeight: 52,
     fontFamily: FONTS.title,
     letterSpacing: -1,
     maxWidth: 620,
@@ -249,7 +246,12 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 24,
   },
-  featIconText: { fontSize: 20 },
+  featIconText: {
+    color: COLORS.accent,
+    fontSize: 18,
+    lineHeight: 24,
+    fontFamily: FONTS.titleBold,
+  },
   featTitle: {
     color: COLORS.black,
     fontSize: 20,
@@ -268,7 +270,7 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 48,
     backgroundColor: COLORS.offwhite,
   },
-  solGrid: { flexDirection: "row", flexWrap: "wrap", marginTop: 40, gap: 20 },
+  solGrid: { flexDirection: "row", flexWrap: "wrap", gap: 20 },
   solCard: {
     backgroundColor: COLORS.white,
     borderWidth: 1,
@@ -285,7 +287,12 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 20,
   },
-  solIconText: { fontSize: 22 },
+  solIconText: {
+    color: COLORS.accent,
+    fontSize: 18,
+    lineHeight: 24,
+    fontFamily: FONTS.titleBold,
+  },
   solTitle: {
     color: COLORS.black,
     fontSize: 19,
@@ -299,18 +306,23 @@ export const styles = StyleSheet.create({
     marginBottom: 16,
     fontFamily: FONTS.text,
   },
-  solLink: { color: COLORS.black, fontSize: 13, fontFamily: FONTS.textMedium },
+  solLink: {
+    color: COLORS.black,
+    fontSize: 13,
+    fontFamily: FONTS.textMedium,
+    marginTop: "auto",
+  },
 
   how: {
     paddingVertical: 100,
     paddingHorizontal: 48,
     backgroundColor: COLORS.black,
   },
-  steps: { flexDirection: "row", marginTop: 60 },
-  step: { flex: 1, marginRight: 40 },
+  steps: { flexDirection: "row", marginTop: 40, gap: 32 },
+  step: { flex: 1, minWidth: 0 },
   stepNum: {
     fontSize: 64,
-    color: "rgba(255, 215, 0, 0.15)",
+    color: COLORS.accent,
     lineHeight: 70,
     marginBottom: 16,
     fontFamily: FONTS.title,
@@ -322,9 +334,8 @@ export const styles = StyleSheet.create({
     fontFamily: FONTS.titleBold,
   },
   stepText: {
-    color: COLORS.white,
+    color: COLORS.mutedLight,
     fontSize: 14,
-    opacity: 0.6,
     lineHeight: 22,
     fontFamily: FONTS.text,
   },
@@ -398,6 +409,8 @@ export const styles = StyleSheet.create({
   },
   trackHeaderRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 24,
@@ -442,15 +455,15 @@ export const styles = StyleSheet.create({
   },
   trackLineSeg: { width: 2, height: 30, backgroundColor: "#333" },
   trackLineSegActive: { backgroundColor: COLORS.accent },
-  trackInfo: { paddingBottom: 14 },
+  trackInfo: { flex: 1, minWidth: 0, paddingBottom: 14 },
   trackLabel: {
     color: COLORS.white,
     fontSize: 14,
     fontFamily: FONTS.textMedium,
   },
-  trackLabelMuted: { color: "rgba(255,255,255,0.4)" },
+  trackLabelMuted: { color: COLORS.mutedLight },
   trackTime: {
-    color: COLORS.muted,
+    color: COLORS.mutedLight,
     fontSize: 12,
     marginTop: 2,
     fontFamily: FONTS.text,
@@ -461,7 +474,7 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 48,
     backgroundColor: COLORS.offwhite,
   },
-  testiGrid: { flexDirection: "row", flexWrap: "wrap", gap: 20, marginTop: 40 },
+  testiGrid: { flexDirection: "row", flexWrap: "wrap", gap: 20 },
   testiCard: {
     backgroundColor: COLORS.white,
     borderWidth: 1,
@@ -553,6 +566,7 @@ export const styles = StyleSheet.create({
   },
   planPriceRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
     alignItems: "flex-end",
     marginBottom: 20,
   },
@@ -563,7 +577,7 @@ export const styles = StyleSheet.create({
     fontFamily: FONTS.title,
   },
   planPriceUnit: {
-    color: COLORS.muted,
+    color: COLORS.mutedLight,
     fontSize: 14,
     marginBottom: 10,
     marginLeft: 6,
@@ -875,8 +889,6 @@ export const styles = StyleSheet.create({
     flexGrow: 0,
     flexShrink: 0,
     flexBasis: "auto",
-    marginRight: 0,
-    marginBottom: 34,
   },
   stepNumM: { fontSize: 48, lineHeight: 54, marginBottom: 10 },
 

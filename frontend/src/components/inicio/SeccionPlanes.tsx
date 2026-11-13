@@ -1,22 +1,21 @@
 import { useTema } from "../../hooks/useTema";
 import React from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
-import type { LayoutChangeEvent } from 'react-native';
 import { styles } from '../../styles/InicioStyles';
 import { plans } from '../../constants/contenidoInicio';
 
 type Props = {
   isMobile: boolean;
-  onLayout: (event: LayoutChangeEvent) => void;
+  sectionRef: React.Ref<View>;
   onElegirPlan: () => void;
 };
 
-export default function SeccionPlanes({ isMobile, onLayout, onElegirPlan }: Props) {
+export default function SeccionPlanes({ isMobile, sectionRef, onElegirPlan }: Props) {
   const tema = useTema();
   return (
     <View
       style={tema.estilo([styles.plans, isMobile && styles.sectionM])}
-      onLayout={onLayout}
+      ref={sectionRef}
     >
       <View style={tema.estilo(styles.inner)}>
         <View style={tema.estilo(styles.plansHead)}>
