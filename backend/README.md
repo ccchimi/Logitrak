@@ -334,14 +334,18 @@ límite de intentos, sesiones, perfil y recuperación), `rutas-envios.test.js`
 `rutas-choferes.test.js` (postulación con verificación del DNI, documentos solo
 para el admin, ofertas según el vehículo, tomar un envío y dos choferes que lo
 toman a la vez) y `rutas-admin.test.js` (listado de usuarios con filtros y
-cambio de rol con sus negativas). El reinicio de la base (`POST
+cambio de rol con sus negativas), `rutas-perfil.test.js` (editar el perfil
+del cliente y del chofer, cambio de contraseña, resumen y flota) y
+`rutas-soporte.test.js` (consultas: quién ve qué, la conversación con el
+asistente y el equipo, derivar, resolver, cerrar y la credencial de Realtime).
+El reinicio de la base (`POST
 /api/admin/reset`) solo se prueba en sus permisos: correrlo vaciaría la base que
 comparten los archivos de prueba, que corren en paralelo. Además hay
 pruebas de los trabajos de pg-boss, el outbox, la entrega con PIN, los roles y
 el RLS.
 
 La CI corre `npm run test:cobertura` con una base de PostgreSQL limpia y falla
-si la cobertura baja de 75 % de líneas, 70 % de ramas o 70 % de funciones.
+si la cobertura baja de 85 % de líneas, 75 % de ramas u 80 % de funciones.
 
 Las pruebas nunca leen el `.env` (que apunta a producción): cuando corren bajo
 `node --test` la configuración sale solo de las variables del entorno, y

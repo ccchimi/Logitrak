@@ -89,7 +89,7 @@ jobs:
 
       # TZ=UTC reproduce el entorno de Render: las franjas horarias tienen que
       # salir en hora argentina igual. Corre con cobertura: si las líneas bajan
-      # del 75 % o las ramas o funciones del 70 %, la CI falla.
+      # del 85 %, las ramas del 75 % o las funciones del 80 %, la CI falla.
       - run: npm run test:cobertura
         env:
           TZ: UTC

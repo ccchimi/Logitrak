@@ -61,6 +61,10 @@ rutasPerfil.put('/', autenticar, async (req, res) => {
     if (nombreCompleto !== null && nombreCompleto.length < 3) {
         return res.status(400).json({ exito: false, error: 'El nombre debe tener al menos 3 caracteres.' });
     }
+    // Mismos límites que las columnas (y que la postulación): pasarse era un 500.
+    if (nombreCompleto !== null && nombreCompleto.length > 120) {
+        return res.status(400).json({ exito: false, error: 'El nombre no puede superar los 120 caracteres.' });
+    }
 
     let nuevoHash = null;
     if (b.contrasenaNueva || b.contrasenaActual) {
@@ -93,8 +97,14 @@ rutasPerfil.put('/', autenticar, async (req, res) => {
             const domicilio = typeof b.domicilio === 'string' ? b.domicilio.trim() : null;
             const vehiculoId = typeof b.vehiculoId === 'string' ? b.vehiculoId.trim() : null;
 
-            if (email !== null && !ES_EMAIL.test(email)) {
+            if (email !== null && (email.length > 120 || !ES_EMAIL.test(email))) {
                 throw { status: 400, msg: 'Ingresá un email válido.' };
+            }
+            if (telefono !== null && (telefono.length > 30 || telefono.replace(/\D/g, '').length < 8)) {
+                throw { status: 400, msg: 'Ingresá un teléfono válido.' };
+            }
+            if (domicilio !== null && (domicilio.length < 6 || domicilio.length > 200)) {
+                throw { status: 400, msg: 'Ingresá tu domicilio completo (hasta 200 caracteres).' };
             }
             if (vehiculoId !== null) {
                 const v = await cliente.query('SELECT 1 FROM vehiculos WHERE id = $1', [vehiculoId]);

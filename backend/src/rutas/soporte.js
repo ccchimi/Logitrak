@@ -349,10 +349,14 @@ rutasSoporte.post('/tickets/:codigo/resolver', autenticar, async (req, res) => {
     const r = await buscarTicket(req.params.codigo, req.usuario);
     if (r.error === 404) return res.status(404).json({ exito: false, error: 'Consulta no encontrada.' });
     if (r.error === 403) return res.status(403).json({ exito: false, error: 'No tenés acceso a esta consulta.' });
+    // Una consulta cerrada por el equipo no se reabre marcándola como resuelta.
+    if (r.ticket.estado === 'cerrado') {
+        return res.status(409).json({ exito: false, error: 'Esta consulta está cerrada.' });
+    }
 
     await consultar(
         `UPDATE soporte_tickets SET estado = 'resuelto', resuelto_en = now(), actualizado_en = now()
-         WHERE id = $1`,
+         WHERE id = $1 AND estado <> 'cerrado'`,
         [r.ticket.id]
     );
     return res.json({ exito: true, mensaje: 'Consulta marcada como resuelta.' });
