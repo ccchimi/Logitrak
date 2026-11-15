@@ -6,6 +6,7 @@ import {
     cotizarEnvio,
     cotizarSync,
     estimarTiempos,
+    plazoRetiroMin,
     seleccionarVehiculo,
 } from '../tarifas';
 import { Cotizacion, RespuestaCotizacion, SolicitudCotizacion } from '../types';
@@ -77,6 +78,18 @@ describe('cotizarSync — camino feliz', () => {
         expect(c.distanciaKm).toBeGreaterThan(50);
         expect(c.desglose.some((l) => l.concepto.startsWith('Peajes'))).toBe(true);
         expect(c.sla).toContain('seguimiento satelital');
+        // El interurbano también promete la bonificación, con 10 min de margen.
+        expect(c.sla).toContain(`menos de ${c.tiempos.etaRetiroMin + 10} min`);
+        expect(c.sla).toContain('bonificamos el 10%');
+    });
+
+    it('el plazo de retiro prometido es el ETA más un margen (5 urbano, 10 interurbano)', () => {
+        expect(plazoRetiroMin(12, 18)).toBe(23);
+        expect(plazoRetiroMin(80, 25)).toBe(35);
+        const c = cotizacionOk(cotizarSync(solicitudBase));
+        expect(c.sla).toBe(
+            `Chofer en el punto de retiro en menos de ${plazoRetiroMin(c.distanciaKm, c.tiempos.etaRetiroMin)} min desde el pago o bonificamos el 10% del flete.`
+        );
     });
 
     it('aplica recargo por tipo de carga y seguro por valor declarado', () => {

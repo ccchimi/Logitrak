@@ -138,6 +138,18 @@ export function estimarTiempos(
     return { etaRetiroMin, tiempoViajeMin, ventanaEntrega };
 }
 
+// Compromiso de retiro (SLA). La cotización se lo promete al cliente y el
+// servidor lo hace cumplir con el mismo código: si el chofer no registra el
+// retiro dentro del plazo, contado desde el pago, el cliente recibe un cupón.
+export const BONIFICACION_SLA_PCT = 10;
+export const MARGEN_RETIRO_URBANO_MIN = 5;
+export const MARGEN_RETIRO_INTERURBANO_MIN = 10;
+
+export function plazoRetiroMin(distanciaKm: number, etaRetiroMin: number): number {
+    const margen = distanciaKm > CONFIG_OPERATIVA.umbralInterurbanoKm ? MARGEN_RETIRO_INTERURBANO_MIN : MARGEN_RETIRO_URBANO_MIN;
+    return Math.round(etaRetiroMin) + margen;
+}
+
 function redondear(monto: number): number {
     const { redondeoARS } = CONFIG_OPERATIVA;
     return Math.round(monto / redondeoARS) * redondeoARS;
@@ -359,10 +371,11 @@ export function cotizarSync(solicitud: SolicitudCotizacion): RespuestaCotizacion
         `${pesoVolumetricoKg > pesoRealKg ? ' —dominó el peso volumétrico—' : ''}` +
         ` y apliqué el ajuste de contexto por ${factores.descripcionFranja}.`;
 
+    const plazo = plazoRetiroMin(distancia.km, tiempos.etaRetiroMin);
     const sla =
         distancia.km > CONFIG_OPERATIVA.umbralInterurbanoKm
-            ? `Retiro garantizado en menos de ${tiempos.etaRetiroMin + 10} min y seguimiento satelital de punta a punta.`
-            : `Chofer en el punto de retiro en menos de ${tiempos.etaRetiroMin + 5} min o bonificamos el 10% del flete.`;
+            ? `Retiro en menos de ${plazo} min desde el pago o bonificamos el ${BONIFICACION_SLA_PCT}% del flete. Con seguimiento satelital de punta a punta.`
+            : `Chofer en el punto de retiro en menos de ${plazo} min desde el pago o bonificamos el ${BONIFICACION_SLA_PCT}% del flete.`;
 
     const cotizacion: Cotizacion = {
         id: generarId('COT'),

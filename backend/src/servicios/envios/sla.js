@@ -1,22 +1,39 @@
-// Compensación por SLA incumplido, decidida por el servidor (Hito 2.1).
+// Compensación por SLA incumplido, decidida por el servidor.
 //
-// Antes la app emitía el cupón cuando su contador de pantalla llegaba a cero, y
-// POST /api/cupones aceptaba el porcentaje que mandara el cliente. Ahora:
-//   · el SLA empieza a correr cuando se aprueba el pago (sla_vence_en);
-//   · un job revisa los envíos pagos cuyo SLA venció sin entrega, o que se
-//     entregaron tarde, y acredita UN cupón por envío;
+// La regla es la que promete la cotización: "chofer en el punto de retiro en
+// menos de N min desde el pago o bonificamos el 10 % del flete". N sale de cada
+// cotización (ETA de retiro + 5 min en tramos urbanos, + 10 en interurbanos),
+// calculado con el mismo código que muestra la app (plazoRetiroMin).
+//   · el plazo empieza a correr cuando se aprueba el pago (sla_vence_en);
+//   · cuenta como retiro el momento en que el chofer lo registra (retirado_en,
+//     el envío pasa a en_viaje). Si entrega sin haberlo registrado, cuenta la
+//     entrega;
+//   · un job revisa los envíos pagos y acredita UN cupón por envío si el retiro
+//     llegó tarde, o si el plazo venció y todavía no hubo retiro;
 //   · sla_revisado_en marca que ya se evaluó, para no repetirlo.
 // Los envíos cancelados (por ejemplo, porque ningún chofer los tomó) no se
 // compensan con cupón: se les devuelve el pago.
 import { consultar, pool } from '../../db/pool.js';
 import { log } from '../../observabilidad/logger.js';
 import { registrarEvento } from '../../outbox/index.js';
+import { BONIFICACION_SLA_PCT, plazoRetiroMin } from '../cotizador/cotizador.generado.js';
 
 const entero = (valor, porDefecto) => (Number(valor) > 0 ? Math.round(Number(valor)) : porDefecto);
 
+// Solo para cotizaciones sin tiempos estimados (anteriores al cotizador del servidor).
 export const MINUTOS_SLA = entero(process.env.MINUTOS_SLA, 20);
-export const DESCUENTO_SLA_PCT = Math.min(100, entero(process.env.DESCUENTO_SLA_PCT, 15));
-export const MOTIVO_SLA = 'Compensación: el envío excedió su SLA de arribo.';
+// El porcentaje es el que promete la cotización: no se configura aparte, para
+// que lo prometido y lo acreditado no puedan diferir.
+export const DESCUENTO_SLA_PCT = BONIFICACION_SLA_PCT;
+export const MOTIVO_SLA = 'Compensación: el chofer no llegó al retiro en el plazo prometido.';
+
+// Minutos de SLA de un envío según su cotización (fila de la tabla cotizaciones).
+export function plazoDeLaCotizacion(cotizacion) {
+    const eta = Number(cotizacion?.detalle?.tiempos?.etaRetiroMin);
+    const km = Number(cotizacion?.distancia_km ?? cotizacion?.detalle?.distanciaKm);
+    if (!(eta > 0) || !Number.isFinite(km)) return MINUTOS_SLA;
+    return plazoRetiroMin(km, eta);
+}
 
 const PENDIENTE_DE_REVISION = `
     sla_revisado_en IS NULL
@@ -25,14 +42,16 @@ const PENDIENTE_DE_REVISION = `
     AND archivado_en IS NULL`;
 
 const INCUMPLIDO = `
-    (estado IN ('pendiente', 'asignado', 'en_viaje') AND sla_vence_en <= now())
-    OR (estado = 'entregado' AND entregado_en > sla_vence_en)`;
+    estado <> 'cancelado' AND (
+        COALESCE(retirado_en, entregado_en) > sla_vence_en
+        OR (retirado_en IS NULL AND entregado_en IS NULL AND sla_vence_en <= now())
+    )`;
 
 export async function enviosConSlaParaRevisar(limite = 200) {
     const { rows } = await consultar(
         `SELECT id FROM envios
          WHERE ${PENDIENTE_DE_REVISION}
-           AND ((${INCUMPLIDO}) OR estado IN ('entregado', 'cancelado'))
+           AND ((${INCUMPLIDO}) OR retirado_en IS NOT NULL OR estado IN ('entregado', 'cancelado'))
          ORDER BY sla_vence_en
          LIMIT $1`,
         [limite]
@@ -57,9 +76,10 @@ export async function revisarSla(envioId) {
         }
 
         if (!envio.incumplido) {
-            // Entregado a tiempo o cancelado: se cierra la revisión sin cupón. Si
-            // sigue en curso y dentro del plazo, todavía no hay nada que decidir.
-            const cerrado = envio.estado === 'entregado' || envio.estado === 'cancelado';
+            // Retirado a tiempo, entregado o cancelado: se cierra la revisión sin
+            // cupón. Si todavía no lo retiraron y el plazo sigue corriendo, no hay
+            // nada que decidir.
+            const cerrado = envio.retirado_en !== null || envio.estado === 'entregado' || envio.estado === 'cancelado';
             if (cerrado) await cliente.query('UPDATE envios SET sla_revisado_en = now() WHERE id = $1', [envio.id]);
             await cliente.query('COMMIT');
             return cerrado ? 'cumplido' : 'no_aplica';
@@ -79,7 +99,7 @@ export async function revisarSla(envioId) {
             });
             await cliente.query(
                 `INSERT INTO envio_eventos (envio_id, tipo, titulo, detalle) VALUES ($1, 'sla_excedido', 'SLA excedido', $2)`,
-                [envio.id, `Se acreditó un cupón de compensación del ${DESCUENTO_SLA_PCT} % al cliente.`]
+                [envio.id, `El chofer no llegó al retiro en ${envio.sla_min} min. Se acreditó un cupón de compensación del ${DESCUENTO_SLA_PCT} % al cliente.`]
             );
         }
         await cliente.query('UPDATE envios SET sla_revisado_en = now() WHERE id = $1', [envio.id]);

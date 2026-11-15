@@ -207,7 +207,9 @@ export default function SeguimientoScreen({ navigation, route }: any) {
       const vence = Date.parse(envio.slaVenceEn ?? "");
       setSla(Number.isFinite(vence) && envio.slaMin && envio.estado !== "cancelado"
         ? { codigo: envioCodigo, vence, total: envio.slaMin * 60,
-            entregado: envio.entregadoEn ? Date.parse(envio.entregadoEn) : null }
+            // El SLA es de retiro: el contador se detiene cuando el chofer lo
+            // registra (o, si no lo registró, al entregar).
+            entregado: (envio.retiradoEn ?? envio.entregadoEn) ? Date.parse((envio.retiradoEn ?? envio.entregadoEn)!) : null }
         : null);
       if (!slaAvisadoRef.current && eventos.some((evento) => evento.tipo === "sla_excedido")) {
         slaAvisadoRef.current = true;
@@ -396,7 +398,7 @@ export default function SeguimientoScreen({ navigation, route }: any) {
           )}
           <View style={tema.estilo(layout.sla)}>
             <Text style={tema.estilo(layout.muted)}>
-              {slaVencido ? "SLA excedido" : "Promesa de arribo"}
+              {slaVencido ? "SLA excedido" : "Promesa de retiro"}
             </Text>
             <Text style={tema.estilo(layout.value)}>{tiempoRestante === null ? "—" : formatearTiempo(tiempoRestante)}</Text>
           </View>

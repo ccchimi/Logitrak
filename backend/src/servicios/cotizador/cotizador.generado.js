@@ -821,6 +821,13 @@ function estimarTiempos(fecha, distanciaKm, vehiculo, factores) {
   }
   return { etaRetiroMin, tiempoViajeMin, ventanaEntrega };
 }
+var BONIFICACION_SLA_PCT = 10;
+var MARGEN_RETIRO_URBANO_MIN = 5;
+var MARGEN_RETIRO_INTERURBANO_MIN = 10;
+function plazoRetiroMin(distanciaKm, etaRetiroMin) {
+  const margen = distanciaKm > CONFIG_OPERATIVA.umbralInterurbanoKm ? MARGEN_RETIRO_INTERURBANO_MIN : MARGEN_RETIRO_URBANO_MIN;
+  return Math.round(etaRetiroMin) + margen;
+}
 function redondear(monto) {
   const { redondeoARS } = CONFIG_OPERATIVA;
   return Math.round(monto / redondeoARS) * redondeoARS;
@@ -1005,7 +1012,8 @@ function cotizarSync(solicitud) {
     advertencias.push("No pude clasificar la carga con precisi\xF3n: se aplic\xF3 tratamiento de carga general.");
   }
   const explicacion = `Asign\xE9 ${vehiculo.nombre} porque ${seleccion.motivo}. Calcul\xE9 ${distancia.km} km (${distancia.detalle}) con ${Math.ceil(pesoFacturableKg)} kg facturables${pesoVolumetricoKg > pesoRealKg ? " \u2014domin\xF3 el peso volum\xE9trico\u2014" : ""} y apliqu\xE9 el ajuste de contexto por ${factores.descripcionFranja}.`;
-  const sla = distancia.km > CONFIG_OPERATIVA.umbralInterurbanoKm ? `Retiro garantizado en menos de ${tiempos.etaRetiroMin + 10} min y seguimiento satelital de punta a punta.` : `Chofer en el punto de retiro en menos de ${tiempos.etaRetiroMin + 5} min o bonificamos el 10% del flete.`;
+  const plazo = plazoRetiroMin(distancia.km, tiempos.etaRetiroMin);
+  const sla = distancia.km > CONFIG_OPERATIVA.umbralInterurbanoKm ? `Retiro en menos de ${plazo} min desde el pago o bonificamos el ${BONIFICACION_SLA_PCT}% del flete. Con seguimiento satelital de punta a punta.` : `Chofer en el punto de retiro en menos de ${plazo} min desde el pago o bonificamos el ${BONIFICACION_SLA_PCT}% del flete.`;
   const cotizacion = {
     id: generarId("COT"),
     emitidaEn: fecha.toISOString(),
@@ -1038,9 +1046,13 @@ function cotizarEnvio(solicitud) {
   return new Promise((res) => setTimeout(() => res(respuesta), latenciaMs));
 }
 export {
+  BONIFICACION_SLA_PCT,
+  MARGEN_RETIRO_INTERURBANO_MIN,
+  MARGEN_RETIRO_URBANO_MIN,
   calcularFactoresContexto,
   cotizarEnvio,
   cotizarSync,
   estimarTiempos,
+  plazoRetiroMin,
   seleccionarVehiculo
 };

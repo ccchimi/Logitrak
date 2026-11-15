@@ -49,6 +49,8 @@ export interface Envio {
     archivadoMotivo: string | null;
     slaMin: number | null;
     slaVenceEn: string | null;
+    /** Cuándo el chofer registró el retiro: contra eso se mide el SLA. */
+    retiradoEn?: string | null;
     creadoEn: string;
     actualizadoEn: string;
     entregadoEn: string | null;

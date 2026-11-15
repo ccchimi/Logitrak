@@ -160,7 +160,7 @@ instancia).
 |---|---|---|
 | `barrer-ofertas-vencidas` | Busca envíos pagos que ningún chofer tomó a tiempo y encola uno por envío | Cada minuto y al arrancar |
 | `expirar-oferta` | Cancela el envío y devuelve el pago | Por envío, con reintentos |
-| `barrer-sla` | Busca envíos pagos con el SLA vencido sin entrega, o entregados tarde | Cada minuto y al arrancar |
+| `barrer-sla` | Busca envíos pagos ya retirados, entregados o con el plazo de retiro vencido | Cada minuto y al arrancar |
 | `revisar-sla` | Acredita un cupón de compensación y registra el evento `sla_excedido` | Por envío, con reintentos |
 | `barrer-impagos` | Busca pedidos que no se pagaron dentro de `MINUTOS_PARA_PAGAR` (5) | Cada minuto y al arrancar |
 | `eliminar-impago` | Borra el pedido de la base, con sus intentos de pago y eventos | Por envío, con reintentos |
@@ -185,11 +185,23 @@ esperamos al próximo minuto. El estado de los trabajos aparece en `/api/salud`.
 Listar y tomar ofertas ya excluyen las vencidas por su cuenta, así que entre que
 una oferta vence y el trabajo la cancela ningún chofer puede tomarla.
 
-**SLA y cupones.** El plazo (`MINUTOS_SLA`, 20 minutos) lo fija el servidor y
-empieza a correr cuando se aprueba el pago; el `slaMin` que manda la app se
-ignora. Si el envío no se entregó a tiempo, el trabajo acredita un único cupón
-de `DESCUENTO_SLA_PCT` (15 %) y marca `sla_revisado_en`. Los envíos cancelados
-no reciben cupón: se les devuelve el pago. Antes el cupón lo pedía la app y
+**SLA y cupones.** La regla es la que promete la cotización: "chofer en el
+punto de retiro en menos de N min desde el pago o bonificamos el 10 % del
+flete". N es el ETA de retiro de esa cotización más 5 minutos en tramos urbanos
+o 10 en interurbanos (más de 50 km). El cálculo vive en el cotizador compartido
+(`plazoRetiroMin` y `BONIFICACION_SLA_PCT` en
+`frontend/src/services/botLogistica/tarifas.ts`), así que el texto que lee el
+cliente y lo que hace cumplir el servidor salen del mismo código. Al crear el
+envío, `sla_min` se toma de la cotización guardada (el `slaMin` que manda la app
+se ignora) y `sla_vence_en` empieza a correr cuando se aprueba el pago.
+
+El retiro es el primer paso a `en_viaje` (eventos `retirado` o `en_viaje` del
+chofer) y queda en `retirado_en`; si el chofer entrega sin haberlo registrado,
+cuenta la entrega. Si el retiro llegó tarde, o el plazo venció sin retiro, el
+trabajo acredita un único cupón del 10 % y marca `sla_revisado_en`; con un
+retiro a tiempo la revisión se cierra sin cupón, aunque la entrega se demore.
+`MINUTOS_SLA` (20) queda solo para cotizaciones sin tiempos estimados. Los
+envíos cancelados no reciben cupón: se les devuelve el pago. Antes el cupón lo pedía la app y
 `POST /api/cupones` aceptaba el porcentaje que mandara el cliente; ahora esa
 ruta emite cupones a mano solo para un admin, y para un cliente funciona como
 "revisá el SLA de mi envío" (así las versiones viejas de la app no se rompen).

@@ -4,7 +4,7 @@ import { autenticar } from '../middleware/auth.js';
 import { validarRequest } from '../middleware/validar.js';
 import { crearEnvio } from '../esquemas/envios.js';
 import { verificarCotizacionParaEnvio } from '../servicios/cotizador/index.js';
-import { MINUTOS_SLA } from '../servicios/envios/sla.js';
+import { plazoDeLaCotizacion } from '../servicios/envios/sla.js';
 import { MINUTOS_PARA_PAGAR } from '../servicios/envios/impagos.js';
 import { reembolsarPagoDelEnvio } from '../servicios/pagos/reembolsos.js';
 import { registrarError } from '../observabilidad/logger.js';
@@ -83,6 +83,7 @@ function publicar(fila) {
         estadoPago: fila.estado_pago,
         slaMin: fila.sla_min,
         slaVenceEn: fila.sla_vence_en,
+        retiradoEn: fila.retirado_en ?? null,
         ofertaVenceEn: fila.oferta_vence_en ?? null,
         // Límite para pagar: pasado, el pedido se borra (servicios/envios/impagos.js).
         pagoVenceEn: fila.estado_pago === 'pagado' ? null : fila.pago_vence_en ?? null,
@@ -175,9 +176,10 @@ rutasEnvios.post('/', autenticar, validarRequest({ body: crearEnvio }), async (r
 
         await cliente.query(`UPDATE cotizaciones SET estado = 'confirmada' WHERE id = $1`, [cotizacion.id]);
 
-        // El plazo lo fija el servidor: si lo eligiera el cliente, podría pedir
+        // El plazo lo fija el servidor con la cotización guardada (el de retiro
+        // que se le prometió al cliente): si lo eligiera el cliente, podría pedir
         // uno imposible de cumplir para cobrarse el cupón de compensación.
-        const slaMin = MINUTOS_SLA;
+        const slaMin = plazoDeLaCotizacion(cotizacion);
         const insercion = await cliente.query(
             `INSERT INTO envios
                  (cliente_id, cotizacion_id, origen, destino, origen_lat, origen_lng,
@@ -385,6 +387,8 @@ rutasEnvios.post('/:codigo/eventos', autenticar, async (req, res) => {
                      estado = $2::text,
                      chofer_nombre = COALESCE($3, chofer_nombre),
                      entregado_en = CASE WHEN $2::text = 'entregado' THEN now() ELSE entregado_en END,
+                     -- El primer paso a en_viaje es el retiro: contra él se mide el SLA.
+                     retirado_en = CASE WHEN $2::text = 'en_viaje' THEN COALESCE(retirado_en, now()) ELSE retirado_en END,
                      actualizado_en = now()
                  WHERE id = $1 RETURNING *`,
                 [envio.id, nuevoEstado, b.choferNombre ?? null]

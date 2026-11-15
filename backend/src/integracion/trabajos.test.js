@@ -43,12 +43,72 @@ describe('trabajos en segundo plano (integración)', { skip: SALTEAR }, () => {
     const fila = async (id) => (await pool.query('SELECT * FROM envios WHERE id = $1', [id])).rows[0];
     const cupones = async (id) => (await pool.query('SELECT * FROM cupones WHERE envio_id = $1', [id])).rows;
 
-    test('el SLA lo fija el servidor y corre desde que se aprueba el pago', async () => {
+    test('el SLA es el plazo de retiro que prometió la cotización y corre desde el pago', async () => {
         const s = await cuenta('trab.plazo');
         const e = await envioPagado(s);
-        assert.equal(e.sla_min, sla.MINUTOS_SLA);
+        const cot = (await pool.query('SELECT detalle, distancia_km FROM cotizaciones WHERE id = $1', [e.cotizacion_id])).rows[0];
+        const prometido = Number(cot.detalle.sla.match(/menos de (\d+) min/)[1]);
+        assert.equal(e.sla_min, prometido, 'el mismo número que leyó el cliente');
+        assert.equal(e.sla_min, cot.detalle.tiempos.etaRetiroMin + 5, 'tramo urbano: ETA de retiro + 5 min');
+        assert.match(cot.detalle.sla, new RegExp(`bonificamos el ${sla.DESCUENTO_SLA_PCT}%`));
         const minutos = (new Date(e.sla_vence_en) - new Date(e.actualizado_en)) / 60000;
-        assert.ok(Math.abs(minutos - sla.MINUTOS_SLA) < 0.1, `sla_vence_en a ${minutos} min del pago`);
+        assert.ok(Math.abs(minutos - e.sla_min) < 0.1, `sla_vence_en a ${minutos} min del pago`);
+    });
+
+    test('plazo por cotización: urbano +5, interurbano +10; sin tiempos, el de respaldo', () => {
+        assert.equal(sla.plazoDeLaCotizacion({ distancia_km: '12.5', detalle: { tiempos: { etaRetiroMin: 18 } } }), 23);
+        assert.equal(sla.plazoDeLaCotizacion({ distancia_km: '80', detalle: { tiempos: { etaRetiroMin: 25 } } }), 35);
+        assert.equal(sla.plazoDeLaCotizacion({ distancia_km: '12', detalle: {} }), sla.MINUTOS_SLA);
+        assert.equal(sla.plazoDeLaCotizacion(null), sla.MINUTOS_SLA);
+        assert.equal(sla.DESCUENTO_SLA_PCT, 10, 'el 10 % que dice la cotización');
+    });
+
+    test('retiro registrado a tiempo: se cierra sin cupón aunque la entrega tarde', async () => {
+        const s = await cuenta('trab.ret.ok');
+        const e = await envioPagado(s);
+        await pool.query(`UPDATE envios SET estado = 'en_viaje', retirado_en = now() WHERE id = $1`, [e.id]);
+        assert.ok((await sla.enviosConSlaParaRevisar()).includes(e.id), 'con el retiro ya se puede decidir');
+        assert.equal(await sla.revisarSla(e.id), 'cumplido');
+        // Después vence el plazo y entrega tarde: el compromiso era el retiro.
+        await pool.query(`UPDATE envios SET sla_vence_en = now() - interval '30 minutes', estado = 'entregado', entregado_en = now() WHERE id = $1`, [e.id]);
+        assert.equal(await sla.revisarSla(e.id), 'no_aplica', 'ya revisado');
+        assert.equal((await cupones(e.id)).length, 0);
+    });
+
+    test('retiro registrado tarde: cupón del 10 % con el evento que explica el plazo', async () => {
+        const s = await cuenta('trab.ret.tarde');
+        const e = await envioPagado(s);
+        await pool.query(
+            `UPDATE envios SET estado = 'en_viaje', sla_vence_en = now() - interval '5 minutes', retirado_en = now() WHERE id = $1`,
+            [e.id]
+        );
+        assert.equal(await sla.revisarSla(e.id), 'compensado');
+        assert.equal((await cupones(e.id))[0].descuento_pct, 10);
+        const ev = await pool.query(`SELECT detalle FROM envio_eventos WHERE envio_id = $1 AND tipo = 'sla_excedido'`, [e.id]);
+        assert.match(ev.rows[0].detalle, new RegExp(`retiro en ${e.sla_min} min`));
+    });
+
+    test('el chofer marca el retiro con su evento y eso queda como retirado_en', async () => {
+        const s = await cuenta('trab.ret.ev');
+        const e = await envioPagado(s);
+        const ch = await cuenta('trab.ret.ch');
+        await pool.query(`UPDATE usuarios SET rol = 'chofer' WHERE id = $1`, [ch.perfil.id]);
+        await pool.query(
+            `INSERT INTO choferes (codigo, usuario_id, nombre_completo, email, telefono, domicilio, dni, vehiculo_id)
+             VALUES ($1, $2, 'Chofer SLA', 's@mail.com', '1155550000', 'Calle 1', $3, 'utilitario')`,
+            [`CH-S${ch.perfil.id}`, ch.perfil.id, String(80_000_000 + ch.perfil.id)]
+        );
+        const token = (await api('/api/auth/login', { metodo: 'POST', cuerpo: { usuario: ch.usuario, contrasena: entorno.clave } })).body.token;
+        assert.equal((await api(`/api/asignaciones/${e.codigo}/tomar`, { metodo: 'POST', token })).status, 201);
+        assert.equal((await fila(e.id)).retirado_en, null);
+
+        const ev = await api(`/api/envios/${e.codigo}/eventos`, { metodo: 'POST', token, cuerpo: { tipo: 'retirado', titulo: 'Paquete retirado' } });
+        assert.equal(ev.status, 201, JSON.stringify(ev.body));
+        assert.ok(ev.body.envio.retiradoEn);
+        const primero = (await fila(e.id)).retirado_en;
+        await api(`/api/envios/${e.codigo}/eventos`, { metodo: 'POST', token, cuerpo: { tipo: 'en_viaje', titulo: 'En camino' } });
+        assert.deepEqual((await fila(e.id)).retirado_en, primero, 'cuenta el primer retiro');
+        assert.equal(await sla.revisarSla(e.id), 'cumplido');
     });
 
     test('una oferta vencida se cancela y se reembolsa; repetir no hace nada', async () => {
@@ -66,7 +126,7 @@ describe('trabajos en segundo plano (integración)', { skip: SALTEAR }, () => {
         assert.equal(await trabajos.procesarExpiracion(e.id), 'no_aplica');
     });
 
-    test('SLA vencido sin entrega: un cupón del servidor y un evento, una sola vez', async () => {
+    test('plazo vencido sin retiro: un cupón del servidor y un evento, una sola vez', async () => {
         const s = await cuenta('trab.sla');
         const e = await envioPagado(s);
         assert.equal((await sla.enviosConSlaParaRevisar()).includes(e.id), false);
@@ -86,7 +146,7 @@ describe('trabajos en segundo plano (integración)', { skip: SALTEAR }, () => {
         assert.ok((await fila(e.id)).sla_revisado_en);
     });
 
-    test('entregado a tiempo: se cierra la revisión sin cupón; entregado tarde: cupón', async () => {
+    test('entregado sin registrar el retiro: cuenta la entrega (a tiempo, sin cupón; tarde, cupón)', async () => {
         const s = await cuenta('trab.entrega');
         const aTiempo = await envioPagado(s);
         await pool.query(`UPDATE envios SET estado = 'entregado', entregado_en = now() WHERE id = $1`, [aTiempo.id]);
