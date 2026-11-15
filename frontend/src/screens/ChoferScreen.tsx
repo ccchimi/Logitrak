@@ -18,7 +18,6 @@ import {
   listarOfertas,
   tomarEnvio,
   obtenerAsignacionActiva,
-  completarAsignacion,
   listarAsignaciones,
   AsignacionRegistro,
   EstadoAsignacion,
@@ -32,6 +31,7 @@ import {
 } from "../components/PanelCanva";
 import { DISENO as D } from "../theme/diseno";
 import { agregarEvento } from "../services/enviosService";
+import EntregaModal from "../components/EntregaModal";
 
 const ETIQUETA_PRIORIDAD: Record<PrioridadOferta, string> = {
   alta: "PRIORIDAD ALTA",
@@ -129,6 +129,7 @@ export default function ChoferScreen({ navigation, route }: any) {
   const [tomando, setTomando] = useState<string | null>(null);
   const [errorTomar, setErrorTomar] = useState<string | null>(null);
 
+  const [entregando, setEntregando] = useState(false);
   const [viajeActivo, setViajeActivo] = useState<AsignacionRegistro | null>(
     null,
   );
@@ -231,7 +232,12 @@ export default function ChoferScreen({ navigation, route }: any) {
       return;
     }
 
-    await completarAsignacion(viajeActivo.codigo);
+    // La entrega se cierra con el PIN del receptor y la foto de comprobante.
+    setEntregando(true);
+  };
+
+  const entregaConfirmada = async () => {
+    setEntregando(false);
     setViajeActivo(null);
     setPasoEstado(0);
     await cargarHistorial();
@@ -606,6 +612,12 @@ export default function ChoferScreen({ navigation, route }: any) {
           </View>
         </View>
       </ScrollView>
+      <EntregaModal
+        visible={entregando}
+        asignacionCodigo={viajeActivo?.codigo ?? null}
+        onCerrar={() => setEntregando(false)}
+        onEntregado={() => void entregaConfirmada()}
+      />
     </SafeAreaView>
   );
 }

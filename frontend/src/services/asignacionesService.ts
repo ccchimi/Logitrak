@@ -85,12 +85,26 @@ export async function obtenerAsignacionActiva(): Promise<AsignacionRegistro | nu
     return r.exito ? r.asignacion : null;
 }
 
-export async function completarAsignacion(codigo: string): Promise<AsignacionRegistro | null> {
-    const r = await llamarApi<{ exito: true; asignacion: AsignacionRegistro }>(
+export type ResultadoEntrega =
+    | { exito: true; asignacion: AsignacionRegistro }
+    | { exito: false; error: string; codigo?: 'pin_incorrecto' | 'pin_bloqueado'; intentosRestantes?: number };
+
+// Cerrar la entrega exige el PIN del receptor y una foto de comprobante (base64).
+export async function completarAsignacion(
+    codigo: string,
+    entrega: { pin: string; foto: string }
+): Promise<ResultadoEntrega> {
+    const r = (await llamarApi<{ exito: true; asignacion: AsignacionRegistro }>(
         `/api/asignaciones/${encodeURIComponent(codigo)}/completar`,
-        { metodo: 'POST', conAuth: true }
-    );
-    return r.exito ? r.asignacion : null;
+        { metodo: 'POST', conAuth: true, cuerpo: entrega }
+    )) as any;
+    if (r.exito) return { exito: true, asignacion: r.asignacion };
+    return {
+        exito: false,
+        error: r.error ?? 'No se pudo cerrar la entrega.',
+        codigo: r.codigo,
+        intentosRestantes: r.intentosRestantes,
+    };
 }
 
 export async function listarAsignaciones(): Promise<AsignacionRegistro[]> {

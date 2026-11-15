@@ -101,10 +101,15 @@ export async function anonimizarCuenta(db, usuario) {
          WHERE cliente_id = $1 AND estado = 'pendiente' AND estado_pago <> 'pagado'`,
         [id]
     );
+    // La foto de comprobante de la entrega puede mostrar a quien recibió o su
+    // casa: se borra del Storage junto con el resto.
+    const fotos = (await db.query('SELECT foto_entrega_path FROM envios WHERE cliente_id = $1 AND foto_entrega_path IS NOT NULL', [id])).rows;
+    archivos.push(...fotos.map((f) => f.foto_entrega_path));
     await db.query(
         `UPDATE envios
          SET origen = $2, destino = $2, origen_lat = NULL, origen_lng = NULL,
-             destino_lat = NULL, destino_lng = NULL, descripcion_carga = NULL
+             destino_lat = NULL, destino_lng = NULL, descripcion_carga = NULL,
+             pin_entrega = NULL, foto_entrega_path = NULL
          WHERE cliente_id = $1`,
         [id, DIRECCION_ELIMINADA]
     );

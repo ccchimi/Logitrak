@@ -121,10 +121,20 @@ export interface PagoDeEnvio {
     reembolsoPendiente: string | null;
 }
 
+// Entrega segura (Hito 3.1). El PIN lo recibe solo el cliente dueño mientras el
+// envío está en curso; la foto, después de entregado.
+export interface EntregaEnvio {
+    pin?: string;
+    pinBloqueado: boolean;
+    fotoUrl: string | null;
+    conFoto: boolean;
+}
+
 export interface DetalleEnvio {
     envio: Envio;
     eventos: EventoEnvio[];
     pagos: PagoDeEnvio[];
+    entrega?: EntregaEnvio | null;
 }
 
 export async function obtenerEnvio(codigo: string): Promise<DetalleEnvio | null> {
@@ -132,7 +142,7 @@ export async function obtenerEnvio(codigo: string): Promise<DetalleEnvio | null>
         `/api/envios/${encodeURIComponent(codigo)}`,
         { conAuth: true }
     );
-    return r.exito ? { envio: r.envio, eventos: r.eventos, pagos: r.pagos ?? [] } : null;
+    return r.exito ? { envio: r.envio, eventos: r.eventos, pagos: r.pagos ?? [], entrega: r.entrega ?? null } : null;
 }
 
 export type ResultadoAccionAdmin = { exito: boolean; mensaje: string };

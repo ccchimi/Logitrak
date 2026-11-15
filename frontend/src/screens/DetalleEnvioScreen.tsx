@@ -1,6 +1,7 @@
 import { useTema } from "../hooks/useTema";
 import React, { useCallback, useEffect, useState } from "react";
 import {
+  Image,
   ActivityIndicator,
   ScrollView,
   Text,
@@ -225,7 +226,7 @@ export default function DetalleEnvioScreen({ navigation, route }: any) {
     );
   }
 
-  const { envio, eventos, pagos } = datos;
+  const { envio, eventos, pagos, entrega } = datos;
   const eventosVisibles = esAdmin
     ? eventos.filter((ev) => ev.titulo !== "Envío archivado por un administrador")
     : eventos;
@@ -267,6 +268,27 @@ export default function DetalleEnvioScreen({ navigation, route }: any) {
               <Badge color={tema.color(COLORS.muted)} texto="Archivado" />
             ) : null}
           </View>
+
+          {entrega?.pin ? (
+            <View style={tema.estilo([styles.tarjeta, { borderColor: "#FFDE00", borderWidth: 1 }])}>
+              <Text style={tema.estilo(styles.tarjetaTitulo)}>PIN de entrega</Text>
+              <Text
+                style={tema.estilo({ fontFamily: "Poppins_700Bold", fontSize: 36, letterSpacing: 12, color: "#FFDE00", marginVertical: 6 })}
+                accessibilityLabel={`PIN de entrega ${entrega.pin.split("").join(" ")}`}
+                selectable
+              >
+                {entrega.pin}
+              </Text>
+              <Text style={tema.estilo(styles.vacio)}>
+                Pasáselo solo a quien va a recibir el paquete: el chofer lo necesita para cerrar la entrega. Nadie de Logitrak te lo va a pedir.
+              </Text>
+              {entrega.pinBloqueado ? (
+                <Text style={tema.estilo([styles.vacio, { color: "#FF8A80", marginTop: 6 }])}>
+                  Se ingresó mal demasiadas veces y quedó bloqueado. Escribinos a soporte para desbloquearlo.
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
 
           <View style={tema.estilo(styles.tarjeta)}>
             <Text style={tema.estilo(styles.tarjetaTitulo)}>Recorrido</Text>
@@ -321,6 +343,23 @@ export default function DetalleEnvioScreen({ navigation, route }: any) {
               </Text>
             )}
           </View>
+
+          {entrega?.conFoto ? (
+            <View style={tema.estilo(styles.tarjeta)}>
+              <Text style={tema.estilo(styles.tarjetaTitulo)}>Comprobante de entrega</Text>
+              {entrega.fotoUrl ? (
+                <Image
+                  source={{ uri: entrega.fotoUrl }}
+                  style={{ width: "100%", height: 240, borderRadius: 12 }}
+                  resizeMode="cover"
+                  accessibilityLabel="Foto de comprobante de la entrega"
+                />
+              ) : (
+                <Text style={tema.estilo(styles.vacio)}>El chofer sacó la foto de comprobante al entregar.</Text>
+              )}
+              <Text style={tema.estilo([styles.vacio, { marginTop: 8 }])}>Entregado con el PIN del receptor.</Text>
+            </View>
+          ) : null}
 
           <View style={tema.estilo(styles.tarjeta)}>
             <Text style={tema.estilo(styles.tarjetaTitulo)}>

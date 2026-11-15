@@ -47,6 +47,11 @@ export const crearLimitePagos = () =>
 export const crearLimiteRecorridos = () =>
     limite({ minutos: 10, maximo: 60, mensaje: `Demasiadas consultas de rutas. ${ESPERA}` });
 
+// Cerrar entregas: un chofer hace pocas por hora; esto frena a quien quiera
+// probar PINs desde varios viajes a la vez (cada envío igual se bloquea a los 5).
+export const crearLimiteEntregas = () =>
+    limite({ minutos: 10, maximo: 30, mensaje: `Demasiados intentos de cerrar entregas. ${ESPERA}` });
+
 // Una instancia por proceso, compartida por las rutas.
 export const limiteGeneral = crearLimiteGeneral();
 export const limiteLogin = crearLimiteLogin();
@@ -55,3 +60,4 @@ export const limiteRenovacion = crearLimiteRenovacion();
 export const limiteCotizaciones = crearLimiteCotizaciones();
 export const limitePagos = crearLimitePagos();
 export const limiteRecorridos = crearLimiteRecorridos();
+export const limiteEntregas = crearLimiteEntregas();

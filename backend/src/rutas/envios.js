@@ -8,6 +8,8 @@ import { MINUTOS_SLA } from '../servicios/envios/sla.js';
 import { MINUTOS_PARA_PAGAR } from '../servicios/envios/impagos.js';
 import { reembolsarPagoDelEnvio } from '../servicios/pagos/reembolsos.js';
 import { registrarError } from '../observabilidad/logger.js';
+import { generarPin } from '../servicios/envios/entrega.js';
+import { urlFirmada } from '../servicios/almacenamiento.js';
 
 export const rutasEnvios = Router();
 
@@ -30,6 +32,14 @@ const TIPOS_EVENTO = new Set([
     'creado', 'asignado', 'chofer_en_camino', 'retirado',
     'en_viaje', 'entregado', 'sla_excedido', 'cancelado',
 ]);
+
+// Por la ruta genérica de eventos solo se registran los avances del viaje, y
+// solo los registra el chofer asignado (o un admin). El resto los escribe el
+// sistema: 'entregado' exige PIN y foto (POST /api/asignaciones/:codigo/completar),
+// 'cancelado' sale de la expiración o del reembolso, 'sla_excedido' del trabajo
+// de SLA. Antes cualquiera con acceso al envío, incluido el cliente, podía
+// marcarlo entregado.
+const EVENTOS_DEL_CHOFER = new Set(['chofer_en_camino', 'retirado', 'en_viaje']);
 
 const SELECT_ENVIO = `
     SELECT e.*,
@@ -156,17 +166,17 @@ rutasEnvios.post('/', autenticar, validarRequest({ body: crearEnvio }), async (r
                  (cliente_id, cotizacion_id, origen, destino, origen_lat, origen_lng,
                   destino_lat, destino_lng, descripcion_carga, categoria_carga, peso_kg,
                   bultos, vehiculo_id, vehiculo_nombre, distancia_km, precio, moneda,
-                  sla_min, sla_vence_en, pago_vence_en)
+                  sla_min, sla_vence_en, pago_vence_en, pin_entrega)
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,COALESCE($17,'ARS'),$18,
                      CASE WHEN $18::int IS NULL THEN NULL ELSE now() + make_interval(mins => $18::int) END,
-                     now() + make_interval(mins => $19::int))
+                     now() + make_interval(mins => $19::int), $20)
              RETURNING *`,
             [
                 req.usuario.id, cotizacion.id, cotizacion.origen, cotizacion.destino,
                 num(b.origenLat), num(b.origenLng), num(b.destinoLat), num(b.destinoLng),
                 cotizacion.descripcion_carga, cotizacion.categoria_carga, cotizacion.peso_kg, cotizacion.bultos,
                 cotizacion.vehiculo_id, cotizacion.vehiculo_nombre, cotizacion.distancia_km, cotizacion.precio,
-                cotizacion.moneda, slaMin, MINUTOS_PARA_PAGAR,
+                cotizacion.moneda, slaMin, MINUTOS_PARA_PAGAR, generarPin(),
             ]
         );
         const envio = insercion.rows[0];
@@ -283,9 +293,21 @@ rutasEnvios.get('/:codigo', autenticar, async (req, res) => {
         [envio.id]
     );
 
+    // El PIN lo ve solo el cliente dueño, y solo mientras el envío está en curso:
+    // se lo pasa a quien recibe. El chofer nunca lo ve.
+    const esDueno = envio.cliente_id === req.usuario.id;
+    const enCurso = ['pendiente', 'asignado', 'en_viaje'].includes(envio.estado);
+    const entrega = {
+        pin: esDueno && enCurso ? envio.pin_entrega : undefined,
+        pinBloqueado: Boolean(envio.pin_bloqueado_en),
+        fotoUrl: envio.foto_entrega_path ? await urlFirmada(envio.foto_entrega_path) : null,
+        conFoto: Boolean(envio.foto_entrega_path),
+    };
+
     return res.json({
         exito: true,
         envio: publicar(envio),
+        entrega,
         eventos: ev.rows.map(publicarEvento),
         pagos: pg.rows.map(publicarPago),
     });
@@ -299,6 +321,14 @@ rutasEnvios.post('/:codigo/eventos', autenticar, async (req, res) => {
     if (!TIPOS_EVENTO.has(tipo)) {
         return res.status(400).json({ exito: false, error: 'Tipo de evento inválido.' });
     }
+    if (!EVENTOS_DEL_CHOFER.has(tipo)) {
+        return res.status(403).json({
+            exito: false,
+            error: tipo === 'entregado'
+                ? 'La entrega se cierra con el PIN del receptor y la foto de comprobante.'
+                : 'Ese evento lo registra el sistema.',
+        });
+    }
     if (!titulo) {
         return res.status(400).json({ exito: false, error: 'El evento necesita un título.' });
     }
@@ -311,10 +341,12 @@ rutasEnvios.post('/:codigo/eventos', autenticar, async (req, res) => {
 
     const esAdmin = req.usuario.rol === 'admin';
     const choferId = esAdmin ? null : await choferIdDe(req.usuario.id);
-    const autorizado =
-        esAdmin || envio.cliente_id === req.usuario.id || (choferId && envio.chofer_id === choferId);
-    if (!autorizado) {
-        return res.status(403).json({ exito: false, error: 'No tenés acceso a este envío.' });
+    const esSuChofer = Boolean(choferId && envio.chofer_id === choferId);
+    if (!esAdmin && !esSuChofer) {
+        return res.status(403).json({ exito: false, error: 'Solo el chofer asignado registra los avances del viaje.' });
+    }
+    if (!['asignado', 'en_viaje'].includes(envio.estado)) {
+        return res.status(409).json({ exito: false, error: 'El envío no está en viaje.' });
     }
 
     const cliente = await pool.connect();
@@ -378,6 +410,18 @@ const MENSAJE_REEMBOLSO = {
     reintentar: 'La pasarela no respondió. Probá de nuevo en un rato.',
     reembolso_pendiente: 'Mercado Pago rechazó la devolución. Quedó anotada para resolverla a mano.',
 };
+
+// Soporte/admin: después de 5 PINs mal ingresados el envío se bloquea; acá se
+// desbloquea (por ejemplo, tras confirmar con el cliente quién recibe).
+rutasEnvios.post('/:codigo/pin/desbloquear', autenticar, exigirRol('admin'), async (req, res) => {
+    const { rowCount } = await consultar(
+        `UPDATE envios SET pin_intentos = 0, pin_bloqueado_en = NULL, actualizado_en = now()
+         WHERE codigo = $1 AND estado IN ('pendiente', 'asignado', 'en_viaje')`,
+        [req.params.codigo]
+    );
+    if (!rowCount) return res.status(404).json({ exito: false, error: 'Envío en curso no encontrado.' });
+    return res.json({ exito: true });
+});
 
 rutasEnvios.post('/:codigo/reembolsar', autenticar, exigirRol('admin'), async (req, res) => {
     const envio = await buscarEnvioPorCodigo(req.params.codigo);

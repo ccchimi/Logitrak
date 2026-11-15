@@ -120,6 +120,18 @@ export const MANEJADORES = {
         }, ctx);
     },
 
+    async 'envio.entregado'(cliente, evento, ctx) {
+        const p = evento.payload;
+        await notificar(cliente, {
+            usuarioId: p.clienteId,
+            eventoId: evento.id,
+            tipo: evento.event_type,
+            titulo: 'Envío entregado',
+            cuerpo: `El envío ${p.envioCodigo} se entregó con el PIN del receptor. En el detalle está la foto de comprobante.`,
+            datos: { envioCodigo: p.envioCodigo },
+        }, ctx);
+    },
+
     async 'cupon.acreditado'(cliente, evento, ctx) {
         const p = evento.payload;
         await notificar(cliente, {

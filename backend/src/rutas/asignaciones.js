@@ -3,6 +3,10 @@ import { consultar, pool } from '../db/pool.js';
 import { autenticar, exigirRol } from '../middleware/auth.js';
 import { registrarError } from '../observabilidad/logger.js';
 import { registrarEvento } from '../outbox/index.js';
+import { limiteEntregas } from '../middleware/limites.js';
+import { validarRequest } from '../middleware/validar.js';
+import { completarEntrega } from '../esquemas/entrega.js';
+import { guardarFotoEntrega, leerFoto, MAX_INTENTOS_PIN, pinCorrecto } from '../servicios/envios/entrega.js';
 
 export const rutasAsignaciones = Router();
 
@@ -234,51 +238,118 @@ rutasAsignaciones.post('/:codigoEnvio/tomar', autenticar, exigirRol('chofer'), a
     }
 });
 
-rutasAsignaciones.post('/:codigo/completar', autenticar, exigirRol('chofer'), async (req, res) => {
+// Cerrar la entrega exige el PIN que el cliente le dio a quien recibe y una foto
+// de comprobante (Hito 3.1). Tres pasos, para no llamar a Storage con filas
+// bloqueadas: 1) validar el PIN (cada error queda contado), 2) subir la foto,
+// 3) cerrar la entrega, verificando de nuevo que nada cambió en el medio.
+const VIAJE_EN_CURSO = `
+    SELECT a.id AS asignacion_id, e.*
+    FROM asignaciones a JOIN envios e ON e.id = a.envio_id
+    WHERE a.codigo = $1 AND a.chofer_id = $2 AND a.estado = 'aceptada'
+      AND e.chofer_id = $2 AND e.estado IN ('asignado', 'en_viaje')
+    FOR UPDATE OF a, e`;
+
+const PIN_BLOQUEADO = 'El PIN se bloqueó por demasiados intentos. Contactá a soporte para desbloquearlo.';
+
+rutasAsignaciones.post('/:codigo/completar', limiteEntregas, autenticar, exigirRol('chofer'), validarRequest({ body: completarEntrega }), async (req, res) => {
     const chofer = await choferDe(req.usuario.id);
     if (!chofer) {
         return res.status(403).json({ exito: false, error: 'Tu ficha de chofer no está disponible.' });
     }
+    const foto = leerFoto(req.body.foto);
+    if (foto.error) return res.status(400).json({ exito: false, error: foto.error });
 
+    // 1) PIN
     const cliente = await pool.connect();
+    let envio;
     try {
         await cliente.query('BEGIN');
-
-        const { rows } = await cliente.query(
-            `UPDATE asignaciones SET estado = 'completada', respondida_en = now()
-             WHERE codigo = $1 AND chofer_id = $2
-             RETURNING *`,
-            [req.params.codigo, chofer.id]
-        );
-
-        if (rows.length === 0) {
+        envio = (await cliente.query(VIAJE_EN_CURSO, [req.params.codigo, chofer.id])).rows[0];
+        if (!envio) {
             await cliente.query('ROLLBACK');
-            return res.status(404).json({ exito: false, error: 'Asignación no encontrada.' });
+            return res.status(404).json({ exito: false, error: 'No tenés un viaje en curso con ese código.' });
         }
-
-        const asignacion = rows[0];
-        if (asignacion.envio_id) {
-            await cliente.query(
-                `UPDATE envios
-                 SET estado = 'entregado', entregado_en = now(), actualizado_en = now()
-                 WHERE id = $1 AND chofer_id = $2`,
-                [asignacion.envio_id, chofer.id]
-            );
-            await cliente.query(
-                `INSERT INTO envio_eventos (envio_id, tipo, titulo, detalle)
-                 VALUES ($1, 'entregado', 'Envío entregado', $2)`,
-                [asignacion.envio_id, `Entregado por ${chofer.nombre_completo} (${chofer.codigo}).`]
-            );
+        if (envio.pin_bloqueado_en) {
+            await cliente.query('ROLLBACK');
+            return res.status(423).json({ exito: false, codigo: 'pin_bloqueado', error: PIN_BLOQUEADO });
         }
-
+        if (!pinCorrecto(envio.pin_entrega, req.body.pin)) {
+            const { rows } = await cliente.query(
+                `UPDATE envios SET pin_intentos = pin_intentos + 1,
+                        pin_bloqueado_en = CASE WHEN pin_intentos + 1 >= $2 THEN now() ELSE NULL END
+                 WHERE id = $1 RETURNING pin_intentos`,
+                [envio.id, MAX_INTENTOS_PIN]
+            );
+            await cliente.query('COMMIT'); // el intento fallido queda registrado
+            const restantes = Math.max(0, MAX_INTENTOS_PIN - rows[0].pin_intentos);
+            if (!restantes) return res.status(423).json({ exito: false, codigo: 'pin_bloqueado', intentosRestantes: 0, error: PIN_BLOQUEADO });
+            return res.status(422).json({
+                exito: false,
+                codigo: 'pin_incorrecto',
+                intentosRestantes: restantes,
+                error: `El PIN no es correcto. Te quedan ${restantes} ${restantes === 1 ? 'intento' : 'intentos'}.`,
+            });
+        }
         await cliente.query('COMMIT');
-        return res.json({ exito: true, asignacion: publicar(asignacion) });
     } catch (e) {
-        await cliente.query('ROLLBACK');
+        await cliente.query('ROLLBACK').catch(() => {});
+        registrarError(e, 'No se pudo validar el PIN de entrega');
+        return res.status(500).json({ exito: false, error: 'No se pudo completar la entrega.' });
+    } finally {
+        cliente.release();
+    }
+
+    // 2) Foto
+    let rutaFoto = null;
+    try {
+        rutaFoto = await guardarFotoEntrega(envio.codigo, foto);
+    } catch (e) {
+        registrarError(e, 'No se pudo guardar la foto de entrega');
+    }
+    if (!rutaFoto) {
+        return res.status(503).json({ exito: false, error: 'No pudimos guardar la foto. Probá de nuevo en un momento.' });
+    }
+
+    // 3) Cierre
+    const tx = await pool.connect();
+    try {
+        await tx.query('BEGIN');
+        const actual = (await tx.query(VIAJE_EN_CURSO, [req.params.codigo, chofer.id])).rows[0];
+        if (!actual) {
+            await tx.query('ROLLBACK');
+            return res.status(409).json({ exito: false, error: 'El viaje cambió mientras se cerraba la entrega. Actualizá la pantalla.' });
+        }
+        const { rows } = await tx.query(
+            `UPDATE asignaciones SET estado = 'completada', respondida_en = now() WHERE id = $1 RETURNING *`,
+            [actual.asignacion_id]
+        );
+        // El PIN ya cumplió su función: no se guarda después de la entrega.
+        await tx.query(
+            `UPDATE envios
+             SET estado = 'entregado', entregado_en = now(), actualizado_en = now(),
+                 foto_entrega_path = $2, pin_entrega = NULL
+             WHERE id = $1`,
+            [actual.id, rutaFoto]
+        );
+        await tx.query(
+            `INSERT INTO envio_eventos (envio_id, tipo, titulo, detalle)
+             VALUES ($1, 'entregado', 'Envío entregado', $2)`,
+            [actual.id, `Entregado por ${chofer.nombre_completo} (${chofer.codigo}). PIN del receptor validado y foto de comprobante.`]
+        );
+        await registrarEvento(tx, {
+            tipoAgregado: 'envio',
+            idAgregado: actual.codigo,
+            tipo: 'envio.entregado',
+            datos: { clienteId: actual.cliente_id, envioCodigo: actual.codigo },
+        });
+        await tx.query('COMMIT');
+        return res.json({ exito: true, asignacion: publicar(rows[0]) });
+    } catch (e) {
+        await tx.query('ROLLBACK').catch(() => {});
         registrarError(e, 'No se pudo completar la asignación');
         return res.status(500).json({ exito: false, error: 'No se pudo completar la asignación.' });
     } finally {
-        cliente.release();
+        tx.release();
     }
 });
 

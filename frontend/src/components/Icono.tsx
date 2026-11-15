@@ -18,6 +18,7 @@ const GLIFOS = {
   pin: "\ue0c8",
   language: "\ue894",
   notifications: "\ue7f4",
+  camara: "\ue412",
   moon: "\ue3a9",
   truck: "\ue558",
   logout: "\ue9ba",

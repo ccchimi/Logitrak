@@ -219,6 +219,32 @@ notificaciones (`notificaciones`) son la bandeja de cada usuario en la app y se
 borran al eliminar la cuenta. No hay mail: el modelo no guarda el email de los
 clientes. El push a los teléfonos (Hito 2.3) se suma como otro manejador.
 
+## Entrega segura
+
+Cada envío nace con un **PIN de 4 dígitos** aleatorio (`crypto.randomInt`). Lo ve
+solo el cliente dueño, en el detalle del envío y mientras está en curso; él se
+lo pasa a quien recibe. El chofer nunca lo ve.
+
+Para cerrar la entrega, el chofer manda a `POST /api/asignaciones/:codigo/completar`
+el PIN que le dicta el receptor y una **foto de comprobante** (JPG, PNG o WebP de
+hasta 8 MB, validada por su contenido y no por lo que diga el pedido). El cierre
+tiene tres pasos para no llamar a Storage con filas bloqueadas: se valida el PIN,
+se sube la foto al bucket privado (`entregas/<envío>/…`) y recién entonces se
+marca entregado, verificando de nuevo que el viaje siga en curso. Después de la
+entrega el PIN se borra y el cliente ve la foto con un link firmado de 5 minutos
+y recibe la notificación "Envío entregado".
+
+Cada PIN incorrecto queda contado: a los 5 errores el envío se bloquea (responde
+423) y solo un admin lo desbloquea con `POST /api/envios/:codigo/pin/desbloquear`.
+La ruta además tiene un límite de 30 intentos cada 10 minutos por IP.
+
+La ruta genérica `POST /api/envios/:codigo/eventos` ya no permite marcar un envío
+como entregado o cancelado: solo registra los avances del viaje (en camino,
+retirado, en viaje) y solo los puede registrar el chofer asignado o un admin.
+Antes cualquiera con acceso al envío, incluido el cliente, podía marcarlo
+entregado sin PIN. Si el cliente elimina su cuenta, la foto de comprobante se
+borra del Storage.
+
 ## Tiempo real y push
 
 **Seguimiento en tiempo real.** La pantalla de seguimiento escucha por Supabase
@@ -316,8 +342,9 @@ haría falta un plan que mantenga el servicio activo.
 | POST | `/api/envios/:codigo/eventos` | Agrega un hito y transiciona el estado |
 | GET | `/api/asignaciones/disponibles` | Envíos que el chofer puede tomar |
 | POST | `/api/asignaciones/:codigoEnvio/tomar` | El chofer toma un envío |
+| POST | `/api/envios/:codigo/pin/desbloquear` | Desbloquea el PIN de entrega tras 5 errores (solo admin) |
 | GET | `/api/asignaciones/activa` | Viaje en curso del chofer |
-| POST | `/api/asignaciones/:codigo/completar` | Cierra el viaje y marca la entrega |
+| POST | `/api/asignaciones/:codigo/completar` | Cierra la entrega: exige el PIN del receptor y la foto de comprobante |
 | GET | `/api/asignaciones` | Historial de viajes del chofer |
 | GET | `/api/vehiculos` | Catálogo de la flota |
 | GET | `/api/cupones` | Cupones del cliente |
@@ -373,7 +400,8 @@ moto nunca ve una mudanza.
 Cuando un chofer lo toma, el envío queda asociado a su ficha, pasa a `asignado` y
 se escribe el evento correspondiente en la línea de tiempo que ve el cliente. A
 partir de ahí el chofer va marcando los hitos (`chofer_en_camino`, `retirado`) y
-cierra con `completar`, que marca el envío como entregado.
+cierra con `completar`, que exige el PIN del receptor y la foto de comprobante
+(ver [Entrega segura](#entrega-segura)).
 
 El punto interesante es qué pasa si dos choferes tocan el botón al mismo tiempo.
 Lo resolvemos con un `UPDATE` condicional sobre la fila del envío, que solo
