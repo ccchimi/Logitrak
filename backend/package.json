@@ -11,7 +11,8 @@
     "generar:cotizador": "node scripts/generar-cotizador.js",
     "test": "node --test",
     "migrar": "node scripts/migrar.js",
-    "migrar:crear": "node-pg-migrate create --migrations-dir migrations --migration-file-language js"
+    "migrar:crear": "node-pg-migrate create --migrations-dir migrations --migration-file-language js",
+    "test:cobertura": "node --test --experimental-test-coverage --test-coverage-include=src/**/*.js --test-coverage-exclude=src/**/*.test.js --test-coverage-exclude=src/servicios/cotizador/cotizador.generado.js --test-coverage-lines=75 --test-coverage-branches=70 --test-coverage-functions=70"
   },
   "dependencies": {
     "@sentry/node": "^10.78.0",
@@ -37,7 +38,8 @@
   "private": true,
   "devDependencies": {
     "esbuild": "0.25.11",
-    "pino-pretty": "^13.2.0"
+    "pino-pretty": "^13.2.0",
+    "supertest": "^7.3.1"
   },
   "overrides": {
     "node-pg-migrate": {

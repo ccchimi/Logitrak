@@ -157,6 +157,22 @@ rutasEnvios.post('/', autenticar, validarRequest({ body: crearEnvio }), async (r
             return res.status(409).json({ exito: false, error: verificacion.motivo });
         }
 
+        // Idempotente: la app puede reintentar si se cortó la conexión justo
+        // después de crear el envío. Si la cotización ya tiene uno vigente, se
+        // devuelve ese en vez de crear un duplicado con el mismo presupuesto.
+        if (cotizacion.estado === 'confirmada') {
+            const previo = await cliente.query(
+                `${SELECT_ENVIO} WHERE e.cotizacion_id = $1 AND e.cliente_id = $2
+                   AND e.archivado_en IS NULL AND e.estado <> 'cancelado'
+                 ORDER BY e.id DESC LIMIT 1`,
+                [cotizacion.id, req.usuario.id]
+            );
+            if (previo.rows[0]) {
+                await cliente.query('ROLLBACK');
+                return res.status(200).json({ exito: true, envio: publicar(previo.rows[0]), reutilizado: true });
+            }
+        }
+
         await cliente.query(`UPDATE cotizaciones SET estado = 'confirmada' WHERE id = $1`, [cotizacion.id]);
 
         // El plazo lo fija el servidor: si lo eligiera el cliente, podría pedir

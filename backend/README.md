@@ -305,6 +305,37 @@ migrando, espera. Por eso `DATABASE_URL` tiene que usar el pooler de Supabase en
 modo sesión (puerto 5432), no el de transacciones (6543), donde los locks de
 sesión no funcionan.
 
+## Pruebas
+
+Hay dos tipos. Las unitarias (cálculo de precio, reglas de asignación, firma de
+webhooks, permisos) no necesitan nada. Las de integración, en
+`src/integracion/`, levantan la API completa y le pegan con `supertest` contra
+un PostgreSQL real; sin `TEST_DATABASE_URL` se saltean.
+
+```bash
+docker run -d --rm --name logitrak-pg-prueba -e POSTGRES_PASSWORD=prueba -p 55432:5432 postgres:16-alpine
+TEST_DATABASE_URL=postgresql://postgres:prueba@localhost:55432/postgres PGSSL=false npm test
+npm run test:cobertura    # lo mismo, con informe de cobertura y umbrales
+```
+
+Las rutas principales tienen su archivo: `rutas-auth.test.js` (registro, login,
+límite de intentos, sesiones, perfil y recuperación), `rutas-envios.test.js`
+(alta idempotente, listado por cliente, detalle, reembolso y archivo) y
+`rutas-pagos.test.js` (tarjeta aprobada y rechazada, checkout sandbox con
+`Idempotency-Key`, confirmación, permisos y webhooks firmados). Además hay
+pruebas de los trabajos de pg-boss, el outbox, la entrega con PIN, los roles y
+el RLS.
+
+La CI corre `npm run test:cobertura` con una base de PostgreSQL limpia y falla
+si la cobertura baja de 75 % de líneas, 70 % de ramas o 70 % de funciones.
+
+Las pruebas nunca leen el `.env` (que apunta a producción): cuando corren bajo
+`node --test` la configuración sale solo de las variables del entorno, y
+`levantarApi()` se niega a arrancar si el pool no apunta a `TEST_DATABASE_URL`.
+Conviene usar una base descartable: si se reutiliza muchas veces, se acumulan
+trabajos viejos de pg-boss y las pruebas que esperan un trabajo pueden tardar
+más de la cuenta.
+
 ## Despliegue
 
 El backend corre en Render como Web Service, con despliegue automático desde
