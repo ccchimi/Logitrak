@@ -138,9 +138,6 @@ export function estimarTiempos(
     return { etaRetiroMin, tiempoViajeMin, ventanaEntrega };
 }
 
-// Compromiso de retiro (SLA). La cotización se lo promete al cliente y el
-// servidor lo hace cumplir con el mismo código: si el chofer no registra el
-// retiro dentro del plazo, contado desde el pago, el cliente recibe un cupón.
 export const BONIFICACION_SLA_PCT = 10;
 export const MARGEN_RETIRO_URBANO_MIN = 5;
 export const MARGEN_RETIRO_INTERURBANO_MIN = 10;
@@ -177,9 +174,6 @@ export function cotizarSync(solicitud: SolicitudCotizacion): RespuestaCotizacion
         };
     }
 
-    // Sin la ciudad de los dos puntos la distancia sería inventada, y con ella el
-    // precio: no se cotiza. Evita también pedirle al servidor un viaje largo al
-    // precio de un tramo urbano omitiendo la localidad.
     const sinCiudad = [origen, destino].filter((d) => !d.localidad);
     if (sinCiudad.length > 0) {
         return {

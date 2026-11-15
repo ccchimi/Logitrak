@@ -1,5 +1,3 @@
-// Bandeja de notificaciones de cada usuario. Las escribe el despachador del
-// outbox (src/outbox); acá solo se leen y se marcan como leídas.
 import { Router } from 'express';
 import { z } from 'zod';
 import { consultar } from '../db/pool.js';
@@ -48,7 +46,6 @@ rutasNotificaciones.get('/', autenticar, validarRequest({ query: consultaListado
     res.json({ exito: true, notificaciones: lista.rows.map(publicar), noLeidas: pendientes.rows[0].n });
 });
 
-// Sin ids marca todas las del usuario. Solo toca las propias.
 rutasNotificaciones.post('/leidas', autenticar, validarRequest({ body: cuerpoLeidas }), async (req, res) => {
     const { ids } = req.body;
     const { rowCount } = await consultar(
@@ -59,8 +56,6 @@ rutasNotificaciones.post('/leidas', autenticar, validarRequest({ body: cuerpoLei
     res.json({ exito: true, marcadas: rowCount });
 });
 
-// --- Tokens de push del teléfono ---------------------------------------------
-
 const MAX_TELEFONOS_POR_USUARIO = 5;
 
 const cuerpoToken = z.object({
@@ -68,8 +63,6 @@ const cuerpoToken = z.object({
     plataforma: z.enum(['android', 'ios'], { error: 'La plataforma debe ser android o ios.' }).optional(),
 });
 
-// Registra el teléfono para recibir push. Si el token ya era de otra cuenta
-// (alguien cambió de usuario en el mismo teléfono), pasa a la actual.
 rutasNotificaciones.post('/push-token', autenticar, validarRequest({ body: cuerpoToken }), async (req, res) => {
     const { token, plataforma = 'android' } = req.body;
     await consultar(
@@ -77,7 +70,6 @@ rutasNotificaciones.post('/push-token', autenticar, validarRequest({ body: cuerp
          ON CONFLICT (token) DO UPDATE SET usuario_id = EXCLUDED.usuario_id, plataforma = EXCLUDED.plataforma, actualizado_en = now()`,
         [req.usuario.id, token, plataforma]
     );
-    // Un usuario no necesita más que unos pocos teléfonos: se quedan los más recientes.
     await consultar(
         `DELETE FROM push_tokens WHERE usuario_id = $1 AND id NOT IN (
              SELECT id FROM push_tokens WHERE usuario_id = $1 ORDER BY actualizado_en DESC LIMIT $2)`,
@@ -86,7 +78,6 @@ rutasNotificaciones.post('/push-token', autenticar, validarRequest({ body: cuerp
     res.status(201).json({ exito: true });
 });
 
-// Al cerrar sesión la app da de baja su token. Solo puede borrar los propios.
 rutasNotificaciones.delete('/push-token', autenticar, validarRequest({ body: cuerpoToken.pick({ token: true }) }), async (req, res) => {
     const { rowCount } = await consultar('DELETE FROM push_tokens WHERE token = $1 AND usuario_id = $2', [req.body.token, req.usuario.id]);
     res.json({ exito: true, borrados: rowCount });

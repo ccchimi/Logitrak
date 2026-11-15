@@ -57,7 +57,6 @@ export interface AnalisisDireccion {
     componentes: ComponentesDireccion;
     localidad: Localidad | null;
     localidadCorregida: boolean;
-    // Barrio o localidad menor que se usó para llegar a la localidad (ej: "Belgrano" → CABA).
     barrio: string | null;
     problemas: ProblemaDeteccion[];
 }

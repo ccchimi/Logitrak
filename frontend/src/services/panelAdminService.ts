@@ -11,7 +11,6 @@ export interface DatosPanelAdmin {
   creacionesDesde: number | null;
 }
 export async function obtenerPanelAdmin(): Promise<DatosPanelAdmin> {
-  // Panel de operación del equipo (Hito 3.2): soporte y admin.
   const esEquipo = (rol?: string) => rol === "admin" || rol === "soporte";
   if (!esEquipo(obtenerUsuarioSesion()?.rol))
     throw new Error("Esta sección es del equipo de Logitrak (soporte o administración).");

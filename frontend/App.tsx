@@ -37,7 +37,6 @@ import { RootFlowProvider } from "./src/navigation/RootFlowContext";
 import { restaurarSesion } from "./src/services/authService";
 import { registrarTelefono } from "./src/services/pushService";
 
-
 export default function App() {
   const tema = useTema();
   const { height } = useWindowDimensions();
@@ -60,12 +59,9 @@ export default function App() {
   });
 
   const [mostrarApp, setMostrarApp] = useState(false);
-  // null = todavía no sabemos; 'Login' = sin sesión; otra ruta = sesión viva.
   const [rutaInicial, setRutaInicial] = useState<string | null>(null);
   const [sesionVerificada, setSesionVerificada] = useState(false);
 
-  // Al arrancar (y en cada F5) intentamos rehidratar la sesión guardada. Si es
-  // válida, saltamos la landing y entramos directo donde estaba el usuario.
   useEffect(() => {
     let activo = true;
 

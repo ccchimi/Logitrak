@@ -1,10 +1,3 @@
-// Estado de arranque de la API. index.js abre el puerto enseguida y recién
-// después aplica migraciones y datos base: si la base tarda (por ejemplo, porque
-// la instancia anterior todavía ocupa las conexiones durante un deploy), Render
-// igual ve el puerto abierto y no corta el deploy por tiempo. Mientras tanto,
-// las rutas responden 503 "iniciando" en vez de tocar un esquema a medio migrar.
-//
-// Por defecto está lista: las pruebas usan la app sin pasar por index.js.
 let lista = true;
 
 export const apiLista = () => lista;

@@ -38,8 +38,6 @@ export async function crearPreferenciaMp({ pago, envio, baseUrl }) {
             external_reference: pago.codigo,
             notification_url: `${baseUrl}/api/pagos/webhook/mercadopago`,
             metadata: { pago_codigo: pago.codigo, envio_codigo: envio.codigo },
-            // Vence junto con el pedido: después de esa hora Mercado Pago no
-            // acepta el pago y el pedido se puede borrar sin cobros colgados.
             ...(envio.pago_vence_en
                 ? { expires: true, expiration_date_to: new Date(envio.pago_vence_en).toISOString() }
                 : {}),
@@ -77,8 +75,6 @@ export async function consultarPagoMp(pagoExtId) {
     }
 }
 
-// estricto: si la consulta falla, lanza en vez de devolver null. Sirve para
-// distinguir "no hay pago" de "no se pudo saber" antes de borrar algo.
 export async function buscarPagoMpPorReferencia(externalReference, { estricto = false } = {}) {
     const cliente = obtenerCliente();
     if (!cliente || !externalReference) return null;
@@ -111,14 +107,6 @@ export async function buscarPagoMpPorReferencia(externalReference, { estricto = 
     }
 }
 
-// Reembolso total del pago. Devuelve si se pudo y, cuando no, si tiene sentido
-// reintentar. Un 4xx (credenciales, pago inexistente) no se arregla solo; un
-// 5xx o un corte de red sí.
-//
-// Ojo: las cuentas de prueba de Mercado Pago NO pueden reembolsar. La API
-// responde 401 "Unauthorized use of live credentials" aunque el pago exista y
-// sea de esa misma cuenta. Para poder ejercitar el flujo completo en el entorno
-// de prueba está MP_REEMBOLSOS_SIMULADOS.
 export async function reembolsarPagoMp(pagoExtId) {
     if (process.env.MP_REEMBOLSOS_SIMULADOS === 'true') {
         return { ok: true, reintentable: false, motivo: 'reembolso simulado (MP_REEMBOLSOS_SIMULADOS)' };
@@ -133,7 +121,6 @@ export async function reembolsarPagoMp(pagoExtId) {
         await refund.create({ payment_id: pagoExtId, body: {} });
         return { ok: true, reintentable: false, motivo: 'reembolsado en Mercado Pago' };
     } catch (e) {
-        // Puede haberse reembolsado antes: reintentar tiene que ser inocuo.
         const estado = await consultarPagoMp(pagoExtId).catch(() => null);
         if (estado?.estado === 'refunded') {
             return { ok: true, reintentable: false, motivo: 'ya figuraba reembolsado' };

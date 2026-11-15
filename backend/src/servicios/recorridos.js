@@ -1,8 +1,3 @@
-// Recorrido por calles entre dos puntos, calculado con Google Directions desde el
-// servidor. Antes la app llamaba a Google con una clave embebida en el bundle:
-// ese pedido sale del JavaScript del teléfono, sin paquete Android ni dominio,
-// así que la clave no se podía restringir y cualquiera podía sacarla y gastar la
-// cuota. Ahora la clave vive solo en el backend (GOOGLE_DIRECTIONS_KEY).
 import { log } from '../observabilidad/logger.js';
 
 const URL_DIRECTIONS = 'https://maps.googleapis.com/maps/api/directions/json';
@@ -17,7 +12,6 @@ export class ErrorRecorrido extends Error {
     }
 }
 
-// Algoritmo de polilíneas codificadas de Google.
 export function decodificarPolilinea(texto) {
     const puntos = [];
     let i = 0;
@@ -42,20 +36,18 @@ export function decodificarPolilinea(texto) {
     return puntos;
 }
 
-// Unir los pasos da un trazado más fiel que la polilínea resumida.
 function coordenadasDeLaRuta(ruta) {
     const pasos = (ruta.legs ?? []).flatMap((tramo) => tramo.steps ?? []);
     const coords = [];
     for (const paso of pasos) {
         const puntos = decodificarPolilinea(paso.polyline?.points ?? '');
-        // El primer punto de cada paso repite el último del anterior.
         coords.push(...(coords.length ? puntos.slice(1) : puntos));
     }
     return coords.length ? coords : decodificarPolilinea(ruta.overview_polyline?.points ?? '');
 }
 
 const cache = new Map();
-const redondear = (n) => n.toFixed(5); // ~1 metro
+const redondear = (n) => n.toFixed(5);
 const claveCache = (o, d) => [o.lat, o.lng, d.lat, d.lng].map(redondear).join(',');
 
 export function limpiarCacheRecorridos() {
@@ -92,8 +84,6 @@ export async function obtenerRecorrido(origen, destino, { clave = process.env.GO
         throw new ErrorRecorrido(404, 'No hay una ruta por calles entre esos puntos.');
     }
     if (datos.status !== 'OK' || !datos.routes?.length) {
-        // REQUEST_DENIED, OVER_QUERY_LIMIT, etc.: es un problema de la clave o la
-        // cuota, no del pedido. El detalle va al log, no al cliente.
         log().error({ googleStatus: datos.status, detalle: datos.error_message }, 'Directions rechazó el pedido (clave o cuota)');
         throw new ErrorRecorrido(502, 'No se pudo calcular la ruta. Probá de nuevo en un rato.');
     }

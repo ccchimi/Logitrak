@@ -1,9 +1,6 @@
 import { verificarFirmaMercadoPago } from '../servicios/pagos/firmaMercadoPago.js';
 import { log } from '../observabilidad/logger.js';
 
-// Solo deja pasar al webhook las notificaciones firmadas por Mercado Pago.
-// Falla cerrado: sin MP_WEBHOOK_SECRET no se procesa ninguna notificación (el
-// pago igual se confirma por la consulta de GET /api/pagos/:codigo).
 export function exigirFirmaMercadoPago(req, res, next) {
     const secreto = process.env.MP_WEBHOOK_SECRET;
     if (!secreto) {
@@ -11,7 +8,6 @@ export function exigirFirmaMercadoPago(req, res, next) {
         return res.status(503).json({ exito: false, error: 'Webhook de Mercado Pago sin configurar.' });
     }
 
-    // El id firmado es el de la URL (?data.id=...), no el del cuerpo.
     const dataId = req.query?.['data.id'];
     const resultado = verificarFirmaMercadoPago({
         xSignature: req.get('x-signature'),

@@ -1,8 +1,3 @@
-// Hito 3.4: /api/admin de punta a punta con supertest, contra PostgreSQL real:
-// el listado de usuarios (filtros, paginación, quién lo ve) y el cambio de rol
-// con todas sus negativas. El reinicio de la base solo se prueba en sus
-// permisos: correrlo de verdad vaciaría la base que comparten los demás
-// archivos de prueba, que corren en paralelo.
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
@@ -37,7 +32,6 @@ describe('/api/admin (integración)', { skip: SALTEAR }, () => {
             assert.equal(r.body.usuarios.some((u) => 'contrasena_hash' in u || 'contrasenaHash' in u), false);
             assert.equal(typeof r.body.resumen.clientes, 'number');
 
-            // Página 2 de a 10 sobre 3 resultados: se queda en la última que existe.
             const pag = await usuarios(admin, `?busqueda=adm${marca}&cantidad=10&pagina=2`);
             assert.equal(pag.body.pagina, 1);
             assert.equal(pag.body.paginas, 1);
@@ -105,8 +99,6 @@ describe('/api/admin (integración)', { skip: SALTEAR }, () => {
             const otro = await e.conRol('adm.otro', 'admin');
             const r = await cambiarRol(admin, otro.perfil.id, 'cliente');
             assert.equal(r.status, 200);
-            // Su sesión se cerró: no puede renovarla, y al volver a entrar ya es cliente
-            // (el token de acceso vigente dura hasta su vencimiento, a lo sumo 15 minutos).
             assert.equal((await e.http('post', '/api/auth/refresh').send({ refreshToken: otro.refreshToken })).status, 401);
             const login = await e.http('post', '/api/auth/login').send({ usuario: otro.usuario, contrasena: e.clave });
             assert.equal(login.body.usuario.rol, 'cliente');

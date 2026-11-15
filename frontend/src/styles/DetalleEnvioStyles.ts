@@ -89,7 +89,6 @@ export const styles = StyleSheet.create({
   badgePunto: { width: 7, height: 7, borderRadius: 999 },
   badgeTexto: { fontSize: 12.5, fontFamily: FONTS.titleBold },
 
-  // Cada dato es una fila etiqueta/valor que envuelve en pantallas angostas.
   fila: {
     flexDirection: "row",
     flexWrap: "wrap",

@@ -1,4 +1,3 @@
-// Hito 3.3: /api/envios de punta a punta con supertest, contra PostgreSQL real.
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { levantarApi, SALTEAR } from './entorno.js';
@@ -45,7 +44,6 @@ describe('/api/envios (integración)', { skip: SALTEAR }, () => {
         test('sin cotización o con una inexistente no se crea', async () => {
             const s = await e.cuenta('env.sin');
             assert.equal((await e.http('post', '/api/envios', { token: s.token }).send({})).status, 400);
-            // Inexistente o ajena responden igual (409): no se revela si existe.
             assert.equal((await e.http('post', '/api/envios', { token: s.token }).send({ cotizacionCodigo: 'COT-NO-EXISTE' })).status, 409);
             assert.equal((await e.http('post', '/api/envios').send({ cotizacionCodigo: 'COT-X' })).status, 401);
         });

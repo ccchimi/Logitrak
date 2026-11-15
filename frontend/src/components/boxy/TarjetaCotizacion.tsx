@@ -18,7 +18,6 @@ const estiloConfianza = (nivel: Cotizacion['confianza']) =>
           ? styles.badgeConfianzaMedia
           : styles.badgeConfianzaBaja;
 
-// Cotización desglosada que Boxy muestra dentro del chat, con el botón para confirmarla.
 export default function TarjetaCotizacion({ resultado, confirmando, onConfirmar }: Props) {
   const tema = useTema();
     return (

@@ -1,18 +1,12 @@
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { obtenerClienteRealtime } from './realtimeCliente';
 
-// Suscripción a los mensajes nuevos de un ticket vía Supabase Realtime. El
-// cliente y la credencial se comparten con el seguimiento (realtimeCliente.ts).
 export { olvidarCredencialRealtime } from './realtimeCliente';
 
 export interface SuscripcionSoporte {
     cerrar: () => void;
 }
 
-/**
- * Escucha los mensajes nuevos de un ticket. Devuelve null si Realtime no está
- * disponible, para que quien llame haga polling en su lugar.
- */
 export async function escucharMensajes(
     ticketId: number,
     alLlegar: () => void

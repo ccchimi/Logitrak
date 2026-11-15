@@ -5,7 +5,6 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DNI_INVALIDO = 'El DNI debe tener 7 u 8 dígitos, sin puntos.';
 const TELEFONO_INVALIDO = 'Ingresá un teléfono válido.';
 
-// Una foto de 10 MB viaja en base64 como ~13,4 MB; el body acepta hasta 16 MB.
 const IMAGEN_MAX = 14_000_000;
 
 export const postulacion = z.object({
@@ -23,7 +22,6 @@ export const postulacion = z.object({
         min: 6,
         mensajeLargo: 'El domicilio no puede superar los 200 caracteres.',
     }),
-    // Se aceptan puntos o espacios ("30.123.456") y se guardan solo los dígitos.
     dni: z.preprocess(
         (v) => (typeof v === 'string' || typeof v === 'number' ? String(v).replace(/\D/g, '') : v),
         z.string({ error: DNI_INVALIDO }).regex(/^\d{7,8}$/, DNI_INVALIDO)

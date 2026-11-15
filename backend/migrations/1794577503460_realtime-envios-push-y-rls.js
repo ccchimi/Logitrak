@@ -1,20 +1,3 @@
-// Hito 2.3: seguimiento en tiempo real, tokens de push y RLS en todas las tablas.
-//
-// 1) push_tokens: los teléfonos registrados de cada usuario (Expo push token).
-//
-// 2) RLS en todas las tablas de la API. La app recibe la anon key de Supabase
-//    para conectarse a Realtime, y con esa clave la API REST de Supabase expone
-//    cualquier tabla del schema public que no tenga RLS (usuarios con sus
-//    hashes, choferes con su DNI...). Con RLS activo y sin políticas, nadie que
-//    entre con la anon key o con nuestro token de Realtime puede leer nada. El
-//    backend no se ve afectado: es el dueño de las tablas, y el dueño no pasa
-//    por RLS (no usamos FORCE ROW LEVEL SECURITY).
-//
-// 3) Solo en Supabase: políticas de SOLO LECTURA para envios y envio_eventos
-//    (el cliente ve los suyos, el chofer los que tiene asignados, el admin
-//    todos), REPLICA IDENTITY FULL y la publicación de Realtime, igual que el
-//    chat de soporte.
-
 const TABLAS = [
     'usuarios', 'choferes', 'auditoria_accesos', 'vehiculos', 'cotizaciones', 'envios',
     'envio_eventos', 'asignaciones', 'cupones', 'pagos', 'sesiones', 'outbox_events',

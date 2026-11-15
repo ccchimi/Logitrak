@@ -11,7 +11,6 @@ export const BOT_SOPORTE_META = {
 export * from './types';
 export { PRESETS, presetDe };
 
-/** Después de estos intentos sin acertar, el bot deja de insistir y deriva. */
 const MAX_INTENTOS = 2;
 
 const REGEX_ENVIO = /\bTRK-\d{4}-\d{6}\b/i;
@@ -21,7 +20,6 @@ export function extraerCodigoEnvio(texto: string): string | null {
     return m ? m[0].toUpperCase() : null;
 }
 
-/** Palabras que no aportan nada al matcheo. */
 const VACIAS = new Set([
     'el', 'la', 'los', 'las', 'un', 'una', 'de', 'del', 'que', 'y', 'o', 'a',
     'en', 'mi', 'me', 'se', 'es', 'por', 'para', 'con', 'no', 'si', 'lo', 'al',
@@ -33,11 +31,6 @@ function palabras(texto: string): string[] {
         .filter((p) => p.length > 1 && !VACIAS.has(p));
 }
 
-/**
- * Decide qué responde el bot. La regla de fondo: solo contesta cuando hay una
- * coincidencia clara en el banco de respuestas. Ante la duda deriva, porque en
- * soporte una respuesta inventada cuesta más que una derivación de más.
- */
 export function resolverConsulta(texto: string, contexto: ContextoSoporte): ResultadoSoporte {
     const preset = presetDe(contexto.categoria);
 
@@ -48,8 +41,6 @@ export function resolverConsulta(texto: string, contexto: ContextoSoporte): Resu
         };
     }
 
-    // Cuando la categoría necesita un envío y todavía no lo tenemos, lo pedimos
-    // antes de intentar responder cualquier otra cosa.
     if (preset.pideEnvio && !contexto.envioCodigo && !extraerCodigoEnvio(texto)) {
         if (contexto.intentosFallidos >= MAX_INTENTOS) {
             return {

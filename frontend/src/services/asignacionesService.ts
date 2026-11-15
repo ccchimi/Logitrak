@@ -89,7 +89,6 @@ export type ResultadoEntrega =
     | { exito: true; asignacion: AsignacionRegistro }
     | { exito: false; error: string; codigo?: 'pin_incorrecto' | 'pin_bloqueado'; intentosRestantes?: number };
 
-// Cerrar la entrega exige el PIN del receptor y una foto de comprobante (base64).
 export async function completarAsignacion(
     codigo: string,
     entrega: { pin: string; foto: string }

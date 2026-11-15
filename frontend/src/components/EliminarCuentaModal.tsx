@@ -8,8 +8,6 @@ interface Props {
     onEliminada: (mensaje: string) => void;
 }
 
-// Confirmación del derecho de supresión (Ley 25.326). Explica qué se borra y qué
-// se conserva, y pide la contraseña: es irreversible.
 export default function EliminarCuentaModal({ visible, onClose, onEliminada }: Props) {
     const [contrasena, setContrasena] = useState('');
     const [error, setError] = useState('');

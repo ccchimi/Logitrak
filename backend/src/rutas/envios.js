@@ -34,12 +34,6 @@ const TIPOS_EVENTO = new Set([
     'en_viaje', 'entregado', 'sla_excedido', 'cancelado',
 ]);
 
-// Por la ruta genérica de eventos solo se registran los avances del viaje, y
-// solo los registra el chofer asignado (o un admin). El resto los escribe el
-// sistema: 'entregado' exige PIN y foto (POST /api/asignaciones/:codigo/completar),
-// 'cancelado' sale de la expiración o del reembolso, 'sla_excedido' del trabajo
-// de SLA. Antes cualquiera con acceso al envío, incluido el cliente, podía
-// marcarlo entregado.
 const EVENTOS_DEL_CHOFER = new Set(['chofer_en_camino', 'retirado', 'en_viaje']);
 
 const SELECT_ENVIO = `
@@ -85,7 +79,6 @@ function publicar(fila) {
         slaVenceEn: fila.sla_vence_en,
         retiradoEn: fila.retirado_en ?? null,
         ofertaVenceEn: fila.oferta_vence_en ?? null,
-        // Límite para pagar: pasado, el pedido se borra (servicios/envios/impagos.js).
         pagoVenceEn: fila.estado_pago === 'pagado' ? null : fila.pago_vence_en ?? null,
         archivadoEn: fila.archivado_en ?? null,
         archivadoMotivo: fila.archivado_motivo ?? null,
@@ -95,8 +88,6 @@ function publicar(fila) {
     };
 }
 
-// Los pagos que se muestran en el detalle. Nunca exponemos `detalle`, que trae
-// la respuesta cruda de la pasarela, ni la referencia interna de la preferencia.
 function publicarPago(fila) {
     return {
         codigo: fila.codigo,
@@ -134,8 +125,6 @@ async function choferIdDe(usuarioId) {
     return rows[0]?.id ?? null;
 }
 
-// El envío se arma siempre desde una cotización guardada por el servidor
-// (DEF-02): precio, vehículo, carga y distancia salen de ahí, no del body.
 rutasEnvios.post('/', autenticar, validarRequest({ body: crearEnvio }), async (req, res) => {
     const b = req.body;
     const cotizacionId = b.cotizacionId ?? null;
@@ -158,9 +147,6 @@ rutasEnvios.post('/', autenticar, validarRequest({ body: crearEnvio }), async (r
             return res.status(409).json({ exito: false, error: verificacion.motivo });
         }
 
-        // Idempotente: la app puede reintentar si se cortó la conexión justo
-        // después de crear el envío. Si la cotización ya tiene uno vigente, se
-        // devuelve ese en vez de crear un duplicado con el mismo presupuesto.
         if (cotizacion.estado === 'confirmada') {
             const previo = await cliente.query(
                 `${SELECT_ENVIO} WHERE e.cotizacion_id = $1 AND e.cliente_id = $2
@@ -176,9 +162,6 @@ rutasEnvios.post('/', autenticar, validarRequest({ body: crearEnvio }), async (r
 
         await cliente.query(`UPDATE cotizaciones SET estado = 'confirmada' WHERE id = $1`, [cotizacion.id]);
 
-        // El plazo lo fija el servidor con la cotización guardada (el de retiro
-        // que se le prometió al cliente): si lo eligiera el cliente, podría pedir
-        // uno imposible de cumplir para cobrarse el cupón de compensación.
         const slaMin = plazoDeLaCotizacion(cotizacion);
         const insercion = await cliente.query(
             `INSERT INTO envios
@@ -264,7 +247,6 @@ rutasEnvios.get('/', autenticar, async (req, res) => {
     const cond = [];
     const params = [];
     if (verTodos) {
-        // El personal ve todos los envíos.
     } else if (choferId) {
         params.push(choferId);
         cond.push(`e.chofer_id = $${params.length}`);
@@ -313,8 +295,6 @@ rutasEnvios.get('/:codigo', autenticar, async (req, res) => {
         [envio.id]
     );
 
-    // El PIN lo ve solo el cliente dueño, y solo mientras el envío está en curso:
-    // se lo pasa a quien recibe. El chofer nunca lo ve.
     const esDueno = envio.cliente_id === req.usuario.id;
     const enCurso = ['pendiente', 'asignado', 'en_viaje'].includes(envio.estado);
     const entrega = {
@@ -417,10 +397,6 @@ rutasEnvios.post('/:codigo/eventos', autenticar, async (req, res) => {
     }
 });
 
-// ---------------------------------------------------------------------------
-// Acciones de admin sobre un envío
-// ---------------------------------------------------------------------------
-
 async function buscarEnvioPorCodigo(codigo) {
     const { rows } = await consultar('SELECT * FROM envios WHERE codigo = $1', [codigo]);
     return rows[0] ?? null;
@@ -433,8 +409,6 @@ const MENSAJE_REEMBOLSO = {
     reembolso_pendiente: 'Mercado Pago rechazó la devolución. Quedó anotada para resolverla a mano.',
 };
 
-// Soporte/admin: después de 5 PINs mal ingresados el envío se bloquea; acá se
-// desbloquea (por ejemplo, tras confirmar con el cliente quién recibe).
 rutasEnvios.post('/:codigo/pin/desbloquear', autenticar, exigirPermiso('envios.desbloquear_pin'), async (req, res) => {
     const { rowCount } = await consultar(
         `UPDATE envios SET pin_intentos = 0, pin_bloqueado_en = NULL, actualizado_en = now()
@@ -527,7 +501,6 @@ rutasEnvios.post('/:codigo/archivar', autenticar, exigirPermiso('envios.archivar
 
         const devuelto = reembolso.estado === 'reembolsado';
 
-        // Un envío ya entregado se archiva pero no se cancela: pasó de verdad.
         await cliente.query(
             `UPDATE envios
              SET archivado_en = now(),

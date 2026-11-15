@@ -2,18 +2,8 @@ import { randomBytes } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import { esPersonal } from '../middleware/permisos.js';
 
-// Derecho de supresión (Ley 25.326, art. 16). Borrar la fila del usuario
-// arrastraría en cascada sus envíos, pagos y comprobantes, que hay que conservar
-// por obligación fiscal. Por eso la cuenta se ANONIMIZA: se suprime todo dato
-// que identifique a la persona y se conserva solo lo que la ley obliga a
-// guardar (montos, fechas, comprobantes), ya desvinculado de ella.
-
-// Envíos pagados que todavía no terminaron: la cuenta no se puede eliminar
-// hasta que se entreguen, se cancelen o se reembolsen.
 const ESTADOS_EN_CURSO = ['pendiente', 'asignado', 'en_viaje'];
 
-// Del detalle de un pago se conserva solo lo que explica el movimiento. Lo que
-// guarda la pasarela (datos del pagador, tarjeta, documento) se descarta.
 const CLAVES_PAGO_CONSERVADAS = ['motivo', 'codigoAutorizacion', 'duplicadoDe', 'reembolsoPendiente', 'reembolso', 'confirmadoEn'];
 
 const DIRECCION_ELIMINADA = 'Dirección eliminada';
@@ -26,7 +16,6 @@ export function depurarDetallePago(detalle) {
     return { ...conservado, anonimizado: true };
 }
 
-// Revisa si la cuenta se puede eliminar ahora. Devuelve null o el motivo.
 export async function impedimentoParaEliminar(db, usuario) {
     if (esPersonal(usuario.rol)) {
         return { estado: 403, error: 'Las cuentas del equipo no se eliminan desde la app.' };
@@ -61,14 +50,11 @@ export async function impedimentoParaEliminar(db, usuario) {
     return null;
 }
 
-// Anonimiza la cuenta dentro de la transacción abierta en `db`. Devuelve las
-// rutas de archivos a borrar del almacenamiento una vez confirmada.
 export async function anonimizarCuenta(db, usuario) {
     const id = usuario.id;
     const alias = `eliminado-${id}`;
     const archivos = [];
 
-    // 1) Credenciales: nadie puede volver a entrar con esta cuenta.
     const hashInutilizable = await bcrypt.hash(randomBytes(32).toString('hex'), 10);
     await db.query(
         `UPDATE usuarios
@@ -77,12 +63,9 @@ export async function anonimizarCuenta(db, usuario) {
         [id, alias, hashInutilizable]
     );
     await db.query('DELETE FROM sesiones WHERE usuario_id = $1', [id]);
-    // Las notificaciones repiten montos y códigos de sus envíos: se borran.
     await db.query('DELETE FROM notificaciones WHERE usuario_id = $1', [id]);
     await db.query('DELETE FROM push_tokens WHERE usuario_id = $1', [id]);
 
-    // 2) Ficha de chofer: identidad, contacto y fotos fuera. Se conserva la
-    //    fila porque los viajes que hizo la referencian.
     const chofer = (await db.query('SELECT id, selfie_path, dni_frente_path FROM choferes WHERE usuario_id = $1', [id])).rows[0];
     if (chofer) {
         archivos.push(chofer.selfie_path, chofer.dni_frente_path);
@@ -95,15 +78,11 @@ export async function anonimizarCuenta(db, usuario) {
         );
     }
 
-    // 3) Envíos y cotizaciones propios: se borran direcciones y coordenadas, y
-    //    se cancelan los que quedaron sin pagar. Montos y fechas se conservan.
     await db.query(
         `UPDATE envios SET estado = 'cancelado', actualizado_en = now()
          WHERE cliente_id = $1 AND estado = 'pendiente' AND estado_pago <> 'pagado'`,
         [id]
     );
-    // La foto de comprobante de la entrega puede mostrar a quien recibió o su
-    // casa: se borra del Storage junto con el resto.
     const fotos = (await db.query('SELECT foto_entrega_path FROM envios WHERE cliente_id = $1 AND foto_entrega_path IS NOT NULL', [id])).rows;
     archivos.push(...fotos.map((f) => f.foto_entrega_path));
     await db.query(
@@ -121,7 +100,6 @@ export async function anonimizarCuenta(db, usuario) {
         [id, DIRECCION_ELIMINADA]
     );
 
-    // 4) Pagos: se conservan (comprobantes), sin los datos del pagador.
     const pagos = (await db.query('SELECT id, detalle FROM pagos WHERE cliente_id = $1', [id])).rows;
     for (const pago of pagos) {
         await db.query('UPDATE pagos SET detalle = $2::jsonb, tarjeta_ultimos = NULL WHERE id = $1', [
@@ -130,7 +108,6 @@ export async function anonimizarCuenta(db, usuario) {
         ]);
     }
 
-    // 5) Soporte: las conversaciones no hay obligación de guardarlas.
     const adjuntos = await db.query(
         `SELECT m.adjunto_ruta FROM soporte_mensajes m JOIN soporte_tickets t ON t.id = m.ticket_id
          WHERE t.usuario_id = $1 AND m.adjunto_ruta IS NOT NULL`,
@@ -143,8 +120,6 @@ export async function anonimizarCuenta(db, usuario) {
         [id]
     );
 
-    // 6) Auditoría de accesos: se conserva el registro de seguridad, sin el
-    //    nombre de usuario, la IP ni el dispositivo.
     await db.query(
         `UPDATE auditoria_accesos SET usuario = $2, ip = NULL, user_agent = NULL WHERE usuario = $1`,
         [usuario.usuario, alias]

@@ -1,16 +1,9 @@
-// Logs estructurados con pino: una línea JSON por evento, que Render guarda tal
-// cual y se puede filtrar por campo (requestId, userId, status...).
-//
-// Cada pedido HTTP corre dentro de un contexto (AsyncLocalStorage) con su propio
-// logger hijo, así que `log()` devuelve un logger que ya trae el requestId y el
-// userId aunque lo llame un servicio que nunca vio el `req`.
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { createRequire } from 'node:module';
 import pino from 'pino';
 import * as Sentry from '@sentry/node';
 import { esDesplegado, nombreEntorno } from '../config/entorno.js';
 
-// node --test marca los procesos de prueba con NODE_TEST_CONTEXT: ahí no se loguea.
 const enPruebas = Boolean(process.env.NODE_TEST_CONTEXT);
 
 function hayPinoPretty() {
@@ -22,14 +15,12 @@ function hayPinoPretty() {
     }
 }
 
-// Datos que nunca tienen que llegar a un log, estén donde estén.
 export const CAMPOS_OCULTOS = [
     'headers.authorization',
     'headers.cookie',
     '*.headers.authorization',
     '*.headers.Authorization',
     '*.headers.cookie',
-    // Errores de clientes HTTP (SDK de pagos) que traen la config del pedido.
     'err.config.headers.Authorization',
     'err.config.headers.authorization',
     '*.contrasena',
@@ -72,19 +63,15 @@ export function conContexto(log, fn) {
     return contexto.run({ log }, fn);
 }
 
-// El logger del pedido en curso, o el general si no hay pedido (arranque, jobs).
 export function log() {
     return contexto.getStore()?.log ?? logger;
 }
 
-// Suma campos (por ejemplo el userId, que se conoce después de autenticar) a los
-// logs que siguen dentro del mismo pedido.
 export function agregarAlContexto(campos) {
     const store = contexto.getStore();
     if (store) store.log = store.log.child(campos);
 }
 
-// Error inesperado: va al log y, si Sentry está configurado, también allá.
 export function registrarError(err, mensaje, extra = {}) {
     log().error({ err, ...extra }, mensaje);
     if (Sentry.isInitialized()) {

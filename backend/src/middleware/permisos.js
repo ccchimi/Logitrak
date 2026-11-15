@@ -1,16 +1,3 @@
-// Permisos por capacidad (Hito 3.2).
-//
-// Antes cada ruta preguntaba `req.usuario.rol === 'admin'`. Ahora cada acción
-// sensible tiene un nombre (una capacidad) y esta matriz dice qué roles la
-// tienen: sumar un rol o mover una capacidad es cambiar una línea acá, no
-// buscar comparaciones por todo el código.
-//
-// Roles:
-//   cliente  · cotiza, paga y sigue sus envíos.
-//   chofer   · toma envíos y los entrega (rutas con exigirRol('chofer')).
-//   soporte  · atiende consultas y mira la operación, sin mover plata ni datos sensibles.
-//   admin    · todo lo anterior y además reembolsos, roles, documentos y mantenimiento.
-
 export const ROLES = ['cliente', 'chofer', 'soporte', 'admin'];
 
 const PERSONAL = ['soporte', 'admin'];
@@ -42,7 +29,6 @@ export function tienePermiso(usuario, permiso) {
     return Boolean(usuario?.rol) && PERMISOS[permiso].includes(usuario.rol);
 }
 
-// Middleware. Un nombre mal escrito falla al cargar la ruta, no en producción.
 export function exigirPermiso(permiso) {
     existe(permiso);
     return (req, res, next) => {
@@ -53,6 +39,4 @@ export function exigirPermiso(permiso) {
 
 export const permisosDe = (rol) => Object.keys(PERMISOS).filter((p) => PERMISOS[p].includes(rol));
 
-// El personal (soporte y admin) no se registra ni recupera la contraseña desde
-// la app, ni puede eliminar su cuenta ahí: esas cuentas las gestiona un admin.
 export const esPersonal = (rol) => PERSONAL.includes(rol);

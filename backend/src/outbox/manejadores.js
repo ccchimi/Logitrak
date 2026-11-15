@@ -1,13 +1,6 @@
-// Qué se hace con cada tipo de evento del outbox. Cada manejador recibe el
-// cliente de la transacción del despachador y el evento. Hoy todos dejan una
-// notificación en la bandeja de la app; el push (Hito 2.3) o el mail se suman
-// acá sin tocar las transacciones que producen los eventos.
-
 const pesos = (monto, moneda = 'ARS') =>
     `${moneda === 'ARS' ? '$' : `${moneda} `}${Number(monto).toLocaleString('es-AR', { maximumFractionDigits: 2 })}`;
 
-// Idempotente: si el evento se reprocesa, la notificación no se duplica. Si
-// es nueva, también sale como push al teléfono del usuario (vía ctx).
 export async function notificar(cliente, { usuarioId, eventoId, tipo, titulo, cuerpo, datos = null }, ctx = null) {
     const { rowCount } = await cliente.query(
         `INSERT INTO notificaciones (usuario_id, evento_id, tipo, titulo, cuerpo, datos)
@@ -18,8 +11,6 @@ export async function notificar(cliente, { usuarioId, eventoId, tipo, titulo, cu
     if (rowCount && ctx) ctx.push.push({ usuarioId, titulo, cuerpo, datos: { tipo, ...(datos ?? {}) } });
 }
 
-// Choferes que pueden llevar el envío (su vehículo soporta el peso y los
-// bultos) y tienen la app con push registrado.
 async function choferesParaEnvio(cliente, envioCodigo) {
     const { rows } = await cliente.query(
         `SELECT DISTINCT c.usuario_id
@@ -52,8 +43,6 @@ export const MANEJADORES = {
             cuerpo: `Recibimos ${pesos(p.monto, p.moneda)} por el envío ${p.envioCodigo}. Comprobante ${p.comprobante}. Ya lo estamos ofreciendo a los choferes.`,
             datos: { envioCodigo: p.envioCodigo, pagoCodigo: p.pagoCodigo },
         }, ctx);
-        // El envío recién pago ya se ofrece: aviso solo por push (no a la
-        // bandeja) a los choferes que lo pueden llevar.
         for (const usuarioId of await choferesParaEnvio(cliente, p.envioCodigo)) {
             ctx?.push.push({
                 usuarioId,

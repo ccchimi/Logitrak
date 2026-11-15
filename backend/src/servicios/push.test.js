@@ -7,7 +7,6 @@ const T2 = 'ExponentPushToken[bbbbbbbbbbbbbbbbbbbbbb]';
 describe('enviarPush', () => {
     let push;
     before(async () => {
-        // push.js importa el pool; en estas pruebas nunca se usa (se inyectan los tokens).
         process.env.DATABASE_URL ??= 'postgres://sin-base-en-pruebas-unitarias';
         push = await import('./push.js');
     });

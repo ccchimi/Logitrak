@@ -28,10 +28,6 @@ rutasCupones.get('/', autenticar, async (req, res) => {
     return res.json({ exito: true, cupones: rows.map(publicar) });
 });
 
-// Emitir un cupón a mano es cosa del admin. Las compensaciones por SLA las
-// acredita el servidor solo (servicios/envios/sla.js). Las versiones viejas de
-// la app todavía llaman a esta ruta al vencer su contador: para un cliente se
-// toma como "revisá el SLA de mi envío" y el porcentaje que mande se ignora.
 rutasCupones.post('/', autenticar, async (req, res) => {
     const b = req.body ?? {};
     if (!tienePermiso(req.usuario, 'cupones.emitir')) return pedirRevisionDeSla(req, res, b.envioCodigo);

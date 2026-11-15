@@ -59,8 +59,6 @@ const ETAPA_POR_ESTADO: Record<string, number> = {
   entregado: 3,
 };
 
-// Con Realtime los cambios llegan solos y la consulta queda solo de respaldo;
-// sin Realtime (no configurado o caído) se consulta más seguido.
 const SONDEO_CON_REALTIME_MS = 60000;
 const SONDEO_SIN_REALTIME_MS = 10000;
 
@@ -190,7 +188,6 @@ export default function SeguimientoScreen({ navigation, route }: any) {
 
       const { envio, eventos } = datos;
 
-      // La primera vez que se conoce el id del envío, se escucha por Realtime.
       if (!escuchando) {
         escuchando = true;
         void escucharEnvio(
@@ -207,8 +204,6 @@ export default function SeguimientoScreen({ navigation, route }: any) {
       const vence = Date.parse(envio.slaVenceEn ?? "");
       setSla(Number.isFinite(vence) && envio.slaMin && envio.estado !== "cancelado"
         ? { codigo: envioCodigo, vence, total: envio.slaMin * 60,
-            // El SLA es de retiro: el contador se detiene cuando el chofer lo
-            // registra (o, si no lo registró, al entregar).
             entregado: (envio.retiradoEn ?? envio.entregadoEn) ? Date.parse((envio.retiradoEn ?? envio.entregadoEn)!) : null }
         : null);
       if (!slaAvisadoRef.current && eventos.some((evento) => evento.tipo === "sla_excedido")) {

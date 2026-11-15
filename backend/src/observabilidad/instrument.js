@@ -1,10 +1,6 @@
-// Sentry se inicializa antes que todo lo demás (npm start lo carga con
-// `node --import`), para que capture también los errores del arranque y las
-// promesas rechazadas sin manejar. Sin SENTRY_DSN no hace nada.
 import { nombreEntorno } from '../config/entorno.js';
 import * as Sentry from '@sentry/node';
 
-// No mandamos datos personales: ni cuerpos, ni cookies, ni el header de auth.
 export function limpiarEvento(evento) {
     if (evento.request) {
         delete evento.request.data;

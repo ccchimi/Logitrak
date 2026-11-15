@@ -5,8 +5,6 @@ import { DISENO as D } from "../../theme/diseno";
 import { cambiarRolUsuario, type UsuarioAdmin } from "../../services/usuariosAdminService";
 import { NOMBRE_ROL } from "../../services/permisos";
 
-// Cambiar el rol de una cuenta (solo admin, Hito 3.2). Los choferes no
-// aparecen acá: su rol sale de la postulación verificada.
 const OPCIONES = [
   { rol: "cliente", detalle: "Cotiza, paga y sigue sus envíos." },
   { rol: "soporte", detalle: "Atiende consultas y ve la operación. No reembolsa ni cambia roles." },

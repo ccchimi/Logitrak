@@ -11,9 +11,7 @@ import {
 } from '../tarifas';
 import { Cotizacion, RespuestaCotizacion, SolicitudCotizacion } from '../types';
 
-// Miércoles 14/10/2026 a las 14:00 (franja valle, día sin recargo).
 const MIERCOLES_VALLE = new Date(2026, 9, 14, 14, 0);
-// Domingo 18/10/2026 a las 18:00 (pico vespertino + recargo dominical).
 const DOMINGO_PICO = new Date(2026, 9, 18, 18, 0);
 
 const solicitudBase: SolicitudCotizacion = {
@@ -39,8 +37,6 @@ describe('cotizarSync — camino feliz', () => {
     it('cotiza un envío urbano de documentos con moto y el precio calculado a mano', () => {
         const c = cotizacionOk(cotizarSync(solicitudBase));
 
-        // Moto: 1900 base + 3 kg × 130 + 1 bulto × 160 + 7,7 km × 95 (732) = 3182
-        // Ajuste por demanda CABA (×1,10): +318  →  3500, ya múltiplo de 50.
         expect(c.vehiculo.id).toBe('moto');
         expect(c.distanciaKm).toBe(7.7);
         expect(c.precio).toBe(3500);
@@ -62,13 +58,13 @@ describe('cotizarSync — camino feliz', () => {
                 ...solicitudBase,
                 pesoKg: 2,
                 descripcionCarga: 'caja de ropa',
-                dimensiones: { largo: 50, ancho: 40, alto: 30 }, // 60.000 cm³ / 5000 = 12 kg
+                dimensiones: { largo: 50, ancho: 40, alto: 30 },
             })
         );
 
         expect(c.pesoVolumetricoKg).toBe(12);
         expect(c.pesoFacturableKg).toBe(12);
-        expect(c.vehiculo.id).not.toBe('moto'); // 12 kg excede los 6 kg de la moto
+        expect(c.vehiculo.id).not.toBe('moto');
         expect(c.explicacion).toContain('dominó el peso volumétrico');
     });
 
@@ -78,7 +74,6 @@ describe('cotizarSync — camino feliz', () => {
         expect(c.distanciaKm).toBeGreaterThan(50);
         expect(c.desglose.some((l) => l.concepto.startsWith('Peajes'))).toBe(true);
         expect(c.sla).toContain('seguimiento satelital');
-        // El interurbano también promete la bonificación, con 10 min de margen.
         expect(c.sla).toContain(`menos de ${c.tiempos.etaRetiroMin + 10} min`);
         expect(c.sla).toContain('bonificamos el 10%');
     });
@@ -101,7 +96,7 @@ describe('cotizarSync — camino feliz', () => {
         const seguro = c.desglose.find((l) => l.concepto.startsWith('Seguro'));
         expect(c.carga.categoria).toBe('fragil');
         expect(recargo?.concepto).toContain('+12%');
-        expect(seguro?.monto).toBe(1200); // 1,2 % de $100.000
+        expect(seguro?.monto).toBe(1200);
     });
 
     it('asigna un vehículo con cadena de frío para carga refrigerada', () => {
@@ -142,8 +137,6 @@ describe('cotizarSync — casos de borde y error', () => {
         expect(r.problemas[0].codigo).toBe('texto_de_prueba');
     });
 
-    // DEF-03: "Av. Corrientes" y "Av. Santa Fe" se tomaban como las ciudades de
-    // Corrientes y Santa Fe, y un tramo urbano se cotizaba como uno de 500 km.
     it('cotiza como urbano un tramo entre barrios de CABA (regresión DEF-03)', () => {
         const conBarrios = cotizacionOk(cotizarSync({
             ...solicitudBase,
@@ -211,7 +204,7 @@ describe('cotizarSync — casos de borde y error', () => {
                 ...solicitudBase,
                 pesoKg: 10,
                 bultos: 10,
-                dimensiones: { largo: 400, ancho: 200, alto: 200 }, // 160 m³ en total
+                dimensiones: { largo: 400, ancho: 200, alto: 200 },
             })
         );
 
@@ -248,7 +241,7 @@ describe('seleccionarVehiculo', () => {
 
 describe('calcularFactoresContexto', () => {
     const caba = analizarDireccion('Av. Corrientes 1300, CABA');
-    const junin = analizarDireccion('Av. Rivadavia 500, Junín'); // demanda 0,97
+    const junin = analizarDireccion('Av. Rivadavia 500, Junín');
     const sinLocalidad = analizarDireccion('Calle Inventada 123');
 
     it('horario valle de un día hábil no aplica multiplicadores de hora ni día', () => {
@@ -295,8 +288,8 @@ describe('estimarTiempos', () => {
     it('calcula ETA de retiro, viaje y ventana del mismo día', () => {
         const t = estimarTiempos(MIERCOLES_VALLE, 8, moto, sinRecargo);
 
-        expect(t.etaRetiroMin).toBe(11); // 10 + 8 × 0,12
-        expect(t.tiempoViajeMin).toBe(23); // 8 / 32 × 60 + 8
+        expect(t.etaRetiroMin).toBe(11);
+        expect(t.tiempoViajeMin).toBe(23);
         expect(t.ventanaEntrega).toBe('Hoy, 14:34 – 15:04 h');
     });
 

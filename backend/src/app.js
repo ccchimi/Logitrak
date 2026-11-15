@@ -24,25 +24,17 @@ import { rutasSoporte } from './rutas/soporte.js';
 import { rutasRecorridos } from './rutas/recorridos.js';
 import { rutasNotificaciones } from './rutas/notificaciones.js';
 
-// La app sin arrancar: index.js la pone a escuchar y las pruebas de integración
-// la levantan en un puerto libre contra una base de prueba.
 export const app = express();
 
-// Primero el registro, así también quedan logueados los rechazos de CORS y los 429.
 app.use(registroPedidos());
 configurarSeguridad(app);
 app.use('/api', limiteGeneral);
-// 16mb: un adjunto de soporte de 10 MB viaja en base64, que infla un 33 %.
 app.use(express.json({ limit: '16mb' }));
 
-// La raíz responde para los sondeos de Render (HEAD / y GET /).
 app.get('/', (_req, res) => res.json({ servicio: 'logitrak-api', estado: 'ok' }));
 
-// Vivo: el proceso responde. No toca la base; es lo que conviene usar como
-// health check de Render, para que un corte de Supabase no reinicie la API.
 app.get('/api/salud/vivo', (_req, res) => res.json({ exito: true, estado: 'vivo' }));
 
-// Salud completa: base, migraciones y servicios externos (ver servicios/salud.js).
 const chequearSalud = crearChequeoSalud({
     consultar: (sql) => pool.query(sql),
     dirMigraciones: DIR_MIGRACIONES,
@@ -53,7 +45,6 @@ const chequearSalud = crearChequeoSalud({
 
 app.get('/api/salud', async (_req, res) => {
     res.set('Cache-Control', 'no-store');
-    // Mientras arranca no se consulta la base: puede estar migrando.
     if (!apiLista()) {
         return res.status(503).json({ ...RESPUESTA_INICIANDO, estado: 'iniciando', version: process.env.RENDER_GIT_COMMIT?.slice(0, 7) ?? null });
     }
@@ -61,7 +52,6 @@ app.get('/api/salud', async (_req, res) => {
     res.status(salud.estado === 'error' ? 503 : 200).json(salud);
 });
 
-// Hasta que la base esté migrada, el resto de la API responde 503 "iniciando".
 app.use('/api', esperarArranque);
 
 app.use('/api/auth', rutasAuth);
@@ -83,13 +73,10 @@ app.use((_req, res) => {
 });
 
 app.use((err, req, res, _next) => {
-    // Errores del propio pedido (JSON mal formado, cuerpo demasiado grande): son
-    // del cliente, no van a Sentry.
     const status = err.status ?? err.statusCode;
     if (status >= 400 && status < 500) {
         return res.status(status).json({ exito: false, error: status === 413 ? 'El pedido es demasiado grande.' : 'Pedido inválido.' });
     }
     registrarError(err, 'Error no manejado');
-    // El requestId permite encontrar este error en los logs si el usuario lo reporta.
     res.status(500).json({ exito: false, error: 'Error interno del servidor.', requestId: req.id });
 });

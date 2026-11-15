@@ -27,7 +27,6 @@ const ADMIN = [
   { ruta: "UsuariosAdmin", icono: "person" as const, label: "Usuarios" },
   CLIENTE[3],
 ];
-// Soporte: operación y consultas, sin acciones de dinero ni de roles.
 const SOPORTE = [
   CLIENTE[0],
   { ruta: "TodosPedidos", icono: "box" as const, label: "Pedidos" },

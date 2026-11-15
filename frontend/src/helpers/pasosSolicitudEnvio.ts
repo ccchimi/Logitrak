@@ -1,8 +1,5 @@
 import { BOT_META } from '../services/botLogistica';
 
-// Guion de la conversación con Boxy para cotizar un envío: qué dato pide en
-// cada paso, con qué ejemplo y si se puede saltear.
-
 export const SLA_ENVIO_MIN = 20;
 
 export type CampoEnvio = 'origen' | 'destino' | 'descripcion' | 'peso' | 'bultos' | 'largo' | 'ancho' | 'alto';

@@ -43,13 +43,11 @@ export interface Envio {
     estado: EstadoEnvio;
     estadoPago: EstadoPago;
     ofertaVenceEn: string | null;
-    /** Límite para pagar; pasado, el pedido se borra. null si ya está pago. */
     pagoVenceEn?: string | null;
     archivadoEn: string | null;
     archivadoMotivo: string | null;
     slaMin: number | null;
     slaVenceEn: string | null;
-    /** Cuándo el chofer registró el retiro: contra eso se mide el SLA. */
     retiradoEn?: string | null;
     creadoEn: string;
     actualizadoEn: string;
@@ -75,8 +73,6 @@ export interface MetricasEnvios {
     cumplimiento: number;
 }
 
-// El precio, la carga y el vehículo los toma el servidor de la cotización
-// guardada (DEF-02); acá solo viaja la referencia y lo que necesita el mapa.
 export interface DatosNuevoEnvio {
     cotizacionId?: number | null;
     cotizacionCodigo?: string | null;
@@ -119,12 +115,9 @@ export interface PagoDeEnvio {
     creadoEn: string;
     pagadoEn: string | null;
     reembolsadoEn: string | null;
-    // Motivo por el que la pasarela rechazó la devolución, si pasó.
     reembolsoPendiente: string | null;
 }
 
-// Entrega segura (Hito 3.1). El PIN lo recibe solo el cliente dueño mientras el
-// envío está en curso; la foto, después de entregado.
 export interface EntregaEnvio {
     pin?: string;
     pinBloqueado: boolean;

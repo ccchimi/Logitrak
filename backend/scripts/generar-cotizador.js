@@ -1,8 +1,3 @@
-// Empaqueta el cotizador de la app (frontend/src/services/botLogistica) en un
-// único módulo ESM para el backend, así el servidor calcula el precio con el
-// mismo código que ve el cliente. El resultado se commitea: en Render no hace
-// falta ningún paso de build. La CI verifica que esté al día con el frontend.
-//   npm run generar:cotizador
 import { build } from 'esbuild';
 import { fileURLToPath } from 'node:url';
 

@@ -311,6 +311,4 @@ const styles = StyleSheet.create({
         flexShrink: 0,
     },
 
-    /* el nombre del chofer puede ser largo: preferimos que baje de línea antes
-       que cortarlo con puntos suspensivos */
 });

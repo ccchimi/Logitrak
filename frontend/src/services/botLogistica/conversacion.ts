@@ -58,8 +58,6 @@ function interpretarDireccion(
         };
     }
 
-    // Sin ciudad no hay distancia real ni precio confiable: se pide antes de
-    // seguir en vez de avanzar con una advertencia que nadie lee.
     if (!analisis.localidad) {
         const problema = analisis.problemas.find((p) => p.codigo === 'localidad_desconocida');
         return {
@@ -152,8 +150,6 @@ function interpretarPeso(texto: string): InterpretacionRespuesta {
     const kg = `${pesoKg.toLocaleString('es-AR')} kg`;
     const notaPorte = pesoKg > 350 ? ' Va a requerir una unidad de gran porte.' : '';
 
-    // Un número suelto se toma como kilos. Si es grande, puede que fueran
-    // gramos: se pregunta antes de cotizar un camión por error.
     if (!numero.unidadDetectada) {
         if (pesoKg >= UMBRAL_CONFIRMAR_PESO_SIN_UNIDAD_KG) {
             return {

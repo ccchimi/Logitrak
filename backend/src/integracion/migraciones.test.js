@@ -1,4 +1,3 @@
-// Migraciones versionadas contra PostgreSQL real.
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync } from 'node:fs';
@@ -38,8 +37,6 @@ describe('migraciones (integración)', { skip: SALTEAR }, () => {
     });
 
     test('la migración base no se revierte en staging ni en producción', async () => {
-        // Se llama al down directamente: revertir de verdad tocaría la base que
-        // comparten las otras pruebas.
         const base = await import('../../migrations/1794520000000_esquema-inicial.js');
         const sqls = [];
         const pgm = { sql: (t) => sqls.push(t) };

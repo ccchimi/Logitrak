@@ -4,7 +4,6 @@ import { InterpretacionRespuesta } from '../types';
 
 type Resultado = InterpretacionRespuesta['resultado'];
 
-// Afirma el tipo de respuesta y la devuelve ya acotada, para leer sus campos.
 function esperar<R extends Resultado>(r: InterpretacionRespuesta, resultado: R) {
     expect(r.resultado).toBe(resultado);
     return r as Extract<InterpretacionRespuesta, { resultado: R }>;
@@ -17,7 +16,6 @@ describe('interpretarRespuesta — direcciones', () => {
         expect(r.valorNormalizado).toBe('Cabildo 2000, Belgrano, CABA');
     });
 
-    // DEF-03: avisaba que no ubicaba la localidad pero dejaba avanzar.
     it('no deja avanzar si lo que va como localidad no es una ciudad de la cobertura', () => {
         const r = esperar(interpretarRespuesta('origen', 'Mitre 500, Ramos Mejia'), 'rechazado');
 
@@ -40,7 +38,6 @@ describe('interpretarRespuesta — direcciones', () => {
 });
 
 describe('interpretarRespuesta — peso', () => {
-    // DEF-03: con un número suelto respondía "Perfecto." sin decir qué tomó.
     it.each([
         ['8', '8', '8 kg'],
         ['0,5', '0.5', '0,5 kg'],

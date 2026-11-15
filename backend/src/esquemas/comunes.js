@@ -1,9 +1,5 @@
 import { z } from 'zod';
 
-// Piezas reutilizables de los esquemas. La app manda números como number, pero
-// también tolera los que llegan como texto ("8") y trata null y '' como ausentes,
-// igual que hacían las rutas antes de centralizar la validación.
-
 const vacio = (v) => v === undefined || v === null || v === '';
 
 export function numeroOpcional(mensaje, { min, max, entero = false } = {}) {

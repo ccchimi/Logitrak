@@ -1,12 +1,3 @@
-// Trabajos en segundo plano con pg-boss, sobre la misma base PostgreSQL (schema
-// `pgboss`, que pg-boss crea y actualiza solo). Corren dentro del proceso de la
-// API: en Render Free hay una sola instancia y no hace falta otro servicio.
-//
-// Patrón: un barrido programado por minuto busca lo que hay que procesar y
-// encola un trabajo por envío. Cada trabajo tiene sus propios reintentos con
-// espera creciente, así que un reembolso que la pasarela rechaza por un rato no
-// frena al resto. La política `exclusive` evita duplicados: no puede haber dos
-// trabajos pendientes o activos para el mismo envío, ni dos barridos a la vez.
 import { PgBoss } from 'pg-boss';
 import { log, logger, registrarError } from '../observabilidad/logger.js';
 import { enviosConOfertaVencida, expirarOferta } from '../servicios/envios/expiracion.js';
@@ -24,8 +15,6 @@ export const COLAS = {
     eliminarImpago: 'eliminar-impago',
 };
 
-// El despachador del outbox: procesa los eventos pendientes y, como mucho una
-// vez por hora, borra los ya procesados viejos.
 let ultimaPurga = 0;
 export async function despacharOutbox() {
     const resumen = await despachar();
@@ -37,23 +26,17 @@ export async function despacharOutbox() {
     return resumen;
 }
 
-// Para /api/salud: 'no_iniciado' (por ejemplo en las pruebas), 'ok', 'error' o
-// 'deshabilitado'.
 let estado = 'no_iniciado';
 export const estadoTrabajos = () => ({ estado });
 
 const REINTENTOS = { retryLimit: 6, retryDelay: 30, retryBackoff: true, retryDelayMax: 900 };
 
-// Cada trabajo por envío: si devuelve 'reintentar' (o lanza), pg-boss lo vuelve
-// a intentar con la espera de REINTENTOS.
 export async function procesarExpiracion(envioId) {
     const r = await expirarOferta(envioId);
     if (r === 'reintentar') throw new Error(`Reembolso del envío ${envioId} pospuesto por la pasarela`);
     return r;
 }
 
-// Si un trabajo agota los reintentos, queda como fallido en pg-boss y además
-// lo avisamos (log + Sentry): hace falta que alguien lo mire.
 export function conRegistro(cola, limite, fn) {
     return async (trabajos) => {
         const trabajo = trabajos[0];
@@ -84,13 +67,11 @@ export async function iniciarTrabajos({ pool, env = process.env } = {}) {
         return null;
     }
 
-    // Usa el pool de la API: no abre conexiones aparte contra Supabase.
     const boss = new PgBoss({
         db: { executeSql: (texto, valores) => pool.query(texto, valores) },
         schema: 'pgboss',
     });
     boss.on('error', (e) => registrarError(e, 'Error interno de pg-boss'));
-    // Al detenerse, los eventos nuevos esperan al próximo arranque (el barrido los toma).
     boss.once('stopped', () => {
         alRegistrarEvento(null);
         estado = 'detenido';
@@ -115,7 +96,6 @@ async function iniciarColas(boss) {
     await boss.createQueue(COLAS.revisarSla, { policy: 'exclusive', ...REINTENTOS });
     await boss.createQueue(COLAS.barrerImpagos, { policy: 'exclusive', retryLimit: 2 });
     await boss.createQueue(COLAS.eliminarImpago, { policy: 'exclusive', ...REINTENTOS });
-    // Los reintentos de cada evento los maneja el propio outbox.
     await boss.createQueue(COLAS.despacharOutbox, { policy: 'exclusive', retryLimit: 2 });
 
     await boss.schedule(COLAS.barrerOfertas, '* * * * *');
@@ -138,15 +118,10 @@ async function iniciarColas(boss) {
     await boss.work(COLAS.eliminarImpago, sondeo, conRegistro(COLAS.eliminarImpago, REINTENTOS.retryLimit, (t) => eliminarImpago(t.data.envioId)));
     await boss.work(COLAS.despacharOutbox, { pollingIntervalSeconds: 2 }, conRegistro(COLAS.despacharOutbox, 2, () => despacharOutbox()));
 
-    // Cada evento registrado pide un despacho a los 2 segundos (lo justo para que
-    // su transacción se confirme). Si ya hay uno pendiente, la política
-    // exclusive no encola otro; y si alguno se escapa, lo toma el del minuto.
     alRegistrarEvento(() => {
         boss.send(COLAS.despacharOutbox, null, { startAfter: 2 }).catch((e) => log().warn({ err: e }, 'No se pudo pedir el despacho del outbox'));
     });
 
-    // Render Free duerme el servicio: al despertar no esperamos al próximo
-    // minuto para ponernos al día.
     await boss.send(COLAS.barrerOfertas);
     await boss.send(COLAS.barrerSla);
     await boss.send(COLAS.despacharOutbox);

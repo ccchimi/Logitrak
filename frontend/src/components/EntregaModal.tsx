@@ -16,10 +16,6 @@ import { DISENO as D } from "../theme/diseno";
 import Icono from "./Icono";
 import { completarAsignacion } from "../services/asignacionesService";
 
-// Cierre de la entrega (Hito 3.1): el chofer ingresa el PIN que le da quien
-// recibe y saca una foto de comprobante. El servidor valida el PIN (a los 5
-// errores se bloquea) y guarda la foto en el bucket privado.
-
 interface Props {
   visible: boolean;
   asignacionCodigo: string | null;

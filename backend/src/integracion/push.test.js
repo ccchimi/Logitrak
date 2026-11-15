@@ -1,4 +1,3 @@
-// Hito 2.3 contra PostgreSQL real: RLS, tokens de push y avisos por push.
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { levantarApi, SALTEAR } from './entorno.js';
@@ -41,12 +40,10 @@ describe('push y RLS (integración)', { skip: SALTEAR }, () => {
         let filas = (await pool.query('SELECT usuario_id FROM push_tokens WHERE token = $1', [t])).rows;
         assert.deepEqual(filas.map((f) => f.usuario_id), [a.perfil.id]);
 
-        // Otra cuenta en el mismo teléfono: el token pasa a ella.
         await registrar(b, { token: t, plataforma: 'ios' });
         filas = (await pool.query('SELECT usuario_id, plataforma FROM push_tokens WHERE token = $1', [t])).rows;
         assert.deepEqual(filas, [{ usuario_id: b.perfil.id, plataforma: 'ios' }]);
 
-        // a no puede borrar el token que ahora es de b.
         assert.equal((await api('/api/notificaciones/push-token', { metodo: 'DELETE', token: a.token, cuerpo: { token: t } })).body.borrados, 0);
         assert.equal((await api('/api/notificaciones/push-token', { metodo: 'DELETE', token: b.token, cuerpo: { token: t } })).body.borrados, 1);
     });

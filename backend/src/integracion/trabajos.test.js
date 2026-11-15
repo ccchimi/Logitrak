@@ -1,5 +1,3 @@
-// Trabajos en segundo plano (Hito 2.1) contra PostgreSQL real: expiración de
-// ofertas, compensación por SLA y el circuito completo con pg-boss.
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { levantarApi, SALTEAR } from './entorno.js';
@@ -33,7 +31,6 @@ describe('trabajos en segundo plano (integración)', { skip: SALTEAR }, () => {
             token: s.token,
             cuerpo: { codigo, origen: 'Cabildo 2000, Belgrano', destino: 'Rivadavia 5000, Caballito', pesoKg: 3, bultos: 1 },
         });
-        // slaMin = 1: el servidor lo ignora y usa su propio plazo.
         const envio = (await api('/api/envios', { metodo: 'POST', token: s.token, cuerpo: { cotizacionCodigo: codigo, slaMin: 1 } })).body.envio;
         const pago = await api('/api/pagos/tarjeta', { metodo: 'POST', token: s.token, cuerpo: { envioCodigo: envio.codigo, ...TARJETA_OK } });
         assert.equal(pago.status, 201, JSON.stringify(pago.body));
@@ -69,7 +66,6 @@ describe('trabajos en segundo plano (integración)', { skip: SALTEAR }, () => {
         await pool.query(`UPDATE envios SET estado = 'en_viaje', retirado_en = now() WHERE id = $1`, [e.id]);
         assert.ok((await sla.enviosConSlaParaRevisar()).includes(e.id), 'con el retiro ya se puede decidir');
         assert.equal(await sla.revisarSla(e.id), 'cumplido');
-        // Después vence el plazo y entrega tarde: el compromiso era el retiro.
         await pool.query(`UPDATE envios SET sla_vence_en = now() - interval '30 minutes', estado = 'entregado', entregado_en = now() WHERE id = $1`, [e.id]);
         assert.equal(await sla.revisarSla(e.id), 'no_aplica', 'ya revisado');
         assert.equal((await cupones(e.id)).length, 0);

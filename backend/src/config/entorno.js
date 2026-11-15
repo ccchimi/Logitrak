@@ -1,13 +1,3 @@
-// Carga y revisión de la configuración por entorno.
-//
-// El entorno sale de ENTORNO (desarrollo | staging | produccion). Si no está
-// definido: produccion en Render, desarrollo en cualquier otro lado. Se carga
-// primero `.env.<entorno>` y después `.env`; dotenv nunca pisa una variable que
-// ya existe, así que manda, en orden: el entorno real (panel de Render, línea de
-// comandos), después el archivo del entorno y por último el `.env` común.
-//
-// Este módulo se importa antes que cualquier otro (instrument.js e index.js),
-// así todos ven la configuración ya cargada.
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
@@ -20,8 +10,6 @@ export function nombreEntorno(env = process.env) {
     return env.RENDER === 'true' || env.NODE_ENV === 'production' ? 'produccion' : 'desarrollo';
 }
 
-// Staging y producción son despliegues reales: nada de fotos en disco ni
-// migraciones destructivas.
 export const esDesplegado = (env = process.env) => nombreEntorno(env) !== 'desarrollo';
 
 const RAIZ = fileURLToPath(new URL('../../', import.meta.url));
@@ -29,8 +17,6 @@ const RAIZ = fileURLToPath(new URL('../../', import.meta.url));
 export function cargarEntorno({ env = process.env, raiz = RAIZ } = {}) {
     const entorno = nombreEntorno(env);
     const cargados = [];
-    // Bajo `node --test` nunca se leen los .env: tienen las credenciales reales
-    // (la base de producción) y una prueba no puede tocarlas ni por accidente.
     if (env.NODE_TEST_CONTEXT && !env.LOGITRAK_PRUEBA_CARGA_ENV) return { entorno, archivos: cargados };
     for (const archivo of [`.env.${entorno}`, '.env']) {
         const ruta = `${raiz}${archivo}`;
@@ -42,8 +28,6 @@ export function cargarEntorno({ env = process.env, raiz = RAIZ } = {}) {
     return { entorno, archivos: cargados };
 }
 
-// Qué falta o está mal configurado. `errores` impiden arrancar; `avisos` se
-// loguean al arrancar y se reflejan en /api/salud.
 export function revisarConfiguracion(env = process.env) {
     const errores = [];
     const avisos = [];

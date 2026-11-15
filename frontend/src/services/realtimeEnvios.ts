@@ -1,21 +1,10 @@
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { obtenerClienteRealtime } from './realtimeCliente';
 
-// Seguimiento en tiempo real (Hito 2.3): en vez de consultar el envío cada 5
-// segundos, la pantalla escucha los cambios del envío y sus eventos nuevos.
-// Las políticas RLS solo dejan escuchar los envíos propios (o los asignados,
-// si es chofer). El aviso no trae los datos: dispara una consulta a la API,
-// que sigue siendo la que decide qué puede ver cada uno.
-
 export interface SuscripcionEnvio {
     cerrar: () => void;
 }
 
-/**
- * Escucha un envío. `alConectar(true)` avisa que el canal quedó suscripto (la
- * pantalla puede espaciar las consultas); `false`, que se cayó. Devuelve null
- * si Realtime no está disponible.
- */
 export async function escucharEnvio(
     envioId: number,
     alCambiar: () => void,

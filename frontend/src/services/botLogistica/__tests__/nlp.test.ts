@@ -77,7 +77,6 @@ describe('detección de textos basura', () => {
         expect(esTextoIlegible('a 1')).toBe(false);
     });
 
-    // DEF-01: la regla de caracteres repetidos solo debe mirar letras, no alturas de calle.
     it.each(['Av. Rivadavia 10000, CABA', 'Calle 1111, La Plata', 'Ruta 8 km 40000'])(
         'no marca como ilegible "%s" por tener dígitos repetidos',
         (texto) => {

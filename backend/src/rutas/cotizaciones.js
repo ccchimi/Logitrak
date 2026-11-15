@@ -38,10 +38,6 @@ function publicar(fila) {
     };
 }
 
-// Del body solo se usan los datos de la carga. El precio, el vehículo y la
-// distancia los recalcula el servidor (DEF-02); si el precio que vio el
-// cliente no coincide, la respuesta lo marca para que la app lo actualice.
-// Un chofer sigue siendo cliente: puede cotizar y mandar sus propios envíos.
 const validarCotizacion = validarRequest({ body: guardarCotizacion });
 
 rutasCotizaciones.post('/', limiteCotizaciones, autenticar, exigirRol('cliente', 'chofer', 'admin'), validarCotizacion, async (req, res) => {

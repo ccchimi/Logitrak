@@ -1,8 +1,3 @@
-// CLI de migraciones. Usa la misma conexión que la API (DATABASE_URL y PGSSL).
-//   npm run migrar                → aplica las pendientes
-//   npm run migrar -- down        → revierte la última
-//   npm run migrar -- down 3      → revierte las últimas 3
-//   npm run migrar -- estado      → lista aplicadas y pendientes
 import { readdirSync } from 'node:fs';
 import { DIR_MIGRACIONES, TABLA_MIGRACIONES, migrar } from '../src/db/migrar.js';
 import { pool } from '../src/db/pool.js';
@@ -14,7 +9,7 @@ async function estado() {
         const { rows } = await pool.query(`SELECT name, run_on FROM ${TABLA_MIGRACIONES} ORDER BY run_on, id`);
         aplicadas = new Map(rows.map((r) => [r.name, r.run_on]));
     } catch (e) {
-        if (e.code !== '42P01') throw e; // la tabla todavía no existe
+        if (e.code !== '42P01') throw e;
     }
     for (const nombre of archivos) {
         const fecha = aplicadas.get(nombre);

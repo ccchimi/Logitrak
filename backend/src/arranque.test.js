@@ -1,5 +1,3 @@
-// Mientras la base se prepara, la API ya escucha pero no atiende: todo /api
-// responde 503 "iniciando", salvo la prueba de vida. No toca la base.
 import { after, test } from 'node:test';
 import assert from 'node:assert/strict';
 import request from 'supertest';

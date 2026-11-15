@@ -1,13 +1,3 @@
-// Migración base: el esquema tal como estaba al adoptar migraciones (Hito 1.1).
-//
-// El SQL es idempotente (CREATE ... IF NOT EXISTS, ADD COLUMN IF NOT EXISTS),
-// así que sirve para los dos casos:
-//   · base vacía (local, CI): crea todo;
-//   · base de producción, que ya tenía este esquema: no cambia nada y la
-//     migración solo queda registrada en pgmigrations.
-//
-// Desde acá en adelante este archivo NO se toca: cada cambio de esquema va en
-// una migración nueva (npm run migrar:crear -- nombre).
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { esDesplegado } from '../src/config/entorno.js';
@@ -18,7 +8,6 @@ export const up = (pgm) => {
     pgm.sql(ESQUEMA);
 };
 
-// Borra todo. Solo para bases de desarrollo: en staging y producción se niega.
 export const down = (pgm) => {
     if (esDesplegado()) {
         throw new Error('La migración base no se revierte en producción: borraría todos los datos.');

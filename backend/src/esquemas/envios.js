@@ -1,10 +1,6 @@
 import { z } from 'zod';
 import { numeroOpcional, textoOpcional, textoRequerido } from './comunes.js';
 
-// Cotización: el precio, el vehículo y la distancia los recalcula el servidor
-// (DEF-02), así que acá solo se controla que los datos de la carga tengan el
-// tipo correcto. Los campos extra que mandan las versiones viejas de la app se
-// descartan sin error.
 export const guardarCotizacion = z.object({
     codigo: textoRequerido(40, 'Falta el código de la cotización.', {
         mensajeLargo: 'El código de la cotización es demasiado largo.',

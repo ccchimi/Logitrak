@@ -65,7 +65,6 @@ export default function Inicio({ onGoLogin }: InicioProps) {
     setMenuAbierto(false);
     const content = scrollRef.current?.getInnerViewNode();
     if (!content) return;
-    // Medir al navegar evita posiciones viejas al cargar fuentes o redimensionar.
     sectionRefs.current[section]?.measureLayout(content, (_x, y) => {
       scrollRef.current?.scrollTo({ y: Math.max(y, 0), animated: !reducido });
     });

@@ -1,15 +1,3 @@
-// Hito 2.2: patrón outbox.
-//
-// outbox_events guarda los hechos de negocio (pago aprobado, envío cancelado,
-// cupón acreditado) en la MISMA transacción que los produce: si la transacción
-// se revierte, el evento tampoco existe; si se confirma, el evento queda
-// garantizado aunque el proceso se caiga un segundo después. Un despachador
-// los lee después y hace los efectos (notificaciones, más adelante push o mail).
-//
-// notificaciones es la bandeja de cada usuario dentro de la app. El par
-// (evento_id, usuario_id) es único: si el despachador reprocesa un evento, no
-// se duplica la notificación.
-
 export const up = (pgm) => {
     pgm.sql(`
         CREATE TABLE IF NOT EXISTS outbox_events (

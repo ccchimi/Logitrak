@@ -1,4 +1,3 @@
-// La regla no usa la API: se mockea para no cargar react-native.
 jest.mock('../api', () => ({ llamarApi: jest.fn() }));
 
 import { destinoDeNotificacion } from '../notificacionesService';

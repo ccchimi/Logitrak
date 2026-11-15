@@ -1,5 +1,3 @@
-// Entrega segura (Hito 3.1) contra PostgreSQL real: PIN, foto, bloqueo y los
-// atajos que ya no se pueden usar para marcar un envío como entregado.
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { rm } from 'node:fs/promises';
@@ -22,7 +20,6 @@ describe('entrega con PIN y foto (integración)', { skip: SALTEAR }, () => {
     });
 
     after(async () => {
-        // Sin Storage, en desarrollo las fotos van a backend/uploads/entregas.
         for (const c of codigos) {
             await rm(fileURLToPath(new URL(`../../uploads/entregas/${c}`, import.meta.url)), { recursive: true, force: true });
         }
@@ -30,7 +27,6 @@ describe('entrega con PIN y foto (integración)', { skip: SALTEAR }, () => {
     });
 
     let n = 0;
-    // Cliente con un envío pago y un chofer que ya lo tomó.
     async function viajeEnCurso() {
         n += 1;
         const cliente = await cuenta(`ent.cli${n}`);

@@ -35,7 +35,6 @@ const NOMBRE_METODO: Record<MetodoPago, string> = {
 
 const CUOTAS_OPCIONES = [1, 3, 6, 12];
 
-
 const formatearNumeroTarjeta = (valor: string) =>
     valor.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim();
 
@@ -73,7 +72,6 @@ export default function PagoScreen({ navigation, route }: any) {
 
     const aprobado = pago?.estado === 'aprobado';
 
-    // El pedido tiene unos minutos para pagarse; después el servidor lo borra.
     const [venceEn, setVenceEn] = useState<number | null>(null);
     const [restanteSeg, setRestanteSeg] = useState<number | null>(null);
     useEffect(() => {

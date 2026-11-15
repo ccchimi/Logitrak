@@ -232,7 +232,6 @@ export default function ChoferScreen({ navigation, route }: any) {
       return;
     }
 
-    // La entrega se cierra con el PIN del receptor y la foto de comprobante.
     setEntregando(true);
   };
 

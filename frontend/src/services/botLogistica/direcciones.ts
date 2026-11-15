@@ -48,10 +48,6 @@ const CANDIDATOS: readonly Candidato[] = [
     }),
 ];
 
-// Tramos donde puede estar la ciudad: lo que va después de la primera coma o,
-// sin comas, lo que sigue a la altura. El nombre de la calle nunca cuenta:
-// "Av. Corrientes 1300" no es la ciudad de Corrientes ni "Av. Santa Fe" la de
-// Santa Fe. Se descartan los tramos con números (piso, depto, código postal).
 export function segmentosDeLocalidad(texto: string): string[] {
     const n = normalizar(texto);
     const partes = n.split(',').map((s) => s.trim());
@@ -77,9 +73,6 @@ function contienePalabras(tramo: string, alias: string): boolean {
 export function resolverLocalidad(texto: string): ResolucionLocalidad | null {
     const tramos = segmentosDeLocalidad(texto);
 
-    // Primero coincidencias exactas, tramo por tramo y en orden: "..., Quilmes,
-    // Buenos Aires" es Quilmes aunque "buenos aires" sea un alias de CABA. Entre
-    // los alias que entran en un mismo tramo gana el más largo ("palermo soho").
     for (const tramo of tramos) {
         const coincidencias = CANDIDATOS.filter((c) => contienePalabras(tramo, c.alias));
         if (coincidencias.length) {
@@ -293,8 +286,6 @@ export function analizarDireccion(textoOriginal: string): AnalisisDireccion {
             });
         }
     } else {
-        // Se distingue "no dijo la ciudad" de "dijo algo que no es una ciudad
-        // de la cobertura", que suele ser un barrio confundido con la localidad.
         const escrito = segmentosDeLocalidad(texto)[0];
         problemas.push(
             escrito

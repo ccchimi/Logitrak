@@ -1,5 +1,3 @@
-// Derecho de supresión (Ley 25.326) contra PostgreSQL real: qué se borra, qué se
-// conserva y cuándo no se puede eliminar la cuenta.
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { levantarApi, SALTEAR } from './entorno.js';
@@ -104,14 +102,12 @@ describe('eliminar cuenta (integración)', { skip: SALTEAR }, () => {
         const id = s.perfil.id;
         const envio = await envioPagado(s, 3);
         await pool.query(`UPDATE envios SET estado = 'entregado' WHERE codigo = $1`, [envio.codigo]);
-        // Un envío creado y nunca pagado.
         const cot = `COT-ELIM-SINPAGO-${Date.now()}`;
         await api('/api/cotizaciones', {
             metodo: 'POST', token: s.token,
             cuerpo: { codigo: cot, origen: 'Cabildo 2000, Belgrano', destino: 'Rivadavia 5000, Caballito', pesoKg: 2, bultos: 1 },
         });
         const sinPagar = (await api('/api/envios', { metodo: 'POST', token: s.token, cuerpo: { cotizacionCodigo: cot } })).body.envio;
-        // Ficha de chofer con fotos y un ticket de soporte con adjunto.
         await pool.query(
             `INSERT INTO choferes (codigo, usuario_id, nombre_completo, email, telefono, domicilio, dni, selfie_path, dni_frente_path)
              VALUES ($1, $2, 'Ana Pérez', 'ana@mail.com', '1155551234', 'Av. Siempre Viva 742', $3, 'uploads/x/selfie.jpg', 'uploads/x/dni.jpg')`,

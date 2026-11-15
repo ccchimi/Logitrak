@@ -8,7 +8,6 @@ export interface CotizacionGuardada {
     estado: string;
 }
 
-// Lo que cargó el cliente, tal cual. Con esto el servidor recalcula la cotización.
 export interface EntradaCotizacion {
     origen: string;
     destino: string;
@@ -25,8 +24,6 @@ export type ResultadoGuardado =
     | { exito: true; guardada: CotizacionGuardada; cotizacion: Cotizacion; precioAjustado: boolean }
     | { exito: false; error: string };
 
-// El precio que vale es el del servidor (DEF-02). El de la app solo sirve para
-// mostrarlo al instante; si difiere, se reemplaza por el cálculo que devuelve la API.
 export async function guardarCotizacion(
     cotizacion: Cotizacion,
     entrada: EntradaCotizacion

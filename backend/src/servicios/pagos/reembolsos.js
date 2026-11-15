@@ -1,10 +1,5 @@
 import { reembolsarPagoMp } from './mercadoPago.js';
 
-// Reembolso del pago aprobado de un envío. Recibe el cliente de una transacción
-// abierta: lo usan tanto la expiración automática como las acciones del admin,
-// que necesitan que el reembolso y el cambio de estado sean atómicos.
-//
-// Devuelve uno de: 'reembolsado' | 'sin_pago' | 'reintentar' | 'reembolso_pendiente'.
 export async function reembolsarPagoDelEnvio(cliente, envioId) {
     const { rows } = await cliente.query(
         `SELECT * FROM pagos
@@ -17,8 +12,6 @@ export async function reembolsarPagoDelEnvio(cliente, envioId) {
     const pago = rows[0];
     if (!pago) return { estado: 'sin_pago' };
 
-    // Los pagos sandbox (QR simulado y tarjeta simulada) nunca cobraron nada:
-    // alcanza con dejarlos marcados. Los reales van contra la pasarela.
     const esReal = pago.modo_proc === 'real' && pago.metodo === 'mercadopago' && pago.pago_ext_id;
     const r = esReal
         ? await reembolsarPagoMp(pago.pago_ext_id)
@@ -36,9 +29,6 @@ export async function reembolsarPagoDelEnvio(cliente, envioId) {
 
     if (r.reintentable) return { estado: 'reintentar', pago, motivo: r.motivo };
 
-    // Falla permanente: la pasarela no va a aceptar el reembolso por más que
-    // insistamos. Dejamos el pago como aprobado —no mentimos sobre la plata— y
-    // anotamos el motivo para que quede a la vista de un admin.
     await cliente.query(
         `UPDATE pagos SET actualizado_en = now(),
                 detalle = COALESCE(detalle, '{}'::jsonb) || jsonb_build_object('reembolsoPendiente', $2::text)

@@ -27,7 +27,6 @@ export function autenticar(req, res, next) {
         agregarAlContexto({ userId: req.usuario.id });
         next();
     } catch (e) {
-        // La app usa `codigo` para saber si alcanza con renovar la sesión.
         const vencido = e?.name === 'TokenExpiredError';
         return res.status(401).json({
             exito: false,

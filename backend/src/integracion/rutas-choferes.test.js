@@ -1,13 +1,9 @@
-// Hito 3.4: choferes de punta a punta con supertest, contra PostgreSQL real:
-// la postulación con verificación de identidad, los documentos (solo admin) y
-// el trabajo del chofer: ofertas, tomar un envío, viaje activo e historial.
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { rm } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { levantarApi, SALTEAR } from './entorno.js';
 
-// Una "foto" mínima: con una sola imagen no se corre la comparación de caras.
 const SELFIE = `data:image/jpeg;base64,${Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(200)]).toString('base64')}`;
 
 describe('/api/choferes y /api/asignaciones (integración)', { skip: SALTEAR }, () => {
@@ -22,16 +18,13 @@ describe('/api/choferes y /api/asignaciones (integración)', { skip: SALTEAR }, 
         soporte = await e.conRol('cho.sop', 'soporte');
     });
     after(async () => {
-        // Sin Storage, en desarrollo las fotos van a backend/uploads/choferes.
         for (const c of codigosChofer) {
             await rm(fileURLToPath(new URL(`../../uploads/choferes/${c}`, import.meta.url)), { recursive: true, force: true });
         }
         await e?.cerrar();
     });
 
-    // DNI de 8 dígitos que no choque con otras corridas sobre la misma base.
     const dniNuevo = () => String(20_000_000 + Math.floor(Math.random() * 69_999_999));
-    // Lo que lee la app del código PDF417 del dorso del DNI.
     const pdf417 = (dni, apellido = 'PEREZ', nombre = 'JUAN') => `00123456789@${apellido}@${nombre}@M@${dni}@A@01/01/1990@01/01/2020`;
     const datosPostulacion = (dni, extra = {}) => ({
         nombreCompleto: 'Juan Perez',
@@ -47,7 +40,6 @@ describe('/api/choferes y /api/asignaciones (integración)', { skip: SALTEAR }, 
     });
     const postular = (s, cuerpo) => e.http('post', '/api/choferes/postulacion', { token: s.token }).send(cuerpo);
 
-    // Un cliente que se postula y queda como chofer, con el token nuevo.
     async function chofer(sufijo, vehiculoId = 'utilitario') {
         const s = await e.cuenta(sufijo);
         const r = await postular(s, datosPostulacion(dniNuevo(), { vehiculoId }));
@@ -75,9 +67,7 @@ describe('/api/choferes y /api/asignaciones (integración)', { skip: SALTEAR }, 
             assert.equal(ficha.dni_frente_path, null);
             assert.equal((await e.pool.query('SELECT rol FROM usuarios WHERE id = $1', [s.perfil.id])).rows[0].rol, 'chofer');
 
-            // El token nuevo ya es de chofer: ve las ofertas.
             assert.equal((await e.http('get', '/api/asignaciones/disponibles', { token: r.body.token })).status, 200);
-            // Y ya no puede volver a postularse.
             assert.equal((await postular({ token: r.body.token }, datosPostulacion(dniNuevo()))).status, 403);
         });
 
@@ -126,7 +116,6 @@ describe('/api/choferes y /api/asignaciones (integración)', { skip: SALTEAR }, 
             const c = await chofer('cho.doc');
             const r = await e.http('get', `/api/choferes/${c.codigo.toLowerCase()}/documentos`, { token: admin.token });
             assert.equal(r.status, 200);
-            // Sin Storage no hay URL firmada que dar (y nunca la ruta del disco).
             assert.deepEqual(r.body.documentos, { selfie: null, dniFrente: null });
             assert.equal((await e.http('get', `/api/choferes/${c.codigo}/documentos`, { token: soporte.token })).status, 403);
             assert.equal((await e.http('get', `/api/choferes/${c.codigo}/documentos`, { token: c.token })).status, 403);
@@ -183,7 +172,6 @@ describe('/api/choferes y /api/asignaciones (integración)', { skip: SALTEAR }, 
             const historial = await e.http('get', '/api/asignaciones', { token: c.token });
             assert.deepEqual(historial.body.asignaciones.map((a) => a.envioCodigo), [envio.codigo]);
 
-            // Ya no se ofrece, ni se puede volver a tomar.
             const otro = await chofer('cho.tom.otro');
             const ofertas = await e.http('get', '/api/asignaciones/disponibles', { token: otro.token });
             assert.equal(ofertas.body.ofertas.some((o) => o.envioCodigo === envio.codigo), false);

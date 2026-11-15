@@ -57,8 +57,6 @@ export interface Recorrido {
     duracionSegundos: number;
 }
 
-// Ruta por calles calculada en el backend. La clave de Google Directions vive
-// solo en el servidor: si estuviera en la app, cualquiera podría extraerla.
 export async function obtenerRecorrido(
     origen: Coordenada,
     destino: Coordenada

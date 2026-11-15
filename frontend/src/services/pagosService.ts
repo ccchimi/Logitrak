@@ -1,9 +1,6 @@
 import { llamarApi } from './api';
 import { nuevoUuid } from '../helpers/uuid';
 
-// Clave de idempotencia por operación. Si el pedido no llegó a tener respuesta
-// (sin conexión) se conserva, para que el reintento sea el mismo cobro y el
-// servidor no lo procese dos veces. Con cualquier respuesta se descarta.
 const clavesPendientes = new Map<string, string>();
 
 function claveIdempotencia(operacion: string): string {

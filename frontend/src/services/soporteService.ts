@@ -8,7 +8,6 @@ export interface AdjuntoMensaje {
     nombre: string;
     tipo: string;
     bytes: number;
-    /** URL firmada temporal: el bucket es privado. */
     url: string | null;
 }
 

@@ -44,7 +44,6 @@ export default function MapaSeguimiento({ origen, destino, chofer, onEvento }: P
     const eventoRef = useRef(onEvento);
     eventoRef.current = onEvento;
 
-    // La ruta por calles la calcula el backend con Google Directions.
     useEffect(() => {
         let vigente = true;
         setRutaCoords([]);

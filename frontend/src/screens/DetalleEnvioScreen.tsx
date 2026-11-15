@@ -173,7 +173,6 @@ export default function DetalleEnvioScreen({ navigation, route }: any) {
   const [confirmacion, setConfirmacion] = useState(false);
   const [procesando, setProcesando] = useState(false);
 
-  // El personal ve todo el envío; reembolsar es solo del admin.
   const esAdmin = puede("envios.ver_todos");
   const puedeReembolsar = puede("envios.reembolsar");
 

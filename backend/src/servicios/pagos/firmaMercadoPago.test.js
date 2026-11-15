@@ -5,8 +5,6 @@ import { armarManifest, firmar, parsearFirma, verificarFirmaMercadoPago } from '
 const SECRETO = 'clave-secreta-de-prueba';
 const REQUEST_ID = 'bb56a2f1-6aae-46ac-982e-9dcd3581d08e';
 const TS = '1742505638683';
-// HMAC-SHA256 de "id:123456;request-id:<REQUEST_ID>;ts:<TS>;" calculado aparte
-// (Python hmac), para no validar el código contra sí mismo.
 const V1 = 'f8166910b5a8df58e2babef539a7ca9e8dc68bf411a0e693b16625e6b1a10aab';
 
 const valida = { xSignature: `ts=${TS},v1=${V1}`, xRequestId: REQUEST_ID, dataId: '123456', secreto: SECRETO };

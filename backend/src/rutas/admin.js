@@ -22,10 +22,6 @@ rutasAdmin.get('/usuarios', autenticar, exigirPermiso('usuarios.listar'), async 
     }
 });
 
-// Cambiar el rol de una cuenta (solo admin). Los choferes no se crean ni se
-// quitan por acá: tienen una ficha con su verificación de identidad, que sale
-// de la postulación. Un admin no puede cambiar su propio rol (así nunca queda
-// el sistema sin admin por un clic) ni sacarle el rol al último admin.
 const cuerpoRol = z.object({
     rol: z.enum(['cliente', 'soporte', 'admin'], { error: 'El rol tiene que ser cliente, soporte o admin.' }),
 });
@@ -48,7 +44,6 @@ rutasAdmin.put(
         const cliente = await pool.connect();
         try {
             await cliente.query('BEGIN');
-            // Lock de los admins: dos cambios simultáneos no pueden dejar el sistema sin ninguno.
             await cliente.query(`SELECT id FROM usuarios WHERE rol = 'admin' FOR UPDATE`);
             const actual = (await cliente.query('SELECT id, usuario, rol FROM usuarios WHERE id = $1 AND eliminado_en IS NULL FOR UPDATE', [id])).rows[0];
             if (!actual) {
@@ -72,8 +67,6 @@ rutasAdmin.put(
             }
 
             await cliente.query('UPDATE usuarios SET rol = $2 WHERE id = $1', [id, rol]);
-            // Se cierran sus sesiones: el token de acceso lleva el rol, y con el
-            // cambio tiene que volver a entrar (a lo sumo 15 minutos con el viejo).
             await cliente.query(
                 `UPDATE sesiones SET revocado_en = now(), motivo_revocacion = 'cambio_de_rol'
                  WHERE usuario_id = $1 AND revocado_en IS NULL`,

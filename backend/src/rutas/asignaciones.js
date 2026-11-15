@@ -214,7 +214,6 @@ rutasAsignaciones.post('/:codigoEnvio/tomar', autenticar, exigirRol('chofer'), a
             ]
         );
 
-        // Aviso al cliente (bandeja + push), confirmado junto con la asignación.
         await registrarEvento(cliente, {
             tipoAgregado: 'envio',
             idAgregado: envio.codigo,
@@ -238,10 +237,6 @@ rutasAsignaciones.post('/:codigoEnvio/tomar', autenticar, exigirRol('chofer'), a
     }
 });
 
-// Cerrar la entrega exige el PIN que el cliente le dio a quien recibe y una foto
-// de comprobante (Hito 3.1). Tres pasos, para no llamar a Storage con filas
-// bloqueadas: 1) validar el PIN (cada error queda contado), 2) subir la foto,
-// 3) cerrar la entrega, verificando de nuevo que nada cambió en el medio.
 const VIAJE_EN_CURSO = `
     SELECT a.id AS asignacion_id, e.*
     FROM asignaciones a JOIN envios e ON e.id = a.envio_id
@@ -259,7 +254,6 @@ rutasAsignaciones.post('/:codigo/completar', limiteEntregas, autenticar, exigirR
     const foto = leerFoto(req.body.foto);
     if (foto.error) return res.status(400).json({ exito: false, error: foto.error });
 
-    // 1) PIN
     const cliente = await pool.connect();
     let envio;
     try {
@@ -280,7 +274,7 @@ rutasAsignaciones.post('/:codigo/completar', limiteEntregas, autenticar, exigirR
                  WHERE id = $1 RETURNING pin_intentos`,
                 [envio.id, MAX_INTENTOS_PIN]
             );
-            await cliente.query('COMMIT'); // el intento fallido queda registrado
+            await cliente.query('COMMIT');
             const restantes = Math.max(0, MAX_INTENTOS_PIN - rows[0].pin_intentos);
             if (!restantes) return res.status(423).json({ exito: false, codigo: 'pin_bloqueado', intentosRestantes: 0, error: PIN_BLOQUEADO });
             return res.status(422).json({
@@ -299,7 +293,6 @@ rutasAsignaciones.post('/:codigo/completar', limiteEntregas, autenticar, exigirR
         cliente.release();
     }
 
-    // 2) Foto
     let rutaFoto = null;
     try {
         rutaFoto = await guardarFotoEntrega(envio.codigo, foto);
@@ -310,7 +303,6 @@ rutasAsignaciones.post('/:codigo/completar', limiteEntregas, autenticar, exigirR
         return res.status(503).json({ exito: false, error: 'No pudimos guardar la foto. Probá de nuevo en un momento.' });
     }
 
-    // 3) Cierre
     const tx = await pool.connect();
     try {
         await tx.query('BEGIN');
@@ -323,7 +315,6 @@ rutasAsignaciones.post('/:codigo/completar', limiteEntregas, autenticar, exigirR
             `UPDATE asignaciones SET estado = 'completada', respondida_en = now() WHERE id = $1 RETURNING *`,
             [actual.asignacion_id]
         );
-        // El PIN ya cumplió su función: no se guarda después de la entrega.
         await tx.query(
             `UPDATE envios
              SET estado = 'entregado', entregado_en = now(), actualizado_en = now(),

@@ -44,8 +44,6 @@ async function guardarImagenChofer(codigo, tipo, base64) {
         return subirImagen(ruta, buffer, 'image/jpeg');
     }
 
-    // Sin Storage, en producción la foto no se guarda: el disco del servidor es
-    // efímero y no es lugar para un DNI. La verificación ya se hizo en memoria.
     if (esProduccion()) {
         log().error({ tipo, chofer: codigo }, 'Foto del chofer descartada: falta configurar Supabase Storage');
         return null;

@@ -51,7 +51,6 @@ describe('registro de pedidos', () => {
         app.get('/api/salud', (_req, res) => res.json({ ok: true }));
         app.get('/', (_req, res) => res.json({ ok: true }));
         app.get('/api/privado', autenticar, (_req, res) => {
-            // Un servicio que no recibe `req` igual loguea con el contexto del pedido.
             log().info('dentro del servicio');
             res.json({ ok: true });
         });

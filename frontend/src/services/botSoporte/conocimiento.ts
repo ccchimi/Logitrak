@@ -1,8 +1,5 @@
 import type { CategoriaSoporte, PresetSoporte, RespuestaConocida } from './types';
 
-// Los presets son los botones que ve el usuario al abrir soporte. Cubren los
-// motivos reales por los que alguien escribe: nada de categorías genéricas que
-// después obligan a preguntar de nuevo.
 export const PRESETS: readonly PresetSoporte[] = [
     {
         categoria: 'envio_demorado',
@@ -62,9 +59,6 @@ export function presetDe(categoria: CategoriaSoporte): PresetSoporte {
     return PRESETS.find((p) => p.categoria === categoria) ?? PRESETS[PRESETS.length - 1];
 }
 
-// Banco de respuestas por categoría. El bot solo contesta lo que sabe con
-// certeza y que no depende de mirar la base: todo lo demás se deriva. Preferimos
-// derivar de más antes que inventar una respuesta.
 export const CONOCIMIENTO: Record<CategoriaSoporte, readonly RespuestaConocida[]> = {
     envio_demorado: [
         {

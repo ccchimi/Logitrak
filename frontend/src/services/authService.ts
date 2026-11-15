@@ -77,10 +77,7 @@ export async function restablecerContrasena(
 }
 
 export function cerrarSesion() {
-    // Primero la baja del push: el pedido sale con el token de acceso actual,
-    // que cerrarSesionRemota borra enseguida.
     void darDeBajaTelefono();
     void cerrarSesionRemota();
-    // El token de Realtime queda inválido junto con la sesión.
     void import('./realtimeSoporte').then((m) => m.olvidarCredencialRealtime());
 }

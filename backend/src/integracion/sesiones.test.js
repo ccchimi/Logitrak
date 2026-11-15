@@ -1,6 +1,3 @@
-// Pruebas de integración de las sesiones contra PostgreSQL real.
-// Solo corren si TEST_DATABASE_URL apunta a una base DE PRUEBA (en la CI, un
-// contenedor descartable). Nunca usan DATABASE_URL, para no tocar producción.
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -71,7 +68,6 @@ describe('sesiones con refresh token (integración)', { skip: SALTEAR }, () => {
     test('reusar un refresh token viejo revoca toda la cadena (posible robo)', async () => {
         const s = await cuenta('ses.robo');
         const legitimo = await api('/api/auth/refresh', { metodo: 'POST', cuerpo: { refreshToken: s.refreshToken } });
-        // Pasa el margen de gracia de las pestañas.
         await pool.query(`UPDATE sesiones SET revocado_en = now() - interval '5 minutes' WHERE token_hash = $1`, [hash(s.refreshToken)]);
 
         const atacante = await api('/api/auth/refresh', { metodo: 'POST', cuerpo: { refreshToken: s.refreshToken } });
@@ -87,7 +83,6 @@ describe('sesiones con refresh token (integración)', { skip: SALTEAR }, () => {
 
         assert.equal((await api('/api/auth/logout', { metodo: 'POST', cuerpo: { refreshToken: s.refreshToken } })).status, 200);
         assert.equal((await api('/api/auth/refresh', { metodo: 'POST', cuerpo: { refreshToken: s.refreshToken } })).status, 401);
-        // Repetirlo, o mandar un token que no existe, responde igual.
         assert.equal((await api('/api/auth/logout', { metodo: 'POST', cuerpo: { refreshToken: s.refreshToken } })).status, 200);
         assert.equal((await api('/api/auth/logout', { metodo: 'POST', cuerpo: { refreshToken: 'x'.repeat(64) } })).status, 200);
     });

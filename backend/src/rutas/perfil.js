@@ -61,7 +61,6 @@ rutasPerfil.put('/', autenticar, async (req, res) => {
     if (nombreCompleto !== null && nombreCompleto.length < 3) {
         return res.status(400).json({ exito: false, error: 'El nombre debe tener al menos 3 caracteres.' });
     }
-    // Mismos límites que las columnas (y que la postulación): pasarse era un 500.
     if (nombreCompleto !== null && nombreCompleto.length > 120) {
         return res.status(400).json({ exito: false, error: 'El nombre no puede superar los 120 caracteres.' });
     }
@@ -208,9 +207,6 @@ rutasPerfil.get('/resumen', autenticar, async (req, res) => {
 
 const RAIZ_BACKEND = fileURLToPath(new URL('../../', import.meta.url));
 
-// Elimina la cuenta del usuario que hace el pedido (derecho de supresión, Ley
-// 25.326). Anonimiza sus datos y conserva solo los registros que la ley obliga a
-// guardar; ver servicios/eliminacionCuenta.js.
 rutasPerfil.post('/eliminar-cuenta', limiteLogin, autenticar, validarRequest({ body: eliminarCuenta }), async (req, res) => {
     const cliente = await pool.connect();
     let archivos = [];
@@ -243,8 +239,6 @@ rutasPerfil.post('/eliminar-cuenta', limiteLogin, autenticar, validarRequest({ b
         cliente.release();
     }
 
-    // Los archivos se borran después de confirmar: si falla, la cuenta ya quedó
-    // anonimizada y el archivo queda huérfano, sin nada que lo vincule.
     const pendientes = await borrarArchivos(archivos);
     for (const ruta of archivos.filter((r) => r.startsWith('uploads/'))) {
         await rm(join(RAIZ_BACKEND, ruta), { force: true }).catch(() => pendientes.push(ruta));

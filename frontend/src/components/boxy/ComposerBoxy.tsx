@@ -21,8 +21,6 @@ type Props = {
   onSaltear: () => void;
 };
 
-// Caja de respuesta del chat: el campo de texto, el botón de enviar y "Saltar"
-// para los datos opcionales.
 export default function ComposerBoxy({
   pregunta,
   confirmacion,

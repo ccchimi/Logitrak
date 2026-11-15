@@ -1,17 +1,3 @@
-// Chequeo de salud con conectividad real.
-//
-//  · baseDeDatos: SELECT 1 con límite de tiempo y migraciones pendientes. Si
-//    falla, la API no sirve: el estado general es "error" (HTTP 503).
-//  · mercadoPago y almacenamiento: se consultan de verdad, pero el resultado se
-//    guarda un minuto. El endpoint es público y no queremos que sirva para
-//    gastar las APIs de terceros. Si fallan, el estado es "degradado" (HTTP 200):
-//    la API sigue atendiendo el resto.
-//  · googleDirections, modo y sentry: solo si están configurados. Consultar
-//    Directions cuesta cuota.
-//  · trabajos: si pg-boss arrancó (ok), falló (error: degradado) o está apagado.
-//
-// La respuesta pública dice el estado de cada componente, nunca el detalle del
-// error, que va al log.
 import { readdirSync } from 'node:fs';
 import { log } from '../observabilidad/logger.js';
 import { nombreEntorno, revisarConfiguracion } from '../config/entorno.js';
@@ -109,7 +95,6 @@ export function crearChequeoSalud({
         return {
             exito: estado !== 'error',
             estado,
-            // Compatibilidad con quien ya leía este campo.
             baseDeDatos: db.estado === 'error' ? 'sin conexión' : 'conectada',
             entorno: nombreEntorno(env),
             version: env.RENDER_GIT_COMMIT?.slice(0, 7) ?? null,

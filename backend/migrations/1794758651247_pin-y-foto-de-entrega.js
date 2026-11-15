@@ -1,11 +1,3 @@
-// Hito 3.1: entrega segura.
-//
-// pin_entrega: 4 dígitos que el cliente le pasa a quien recibe; el chofer lo
-// tiene que ingresar para cerrar la entrega. pin_intentos y pin_bloqueado_en
-// frenan la adivinanza (son 10.000 combinaciones): a los 5 errores se bloquea
-// y lo desbloquea un admin. foto_entrega_path es la foto de comprobante, en el
-// bucket privado. Los envíos en curso reciben un PIN para poder cerrarse.
-
 export const up = (pgm) => {
     pgm.sql(`
         ALTER TABLE envios ADD COLUMN IF NOT EXISTS pin_entrega       CHAR(4);

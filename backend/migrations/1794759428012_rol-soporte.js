@@ -1,8 +1,3 @@
-// Hito 3.2: rol "soporte" (atiende consultas y mira la operación; ver
-// src/middleware/permisos.js). En Supabase, las políticas de lectura de
-// Realtime pasan de "es admin" a "es del equipo" (admin o soporte), para que
-// soporte reciba en vivo los mensajes de las consultas y vea los envíos.
-
 export const up = (pgm) => {
     pgm.sql(`
         -- La restricción del rol se creó junto con la tabla y su nombre depende

@@ -48,7 +48,6 @@ describe('analizarDireccion', () => {
         expect(a.problemas.map((p) => p.codigo)).toContain('altura_implausible');
     });
 
-    // DEF-01: antes se rechazaban como "texto ilegible" por los dígitos repetidos.
     it('acepta alturas reales con dígitos repetidos', () => {
         const a = analizarDireccion('Av. Rivadavia 10000, CABA');
 
@@ -89,8 +88,6 @@ describe('resolverLocalidad', () => {
         expect(resolverLocalidad('Calle 1, Springfield')).toBeNull();
     });
 
-    // DEF-03: el nombre de la calle se tomaba como ciudad ("Av. Corrientes" →
-    // Corrientes, "Av. Santa Fe" → Santa Fe) y el barrio se ignoraba.
     it.each([
         ['Av. Corrientes 1300, Palermo', 'caba', 'Palermo'],
         ['Av. Santa Fe 3200, Recoleta', 'caba', 'Recoleta'],

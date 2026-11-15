@@ -57,7 +57,6 @@ function conMarco(Screen: React.ComponentType<any>) {
 }
 
 function InicioPorRol(props: any) {
-  // El personal (soporte y admin) entra al panel de operación.
   return puede('envios.ver_todos')
     ? <AdminDashboardScreen {...props} /> : <HomeScreen {...props} />;
 }
@@ -84,8 +83,6 @@ const PANTALLAS = {
 
 const Stack = createNativeStackNavigator();
 
-// Pantallas a las que no tiene sentido volver tras un F5: son pasos de un flujo
-// que ya no está en curso, o dependen de params que no persistimos.
 const RUTAS_NO_RESTAURABLES = [
   "Login",
   "Registro",
@@ -116,8 +113,6 @@ export default function AppNavigator({
     let activo = true;
 
     (async () => {
-      // Solo restauramos la ruta si además hay sesión válida. Sin eso
-      // caeríamos en el panel sin estar logueados.
       if (sesionRestaurada) {
         const guardado = await leerJson<NavigationState>(CLAVE_NAVEGACION);
         const nombre = rutaActual(guardado ?? undefined);
@@ -144,7 +139,6 @@ export default function AppNavigator({
     <NavigationContainer
       ref={navegacion}
       onReady={() => {
-        // Una sola vez: tocar un push navega al envío correspondiente.
         if (!pushEscuchado) {
           pushEscuchado = true;
           escucharPush((ruta, params) => {

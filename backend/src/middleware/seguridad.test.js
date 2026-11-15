@@ -4,7 +4,6 @@ import express from 'express';
 import { configurarSeguridad, origenesPermitidos, origenPermitido } from './seguridad.js';
 import { crearLimiteGeneral, crearLimiteLogin } from './limites.js';
 
-// App mínima con los mismos middlewares que index.js, sin base de datos.
 function crearApp(env = {}) {
     const app = express();
     configurarSeguridad(app, env);

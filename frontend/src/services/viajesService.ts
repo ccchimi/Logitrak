@@ -42,16 +42,10 @@ function mapearEnvio(e: Envio): Viaje {
 
 export interface PanelEnvios {
     viajes: Viaje[];
-    // Envíos pagos que todavía ningún chofer tomó. No se listan como viajes
-    // porque hasta que alguien los tome pueden cancelarse y reembolsarse.
     buscandoChofer: number;
-    // Vencimiento más próximo de esos envíos, para el contador del panel.
     proximoVencimiento: string | null;
 }
 
-// El cliente no ve los envíos que todavía nadie tomó: hasta ese momento pueden
-// cancelarse y reembolsarse solos. El admin sí los ve, porque necesita poder
-// inspeccionarlos y actuar sobre ellos.
 export const obtenerPanelEnvios = async (
     { verPendientes = false }: { verPendientes?: boolean } = {}
 ): Promise<PanelEnvios> => {

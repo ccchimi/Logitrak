@@ -50,7 +50,6 @@ var LOCALIDADES = [
 ];
 var barriosDe = (localidadId, nombres) => nombres.map((nombre) => ({ nombre, localidadId }));
 var BARRIOS = [
-  // Los 48 barrios de CABA, más los nombres de uso común.
   ...barriosDe("caba", [
     "Agronom\xEDa",
     "Almagro",
@@ -109,7 +108,6 @@ var BARRIOS = [
   { nombre: "Montserrat", localidadId: "caba" },
   { nombre: "Pompeya", localidadId: "caba" },
   { nombre: "Boca", localidadId: "caba" },
-  // Localidades del conurbano que pertenecen a un partido con cobertura.
   ...barriosDe("lomas-de-zamora", ["Banfield", "Temperley", "Turdera", "Llavallol", "Villa Fiorito"]),
   ...barriosDe("lanus", ["Lan\xFAs Este", "Lan\xFAs Oeste", "Remedios de Escalada", "Valent\xEDn Alsina", "Monte Chingolo"]),
   ...barriosDe("avellaneda", ["Wilde", "Sarand\xED", "Dock Sud", "Gerli", "Villa Dom\xEDnico", "Pi\xF1eyro"]),

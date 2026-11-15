@@ -58,7 +58,6 @@ function Usuarios() {
   const [version, setVersion] = useState(0);
   const [avanzados, setAvanzados] = useState(width >= 900);
   const [datos, setDatos] = useState<ListaUsuariosAdmin | null>(null);
-  // Cambio de rol (Hito 3.2): solo admin, no a choferes ni a uno mismo.
   const [editando, setEditando] = useState<UsuarioAdmin | null>(null);
   const yo = obtenerUsuarioSesion()?.id;
   const editable = (u: UsuarioAdmin) => puede("usuarios.cambiar_rol") && u.rol !== "chofer" && u.id !== yo;

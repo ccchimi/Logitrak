@@ -1,20 +1,7 @@
 import { cotizarSync } from '../tarifas';
 import { SolicitudCotizacion } from '../types';
 
-/**
- * Pruebas de caracterización (golden master) del cotizador.
- *
- * No validan una regla puntual: congelan la salida actual de cotizarSync para un
- * conjunto representativo de solicitudes. Sirven de red de seguridad para el
- * mantenimiento preventivo (refactorizar cotizarSync sin cambiar resultados).
- * Si un cambio altera un precio a propósito (correctivo, adaptativo o perfectivo),
- * se revisa la diferencia y se actualiza con `npx jest -u` en el mismo commit.
- * Ver docs/qa/plan-de-mantenimiento.md, sección 1.4.
- */
-
-// Miércoles 14/10/2026 a las 14:00 (franja valle, día sin recargo).
 const MIERCOLES_VALLE = new Date(2026, 9, 14, 14, 0);
-// Domingo 18/10/2026 a las 18:00 (pico vespertino + recargo dominical).
 const DOMINGO_PICO = new Date(2026, 9, 18, 18, 0);
 
 const escenarios: [string, SolicitudCotizacion][] = [
@@ -61,7 +48,6 @@ describe('caracterización de cotizarSync', () => {
         if (!r.exito) throw new Error(`Se esperaba éxito y vino: ${r.motivo}`);
         const c = r.cotizacion;
 
-        // Solo lo que es determinístico y define el negocio (no el id ni textos libres).
         expect({
             vehiculo: c.vehiculo.id,
             precio: c.precio,

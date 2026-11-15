@@ -47,14 +47,10 @@ export const LOCALIDADES: readonly Localidad[] = [
     { id: 'ushuaia', nombre: 'Ushuaia', provincia: 'Tierra del Fuego', lat: -54.8019, lng: -68.303, radioKm: 4, indiceDemanda: 1.12, alias: ['ushuaia'] },
 ];
 
-// Mucha gente escribe el barrio en lugar de la ciudad ("Cabildo 2000, Belgrano").
-// Cada barrio apunta a la localidad de cobertura que lo contiene. Los alias van
-// sin tildes y en minúsculas, igual que el texto normalizado.
 const barriosDe = (localidadId: string, nombres: readonly string[]): Barrio[] =>
     nombres.map((nombre) => ({ nombre, localidadId }));
 
 export const BARRIOS: readonly Barrio[] = [
-    // Los 48 barrios de CABA, más los nombres de uso común.
     ...barriosDe('caba', [
         'Agronomía', 'Almagro', 'Balvanera', 'Barracas', 'Belgrano', 'Boedo', 'Caballito', 'Chacarita',
         'Coghlan', 'Colegiales', 'Constitución', 'Flores', 'Floresta', 'La Boca', 'La Paternal', 'Liniers',
@@ -73,7 +69,6 @@ export const BARRIOS: readonly Barrio[] = [
     { nombre: 'Montserrat', localidadId: 'caba' },
     { nombre: 'Pompeya', localidadId: 'caba' },
     { nombre: 'Boca', localidadId: 'caba' },
-    // Localidades del conurbano que pertenecen a un partido con cobertura.
     ...barriosDe('lomas-de-zamora', ['Banfield', 'Temperley', 'Turdera', 'Llavallol', 'Villa Fiorito']),
     ...barriosDe('lanus', ['Lanús Este', 'Lanús Oeste', 'Remedios de Escalada', 'Valentín Alsina', 'Monte Chingolo']),
     ...barriosDe('avellaneda', ['Wilde', 'Sarandí', 'Dock Sud', 'Gerli', 'Villa Domínico', 'Piñeyro']),

@@ -1,10 +1,5 @@
 import rateLimit from 'express-rate-limit';
 
-// Límites de pedidos por IP. El general cubre toda la API con margen para el
-// seguimiento (la app consulta cada 5 segundos); los estrictos protegen lo que
-// conviene frenar antes: adivinar contraseñas, crear cuentas en masa, cotizar o
-// iniciar pagos en ráfaga.
-
 function limite({ minutos, maximo, mensaje, ...resto }) {
     return rateLimit({
         windowMs: minutos * 60 * 1000,
@@ -18,8 +13,6 @@ function limite({ minutos, maximo, mensaje, ...resto }) {
 
 const ESPERA = 'Probá de nuevo en unos minutos.';
 
-// Los webhooks quedan afuera del límite general: los mandan las pasarelas
-// desde pocas IP, en ráfagas, y ya están protegidos por la firma.
 export const esWebhook = (req) => req.originalUrl.startsWith('/api/pagos/webhook/');
 
 export const crearLimiteGeneral = () =>
@@ -28,8 +21,6 @@ export const crearLimiteGeneral = () =>
 export const crearLimiteLogin = () =>
     limite({ minutos: 15, maximo: 10, mensaje: `Demasiados intentos. ${ESPERA}` });
 
-// La app renueva la sesión cada 15 minutos; esto deja margen de sobra y frena a
-// quien intente adivinar refresh tokens.
 export const crearLimiteRenovacion = () =>
     limite({ minutos: 15, maximo: 60, mensaje: `Demasiadas renovaciones de sesión. ${ESPERA}` });
 
@@ -42,17 +33,12 @@ export const crearLimiteCotizaciones = () =>
 export const crearLimitePagos = () =>
     limite({ minutos: 10, maximo: 20, mensaje: `Demasiados intentos de pago seguidos. ${ESPERA}` });
 
-// Cada recorrido le cuesta una consulta a Google; la caché absorbe las
-// repeticiones, y esto frena a quien quiera usar la API como proxy gratis.
 export const crearLimiteRecorridos = () =>
     limite({ minutos: 10, maximo: 60, mensaje: `Demasiadas consultas de rutas. ${ESPERA}` });
 
-// Cerrar entregas: un chofer hace pocas por hora; esto frena a quien quiera
-// probar PINs desde varios viajes a la vez (cada envío igual se bloquea a los 5).
 export const crearLimiteEntregas = () =>
     limite({ minutos: 10, maximo: 30, mensaje: `Demasiados intentos de cerrar entregas. ${ESPERA}` });
 
-// Una instancia por proceso, compartida por las rutas.
 export const limiteGeneral = crearLimiteGeneral();
 export const limiteLogin = crearLimiteLogin();
 export const limiteRegistro = crearLimiteRegistro();

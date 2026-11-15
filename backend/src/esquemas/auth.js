@@ -7,8 +7,6 @@ const CONTRASENA_CORTA = 'La contraseña debe tener al menos 8 caracteres.';
 const CONTRASENA_LARGA = 'La contraseña no puede superar los 128 caracteres.';
 const NO_COINCIDEN = 'Las contraseñas no coinciden.';
 
-// bcrypt solo usa los primeros 72 bytes y hashear textos enormes es caro: se
-// pone un tope para que nadie trabe el servidor con contraseñas gigantes.
 const contrasenaNueva = z.string({ error: CONTRASENA_CORTA }).min(8, CONTRASENA_CORTA).max(128, CONTRASENA_LARGA);
 
 const coincidir = (campo) => (d) => d[campo] === d.confirmacion;

@@ -16,5 +16,3 @@ export async function listarCupones(): Promise<Cupon[]> {
     return r.exito ? r.cupones : [];
 }
 
-// Los cupones por SLA incumplido los acredita el servidor (Hito 2.1): la app
-// solo los lista.

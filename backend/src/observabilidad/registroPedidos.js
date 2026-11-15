@@ -1,15 +1,8 @@
-// Una línea de log por pedido HTTP, al terminar:
-//   { requestId, userId, method, path, status, responseTime, ip, msg }
-// El requestId se toma del encabezado X-Request-Id si viene uno razonable (para
-// seguir un pedido entre servicios) o se genera, y se devuelve en la respuesta:
-// si un usuario reporta un error, con ese id se encuentra su línea en los logs.
 import { randomUUID } from 'node:crypto';
 import { conContexto, logger as loggerBase } from './logger.js';
 
 const ID_VALIDO = /^[A-Za-z0-9._-]{8,100}$/;
 
-// Render consulta la raíz y el chequeo de salud seguido para saber si el servicio
-// está vivo: si responden bien, no ensucian los logs.
 const RUTAS_DE_SONDEO = new Set(['/', '/api/salud', '/api/salud/vivo']);
 const esSaludOk = (req, res) => RUTAS_DE_SONDEO.has(req.path) && res.statusCode < 400;
 

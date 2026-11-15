@@ -1,7 +1,3 @@
-/**
- * Pruebas unitarias de la lógica pura del frontend (sin React Native).
- * Ver docs/qa/plan-de-pruebas-cotizador.md
- */
 module.exports = {
     preset: 'ts-jest',
     testEnvironment: 'node',

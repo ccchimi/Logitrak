@@ -18,7 +18,6 @@ import { tienePermiso } from '../middleware/permisos.js';
 
 export const rutasPagos = Router();
 
-// Código de PostgreSQL para una violación de índice único.
 const VIOLACION_UNICA = '23505';
 
 function num(v) {
@@ -49,9 +48,6 @@ function baseUrlDe(req) {
     return process.env.PUBLIC_API_URL || `${req.protocol}://${req.get('host')}`;
 }
 
-// Trae el envío bloqueado (FOR UPDATE) dentro de la transacción: mientras dure,
-// ningún otro pedido puede iniciar ni aprobar un pago de ese mismo envío. Es lo
-// que serializa los reintentos y los doble clic.
 async function bloquearEnvioDelCliente(cliente, codigo, usuario) {
     const { rows } = await cliente.query('SELECT * FROM envios WHERE codigo = $1 FOR UPDATE', [codigo]);
     const envio = rows[0];
@@ -69,10 +65,6 @@ async function buscarPorClave(cliente, clienteId, clave) {
     return rows[0] ?? null;
 }
 
-// Aprobar es idempotente: la pasarela puede avisar dos veces (webhook + consulta,
-// o un reintento del webhook) y el resultado tiene que ser el mismo. Siempre se
-// bloquea primero el envío y después el pago, igual que en el checkout y en los
-// reembolsos, para que no haya interbloqueos.
 async function aprobarPago(cliente, pagoId, extra = {}) {
     const previo = (await cliente.query('SELECT envio_id FROM pagos WHERE id = $1', [pagoId])).rows[0];
     if (!previo) return null;
@@ -81,9 +73,6 @@ async function aprobarPago(cliente, pagoId, extra = {}) {
     const actual = (await cliente.query('SELECT * FROM pagos WHERE id = $1 FOR UPDATE', [pagoId])).rows[0];
     if (actual.estado === 'aprobado' || actual.estado === 'reembolsado') return actual;
 
-    // Si el envío ya tiene otro pago aprobado, este cobro es un duplicado: se
-    // registra tal cual (la plata se movió) pero no vuelve a tocar el envío, y
-    // queda marcado para que un admin lo devuelva.
     const otro = (await cliente.query(
         `SELECT codigo FROM pagos WHERE envio_id = $1 AND estado = 'aprobado' AND id <> $2 LIMIT 1`,
         [actual.envio_id, pagoId]
@@ -124,9 +113,6 @@ async function aprobarPago(cliente, pagoId, extra = {}) {
         return pago;
     }
 
-    // Recién con el pago aprobado el envío se ofrece a los choferes, así que es
-    // acá donde arrancan la ventana de espera y el SLA. Un segundo aviso de la
-    // pasarela no reinicia ninguno de los dos relojes.
     await cliente.query(
         `UPDATE envios
          SET oferta_vence_en = COALESCE(oferta_vence_en, now() + make_interval(mins => $2::int)),
@@ -138,7 +124,6 @@ async function aprobarPago(cliente, pagoId, extra = {}) {
          WHERE id = $1`,
         [pago.envio_id, MINUTOS_ESPERA_CHOFER]
     );
-    // En la misma transacción: si algo de arriba se revierte, el aviso tampoco existe.
     await registrarEvento(cliente, {
         tipoAgregado: 'pago',
         idAgregado: pago.codigo,
@@ -185,7 +170,6 @@ rutasPagos.post('/checkout', limitePagos, autenticar, validarRequest({ body: esq
         }
         const envio = r.envio;
 
-        // 1) Mismo pedido reintentado con la misma clave: se devuelve el original.
         const repetido = await buscarPorClave(cliente, envio.cliente_id, idem.clave);
         if (repetido) {
             await cliente.query('ROLLBACK');
@@ -207,8 +191,6 @@ rutasPagos.post('/checkout', limitePagos, autenticar, validarRequest({ body: esq
         const real = metodo === 'mercadopago' ? mpHabilitado() : modoHabilitado();
         const modoProc = real ? 'real' : 'sandbox';
 
-        // 2) Ya hay un checkout pendiente y vigente para este envío y método:
-        //    se reutiliza en vez de crear otro pago y otra preferencia.
         const { rows: pendientes } = await cliente.query(
             `SELECT * FROM pagos
              WHERE envio_id = $1 AND metodo = $2 AND estado = 'pendiente'
@@ -220,8 +202,6 @@ rutasPagos.post('/checkout', limitePagos, autenticar, validarRequest({ body: esq
             return responderCheckout(res, pendientes[0], { estado: 200, reutilizado: true });
         }
 
-        // 3) Intento nuevo. Si la pasarela falla, el ROLLBACK no deja ninguna
-        //    fila huérfana.
         const ins = await cliente.query(
             `INSERT INTO pagos (envio_id, cliente_id, metodo, monto, moneda, modo_proc, idempotency_key)
              VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7::uuid, gen_random_uuid())) RETURNING *`,
@@ -297,8 +277,6 @@ rutasPagos.post('/tarjeta', limitePagos, autenticar, validarRequest({ body: esqu
         }
         const envio = r.envio;
 
-        // Mismo cobro reintentado con la misma clave: se devuelve el resultado
-        // original, aprobado o rechazado, sin volver a pasar la tarjeta.
         const repetido = await buscarPorClave(cliente, envio.cliente_id, idem.clave);
         if (repetido) {
             await cliente.query('ROLLBACK');
@@ -339,8 +317,6 @@ rutasPagos.post('/tarjeta', limitePagos, autenticar, validarRequest({ body: esqu
              RETURNING *`,
             [
                 envio.id, envio.cliente_id, envio.precio, envio.moneda,
-                // Entra como pendiente y lo aprueba aprobarPago, que es quien
-                // emite el comprobante y habilita el envío.
                 resultado.aprobado ? 'pendiente' : 'rechazado',
                 resultado.marca ?? null, resultado.ultimos ?? null, resultado.cuotas ?? null,
                 JSON.stringify({ motivo: resultado.motivo, codigoAutorizacion: resultado.codigoAutorizacion ?? null }),
@@ -430,8 +406,6 @@ rutasPagos.get('/:codigo', autenticar, validarRequest({ params: esquemas.codigoP
 
     if (pago.estado === 'pendiente' && pago.modo_proc === 'real' &&
         pago.metodo === 'mercadopago') {
-        // Si el webhook nunca llegó (Render se duerme en el plan Free), buscamos
-        // el pago por external_reference en vez de depender del pago_ext_id.
         let mp = pago.pago_ext_id ? await consultarPagoMp(pago.pago_ext_id).catch(() => null) : null;
         if (!mp) mp = await buscarPagoMpPorReferencia(pago.codigo).catch(() => null);
 
@@ -488,10 +462,6 @@ rutasPagos.get('/', autenticar, async (req, res) => {
     return res.json({ exito: true, pagos: rows.map(publicar) });
 });
 
-// La firma (exigirFirmaMercadoPago) prueba que el aviso viene de Mercado Pago y
-// que el id es el de la URL firmada; el id del cuerpo no se usa. Aun así, antes
-// de aprobar se reconsulta el pago a la API. Un fallo propio responde 500 para
-// que Mercado Pago reintente: procesar dos veces el mismo aviso es inocuo.
 rutasPagos.post('/webhook/mercadopago', exigirFirmaMercadoPago, async (req, res) => {
     const tipo = req.body?.type || req.query?.type || req.query?.topic;
     const pagoExtId = req.mpDataId;
@@ -506,9 +476,6 @@ rutasPagos.post('/webhook/mercadopago', exigirFirmaMercadoPago, async (req, res)
         const pago = rows[0];
         if (!pago) return res.sendStatus(200);
 
-        // 'rechazado' también: el cliente puede reintentar con otra tarjeta dentro
-        // del mismo checkout de Mercado Pago, y ese cobro llega con la misma
-        // referencia.
         if (mp.estado === 'approved' && (pago.estado === 'pendiente' || pago.estado === 'rechazado')) {
             const cliente = await pool.connect();
             try {
@@ -522,8 +489,6 @@ rutasPagos.post('/webhook/mercadopago', exigirFirmaMercadoPago, async (req, res)
                 cliente.release();
             }
         } else if (mp.estado === 'rejected') {
-            // Solo un intento pendiente pasa a rechazado: un aviso viejo no
-            // puede pisar un pago que ya se aprobó.
             await consultar(
                 `UPDATE pagos SET estado = 'rechazado', actualizado_en = now() WHERE id = $1 AND estado = 'pendiente'`,
                 [pago.id]

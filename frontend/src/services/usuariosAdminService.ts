@@ -80,8 +80,6 @@ export async function obtenerUsuariosAdmin(
   return r;
 }
 
-// Solo admin. El backend no deja cambiar el propio rol, ni el de un chofer, ni
-// dejar el sistema sin admins; el mensaje de error explica cuál fue.
 export async function cambiarRolUsuario(
   id: number,
   rol: "cliente" | "soporte" | "admin"

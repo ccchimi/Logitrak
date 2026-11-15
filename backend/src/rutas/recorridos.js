@@ -8,7 +8,6 @@ import { registrarError } from '../observabilidad/logger.js';
 
 export const rutasRecorridos = Router();
 
-// GET /api/recorridos?origenLat=&origenLng=&destinoLat=&destinoLng=
 rutasRecorridos.get('/', limiteRecorridos, autenticar, validarRequest({ query: consultaRecorrido }), async (req, res) => {
     const { origenLat, origenLng, destinoLat, destinoLng } = req.query;
     try {

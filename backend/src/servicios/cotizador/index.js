@@ -1,13 +1,7 @@
 import { cotizarSync } from './cotizador.generado.js';
 
-// DEF-02: el precio lo decide el servidor. La app cotiza para mostrarlo al
-// instante, pero lo que se guarda y se cobra sale de acá, con el mismo código.
-
 const ZONA_OPERATIVA = 'America/Argentina/Buenos_Aires';
 
-// El cotizador aplica franjas horarias y recargos por día con getHours() y
-// getDay(), que usan la zona del proceso. Render corre en UTC, así que armamos
-// una fecha cuya hora local sea la de Argentina, sin depender del TZ del server.
 export function horaOperativa(instante = new Date()) {
     const partes = Object.fromEntries(
         new Intl.DateTimeFormat('en-US', {
@@ -43,8 +37,6 @@ function texto(v, max) {
     return typeof v === 'string' ? v.trim().slice(0, max) : '';
 }
 
-// Recibe los datos de la carga tal como llegan en el body. Cualquier precio,
-// vehículo o distancia que mande el cliente se ignora.
 export function cotizarEnServidor(datos, instante = new Date()) {
     const largo = numero(datos.largoCm);
     const ancho = numero(datos.anchoCm);
@@ -70,8 +62,6 @@ export function cotizarEnServidor(datos, instante = new Date()) {
     return respuesta;
 }
 
-// Una cotización guardada sirve para crear un envío solo si es del cliente,
-// no está descartada y no superó su validez.
 export function verificarCotizacionParaEnvio(fila, clienteId, instante = new Date()) {
     if (!fila || fila.cliente_id !== clienteId) {
         return { valida: false, motivo: 'No encontramos esa cotización. Volvé a cotizar el envío.' };

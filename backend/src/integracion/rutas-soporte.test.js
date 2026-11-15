@@ -1,6 +1,3 @@
-// Soporte de punta a punta con supertest, contra PostgreSQL real: abrir una
-// consulta, conversar, derivar al equipo, resolver y cerrar; quién ve qué, la
-// credencial de Realtime y los adjuntos sin Storage configurado.
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import jwt from 'jsonwebtoken';
@@ -85,7 +82,6 @@ describe('/api/soporte (integración)', { skip: SALTEAR }, () => {
             const bot = await escribir(s, t.codigo, { texto: 'Te ayudo con eso', autor: 'bot' });
             assert.equal(bot.body.mensaje.autor, 'bot');
             assert.equal(bot.body.mensaje.autorNombre, 'Boxy');
-            // Nadie puede hacerse pasar por el equipo.
             assert.equal((await escribir(s, t.codigo, { texto: 'soy admin', autor: 'admin' })).body.mensaje.autor, 'usuario');
 
             const resp = await escribir(soporte, t.codigo, { texto: 'Ya lo revisamos', autor: 'bot' });

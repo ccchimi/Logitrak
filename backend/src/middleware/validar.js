@@ -1,10 +1,3 @@
-// Validación centralizada con Zod. Cada ruta declara el esquema de lo que
-// recibe y, si el pedido no lo cumple, se corta acá con un 400 estándar:
-//   { exito: false, status: 'fail', error: '<primer mensaje>', errors: [{ campo, mensaje }] }
-// `error` se mantiene porque es lo que muestran la app actual y las versiones
-// ya instaladas. Si el pedido es válido, la ruta recibe los datos ya
-// normalizados (recortados, convertidos y sin campos desconocidos).
-
 const PARTES = ['params', 'query', 'body'];
 
 export function formatearErrores(issues, parte) {

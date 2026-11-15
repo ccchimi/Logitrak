@@ -1,12 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Archivos de usuarios (fotos de verificación, adjuntos de soporte) en un bucket
-// PRIVADO de Supabase Storage. Nunca se exponen con URL pública: se entregan
-// con URLs firmadas que vencen.
-
 const BUCKET = process.env.SUPABASE_BUCKET || 'verificacion-identidad';
 
-// Un link a la foto de un DNI tiene que vivir lo justo para que el admin la mire.
 export const SEGUNDOS_URL_DOCUMENTO = 300;
 
 let clienteCache = null;
@@ -25,13 +20,8 @@ export function almacenamientoDisponible() {
     return Boolean(obtenerCliente());
 }
 
-// En Render (o con NODE_ENV=production) no se escriben datos personales en el
-// disco del servidor: es efímero y no está pensado para guardarlos.
-// Staging y producción: nunca se escriben fotos de documentos en disco.
 export { esDesplegado as esProduccion } from '../config/entorno.js';
 
-// Antes de subir el primer archivo se confirma que el bucket no sea público.
-// Si alguien lo cambió en el panel, se deja de subir en lugar de exponer datos.
 async function exigirBucketPrivado(supa) {
     if (bucketPrivado === true) return;
     const { data, error } = await supa.storage.getBucket(BUCKET);
@@ -43,7 +33,6 @@ async function exigirBucketPrivado(supa) {
     bucketPrivado = true;
 }
 
-// Para /api/salud: el bucket existe, responde y sigue siendo privado.
 export async function verificarAlmacenamiento() {
     const supa = obtenerCliente();
     if (!supa) return { estado: 'no_configurado' };
@@ -67,7 +56,6 @@ export async function subirArchivo(ruta, buffer, contentType = 'application/octe
     return ruta;
 }
 
-// Alias histórico: la verificación de identidad ya lo usaba con este nombre.
 export const subirImagen = (ruta, buffer, contentType = 'image/jpeg') =>
     subirArchivo(ruta, buffer, contentType);
 
@@ -81,8 +69,6 @@ export async function urlFirmada(ruta, expiraEnSegundos = SEGUNDOS_URL_DOCUMENTO
     return data.signedUrl;
 }
 
-// Borra archivos del bucket (por ejemplo, al eliminar una cuenta). Devuelve las
-// rutas que no se pudieron borrar para dejarlas registradas.
 export async function borrarArchivos(rutas) {
     const enStorage = rutas.filter((r) => r && !r.startsWith('uploads/'));
     const supa = obtenerCliente();

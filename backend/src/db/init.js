@@ -53,8 +53,6 @@ async function sembrarVehiculos() {
     }
 }
 
-// Al arrancar se aplican las migraciones pendientes y después los datos base
-// (admins y flota), que no son esquema y se reafirman en cada arranque.
 export async function inicializarBaseDeDatos() {
     const aplicadas = await migrar();
     await sembrarAdmins();

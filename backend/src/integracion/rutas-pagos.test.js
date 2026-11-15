@@ -1,6 +1,3 @@
-// Hito 3.3: /api/pagos de punta a punta con supertest, contra PostgreSQL real.
-// Mercado Pago y MODO no están configurados en las pruebas: los checkouts son
-// sandbox, que es justamente el camino que se puede ejercitar sin pasarela.
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHmac, randomUUID } from 'node:crypto';
@@ -46,11 +43,9 @@ describe('/api/pagos (integración)', { skip: SALTEAR }, () => {
             assert.equal(r.status, 402);
             assert.equal(r.body.aprobado, false);
             assert.equal((await e.pool.query('SELECT estado_pago FROM envios WHERE codigo = $1', [env.codigo])).rows[0].estado_pago, 'pendiente');
-            // Un número imposible lo rechaza el procesador, con el motivo.
             const corto = await e.http('post', '/api/pagos/tarjeta', { token: s.token }).send({ envioCodigo: env.codigo, ...TARJETA, numero: '12' });
             assert.equal(corto.status, 402);
             assert.ok(corto.body.motivo);
-            // Sin el envío, la validación corta antes de llegar al procesador (400).
             assert.equal((await e.http('post', '/api/pagos/tarjeta', { token: s.token }).send({ ...TARJETA })).status, 400);
         });
 

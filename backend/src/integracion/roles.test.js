@@ -1,4 +1,3 @@
-// Roles y permisos (Hito 3.2) contra PostgreSQL real.
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { levantarApi, SALTEAR } from './entorno.js';
@@ -18,7 +17,6 @@ describe('roles y permisos (integración)', { skip: SALTEAR }, () => {
 
     after(() => entorno?.cerrar());
 
-    // Cuenta con un rol dado, ya logueada con ese rol.
     async function conRol(sufijo, rol) {
         const s = await cuenta(sufijo);
         if (rol !== 'cliente') await pool.query('UPDATE usuarios SET rol = $2 WHERE id = $1', [s.perfil.id, rol]);
@@ -82,7 +80,6 @@ describe('roles y permisos (integración)', { skip: SALTEAR }, () => {
         assert.equal((await api('/api/choferes/CH-XXXX/documentos', { token: soporte.token })).status, 403);
         assert.equal((await api(`/api/admin/usuarios/${cliente.perfil.id}/rol`, { metodo: 'PUT', token: soporte.token, cuerpo: { rol: 'admin' } })).status, 403);
         assert.equal((await api('/api/admin/reset', { metodo: 'POST', token: soporte.token })).status, 403);
-        // Sí desbloquea un PIN y emite un cupón de compensación.
         assert.equal((await api(`/api/envios/${envio.codigo}/pin/desbloquear`, { metodo: 'POST', token: soporte.token })).status, 200);
         const cupon = await api('/api/cupones', { metodo: 'POST', token: soporte.token, cuerpo: { clienteId: cliente.perfil.id, descuentoPct: 10, motivo: 'Gesto por la demora' } });
         assert.equal(cupon.status, 201, JSON.stringify(cupon.body));

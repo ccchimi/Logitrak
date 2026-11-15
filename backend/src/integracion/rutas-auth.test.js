@@ -1,5 +1,3 @@
-// Hito 3.3: /api/auth de punta a punta con supertest (registro, login,
-// sesiones, perfil y recuperación), contra PostgreSQL real.
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';

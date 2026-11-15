@@ -8,8 +8,6 @@ import { exigirPermiso, tienePermiso } from '../middleware/permisos.js';
 
 export const rutasSoporte = Router();
 
-// Adjuntos: solo comprobantes. Nada de ejecutables ni video, que se come el
-// GB del plan Free de Storage en un puñado de archivos.
 const TIPOS_PERMITIDOS = new Set([
     'image/jpeg',
     'image/png',
@@ -31,7 +29,6 @@ const CATEGORIAS = new Set([
 
 function publicarTicket(fila) {
     return {
-        // El id numérico lo usa el frontend para filtrar el canal de Realtime.
         id: fila.id,
         codigo: fila.codigo,
         asunto: fila.asunto,
@@ -58,7 +55,6 @@ async function publicarMensaje(fila) {
                   nombre: fila.adjunto_nombre,
                   tipo: fila.adjunto_tipo,
                   bytes: fila.adjunto_bytes,
-                  // URL temporal: el bucket es privado, nunca exponemos la ruta.
                   url: await urlFirmada(fila.adjunto_ruta, 600),
               }
             : null,
@@ -108,14 +104,6 @@ async function insertarMensaje(cliente, ticketId, datos) {
     return rows[0];
 }
 
-// ---------------------------------------------------------------------------
-// Credencial para escuchar por Supabase Realtime
-// ---------------------------------------------------------------------------
-
-// Los usuarios de Logitrak viven en la tabla `usuarios`, no en Supabase Auth.
-// Para que las políticas RLS puedan identificarlos, firmamos un JWT con el JWT
-// secret del proyecto y dos claims propios. Es de solo lectura: el cliente no
-// puede escribir nada con este token, porque no hay políticas de INSERT.
 rutasSoporte.get('/realtime', autenticar, (req, res) => {
     const secreto = process.env.SUPABASE_JWT_SECRET;
     const url = process.env.SUPABASE_URL;
@@ -144,12 +132,8 @@ rutasSoporte.get('/realtime', autenticar, (req, res) => {
     return res.json({ exito: true, disponible: true, url, anonKey: anon, token });
 });
 
-// ---------------------------------------------------------------------------
-// Tickets
-// ---------------------------------------------------------------------------
-
 rutasSoporte.get('/tickets', autenticar, async (req, res) => {
-    const atiende = tienePermiso(req.usuario, 'soporte.atender'); // personal: soporte o admin
+    const atiende = tienePermiso(req.usuario, 'soporte.atender');
     const cond = [];
     const params = [];
 
@@ -185,7 +169,6 @@ rutasSoporte.post('/tickets', autenticar, async (req, res) => {
     if (envioCodigo) {
         const { rows } = await consultar('SELECT id, cliente_id FROM envios WHERE codigo = $1', [envioCodigo]);
         const envio = rows[0];
-        // Solo se puede asociar un envío propio: si no, sería una fuga de datos.
         if (envio && (tienePermiso(req.usuario, 'envios.ver_todos') || envio.cliente_id === req.usuario.id)) {
             envioId = envio.id;
         }
@@ -225,11 +208,8 @@ rutasSoporte.post('/tickets/:codigo/mensajes', autenticar, async (req, res) => {
 
     const b = req.body ?? {};
     const texto = (b.texto || '').toString().trim().slice(0, 4000);
-    const atiende = tienePermiso(req.usuario, 'soporte.atender'); // personal: soporte o admin
+    const atiende = tienePermiso(req.usuario, 'soporte.atender');
 
-    // El autor no se acepta del cliente salvo para distinguir al bot: si no,
-    // cualquiera podría hacerse pasar por un admin dentro del hilo.
-    // En el hilo, el personal (soporte o admin) figura como 'admin' (el equipo).
     let autor = atiende ? 'admin' : 'usuario';
     if (b.autor === 'bot' && !atiende) autor = 'bot';
 
@@ -293,7 +273,6 @@ rutasSoporte.post('/tickets/:codigo/mensajes', autenticar, async (req, res) => {
             adjuntoBytes: guardado?.bytes,
         });
 
-        // Que alguien del equipo conteste toma el ticket, si no lo tenía nadie.
         if (atiende && !r.ticket.admin_id) {
             await cliente.query(
                 `UPDATE soporte_tickets SET admin_id = $2, estado = 'escalado' WHERE id = $1`,
@@ -349,7 +328,6 @@ rutasSoporte.post('/tickets/:codigo/resolver', autenticar, async (req, res) => {
     const r = await buscarTicket(req.params.codigo, req.usuario);
     if (r.error === 404) return res.status(404).json({ exito: false, error: 'Consulta no encontrada.' });
     if (r.error === 403) return res.status(403).json({ exito: false, error: 'No tenés acceso a esta consulta.' });
-    // Una consulta cerrada por el equipo no se reabre marcándola como resuelta.
     if (r.ticket.estado === 'cerrado') {
         return res.status(409).json({ exito: false, error: 'Esta consulta está cerrada.' });
     }

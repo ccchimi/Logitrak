@@ -1,6 +1,3 @@
-// Perfil y flota de punta a punta con supertest, contra PostgreSQL real: ver y
-// editar el perfil (cliente y chofer), cambiar la contraseña, el resumen y la
-// lista de vehículos. La eliminación de la cuenta tiene su archivo propio.
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { levantarApi, SALTEAR } from './entorno.js';
@@ -15,7 +12,6 @@ describe('/api/perfil y /api/vehiculos (integración)', { skip: SALTEAR }, () =>
 
     const editar = (s, cuerpo) => e.http('put', '/api/perfil', { token: s.token }).send(cuerpo);
 
-    // Un chofer con su ficha, ya logueado como chofer.
     async function chofer(sufijo) {
         const s = await e.conRol(sufijo, 'chofer');
         await e.pool.query(

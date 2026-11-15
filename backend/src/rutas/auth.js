@@ -24,8 +24,6 @@ function publicar(fila, chofer) {
         id: fila.id,
         usuario: fila.usuario,
         rol: fila.rol,
-        // La app muestra u oculta acciones con esto; la API igual vuelve a
-        // verificar cada permiso en cada pedido.
         permisos: permisosDe(fila.rol),
         nombreCompleto: fila.nombre_completo,
         chofer: chofer ? { codigo: chofer.codigo } : null,
@@ -68,8 +66,6 @@ rutasAuth.post('/login', limiteLogin, validarRequest({ body: esquemas.login }), 
         return res.json({ exito: true, usuario: publicar(fila, chofer) });
     }
 
-    // La app nueva recibe además un refresh token para renovar la sesión sola;
-    // las versiones viejas, el token largo de siempre.
     const respuesta = { exito: true, token: emitirAccessToken(fila, req), usuario: publicar(fila, chofer) };
     if (clienteUsaRefresh(req)) respuesta.refreshToken = await crearSesion(pool, fila.id, req);
     return res.json(respuesta);
@@ -77,8 +73,6 @@ rutasAuth.post('/login', limiteLogin, validarRequest({ body: esquemas.login }), 
 
 const SESION_VENCIDA = { exito: false, codigo: 'sesion_vencida', error: 'Tu sesión venció. Volvé a ingresar.' };
 
-// Cambia el refresh token por uno nuevo y entrega un access token corto, con
-// los datos del usuario releídos de la base (por si cambió el rol o el nombre).
 rutasAuth.post('/refresh', limiteRenovacion, validarRequest({ body: esquemas.renovar }), async (req, res) => {
     const cliente = await pool.connect();
     try {
@@ -89,8 +83,6 @@ rutasAuth.post('/refresh', limiteRenovacion, validarRequest({ body: esquemas.ren
         if (!r.error) {
             fila = (await cliente.query('SELECT * FROM usuarios WHERE id = $1', [r.usuarioId])).rows[0] ?? null;
         }
-        // COMMIT también en los errores: si detectó un token reutilizado, la
-        // revocación de la cadena tiene que quedar guardada.
         await cliente.query('COMMIT');
 
         if (r.error === 'rotado') {
@@ -121,8 +113,6 @@ rutasAuth.post('/refresh', limiteRenovacion, validarRequest({ body: esquemas.ren
     }
 });
 
-// Cierra la sesión del dispositivo: revoca su refresh token y toda su cadena.
-// Responde igual exista o no el token, para no revelar nada.
 rutasAuth.post('/logout', validarRequest({ body: esquemas.salir }), async (req, res) => {
     await cerrarSesion(pool, req.body.refreshToken);
     return res.json({ exito: true });
@@ -168,7 +158,6 @@ rutasAuth.post('/recuperar', limiteLogin, validarRequest({ body: esquemas.recupe
     const hash = await bcrypt.hash(nueva, 10);
     await consultar('UPDATE usuarios SET contrasena_hash = $1 WHERE id = $2', [hash, fila.id]);
 
-    // Con la contraseña nueva se cierran todas las sesiones abiertas de la cuenta.
     await revocarSesionesDeUsuario(pool, fila.id, 'cambio_clave');
 
     return res.json({ exito: true, mensaje: 'Contraseña actualizada. Ya podés iniciar sesión.' });

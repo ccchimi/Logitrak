@@ -1,9 +1,5 @@
 import { llamarApi } from './api';
 
-// Bandeja de notificaciones (Hito 2.2 en el backend, bandeja en la app desde el
-// cierre de la Fase 2). Las genera el backend a partir de los eventos del
-// outbox; la app las lista, las marca como leídas y muestra el contador.
-
 export interface Notificacion {
     id: number;
     tipo: string;
@@ -29,7 +25,6 @@ export async function contarNoLeidas(): Promise<number> {
     return r.exito ? r.noLeidas : 0;
 }
 
-/** Sin ids marca todas. */
 export async function marcarLeidas(ids?: number[]): Promise<boolean> {
     const r = await llamarApi<{ exito: true }>('/api/notificaciones/leidas', {
         metodo: 'POST',
@@ -40,9 +35,6 @@ export async function marcarLeidas(ids?: number[]): Promise<boolean> {
     return r.exito;
 }
 
-// Contador compartido de no leídas. La navegación mantiene montadas las
-// pantallas anteriores, cada una con su campana: en vez de que cada una
-// consulte, hay una sola consulta periódica y todas se suscriben al valor.
 type Oyente = (cantidad: number) => void;
 const oyentes = new Set<Oyente>();
 const CADA_MS = 60000;
@@ -50,7 +42,6 @@ let cantidadActual = 0;
 let intervalo: ReturnType<typeof setInterval> | null = null;
 let consultaEnCurso: Promise<void> | null = null;
 
-/** Vuelve a contar (al marcar algo como leído, al llegar un push, al cambiar de pantalla). */
 export function avisarCambio(): Promise<void> {
     consultaEnCurso ??= contarNoLeidas()
         .then((n) => {
@@ -79,7 +70,6 @@ export function suscribirNoLeidas(fn: Oyente): () => void {
     };
 }
 
-// Adónde lleva una notificación (o un push) al tocarla.
 export function destinoDeNotificacion(
     datos: { tipo?: string; envioCodigo?: string } | null | undefined,
     rol: string | undefined

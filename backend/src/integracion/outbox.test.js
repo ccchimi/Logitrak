@@ -1,4 +1,3 @@
-// Patrón outbox (Hito 2.2) contra PostgreSQL real.
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { levantarApi, SALTEAR } from './entorno.js';

@@ -20,10 +20,6 @@ import {
   type Notificacion,
 } from "../services/notificacionesService";
 
-// Bandeja de notificaciones: pago aprobado, chofer asignado, cupón acreditado,
-// pedido vencido... Las no leídas se resaltan; tocar una la marca como leída
-// y lleva al envío.
-
 function haceCuanto(fecha: string): string {
   const seg = Math.max(0, (Date.now() - Date.parse(fecha)) / 1000);
   if (seg < 60) return "recién";

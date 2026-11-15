@@ -1,25 +1,15 @@
-// Notificaciones push a los teléfonos con el servicio de Expo (Hito 2.3).
-//
-// Los tokens los registra la app al iniciar sesión (POST /api/notificaciones/push-token).
-// Lo llama el despachador del outbox DESPUÉS de confirmar la transacción del
-// evento: el push es un efecto externo y no se puede deshacer, así que nunca
-// sale desde adentro de una transacción. Es "mejor esfuerzo": si falla queda en
-// el log, y la notificación igual está en la bandeja de la app.
 import { Expo } from 'expo-server-sdk';
 import { consultar } from '../db/pool.js';
 import { log } from '../observabilidad/logger.js';
 
 let cliente = null;
 function expo() {
-    // EXPO_ACCESS_TOKEN es opcional: hace falta solo si en expo.dev se activó
-    // "Enhanced security for push notifications".
     cliente ??= new Expo({ accessToken: process.env.EXPO_ACCESS_TOKEN?.trim() || undefined });
     return cliente;
 }
 
 export const esTokenValido = (token) => Expo.isExpoPushToken(token);
 
-// mensajes: [{ usuarioId, titulo, cuerpo, datos }]. Devuelve cuántos se enviaron.
 export async function enviarPush(mensajes, { cliente: expoCliente = null, consultarTokens = null } = {}) {
     if (!mensajes.length) return 0;
     const ids = [...new Set(mensajes.map((m) => m.usuarioId))];
@@ -55,7 +45,6 @@ export async function enviarPush(mensajes, { cliente: expoCliente = null, consul
             log().warn({ err: e, cantidad: lote.length }, 'No se pudo enviar un lote de push');
         }
     }
-    // El teléfono desinstaló la app o revocó el permiso: el token ya no sirve.
     if (invalidos.length) await consultar('DELETE FROM push_tokens WHERE token = ANY($1)', [invalidos]);
     log().info({ enviados, invalidos: invalidos.length }, 'Push enviados');
     return enviados;

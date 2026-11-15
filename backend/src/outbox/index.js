@@ -1,30 +1,12 @@
-// Patrón outbox (Hito 2.2).
-//
-// registrarEvento() se llama con el cliente de la transacción que produce el
-// hecho (aprobar un pago, cancelar un envío...): el evento se confirma o se
-// revierte junto con ese cambio. Nunca se manda nada a un tercero desde adentro
-// de la transacción.
-//
-// despachar() lo corre un trabajo de pg-boss: toma los eventos pendientes y
-// ejecuta sus manejadores. Cada evento se procesa en su propia transacción con
-// FOR UPDATE SKIP LOCKED, así dos despachadores nunca toman el mismo. Si un
-// manejador falla, el evento se reintenta con espera creciente; después de
-// MAX_INTENTOS queda marcado como fallido y se avisa (log + Sentry).
-//
-// Los payloads llevan ids y códigos, nunca datos personales: así el outbox no
-// es otra copia de datos que borrar cuando alguien elimina su cuenta.
 import { pool } from '../db/pool.js';
 import { log, registrarError } from '../observabilidad/logger.js';
 import { MANEJADORES } from './manejadores.js';
 import { enviarPush } from '../servicios/push.js';
 
 export const MAX_INTENTOS = 8;
-// Espera entre intentos: 30 s, 1 min, 2 min, 4 min... (se duplica cada vez).
 const ESPERA_BASE_SEG = 30;
 export const DIAS_RETENCION = 30;
 
-// El módulo de trabajos se registra acá para que, al confirmarse un evento, el
-// despachador corra enseguida en vez de esperar al barrido del minuto.
 let avisarDespachador = null;
 export function alRegistrarEvento(fn) {
     avisarDespachador = fn;
@@ -59,10 +41,6 @@ async function procesarUno(id, manejadores) {
         const manejador = manejadores[evento.event_type];
         if (!manejador) throw new Error(`No hay manejador para el evento ${evento.event_type}`);
 
-        // Los efectos en la base (por ejemplo, la notificación) van en la misma
-        // transacción que la marca de procesado: o quedan los dos, o ninguno.
-        // Los manejadores dejan en ctx.push lo que hay que mandar al teléfono;
-        // se manda recién después del COMMIT (un push no se puede deshacer).
         const ctx = { push: [] };
         await manejador(cliente, evento, ctx);
         await cliente.query('UPDATE outbox_events SET processed = TRUE, processed_at = now(), last_error = NULL WHERE id = $1', [id]);
@@ -99,8 +77,6 @@ async function registrarFalla(id, error) {
     return 'reintentar';
 }
 
-// Procesa los pendientes de a uno, hasta `limite`. Devuelve el conteo por resultado.
-// `ids` restringe el despacho a esos eventos (lo usan las pruebas).
 export async function despachar({ limite = 100, manejadores = MANEJADORES, ids = null } = {}) {
     const { rows } = await pool.query(
         `SELECT id FROM outbox_events
@@ -116,7 +92,6 @@ export async function despachar({ limite = 100, manejadores = MANEJADORES, ids =
     return resumen;
 }
 
-// Los eventos ya procesados no se guardan para siempre.
 export async function purgarProcesados(dias = DIAS_RETENCION) {
     const { rowCount } = await pool.query(
         `DELETE FROM outbox_events WHERE processed AND processed_at < now() - make_interval(days => $1::int)`,

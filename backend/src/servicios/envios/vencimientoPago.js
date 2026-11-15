@@ -1,5 +1,3 @@
-// Reglas del vencimiento de pago que no tocan la base: se pueden usar (y
-// probar) sin abrir una conexión.
 import { buscarPagoMpPorReferencia, mpHabilitado } from '../pagos/mercadoPago.js';
 import { consultarIntencionModo, modoHabilitado } from '../pagos/modo.js';
 
@@ -14,13 +12,11 @@ export const RESPUESTA_VENCIDO = {
     error: `El pedido venció porque no se pagó en ${MINUTOS_PARA_PAGAR} minutos. Volvé a cotizar el envío.`,
 };
 
-// ¿La pasarela tiene un pago aprobado o en proceso para alguno de estos
-// intentos? Lanza si no puede saberlo.
 const ESTADOS_EN_CURSO = new Set(['approved', 'authorized', 'in_process', 'in_mediation']);
 
 export async function hayPagoEnCurso(intentos, pasarelas = { buscarPagoMpPorReferencia, consultarIntencionModo, mpHabilitado, modoHabilitado }) {
     for (const p of intentos) {
-        if (p.modo_proc !== 'real') continue; // sandbox: se confirma a mano, y eso ya está bloqueado por el vencimiento
+        if (p.modo_proc !== 'real') continue;
         if (p.metodo === 'mercadopago' && pasarelas.mpHabilitado()) {
             const mp = await pasarelas.buscarPagoMpPorReferencia(p.codigo, { estricto: true });
             if (mp && ESTADOS_EN_CURSO.has(mp.estado)) return true;

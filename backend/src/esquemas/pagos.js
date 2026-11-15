@@ -10,8 +10,6 @@ export const checkout = z.object({
     metodo: z.enum(['mercadopago', 'modo'], { error: 'Método de checkout inválido (usá mercadopago o modo).' }),
 });
 
-// Solo forma y tamaño: si la tarjeta es válida lo decide el procesador, que
-// devuelve un motivo pensado para mostrarle al cliente.
 export const tarjeta = z.object({
     envioCodigo,
     numero: textoOpcional(30, 'El número de tarjeta es inválido.'),

@@ -5,10 +5,6 @@ import { DISENO as D } from "../theme/diseno";
 import Icono from "./Icono";
 import { avisarCambio, suscribirNoLeidas } from "../services/notificacionesService";
 
-// Campana del encabezado con la cantidad de notificaciones sin leer. El número
-// es compartido (una sola consulta por minuto para toda la app) y se actualiza
-// al cambiar de pantalla y enseguida cuando llega un push o se marca algo leído.
-
 export default function Campana({ onPress, ruta }: { onPress: () => void; ruta: string }) {
   const tema = useTema();
   const [cantidad, setCantidad] = useState(0);

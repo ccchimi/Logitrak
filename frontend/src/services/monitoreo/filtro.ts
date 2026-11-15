@@ -1,6 +1,3 @@
-// Lo que nunca sale del teléfono hacia Sentry: cuerpos de pedidos, cookies,
-// encabezados de autorización ni datos del usuario más allá de su id.
-
 interface EventoMinimo {
     request?: {
         data?: unknown;
@@ -15,7 +12,6 @@ interface EventoMinimo {
 
 const ENCABEZADOS_PRIVADOS = /^(authorization|cookie|x-logitrak-sesion|idempotency-key)$/i;
 
-// Las URL de la API pueden llevar coordenadas u otros datos en la query.
 export const sinQuery = (url: string) => url.split('?')[0];
 
 export function limpiarEvento<E extends EventoMinimo>(evento: E): E {

@@ -1,4 +1,3 @@
-// Pedidos impagos (vencen a los 5 minutos y se borran) contra PostgreSQL real.
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { levantarApi, SALTEAR } from './entorno.js';
@@ -16,9 +15,6 @@ const pasarelas = (respuesta) => ({
     consultarIntencionModo: async () => null,
 });
 
-// Los módulos que usan la base (impagos.js) se importan dentro de before(),
-// después de levantarApi(): si se importan arriba, la conexión se crea antes de
-// apuntarla a la base de prueba. vencimientoPago.js no toca la base.
 describe('pedidoVencido y hayPagoEnCurso', () => {
     test('vence solo si no está pago y pasó el límite', () => {
         const antes = new Date(Date.now() - 1000).toISOString();
@@ -100,7 +96,7 @@ describe('pedidos impagos (integración)', { skip: SALTEAR }, () => {
         await api('/api/pagos/tarjeta', {
             metodo: 'POST',
             token: s.token,
-            cuerpo: { envioCodigo: e.codigo, ...TARJETA_OK, numero: '4000000000000002' }, // tarjeta rechazada del procesador simulado
+            cuerpo: { envioCodigo: e.codigo, ...TARJETA_OK, numero: '4000000000000002' },
         });
         const id = await idDe(e.codigo);
         assert.ok((await pool.query('SELECT 1 FROM pagos WHERE envio_id = $1', [id])).rowCount >= 1);

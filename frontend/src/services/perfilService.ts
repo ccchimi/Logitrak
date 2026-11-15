@@ -139,8 +139,6 @@ export async function obtenerResumenPerfil(): Promise<ResumenPerfil | null> {
   return r.exito ? r.resumen : null;
 }
 
-// Derecho de supresión: elimina la cuenta propia confirmando con la contraseña.
-// El backend anonimiza los datos y conserva solo los comprobantes de pago.
 export async function eliminarCuenta(contrasena: string): Promise<{ exito: true; mensaje: string } | { exito: false; error: string }> {
     const r = await llamarApi<{ exito: true; mensaje: string }>('/api/perfil/eliminar-cuenta', {
         metodo: 'POST',

@@ -45,14 +45,11 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
   const solicitoEnvioRef = useRef(false);
   const enviandoRef = useRef(false);
   const typingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  // Mensaje que Boxy está tipeando ahora: guardamos el texto completo y el
-  // resolve de su promesa para poder terminarlo de golpe con Enter.
   const tipeoEnCursoRef = useRef<{
     id: string;
     texto: string;
     resolver: () => void;
   } | null>(null);
-  // Espera cancelable de las pausas de "Analizando".
   const esperaEnCursoRef = useRef<{
     timer: ReturnType<typeof setTimeout>;
     resolver: () => void;
@@ -257,7 +254,6 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
     };
   }, []);
 
-  // Espera que Enter puede cortar, para las pausas artificiales de Boxy.
   const esperar = useCallback((ms: number) => {
     return new Promise<void>((resolve) => {
       const terminar = () => {
@@ -269,8 +265,6 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
     });
   }, []);
 
-  // Completa de una lo que Boxy esté tipeando o esperando. Devuelve true si
-  // había algo que saltear, para que Enter no haga además un envío.
   const saltearBoxy = useCallback(() => {
     let salteo = false;
 

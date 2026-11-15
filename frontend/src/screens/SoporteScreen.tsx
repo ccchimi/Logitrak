@@ -47,11 +47,8 @@ import {
 
 const TIPOS_ACEPTADOS = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'application/pdf'];
 const MAX_BYTES = 10 * 1024 * 1024;
-/** Cada cuánto se relee el hilo cuando Realtime no está disponible. */
 const MS_POLLING = 3000;
 
-// expo-file-system no existe en web: ahí el picker devuelve una URI de blob que
-// se puede leer con fetch. En nativo va por el sistema de archivos.
 async function leerComoBase64(uri: string): Promise<string> {
     if (Platform.OS === 'web') {
         const blob = await (await fetch(uri)).blob();
@@ -150,7 +147,6 @@ export default function SoporteScreen({ navigation }: any) {
   const tema = useTema();
     const { toasts, mostrar, cerrar } = useToasts();
     const sesion = obtenerUsuarioSesion();
-    // El personal (soporte y admin) atiende las consultas de todos.
     const esAdmin = puede('soporte.atender');
 
     const [tickets, setTickets] = useState<TicketSoporte[]>([]);
@@ -183,8 +179,6 @@ export default function SoporteScreen({ navigation }: any) {
         void cargarLista();
     }, [cargarLista]);
 
-    // Realtime si está configurado; si no, consultamos cada pocos segundos. La
-    // pantalla se comporta igual en los dos casos.
     useEffect(() => {
         if (!activo) return;
         let vivo = true;
@@ -267,8 +261,6 @@ export default function SoporteScreen({ navigation }: any) {
         }
     };
 
-    // Responder al usuario cuando el ticket todavía lo atiende el bot. Si Boxy
-    // no puede resolverlo, escala en vez de inventar una respuesta.
     const responderComoBot = async (ticket: TicketSoporte, mensajeUsuario: string) => {
         const codigoEnvio = extraerCodigoEnvio(mensajeUsuario);
         if (codigoEnvio) envioRef.current = codigoEnvio;
@@ -332,7 +324,6 @@ export default function SoporteScreen({ navigation }: any) {
         }
     };
 
-    // ---------------------------------------------------------------- listado
     if (!activo) {
         return (
             <SafeAreaView style={tema.estilo(styles.safeArea)}>
@@ -411,7 +402,6 @@ export default function SoporteScreen({ navigation }: any) {
         );
     }
 
-    // ------------------------------------------------------------------- hilo
     const cerrada = activo.estado === 'cerrado';
     const preset = presetDe(activo.categoria);
 

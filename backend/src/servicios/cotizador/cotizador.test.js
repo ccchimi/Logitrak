@@ -2,8 +2,6 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { cotizarEnServidor, horaOperativa, verificarCotizacionParaEnvio } from './index.js';
 
-// Miércoles 14/10/2026, 14:00 en Argentina (17:00 UTC): franja valle, sin recargo.
-// Es la misma solicitud que el TP1 calcula a mano en el frontend: $3500 en moto.
 const MIERCOLES_VALLE = new Date('2026-10-14T17:00:00Z');
 
 const documentos = {
@@ -49,7 +47,6 @@ test('calcula igual que la app para la misma solicitud', () => {
 });
 
 test('aplica las franjas en hora argentina aunque el servidor corra en UTC', () => {
-    // 21:00 UTC del domingo 18/10 = 18:00 en Argentina: pico vespertino + domingo.
     const domingoPico = cotizacionOk(cotizarEnServidor(documentos, new Date('2026-10-18T21:00:00Z')));
     const valle = cotizacionOk(cotizarEnServidor(documentos, MIERCOLES_VALLE));
 
