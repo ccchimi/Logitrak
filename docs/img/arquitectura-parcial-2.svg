@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1050" viewBox="0 0 1600 1050" font-family="sans-serif">
   <rect width="1600" height="1050" fill="#FFFFFF"/>
 
-  <text x="800" y="44" text-anchor="middle" font-size="30" font-weight="bold" fill="#1F3864">Logitrak · Arquitectura (Parcial 2)</text>
+  <text x="800" y="44" text-anchor="middle" font-size="30" font-weight="bold" fill="#1F3864">Logitrak · Arquitectura (actualizada al 15/11/2026)</text>
 
   <!-- Columna cliente -->
   <rect x="30" y="80" width="470" height="660" rx="16" fill="#F2F6FC" stroke="#2E5496" stroke-width="2"/>
@@ -10,14 +10,14 @@
 
   <rect x="60" y="165" width="195" height="62" rx="10" fill="#FFFFFF" stroke="#2E5496"/>
   <text x="157" y="192" text-anchor="middle" font-size="18" font-weight="bold" fill="#1F3864">Web App</text>
-  <text x="157" y="214" text-anchor="middle" font-size="14" fill="#44546A">react-native-web · GitHub Pages</text>
+  <text x="157" y="214" text-anchor="middle" font-size="14" fill="#44546A">react-native-web · Pages</text>
   <rect x="275" y="165" width="195" height="62" rx="10" fill="#FFFFFF" stroke="#2E5496"/>
   <text x="372" y="192" text-anchor="middle" font-size="18" font-weight="bold" fill="#1F3864">Mobile App</text>
   <text x="372" y="214" text-anchor="middle" font-size="14" fill="#44546A">Android / iOS · EAS Build</text>
 
   <rect x="60" y="250" width="410" height="80" rx="10" fill="#FFFFFF" stroke="#8EA9DB"/>
   <text x="265" y="282" text-anchor="middle" font-size="18" font-weight="bold" fill="#1F3864">screens/ · components/</text>
-  <text x="265" y="308" text-anchor="middle" font-size="14" fill="#44546A">14 pantallas · componentes por dominio (boxy/, inicio/)</text>
+  <text x="265" y="308" text-anchor="middle" font-size="14" fill="#44546A">21 pantallas · componentes por dominio (boxy/, admin/, inicio/)</text>
 
   <rect x="60" y="350" width="410" height="96" rx="10" fill="#FFF7E6" stroke="#C9A227"/>
   <text x="265" y="380" text-anchor="middle" font-size="18" font-weight="bold" fill="#7F6000">Boxy · services/botLogistica</text>
@@ -26,7 +26,7 @@
 
   <rect x="60" y="466" width="410" height="80" rx="10" fill="#FFFFFF" stroke="#8EA9DB"/>
   <text x="265" y="498" text-anchor="middle" font-size="18" font-weight="bold" fill="#1F3864">services/*Service.ts · api.ts</text>
-  <text x="265" y="524" text-anchor="middle" font-size="14" fill="#44546A">cliente HTTP único: URL base + token JWT</text>
+  <text x="265" y="524" text-anchor="middle" font-size="14" fill="#44546A">cliente HTTP único (JWT + refresh) · Realtime · push</text>
 
   <rect x="60" y="566" width="200" height="70" rx="10" fill="#FFFFFF" stroke="#8EA9DB"/>
   <text x="160" y="596" text-anchor="middle" font-size="16" font-weight="bold" fill="#1F3864">helpers/ · constants/</text>
@@ -36,8 +36,8 @@
   <text x="370" y="620" text-anchor="middle" font-size="13" fill="#44546A">estilos por pantalla</text>
 
   <rect x="60" y="656" width="410" height="62" rx="10" fill="#FFFFFF" stroke="#8EA9DB"/>
-  <text x="265" y="684" text-anchor="middle" font-size="16" font-weight="bold" fill="#1F3864">Jest · 107 pruebas del cotizador</text>
-  <text x="265" y="706" text-anchor="middle" font-size="13" fill="#44546A">cobertura 98 % sentencias / 93 % ramas</text>
+  <text x="265" y="684" text-anchor="middle" font-size="16" font-weight="bold" fill="#1F3864">Jest · 211 pruebas de la app</text>
+  <text x="265" y="706" text-anchor="middle" font-size="13" fill="#44546A">cotizador, servicios, helpers y paneles</text>
 
   <!-- Columna backend -->
   <rect x="560" y="80" width="480" height="660" rx="16" fill="#F3F8F1" stroke="#548235" stroke-width="2"/>
@@ -46,12 +46,12 @@
 
   <rect x="590" y="165" width="420" height="96" rx="10" fill="#FFFFFF" stroke="#A9D18E"/>
   <text x="800" y="195" text-anchor="middle" font-size="18" font-weight="bold" fill="#385723">rutas/</text>
-  <text x="800" y="220" text-anchor="middle" font-size="14" fill="#44546A">auth · cotizaciones · envíos · asignaciones</text>
-  <text x="800" y="243" text-anchor="middle" font-size="14" fill="#44546A">pagos · cupones · soporte · perfil · choferes</text>
+  <text x="800" y="220" text-anchor="middle" font-size="14" fill="#44546A">auth · cotizaciones · envíos · asignaciones · pagos</text>
+  <text x="800" y="243" text-anchor="middle" font-size="14" fill="#44546A">cupones · soporte · perfil · choferes · admin · avisos</text>
 
   <rect x="590" y="281" width="420" height="70" rx="10" fill="#FFFFFF" stroke="#A9D18E"/>
-  <text x="800" y="311" text-anchor="middle" font-size="18" font-weight="bold" fill="#385723">middleware/auth.js</text>
-  <text x="800" y="335" text-anchor="middle" font-size="14" fill="#44546A">JWT · permisos por rol (cliente, chofer, admin)</text>
+  <text x="800" y="311" text-anchor="middle" font-size="18" font-weight="bold" fill="#385723">middleware/ · auth, permisos y Zod</text>
+  <text x="800" y="335" text-anchor="middle" font-size="14" fill="#44546A">permisos por capacidad: cliente, chofer, soporte, admin</text>
 
   <rect x="590" y="371" width="420" height="96" rx="10" fill="#FFF7E6" stroke="#C9A227"/>
   <text x="800" y="401" text-anchor="middle" font-size="18" font-weight="bold" fill="#7F6000">servicios/cotizador</text>
@@ -60,15 +60,15 @@
 
   <rect x="590" y="487" width="420" height="96" rx="10" fill="#FFFFFF" stroke="#A9D18E"/>
   <text x="800" y="517" text-anchor="middle" font-size="18" font-weight="bold" fill="#385723">servicios/</text>
-  <text x="800" y="542" text-anchor="middle" font-size="14" fill="#44546A">pagos (MP, MODO, tarjeta, QR, reembolsos)</text>
-  <text x="800" y="565" text-anchor="middle" font-size="14" fill="#44546A">identidad · face match · expiración de ofertas</text>
+  <text x="800" y="542" text-anchor="middle" font-size="14" fill="#44546A">pagos y reembolsos · entrega con PIN y foto</text>
+  <text x="800" y="565" text-anchor="middle" font-size="14" fill="#44546A">trabajos pg-boss (ofertas, impagos, SLA) · outbox</text>
 
   <rect x="590" y="603" width="420" height="62" rx="10" fill="#FFFFFF" stroke="#A9D18E"/>
-  <text x="800" y="631" text-anchor="middle" font-size="16" font-weight="bold" fill="#385723">db/ · SQL parametrizado (pg)</text>
-  <text x="800" y="653" text-anchor="middle" font-size="13" fill="#44546A">esquema + semillas al arrancar</text>
+  <text x="800" y="631" text-anchor="middle" font-size="16" font-weight="bold" fill="#385723">db/ · SQL parametrizado (pg) · migraciones</text>
+  <text x="800" y="653" text-anchor="middle" font-size="13" fill="#44546A">node-pg-migrate · RLS en todas las tablas</text>
 
   <rect x="590" y="680" width="420" height="44" rx="10" fill="#FFFFFF" stroke="#A9D18E"/>
-  <text x="800" y="708" text-anchor="middle" font-size="15" fill="#385723">node:test · 11 pruebas del cálculo en el servidor</text>
+  <text x="800" y="708" text-anchor="middle" font-size="15" fill="#385723">node:test + supertest · 256 pruebas · cobertura 89 %</text>
 
   <!-- Columna externos -->
   <rect x="1100" y="80" width="470" height="660" rx="16" fill="#F7F3FA" stroke="#7030A0" stroke-width="2"/>
@@ -77,8 +77,8 @@
   <rect x="1130" y="150" width="410" height="120" rx="10" fill="#FFFFFF" stroke="#B4A0CC"/>
   <text x="1335" y="182" text-anchor="middle" font-size="18" font-weight="bold" fill="#4B1F6F">Supabase</text>
   <text x="1335" y="208" text-anchor="middle" font-size="14" fill="#44546A">PostgreSQL (datos del sistema)</text>
-  <text x="1335" y="231" text-anchor="middle" font-size="14" fill="#44546A">Storage privado (fotos de verificación)</text>
-  <text x="1335" y="254" text-anchor="middle" font-size="14" fill="#44546A">Realtime (chat de soporte)</text>
+  <text x="1335" y="231" text-anchor="middle" font-size="14" fill="#44546A">Storage privado (identidad y fotos de entrega)</text>
+  <text x="1335" y="254" text-anchor="middle" font-size="14" fill="#44546A">Realtime (seguimiento y chat de soporte)</text>
 
   <rect x="1130" y="290" width="410" height="80" rx="10" fill="#FFFFFF" stroke="#B4A0CC"/>
   <text x="1335" y="322" text-anchor="middle" font-size="18" font-weight="bold" fill="#4B1F6F">Mercado Pago · MODO</text>
@@ -89,8 +89,8 @@
   <text x="1335" y="448" text-anchor="middle" font-size="14" fill="#44546A">sin clave: lectura offline del PDF417 del DNI</text>
 
   <rect x="1130" y="490" width="410" height="80" rx="10" fill="#FFFFFF" stroke="#B4A0CC"/>
-  <text x="1335" y="522" text-anchor="middle" font-size="18" font-weight="bold" fill="#4B1F6F">Google Maps</text>
-  <text x="1335" y="548" text-anchor="middle" font-size="14" fill="#44546A">mapa y trazado de ruta del seguimiento</text>
+  <text x="1335" y="522" text-anchor="middle" font-size="18" font-weight="bold" fill="#4B1F6F">Google Maps · Expo Push</text>
+  <text x="1335" y="548" text-anchor="middle" font-size="14" fill="#44546A">mapas y rutas · notificaciones push (FCM)</text>
 
   <!-- Conexiones -->
   <line x1="470" y1="506" x2="574" y2="506" stroke="#44546A" stroke-width="3"/><polygon points="588,506 574,498 574,514" fill="#44546A"/>
@@ -104,7 +104,7 @@
   <text x="1070" y="418" text-anchor="middle" font-size="12" fill="#44546A">DNI</text>
   <path d="M 265 740 L 265 772 L 1335 772 L 1335 754" fill="none" stroke="#7030A0" stroke-width="2.5" stroke-dasharray="9 7"/>
   <polygon points="1335,742 1327,756 1343,756" fill="#7030A0"/>
-  <text x="800" y="764" text-anchor="middle" font-size="14" fill="#7030A0">la app usa directo Supabase Realtime (chat de soporte) y Google Maps (mapas y rutas)</text>
+  <text x="800" y="764" text-anchor="middle" font-size="14" fill="#7030A0">la app escucha directo Supabase Realtime (seguimiento y chat, con RLS) y usa Google Maps; el push le llega por FCM</text>
   
   
   
@@ -122,8 +122,8 @@
 
   <rect x="430" y="870" width="320" height="120" rx="10" fill="#FFFFFF" stroke="#7F7F7F"/>
   <text x="590" y="905" text-anchor="middle" font-size="18" font-weight="bold" fill="#404040">GitHub Actions · CI</text>
-  <text x="590" y="932" text-anchor="middle" font-size="14" fill="#44546A">pruebas frontend + backend</text>
-  <text x="590" y="955" text-anchor="middle" font-size="14" fill="#44546A">cobertura · npm audit · semanal</text>
+  <text x="590" y="932" text-anchor="middle" font-size="14" fill="#44546A">pruebas frontend + backend con PostgreSQL</text>
+  <text x="590" y="955" text-anchor="middle" font-size="14" fill="#44546A">cobertura mínima · npm audit · semanal</text>
 
   <rect x="850" y="860" width="320" height="58" rx="10" fill="#FFFFFF" stroke="#7F7F7F"/>
   <text x="1010" y="887" text-anchor="middle" font-size="16" font-weight="bold" fill="#404040">GitHub Pages</text>
