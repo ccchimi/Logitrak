@@ -140,6 +140,14 @@ commit desplegado, útil para confirmar qué versión está corriendo. Como heal
 check de Render conviene `/api/salud/vivo`: si Supabase tiene un corte, no tiene
 sentido que Render reinicie la API.
 
+Al arrancar, la API abre el puerto enseguida y recién después aplica las
+migraciones y los datos base (`src/arranque.js`). Mientras tanto `/api/salud` y
+el resto de `/api` responden 503 con `"codigo": "iniciando"` y `Retry-After`, y
+`/api/salud/vivo` ya da 200. Antes escuchaba recién con la base lista: en un
+deploy donde la base tardaba (la instancia anterior todavía ocupaba las
+conexiones), Render no veía el puerto abierto y cortaba el arranque por tiempo.
+El log dice cuánto tardó la preparación (`API lista para atender pedidos`).
+
 ## Trabajos en segundo plano
 
 Lo que tiene que pasar aunque nadie esté mirando la app corre con `pg-boss`

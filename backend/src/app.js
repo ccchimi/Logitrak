@@ -3,6 +3,7 @@ import express from 'express';
 import { pool } from './db/pool.js';
 import { DIR_MIGRACIONES, TABLA_MIGRACIONES } from './db/migrar.js';
 import { crearChequeoSalud } from './servicios/salud.js';
+import { apiLista, esperarArranque, RESPUESTA_INICIANDO } from './arranque.js';
 import { verificarAlmacenamiento } from './servicios/almacenamiento.js';
 import { estadoTrabajos } from './trabajos/index.js';
 import { configurarSeguridad } from './middleware/seguridad.js';
@@ -51,10 +52,17 @@ const chequearSalud = crearChequeoSalud({
 });
 
 app.get('/api/salud', async (_req, res) => {
-    const salud = await chequearSalud();
     res.set('Cache-Control', 'no-store');
+    // Mientras arranca no se consulta la base: puede estar migrando.
+    if (!apiLista()) {
+        return res.status(503).json({ ...RESPUESTA_INICIANDO, estado: 'iniciando', version: process.env.RENDER_GIT_COMMIT?.slice(0, 7) ?? null });
+    }
+    const salud = await chequearSalud();
     res.status(salud.estado === 'error' ? 503 : 200).json(salud);
 });
+
+// Hasta que la base esté migrada, el resto de la API responde 503 "iniciando".
+app.use('/api', esperarArranque);
 
 app.use('/api/auth', rutasAuth);
 app.use('/api/choferes', rutasChoferes);
