@@ -20,7 +20,7 @@
 | API (backend) | https://logitrak.onrender.com/api/salud |
 | Integración continua | https://github.com/ccchimi/Logitrak/actions |
 
-La Mobile App se ejecuta con Expo Go (`npm start` en `frontend/`) o con un build de EAS. Las instrucciones de instalación están en el `README.md` de la raíz y en el `README.md` de cada parte (`frontend/` es el README específico de la app mobile).
+La Mobile App se ejecuta con un build de desarrollo de Expo (`npm run android` en `frontend/`) o con un build de EAS. Las instrucciones de instalación están en el `README.md` de la raíz, en `frontend/README.md` (Web App) y en `docs/mobile/README.md`, el README específico de la Mobile App para Android e iOS.
 
 ## 1. Descripción técnica general del avance
 
