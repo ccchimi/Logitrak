@@ -11,15 +11,17 @@ export interface DatosPanelAdmin {
   creacionesDesde: number | null;
 }
 export async function obtenerPanelAdmin(): Promise<DatosPanelAdmin> {
-  if (obtenerUsuarioSesion()?.rol !== "admin")
-    throw new Error("Esta sección requiere una sesión de administrador.");
+  // Panel de operación del equipo (Hito 3.2): soporte y admin.
+  const esEquipo = (rol?: string) => rol === "admin" || rol === "soporte";
+  if (!esEquipo(obtenerUsuarioSesion()?.rol))
+    throw new Error("Esta sección es del equipo de Logitrak (soporte o administración).");
   const identidad = await llamarApi<{ exito: true; usuario: { rol: string } }>(
     "/api/auth/perfil",
     { conAuth: true },
   );
   if (!identidad.exito) throw new Error(identidad.error);
-  if (identidad.usuario?.rol !== "admin")
-    throw new Error("El servidor no reconoce esta sesión como administrador.");
+  if (!esEquipo(identidad.usuario?.rol))
+    throw new Error("El servidor no reconoce esta sesión como del equipo de Logitrak.");
   const [lista, resumen] = await Promise.all([
     llamarApi<{ exito: true; envios: Envio[] }>("/api/envios", {
       conAuth: true,

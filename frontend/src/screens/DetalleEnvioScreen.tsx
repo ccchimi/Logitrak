@@ -19,6 +19,7 @@ import {
 } from "../services/enviosService";
 import { obtenerUsuarioSesion } from "../services/authService";
 import { ToastStack, useToasts } from "../components/Toasts";
+import { puede } from "../services/permisos";
 import {
   COLORS,
   ESTADO_ENVIO_COLOR,
@@ -172,7 +173,9 @@ export default function DetalleEnvioScreen({ navigation, route }: any) {
   const [confirmacion, setConfirmacion] = useState(false);
   const [procesando, setProcesando] = useState(false);
 
-  const esAdmin = obtenerUsuarioSesion()?.rol === "admin";
+  // El personal ve todo el envío; reembolsar es solo del admin.
+  const esAdmin = puede("envios.ver_todos");
+  const puedeReembolsar = puede("envios.reembolsar");
 
   const cargar = useCallback(async () => {
     const d = await obtenerEnvio(codigo);
@@ -399,7 +402,7 @@ export default function DetalleEnvioScreen({ navigation, route }: any) {
             </View>
           )}
 
-          {esAdmin && (
+          {puedeReembolsar && (
             <View style={tema.estilo([styles.tarjeta, styles.zonaAdmin])}>
               <Text style={tema.estilo(styles.tarjetaTitulo)}>
                 Acciones de administrador

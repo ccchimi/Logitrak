@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { consultar, pool } from '../db/pool.js';
-import { autenticar, exigirRol } from '../middleware/auth.js';
+import { autenticar } from '../middleware/auth.js';
 import { validarRequest } from '../middleware/validar.js';
 import { crearEnvio } from '../esquemas/envios.js';
 import { verificarCotizacionParaEnvio } from '../servicios/cotizador/index.js';
@@ -10,6 +10,7 @@ import { reembolsarPagoDelEnvio } from '../servicios/pagos/reembolsos.js';
 import { registrarError } from '../observabilidad/logger.js';
 import { generarPin } from '../servicios/envios/entrega.js';
 import { urlFirmada } from '../servicios/almacenamiento.js';
+import { exigirPermiso, tienePermiso } from '../middleware/permisos.js';
 
 export const rutasEnvios = Router();
 
@@ -199,12 +200,12 @@ rutasEnvios.post('/', autenticar, validarRequest({ body: crearEnvio }), async (r
 });
 
 rutasEnvios.get('/metricas', autenticar, async (req, res) => {
-    const esAdmin = req.usuario.rol === 'admin';
-    const choferId = esAdmin ? null : await choferIdDe(req.usuario.id);
+    const verTodos = tienePermiso(req.usuario, 'envios.ver_todos');
+    const choferId = verTodos ? null : await choferIdDe(req.usuario.id);
 
     let filtro = 'cliente_id = $1';
     let params = [req.usuario.id];
-    if (esAdmin) {
+    if (verTodos) {
         filtro = 'TRUE';
         params = [];
     } else if (choferId) {
@@ -239,12 +240,13 @@ rutasEnvios.get('/metricas', autenticar, async (req, res) => {
 });
 
 rutasEnvios.get('/', autenticar, async (req, res) => {
-    const esAdmin = req.usuario.rol === 'admin';
-    const choferId = esAdmin ? null : await choferIdDe(req.usuario.id);
+    const verTodos = tienePermiso(req.usuario, 'envios.ver_todos');
+    const choferId = verTodos ? null : await choferIdDe(req.usuario.id);
 
     const cond = [];
     const params = [];
-    if (esAdmin) {
+    if (verTodos) {
+        // El personal ve todos los envíos.
     } else if (choferId) {
         params.push(choferId);
         cond.push(`e.chofer_id = $${params.length}`);
@@ -276,10 +278,10 @@ rutasEnvios.get('/:codigo', autenticar, async (req, res) => {
         return res.status(404).json({ exito: false, error: 'Envío no encontrado.' });
     }
 
-    const esAdmin = req.usuario.rol === 'admin';
-    const choferId = esAdmin ? null : await choferIdDe(req.usuario.id);
+    const verTodos = tienePermiso(req.usuario, 'envios.ver_todos');
+    const choferId = verTodos ? null : await choferIdDe(req.usuario.id);
     const autorizado =
-        esAdmin || envio.cliente_id === req.usuario.id || (choferId && envio.chofer_id === choferId);
+        verTodos || envio.cliente_id === req.usuario.id || (choferId && envio.chofer_id === choferId);
     if (!autorizado) {
         return res.status(403).json({ exito: false, error: 'No tenés acceso a este envío.' });
     }
@@ -339,10 +341,10 @@ rutasEnvios.post('/:codigo/eventos', autenticar, async (req, res) => {
         return res.status(404).json({ exito: false, error: 'Envío no encontrado.' });
     }
 
-    const esAdmin = req.usuario.rol === 'admin';
-    const choferId = esAdmin ? null : await choferIdDe(req.usuario.id);
+    const puedeMover = tienePermiso(req.usuario, 'envios.registrar_avance');
+    const choferId = puedeMover ? null : await choferIdDe(req.usuario.id);
     const esSuChofer = Boolean(choferId && envio.chofer_id === choferId);
-    if (!esAdmin && !esSuChofer) {
+    if (!puedeMover && !esSuChofer) {
         return res.status(403).json({ exito: false, error: 'Solo el chofer asignado registra los avances del viaje.' });
     }
     if (!['asignado', 'en_viaje'].includes(envio.estado)) {
@@ -413,7 +415,7 @@ const MENSAJE_REEMBOLSO = {
 
 // Soporte/admin: después de 5 PINs mal ingresados el envío se bloquea; acá se
 // desbloquea (por ejemplo, tras confirmar con el cliente quién recibe).
-rutasEnvios.post('/:codigo/pin/desbloquear', autenticar, exigirRol('admin'), async (req, res) => {
+rutasEnvios.post('/:codigo/pin/desbloquear', autenticar, exigirPermiso('envios.desbloquear_pin'), async (req, res) => {
     const { rowCount } = await consultar(
         `UPDATE envios SET pin_intentos = 0, pin_bloqueado_en = NULL, actualizado_en = now()
          WHERE codigo = $1 AND estado IN ('pendiente', 'asignado', 'en_viaje')`,
@@ -423,7 +425,7 @@ rutasEnvios.post('/:codigo/pin/desbloquear', autenticar, exigirRol('admin'), asy
     return res.json({ exito: true });
 });
 
-rutasEnvios.post('/:codigo/reembolsar', autenticar, exigirRol('admin'), async (req, res) => {
+rutasEnvios.post('/:codigo/reembolsar', autenticar, exigirPermiso('envios.reembolsar'), async (req, res) => {
     const envio = await buscarEnvioPorCodigo(req.params.codigo);
     if (!envio) return res.status(404).json({ exito: false, error: 'Envío no encontrado.' });
 
@@ -476,7 +478,7 @@ rutasEnvios.post('/:codigo/reembolsar', autenticar, exigirRol('admin'), async (r
     }
 });
 
-rutasEnvios.post('/:codigo/archivar', autenticar, exigirRol('admin'), async (req, res) => {
+rutasEnvios.post('/:codigo/archivar', autenticar, exigirPermiso('envios.archivar'), async (req, res) => {
     const envio = await buscarEnvioPorCodigo(req.params.codigo);
     if (!envio) return res.status(404).json({ exito: false, error: 'Envío no encontrado.' });
     if (envio.archivado_en) {
@@ -542,7 +544,7 @@ rutasEnvios.post('/:codigo/archivar', autenticar, exigirRol('admin'), async (req
     }
 });
 
-rutasEnvios.post('/:codigo/desarchivar', autenticar, exigirRol('admin'), async (req, res) => {
+rutasEnvios.post('/:codigo/desarchivar', autenticar, exigirPermiso('envios.archivar'), async (req, res) => {
     const { rowCount } = await consultar(
         `UPDATE envios SET archivado_en = NULL, archivado_por = NULL, archivado_motivo = NULL,
                 actualizado_en = now()

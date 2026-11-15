@@ -56,7 +56,7 @@ test.each(["cliente", "chofer", null])(
           } as any)
         : null,
     );
-    await expect(obtenerPanelAdmin()).rejects.toThrow("administrador");
+    await expect(obtenerPanelAdmin()).rejects.toThrow("equipo");
     expect(api).not.toHaveBeenCalled();
   },
 );
@@ -131,4 +131,14 @@ test("exactamente 200 puede ser completo si coincide con el total global", async
     200,
   );
   expect((await obtenerPanelAdmin()).completa).toBe(true);
+});
+
+test("soporte también entra al panel de operación (Hito 3.2)", async () => {
+  usuario.mockReturnValue({ id: 2, usuario: "sop", nombreCompleto: "Soporte", rol: "soporte", chofer: null });
+  api.mockImplementation(async (ruta: string) => {
+    if (ruta === "/api/auth/perfil") return { exito: true, usuario: { rol: "soporte" } } as any;
+    if (ruta === "/api/envios/metricas") return { exito: true, metricas: metricas(1) } as any;
+    return { exito: true, envios: [pedido(1)] } as any;
+  });
+  expect((await obtenerPanelAdmin()).pedidos).toHaveLength(1);
 });

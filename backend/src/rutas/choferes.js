@@ -17,6 +17,7 @@ import {
     urlFirmada,
 } from '../servicios/almacenamiento.js';
 import { log } from '../observabilidad/logger.js';
+import { exigirPermiso } from '../middleware/permisos.js';
 
 function base64ABuffer(valor) {
     if (typeof valor !== 'string' || !valor) return null;
@@ -142,7 +143,7 @@ rutasChoferes.post('/postulacion', autenticar, exigirRol('cliente'), validarRequ
     }
 });
 
-rutasChoferes.get('/:codigo/documentos', autenticar, exigirRol('admin'), async (req, res) => {
+rutasChoferes.get('/:codigo/documentos', autenticar, exigirPermiso('choferes.ver_documentos'), async (req, res) => {
     const codigo = (req.params.codigo || '').trim().toUpperCase();
     const { rows } = await consultar(
         'SELECT selfie_path, dni_frente_path FROM choferes WHERE codigo = $1',

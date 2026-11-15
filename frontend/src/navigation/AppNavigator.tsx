@@ -40,6 +40,7 @@ import CuponeraScreen from "../screens/CuponeraScreen";
 import MetodosScreen from "../screens/MetodosScreen";
 import EstadisticasScreen from "../screens/EstadisticasScreen";
 import NotificacionesScreen from "../screens/NotificacionesScreen";
+import { puede } from "../services/permisos";
 
 function conMarco(Screen: React.ComponentType<any>) {
   return function PantallaConMarco(props: any) {
@@ -56,7 +57,8 @@ function conMarco(Screen: React.ComponentType<any>) {
 }
 
 function InicioPorRol(props: any) {
-  return obtenerUsuarioSesion()?.rol === 'admin'
+  // El personal (soporte y admin) entra al panel de operación.
+  return puede('envios.ver_todos')
     ? <AdminDashboardScreen {...props} /> : <HomeScreen {...props} />;
 }
 

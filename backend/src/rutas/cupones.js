@@ -3,6 +3,7 @@ import { consultar } from '../db/pool.js';
 import { autenticar } from '../middleware/auth.js';
 import { registrarError } from '../observabilidad/logger.js';
 import { revisarSla } from '../servicios/envios/sla.js';
+import { tienePermiso } from '../middleware/permisos.js';
 
 export const rutasCupones = Router();
 
@@ -33,7 +34,7 @@ rutasCupones.get('/', autenticar, async (req, res) => {
 // toma como "revisá el SLA de mi envío" y el porcentaje que mande se ignora.
 rutasCupones.post('/', autenticar, async (req, res) => {
     const b = req.body ?? {};
-    if (req.usuario.rol !== 'admin') return pedirRevisionDeSla(req, res, b.envioCodigo);
+    if (!tienePermiso(req.usuario, 'cupones.emitir')) return pedirRevisionDeSla(req, res, b.envioCodigo);
 
     const descuentoPct = Number(b.descuentoPct);
     const motivo = (b.motivo || '').trim();

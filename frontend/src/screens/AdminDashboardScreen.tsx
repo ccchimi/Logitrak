@@ -30,9 +30,10 @@ import {
 import GraficosAdmin from "../components/admin/GraficosAdmin";
 import Boton from "../components/Boton";
 import CargaLista from "../components/CargaLista";
+import { puede } from "../services/permisos";
 
 export default function AdminDashboardScreen(props: any) {
-  return obtenerUsuarioSesion()?.rol === "admin" ? (
+  return puede("envios.ver_todos") ? (
     <Dashboard {...props} />
   ) : (
     <SinPermisoAdmin {...props} />

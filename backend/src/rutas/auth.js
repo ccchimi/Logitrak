@@ -15,6 +15,7 @@ import {
 import { validarRequest } from '../middleware/validar.js';
 import * as esquemas from '../esquemas/auth.js';
 import { registrarError } from '../observabilidad/logger.js';
+import { esPersonal, permisosDe } from '../middleware/permisos.js';
 
 export const rutasAuth = Router();
 
@@ -23,6 +24,9 @@ function publicar(fila, chofer) {
         id: fila.id,
         usuario: fila.usuario,
         rol: fila.rol,
+        // La app muestra u oculta acciones con esto; la API igual vuelve a
+        // verificar cada permiso en cada pedido.
+        permisos: permisosDe(fila.rol),
         nombreCompleto: fila.nombre_completo,
         chofer: chofer ? { codigo: chofer.codigo } : null,
     };
@@ -158,8 +162,8 @@ rutasAuth.post('/recuperar', limiteLogin, validarRequest({ body: esquemas.recupe
     if (!fila) {
         return res.status(404).json({ exito: false, error: 'No encontramos una cuenta con ese usuario.' });
     }
-    if (fila.rol === 'admin') {
-        return res.status(403).json({ exito: false, error: 'Las cuentas de administrador no se pueden restablecer desde acá.' });
+    if (esPersonal(fila.rol)) {
+        return res.status(403).json({ exito: false, error: 'Las cuentas del equipo no se pueden restablecer desde acá.' });
     }
     const hash = await bcrypt.hash(nueva, 10);
     await consultar('UPDATE usuarios SET contrasena_hash = $1 WHERE id = $2', [hash, fila.id]);

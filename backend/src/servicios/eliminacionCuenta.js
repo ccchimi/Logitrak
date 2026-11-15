@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import bcrypt from 'bcryptjs';
+import { esPersonal } from '../middleware/permisos.js';
 
 // Derecho de supresión (Ley 25.326, art. 16). Borrar la fila del usuario
 // arrastraría en cascada sus envíos, pagos y comprobantes, que hay que conservar
@@ -27,8 +28,8 @@ export function depurarDetallePago(detalle) {
 
 // Revisa si la cuenta se puede eliminar ahora. Devuelve null o el motivo.
 export async function impedimentoParaEliminar(db, usuario) {
-    if (usuario.rol === 'admin') {
-        return { estado: 403, error: 'Las cuentas de administrador no se eliminan desde la app.' };
+    if (esPersonal(usuario.rol)) {
+        return { estado: 403, error: 'Las cuentas del equipo no se eliminan desde la app.' };
     }
 
     const enCursoCliente = await db.query(

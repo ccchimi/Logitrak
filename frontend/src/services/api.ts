@@ -1,13 +1,15 @@
 import { NativeModules, Platform } from 'react-native';
 import { borrar, guardar, guardarJson, leer, leerJson } from './almacenamiento';
 import { identificarUsuario, registrarFallaApi } from './monitoreo';
-export type RolUsuario = 'admin' | 'cliente' | 'chofer';
+export type RolUsuario = 'admin' | 'cliente' | 'chofer' | 'soporte';
 export interface UsuarioSesion {
     id: number;
     usuario: string;
     rol: RolUsuario;
     nombreCompleto: string;
     chofer: { codigo: string } | null;
+    /** Permisos del rol (Hito 3.2). Las sesiones viejas no lo traen. */
+    permisos?: string[];
 }
 
 const PUERTO_API = 4000;

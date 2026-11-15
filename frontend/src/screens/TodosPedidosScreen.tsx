@@ -36,9 +36,10 @@ import SelectorAdmin from "../components/admin/SelectorAdmin";
 import Boton from "../components/Boton";
 import CargaLista from "../components/CargaLista";
 import Desplegable from "../components/Desplegable";
+import { puede } from "../services/permisos";
 
 export default function TodosPedidosScreen(props: any) {
-  return obtenerUsuarioSesion()?.rol === "admin" ? (
+  return puede("envios.ver_todos") ? (
     <Pedidos {...props} />
   ) : (
     <SinPermisoAdmin {...props} />

@@ -37,6 +37,7 @@ import {
     type PresetSoporte,
 } from '../services/botSoporte';
 import { ToastStack, useToasts } from '../components/Toasts';
+import { puede } from '../services/permisos';
 import {
     COLORS,
     ESTADO_TICKET_COLOR,
@@ -149,7 +150,8 @@ export default function SoporteScreen({ navigation }: any) {
   const tema = useTema();
     const { toasts, mostrar, cerrar } = useToasts();
     const sesion = obtenerUsuarioSesion();
-    const esAdmin = sesion?.rol === 'admin';
+    // El personal (soporte y admin) atiende las consultas de todos.
+    const esAdmin = puede('soporte.atender');
 
     const [tickets, setTickets] = useState<TicketSoporte[]>([]);
     const [activo, setActivo] = useState<TicketSoporte | null>(null);

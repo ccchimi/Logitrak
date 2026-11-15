@@ -6,6 +6,7 @@ import { limiteCotizaciones } from '../middleware/limites.js';
 import { validarRequest } from '../middleware/validar.js';
 import { guardarCotizacion } from '../esquemas/envios.js';
 import { registrarError } from '../observabilidad/logger.js';
+import { tienePermiso } from '../middleware/permisos.js';
 
 export const rutasCotizaciones = Router();
 
@@ -101,12 +102,12 @@ rutasCotizaciones.post('/', limiteCotizaciones, autenticar, exigirRol('cliente',
 });
 
 rutasCotizaciones.get('/', autenticar, async (req, res) => {
-    const esAdmin = req.usuario.rol === 'admin';
+    const verTodas = tienePermiso(req.usuario, 'cotizaciones.ver_todas');
     const { rows } = await consultar(
-        esAdmin
+        verTodas
             ? 'SELECT * FROM cotizaciones ORDER BY emitida_en DESC LIMIT 100'
             : 'SELECT * FROM cotizaciones WHERE cliente_id = $1 ORDER BY emitida_en DESC LIMIT 100',
-        esAdmin ? [] : [req.usuario.id]
+        verTodas ? [] : [req.usuario.id]
     );
     return res.json({ exito: true, cotizaciones: rows.map(publicar) });
 });

@@ -235,7 +235,7 @@ entrega el PIN se borra y el cliente ve la foto con un link firmado de 5 minutos
 y recibe la notificación "Envío entregado".
 
 Cada PIN incorrecto queda contado: a los 5 errores el envío se bloquea (responde
-423) y solo un admin lo desbloquea con `POST /api/envios/:codigo/pin/desbloquear`.
+423) y lo desbloquea alguien del equipo (soporte o admin) con `POST /api/envios/:codigo/pin/desbloquear`.
 La ruta además tiene un límite de 30 intentos cada 10 minutos por IP.
 
 La ruta genérica `POST /api/envios/:codigo/eventos` ya no permite marcar un envío
@@ -342,7 +342,8 @@ haría falta un plan que mantenga el servicio activo.
 | POST | `/api/envios/:codigo/eventos` | Agrega un hito y transiciona el estado |
 | GET | `/api/asignaciones/disponibles` | Envíos que el chofer puede tomar |
 | POST | `/api/asignaciones/:codigoEnvio/tomar` | El chofer toma un envío |
-| POST | `/api/envios/:codigo/pin/desbloquear` | Desbloquea el PIN de entrega tras 5 errores (solo admin) |
+| POST | `/api/envios/:codigo/pin/desbloquear` | Desbloquea el PIN de entrega tras 5 errores (soporte o admin) |
+| PUT | `/api/admin/usuarios/:id/rol` | Cambia el rol de una cuenta: cliente, soporte o admin (solo admin) |
 | GET | `/api/asignaciones/activa` | Viaje en curso del chofer |
 | POST | `/api/asignaciones/:codigo/completar` | Cierra la entrega: exige el PIN del receptor y la foto de comprobante |
 | GET | `/api/asignaciones` | Historial de viajes del chofer |
@@ -410,14 +411,47 @@ serializa las escrituras sobre la misma fila, exactamente uno gana y el otro
 recibe un `409` con el motivo. No necesitamos ni un bloqueo explícito ni una cola
 externa para garantizarlo.
 
-## Roles
+## Roles y permisos
 
-Los administradores no se pueden crear desde la aplicación: se siembran tres por
-sistema en `src/db/init.js`. Cualquiera que se registra queda como cliente. Y un
-chofer es un cliente que completó la postulación de "Trabajá con nosotros",
-declaró su vehículo y aprobó la verificación de identidad; al aprobarse recibe un
-identificador público del estilo `CH-7F3K9Q`, que es lo que ve el cliente junto a
-su nombre y su unidad.
+Hay cuatro roles:
+
+| Rol | Cómo se obtiene | Qué hace |
+|---|---|---|
+| `cliente` | Registrándose en la app | Cotiza, paga y sigue sus envíos |
+| `chofer` | Postulación aprobada en "Trabajá con nosotros" (vehículo y verificación de identidad) | Toma envíos y los entrega |
+| `soporte` | Lo asigna un admin | Atiende consultas y mira la operación |
+| `admin` | Lo asigna otro admin (los primeros se siembran en `src/db/init.js`) | Todo, incluidos reembolsos, roles y mantenimiento |
+
+Los permisos se definen por **capacidad** en `src/middleware/permisos.js`: cada
+acción sensible tiene un nombre (`envios.reembolsar`, `soporte.atender`…) y una
+matriz dice qué roles la tienen. Las rutas usan `exigirPermiso('…')` o
+`tienePermiso(req.usuario, '…')` en lugar de comparar el rol, así que sumar un
+rol o mover una capacidad es cambiar una línea. Un nombre de permiso mal
+escrito falla al cargar la ruta, no en un pedido.
+
+| Capacidad | soporte | admin |
+|---|:---:|:---:|
+| `envios.ver_todos`, `cotizaciones.ver_todas`, `pagos.ver_todos` | ✔ | ✔ |
+| `soporte.atender` (responder y cerrar consultas de cualquier cliente) | ✔ | ✔ |
+| `cupones.emitir`, `envios.desbloquear_pin`, `usuarios.listar` | ✔ | ✔ |
+| `envios.reembolsar`, `envios.archivar`, `envios.registrar_avance`, `pagos.gestionar` | | ✔ |
+| `choferes.ver_documentos` (fotos de DNI y selfie) | | ✔ |
+| `usuarios.cambiar_rol`, `sistema.reiniciar` | | ✔ |
+
+El login devuelve la lista de permisos del rol y la app muestra u oculta
+acciones con eso; la API los vuelve a verificar en cada pedido.
+
+**Cambiar un rol**: `PUT /api/admin/usuarios/:id/rol` con `{ rol: 'cliente' |
+'soporte' | 'admin' }`, solo admin. Un admin no puede cambiar su propio rol ni
+sacarle el rol al último admin, y los choferes no pasan por acá (su rol sale de
+la postulación verificada). El cambio cierra las sesiones de esa cuenta: con el
+token viejo puede seguir a lo sumo 15 minutos con el rol anterior. Queda en el
+log con quién lo hizo.
+
+El personal (soporte y admin) no puede restablecer la contraseña ni eliminar su
+cuenta desde la app. En Supabase, las políticas de lectura de Realtime
+reconocen a soporte como parte del equipo (`logitrak_es_personal()`), así que
+recibe en vivo las consultas y ve los envíos.
 
 ## Verificación de identidad
 

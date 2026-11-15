@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from "react";
 import {
+  Pressable,
   ScrollView,
   StyleSheet,
   TextInput,
@@ -28,16 +29,19 @@ import SelectorAdmin from "../components/admin/SelectorAdmin";
 import Boton from "../components/Boton";
 import CargaLista from "../components/CargaLista";
 import Desplegable from "../components/Desplegable";
+import { puede } from "../services/permisos";
+import CambiarRolModal from "../components/admin/CambiarRolModal";
 
 const ROLES: Record<RolUsuario, string> = {
   cliente: "Cliente",
   chofer: "Chofer",
+  soporte: "Soporte",
   admin: "Administrador",
 };
 const ANCHOS = [90, 230, 180, 155, 170, 230, 170];
 
 export default function UsuariosAdminScreen(props: any) {
-  return obtenerUsuarioSesion()?.rol === "admin" ? (
+  return puede("usuarios.listar") ? (
     <Usuarios />
   ) : (
     <SinPermisoAdmin {...props} />
@@ -54,6 +58,10 @@ function Usuarios() {
   const [version, setVersion] = useState(0);
   const [avanzados, setAvanzados] = useState(width >= 900);
   const [datos, setDatos] = useState<ListaUsuariosAdmin | null>(null);
+  // Cambio de rol (Hito 3.2): solo admin, no a choferes ni a uno mismo.
+  const [editando, setEditando] = useState<UsuarioAdmin | null>(null);
+  const yo = obtenerUsuarioSesion()?.id;
+  const editable = (u: UsuarioAdmin) => puede("usuarios.cambiar_rol") && u.rol !== "chofer" && u.id !== yo;
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
   const [actualizado, setActualizado] = useState("");
@@ -238,7 +246,7 @@ function Usuarios() {
           />
         </View>
         <View style={s.row}>
-          {(["todos", "cliente", "chofer", "admin"] as const).map((rol) => (
+          {(["todos", "cliente", "chofer", "soporte", "admin"] as const).map((rol) => (
             <ChipAdmin
               key={rol}
               texto={
@@ -246,9 +254,11 @@ function Usuarios() {
                   ? "Todos"
                   : rol === "admin"
                     ? "Administradores"
-                    : rol === "cliente"
-                      ? "Clientes"
-                      : "Choferes"
+                    : rol === "soporte"
+                      ? "Soporte"
+                      : rol === "cliente"
+                        ? "Clientes"
+                        : "Choferes"
               }
               activo={filtros.rol === rol}
               onPress={() => cambiar("rol", rol)}
@@ -372,8 +382,12 @@ function Usuarios() {
                       ))}
                     </View>
                     {datos.usuarios.map((u) => (
-                      <View
+                      <Pressable
                         key={u.id}
+                        disabled={!editable(u)}
+                        onPress={() => setEditando(u)}
+                        accessibilityRole={editable(u) ? "button" : undefined}
+                        accessibilityLabel={editable(u) ? `Cambiar el rol de ${u.nombreCompleto}` : undefined}
                         style={[
                           s.tableRow,
                           { borderColor: tema.colores.borde },
@@ -394,7 +408,7 @@ function Usuarios() {
                             )}
                           </View>
                         ))}
-                      </View>
+                      </Pressable>
                     ))}
                   </View>
                 </ScrollView>
@@ -422,6 +436,9 @@ function Usuarios() {
                     <TextoAdmin tipo="muted">
                       Alta: {fechaHoraAdmin(u.creadoEn)}
                     </TextoAdmin>
+                    {editable(u) && (
+                      <Boton texto="Cambiar rol" secundario onPress={() => setEditando(u)} />
+                    )}
                   </PanelAdmin>
                 ))}
               </View>
@@ -463,6 +480,14 @@ function Usuarios() {
           </>
         )
       )}
+      <CambiarRolModal
+        usuario={editando}
+        onCerrar={() => setEditando(null)}
+        onCambiado={() => {
+          setEditando(null);
+          setVersion((v) => v + 1);
+        }}
+      />
     </ScrollView>
   );
 }

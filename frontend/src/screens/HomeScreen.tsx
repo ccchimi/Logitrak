@@ -20,6 +20,7 @@ import CargaLista from "../components/CargaLista";
 import Icono from "../components/Icono";
 import { DISENO as D } from "../theme/diseno";
 import { formatearARS } from "../helpers/formato";
+import { puede } from "../services/permisos";
 
 export default function HomeScreen({ navigation }: any) {
   const tema = useTema();
@@ -36,7 +37,7 @@ export default function HomeScreen({ navigation }: any) {
   const cargar = useCallback(async () => {
     try {
       const d = await obtenerPanelEnvios({
-        verPendientes: usuario?.rol === "admin",
+        verPendientes: puede("envios.ver_todos"),
       });
       setViajes(d.viajes);
       setEsperando(d.buscandoChofer);
@@ -254,7 +255,7 @@ export default function HomeScreen({ navigation }: any) {
         </View>
         {lista}
       </View>
-      {usuario?.rol === "admin" && (
+      {puede("envios.ver_todos") && (
         <View style={tema.estilo(s.metrics)}>
           <Text style={tema.estilo(s.rowTitle)}>Resumen de operaciones</Text>
           <Text style={tema.estilo(s.empty)}>

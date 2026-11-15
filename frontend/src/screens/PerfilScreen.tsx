@@ -31,6 +31,7 @@ import EditarPerfilModal from "../components/EditarPerfilModal";
 import EliminarCuentaModal from "../components/EliminarCuentaModal";
 import Confirmacion from "../components/Confirmacion";
 import Transicion from "../components/Transicion";
+import { esPersonal, NOMBRE_ROL, puede } from "../services/permisos";
 
 export default function PerfilScreen({ navigation }: any) {
   const tema = useTema();
@@ -216,11 +217,7 @@ export default function PerfilScreen({ navigation }: any) {
             </Text>
             <Text style={tema.estilo(s.description)}>
               {nombre} ·{" "}
-              {rol === "chofer"
-                ? "Chofer"
-                : rol === "admin"
-                  ? "Administrador"
-                  : "Cliente"}
+              {NOMBRE_ROL[rol as keyof typeof NOMBRE_ROL] ?? "Cliente"}
             </Text>
             {cargando ? (
               <View style={s.loading}>
@@ -335,7 +332,7 @@ export default function PerfilScreen({ navigation }: any) {
                   peligro
                   onPress={salir}
                 />
-                {rol !== "admin" && (
+                {!esPersonal(rol) && (
                   <View style={s.deleteAction}>
                     <Boton
                       texto="Eliminar cuenta"
@@ -378,7 +375,7 @@ export default function PerfilScreen({ navigation }: any) {
             )}
           </View>
         </View>
-        {rol === "admin" && (
+        {puede("sistema.reiniciar") && (
           <View style={tema.estilo(s.card)}>
             <Text style={tema.estilo(s.heading)}>Administración</Text>
             <Text style={tema.estilo(s.description)}>

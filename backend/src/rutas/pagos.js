@@ -14,6 +14,7 @@ import { esReutilizable, leerClaveIdempotencia, minutosRestantes, mismaOperacion
 import { log, registrarError } from '../observabilidad/logger.js';
 import { registrarEvento } from '../outbox/index.js';
 import { pedidoVencido, RESPUESTA_VENCIDO } from '../servicios/envios/impagos.js';
+import { tienePermiso } from '../middleware/permisos.js';
 
 export const rutasPagos = Router();
 
@@ -55,7 +56,7 @@ async function bloquearEnvioDelCliente(cliente, codigo, usuario) {
     const { rows } = await cliente.query('SELECT * FROM envios WHERE codigo = $1 FOR UPDATE', [codigo]);
     const envio = rows[0];
     if (!envio) return { error: 404 };
-    if (usuario.rol !== 'admin' && envio.cliente_id !== usuario.id) return { error: 403 };
+    if (!tienePermiso(usuario, 'pagos.gestionar') && envio.cliente_id !== usuario.id) return { error: 403 };
     return { envio };
 }
 
@@ -378,7 +379,7 @@ rutasPagos.post('/:codigo/confirmar', limitePagos, autenticar, validarRequest({ 
     const pago = rows[0];
     if (!pago) return res.status(404).json({ exito: false, error: 'Pago no encontrado.' });
 
-    if (req.usuario.rol !== 'admin' && pago.cliente_id !== req.usuario.id) {
+    if (!tienePermiso(req.usuario, 'pagos.gestionar') && pago.cliente_id !== req.usuario.id) {
         return res.status(403).json({ exito: false, error: 'No tenés acceso a este pago.' });
     }
     if (pago.estado === 'aprobado') {
@@ -423,7 +424,7 @@ rutasPagos.get('/:codigo', autenticar, validarRequest({ params: esquemas.codigoP
     let pago = rows[0];
     if (!pago) return res.status(404).json({ exito: false, error: 'Pago no encontrado.' });
 
-    if (req.usuario.rol !== 'admin' && pago.cliente_id !== req.usuario.id) {
+    if (!tienePermiso(req.usuario, 'pagos.ver_todos') && pago.cliente_id !== req.usuario.id) {
         return res.status(403).json({ exito: false, error: 'No tenés acceso a este pago.' });
     }
 
@@ -469,7 +470,7 @@ rutasPagos.get('/', autenticar, async (req, res) => {
     const params = [];
     const cond = [];
 
-    if (req.usuario.rol !== 'admin') {
+    if (!tienePermiso(req.usuario, 'pagos.ver_todos')) {
         params.push(req.usuario.id);
         cond.push(`p.cliente_id = $${params.length}`);
     }

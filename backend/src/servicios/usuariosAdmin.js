@@ -38,7 +38,7 @@ export function consultaUsuariosAdmin(query = {}) {
     const pagina = texto(query.pagina, 'página') || '1';
     const cantidad = texto(query.cantidad, 'cantidad') || '25';
     if (busqueda.length > 120) invalido('La búsqueda admite hasta 120 caracteres.');
-    if (!['todos', 'cliente', 'chofer', 'admin'].includes(rol)) invalido('El rol no es válido.');
+    if (!['todos', 'cliente', 'chofer', 'soporte', 'admin'].includes(rol)) invalido('El rol no es válido.');
     if (!Object.hasOwn(ORDENES, orden)) invalido('El orden no es válido.');
     if (!/^[1-9]\d*$/.test(pagina) || !Number.isSafeInteger(Number(pagina))) invalido('La página no es válida.');
     if (!['10', '25', '50', '100'].includes(cantidad)) invalido('La cantidad por página no es válida.');
@@ -75,6 +75,7 @@ export function consultaUsuariosAdmin(query = {}) {
             SELECT COUNT(*)::int AS total,
                    COUNT(*) FILTER (WHERE rol = 'cliente')::int AS clientes,
                    COUNT(*) FILTER (WHERE rol = 'chofer')::int AS choferes,
+                   COUNT(*) FILTER (WHERE rol = 'soporte')::int AS soporte,
                    COUNT(*) FILTER (WHERE rol = 'admin')::int AS administradores
             FROM base
         ), listado AS (

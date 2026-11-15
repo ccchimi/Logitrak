@@ -13,6 +13,7 @@ import { obtenerUsuarioSesion } from "../services/authService";
 import { DISENO as D } from "../theme/diseno";
 import Icono, { NombreIcono } from "./Icono";
 import Campana from "./Campana";
+import { NOMBRE_ROL } from "../services/permisos";
 
 const CLIENTE: { ruta: string; icono: NombreIcono; label: string }[] = [
   { ruta: "Home", icono: "dashboard", label: "Dashboard" },
@@ -24,6 +25,13 @@ const ADMIN = [
   CLIENTE[0],
   { ruta: "TodosPedidos", icono: "box" as const, label: "Pedidos" },
   { ruta: "UsuariosAdmin", icono: "person" as const, label: "Usuarios" },
+  CLIENTE[3],
+];
+// Soporte: operación y consultas, sin acciones de dinero ni de roles.
+const SOPORTE = [
+  CLIENTE[0],
+  { ruta: "TodosPedidos", icono: "box" as const, label: "Pedidos" },
+  { ruta: "Soporte", icono: "help" as const, label: "Consultas" },
   CLIENTE[3],
 ];
 const CHOFER = [
@@ -54,7 +62,7 @@ export default function AppShell({ children, navigation, route }: any) {
   const insets = useSafeAreaInsets();
   const desktop = width >= 900;
   const usuario = obtenerUsuarioSesion();
-  const items = (usuario?.rol === "chofer" ? CHOFER : usuario?.rol === "admin" ? ADMIN : CLIENTE).map(
+  const items = (usuario?.rol === "chofer" ? CHOFER : usuario?.rol === "admin" ? ADMIN : usuario?.rol === "soporte" ? SOPORTE : CLIENTE).map(
     (i, index) =>
       index === 0 && usuario?.rol === "chofer" ? { ...i, ruta: "Chofer" } : i,
   );
@@ -124,11 +132,7 @@ export default function AppShell({ children, navigation, route }: any) {
         <Text style={tema.estilo(s.welcome)}>Bienvenido</Text>
         <Text style={tema.estilo(s.name)}>{usuario?.nombreCompleto}</Text>
         <Text style={tema.estilo(s.role)}>
-          {usuario?.rol === "chofer"
-            ? "Chofer"
-            : usuario?.rol === "admin"
-              ? "Administrador"
-              : "Usuario"}
+          {usuario ? NOMBRE_ROL[usuario.rol] ?? "Usuario" : "Usuario"}
         </Text>
       </View>
       <View style={tema.estilo(s.avatar)}>

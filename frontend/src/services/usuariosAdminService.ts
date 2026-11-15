@@ -34,6 +34,7 @@ export interface ListaUsuariosAdmin {
     total: number;
     clientes: number;
     choferes: number;
+    soporte?: number;
     administradores: number;
   };
 }
@@ -43,9 +44,10 @@ export async function obtenerUsuariosAdmin(
   pagina: number,
   cantidad: number,
 ): Promise<ListaUsuariosAdmin> {
-  if (obtenerUsuarioSesion()?.rol !== "admin") {
+  const rol = obtenerUsuarioSesion()?.rol;
+  if (rol !== "admin" && rol !== "soporte") {
     throw new Error(
-      "Necesitás una cuenta de administrador para consultar los usuarios.",
+      "Necesitás una cuenta del equipo (soporte o administrador) para consultar los usuarios.",
     );
   }
   const parametros = new URLSearchParams({
@@ -76,4 +78,18 @@ export async function obtenerUsuariosAdmin(
     );
   }
   return r;
+}
+
+// Solo admin. El backend no deja cambiar el propio rol, ni el de un chofer, ni
+// dejar el sistema sin admins; el mensaje de error explica cuál fue.
+export async function cambiarRolUsuario(
+  id: number,
+  rol: "cliente" | "soporte" | "admin"
+): Promise<{ exito: true } | { exito: false; error: string }> {
+  const r = await llamarApi<{ exito: true }>(`/api/admin/usuarios/${id}/rol`, {
+    metodo: "PUT",
+    cuerpo: { rol },
+    conAuth: true,
+  });
+  return r.exito ? { exito: true } : { exito: false, error: (r as any).error ?? "No se pudo cambiar el rol." };
 }

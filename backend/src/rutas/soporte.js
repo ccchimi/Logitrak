@@ -1,9 +1,10 @@
 import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import { consultar, pool } from '../db/pool.js';
-import { autenticar, exigirRol } from '../middleware/auth.js';
+import { autenticar } from '../middleware/auth.js';
 import { subirArchivo, urlFirmada, almacenamientoDisponible } from '../servicios/almacenamiento.js';
 import { registrarError } from '../observabilidad/logger.js';
+import { exigirPermiso, tienePermiso } from '../middleware/permisos.js';
 
 export const rutasSoporte = Router();
 
@@ -78,7 +79,7 @@ async function buscarTicket(codigo, usuario) {
     const { rows } = await consultar(`${SELECT_TICKET} WHERE t.codigo = $1`, [codigo]);
     const ticket = rows[0];
     if (!ticket) return { error: 404 };
-    if (usuario.rol !== 'admin' && ticket.usuario_id !== usuario.id) return { error: 403 };
+    if (!tienePermiso(usuario, 'soporte.atender') && ticket.usuario_id !== usuario.id) return { error: 403 };
     return { ticket };
 }
 
@@ -148,11 +149,11 @@ rutasSoporte.get('/realtime', autenticar, (req, res) => {
 // ---------------------------------------------------------------------------
 
 rutasSoporte.get('/tickets', autenticar, async (req, res) => {
-    const esAdmin = req.usuario.rol === 'admin';
+    const atiende = tienePermiso(req.usuario, 'soporte.atender'); // personal: soporte o admin
     const cond = [];
     const params = [];
 
-    if (!esAdmin) {
+    if (!atiende) {
         params.push(req.usuario.id);
         cond.push(`t.usuario_id = $${params.length}`);
     } else if ((req.query.estado || '').toString() === 'abiertos') {
@@ -185,7 +186,7 @@ rutasSoporte.post('/tickets', autenticar, async (req, res) => {
         const { rows } = await consultar('SELECT id, cliente_id FROM envios WHERE codigo = $1', [envioCodigo]);
         const envio = rows[0];
         // Solo se puede asociar un envío propio: si no, sería una fuga de datos.
-        if (envio && (req.usuario.rol === 'admin' || envio.cliente_id === req.usuario.id)) {
+        if (envio && (tienePermiso(req.usuario, 'envios.ver_todos') || envio.cliente_id === req.usuario.id)) {
             envioId = envio.id;
         }
     }
@@ -224,12 +225,13 @@ rutasSoporte.post('/tickets/:codigo/mensajes', autenticar, async (req, res) => {
 
     const b = req.body ?? {};
     const texto = (b.texto || '').toString().trim().slice(0, 4000);
-    const esAdmin = req.usuario.rol === 'admin';
+    const atiende = tienePermiso(req.usuario, 'soporte.atender'); // personal: soporte o admin
 
     // El autor no se acepta del cliente salvo para distinguir al bot: si no,
     // cualquiera podría hacerse pasar por un admin dentro del hilo.
-    let autor = esAdmin ? 'admin' : 'usuario';
-    if (b.autor === 'bot' && !esAdmin) autor = 'bot';
+    // En el hilo, el personal (soporte o admin) figura como 'admin' (el equipo).
+    let autor = atiende ? 'admin' : 'usuario';
+    if (b.autor === 'bot' && !atiende) autor = 'bot';
 
     const adjunto = b.adjunto ?? null;
     let guardado = null;
@@ -291,8 +293,8 @@ rutasSoporte.post('/tickets/:codigo/mensajes', autenticar, async (req, res) => {
             adjuntoBytes: guardado?.bytes,
         });
 
-        // Que un admin conteste toma el ticket, si no lo tenía nadie.
-        if (esAdmin && !r.ticket.admin_id) {
+        // Que alguien del equipo conteste toma el ticket, si no lo tenía nadie.
+        if (atiende && !r.ticket.admin_id) {
             await cliente.query(
                 `UPDATE soporte_tickets SET admin_id = $2, estado = 'escalado' WHERE id = $1`,
                 [r.ticket.id, req.usuario.id]
@@ -356,7 +358,7 @@ rutasSoporte.post('/tickets/:codigo/resolver', autenticar, async (req, res) => {
     return res.json({ exito: true, mensaje: 'Consulta marcada como resuelta.' });
 });
 
-rutasSoporte.post('/tickets/:codigo/cerrar', autenticar, exigirRol('admin'), async (req, res) => {
+rutasSoporte.post('/tickets/:codigo/cerrar', autenticar, exigirPermiso('soporte.atender'), async (req, res) => {
     const { rowCount } = await consultar(
         `UPDATE soporte_tickets SET estado = 'cerrado', actualizado_en = now() WHERE codigo = $1`,
         [req.params.codigo]
