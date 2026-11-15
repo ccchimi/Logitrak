@@ -27,12 +27,12 @@ y verificado se saca de acá; el historial queda en los commits.
    para pagar.
 5. Que el admin pueda editar los perfiles de otros usuarios. Hoy cada rol edita
    solo el suyo; falta una pantalla de listado de usuarios.
-6. Activar Realtime y push en producción. El código está desde el Hito 2.3,
-   pero Realtime necesita `SUPABASE_URL` en Render (hoy falta) y el push en
-   Android necesita las credenciales de FCM cargadas en EAS (Firebase > clave de
-   cuenta de servicio, `eas credentials`) y un build de desarrollo o de
-   producción: en Expo Go no hay push en Android. Probar los dos con un
-   teléfono real.
+6. Push en iOS. Realtime y push en Android ya funcionan en producción
+   (Storage, Realtime y FCM configurados; push probado en un teléfono real con
+   el build de desarrollo). Para iOS falta una cuenta de Apple Developer y las
+   credenciales de APNs en EAS. Para publicar en Play Store, generar el build
+   `production` y, si se quiere el mapa en el build, cargar
+   `EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_KEY` como variable de EAS.
 7. Más tests del backend. Ya hay pruebas del cálculo de precio en el servidor
    (`npm test` en `backend/`, corren en la CI), pero las rutas no tienen tests
    contra la base. La expiración de ofertas y el reembolso son los primeros
