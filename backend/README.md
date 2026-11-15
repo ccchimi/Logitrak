@@ -3,7 +3,15 @@
 API REST en Node.js con Express, montada sobre PostgreSQL. Resuelve la
 autenticación con roles, el alta de choferes con verificación de identidad, la
 auditoría de accesos y todo el circuito operativo: cotizaciones, envíos,
-seguimiento, asignación a choferes, pagos y cupones de compensación.
+seguimiento, asignación a choferes, pagos, cupones de compensación, soporte y
+notificaciones. Incluye sesiones renovables, permisos por capacidad, trabajos
+persistentes con pg-boss y un outbox de eventos.
+
+La API documentada del equipo está en [Render](https://logitrak.onrender.com).
+El frontend web se publica por separado en [GitHub Pages](https://ccchimi.github.io/Logitrak/).
+Ver también el [README general](../README.md) y el [del frontend](../frontend/README.md).
+La configuración activa y la disponibilidad de cada servicio deben comprobarse
+en el entorno correspondiente.
 
 ## Modelo de datos
 
@@ -14,36 +22,49 @@ registrada en la tabla `pgmigrations`. Ver [Migraciones](#migraciones).
 
 Las cuentas y sus roles viven en `usuarios`, y cuando alguien se convierte en
 chofer se le crea además una ficha en `choferes` con su verificación de identidad
-y el vehículo que declaró. Cada intento de login queda registrado en
-`auditoria_accesos`. La flota disponible está en `vehiculos`, que es la que
+y el vehículo que declaró. Los intentos de login que llegan a la validación de credenciales se registran
+en `auditoria_accesos`; los rechazos previos por esquema o límite de pedidos no
+recorren necesariamente esa función. La flota disponible está en `vehiculos`, que es la que
 determina qué envíos puede tomar cada chofer.
 
 Del lado operativo, `cotizaciones` guarda cada presupuesto que emite Boxy con su
 snapshot completo en JSONB, y cuando el cliente confirma se crea el `envio`, que
-avanza por los estados `pendiente`, `asignado`, `en_viaje` y `entregado`. Cada
+avanza por los estados `pendiente`, `asignado`, `en_viaje`, `entregado` o `cancelado`. Cada
 hito de ese recorrido queda como una fila en `envio_eventos`, que es lo que
 alimenta la línea de tiempo del seguimiento. Los viajes que toma cada chofer se
 registran en `asignaciones`, los cobros en `pagos` y las compensaciones por SLA
-incumplido en `cupones`.
+incumplido en `cupones`. También se registran sesiones, tickets y mensajes de
+soporte, eventos outbox, notificaciones y tokens push. El estado de pago se
+mantiene separado del estado logístico. Las migraciones, no un diagrama o un
+README histórico, definen el esquema vigente.
 
 ## Requisitos
 
-Node.js 20 o superior y acceso al proyecto de Supabase del equipo, que es donde
-corre el PostgreSQL. Como todos apuntamos al mismo proyecto, compartimos los
-datos en tiempo real.
+- **Node.js 22.12.0 o superior**, según `package.json`; los workflows usan Node 22.
+- npm y PostgreSQL alcanzable, local o en Supabase.
+- Una base aislada para desarrollo y otra descartable para pruebas de integración.
+- `DATABASE_URL` y `JWT_SECRET` propios del entorno.
+
+Para trabajar solo en frontend puede usarse una API de desarrollo ya desplegada;
+no es necesario iniciar esta API ni aplicar migraciones. No se debe apuntar a la
+base operativa del equipo para pruebas exploratorias.
 
 ## Cómo correrlo
 
 ```bash
 cd backend
-npm install
+npm ci
 cp .env.example .env   # en PowerShell: copy .env.example .env
 npm run dev            # con recarga automática (o npm start)
 ```
 
-Antes del primer arranque hay que editar el `.env` y pegar el `DATABASE_URL`,
-porque sin una conexión válida el servidor falla al iniciar. Ese archivo está en
-`.gitignore`, así que las credenciales no se versionan.
+Antes del primer arranque hay que editar `.env` y configurar `DATABASE_URL` y
+`JWT_SECRET`: ambos son obligatorios. Los valores reales y las credenciales no
+se versionan.
+
+**Iniciar el servidor no es una operación de solo lectura:** aplica migraciones
+pendientes y siembra datos base. Usá una base de desarrollo al ejecutar estos
+comandos; no se requiere ejecutar `db:init` antes de cada arranque.
 
 Al arrancar, el servidor aplica el esquema y siembra los tres administradores y
 la flota. La API queda escuchando en `http://localhost:4000`, o en el puerto que
@@ -61,16 +82,15 @@ y hay que reemplazar el marcador de la contraseña por la de la base:
 DATABASE_URL=postgresql://postgres.turef:TU-PASSWORD@aws-1-<region>.pooler.supabase.com:5432/postgres
 ```
 
-Con eso alcanza para inicializar y levantar:
+Con la conexión y `JWT_SECRET` configurados, `npm run dev` inicializa la base
+antes de habilitar las rutas de negocio. `npm run db:init` permite ejecutar esa
+inicialización por separado, pero también escribe en la base.
 
-```bash
-npm run db:init   # aplica las migraciones y siembra admins y flota
-npm run dev
-```
-
-El TLS va activo por defecto, que es lo que Supabase exige. Si alguna vez
-aparece un error de certificado del pooler no hace falta tocar nada, porque no
-validamos la cadena salvo que definas `PGSSL_STRICT=true`.
+TLS está activo por defecto. La configuración actual solo verifica la cadena
+del certificado cuando `PGSSL_STRICT=true`; cifrar la conexión y verificar la
+identidad del servidor son controles distintos. La validación del certificado
+debe configurarse y comprobarse según el proveedor. `PGSSL=false` está disponible
+para un PostgreSQL local que no use SSL, no como solución general de despliegue.
 
 Si querés conectarte desde un cliente como DBeaver o IntelliJ, los datos salen
 del mismo connection string: el host es el del pooler, el puerto 5432, la base
@@ -79,8 +99,8 @@ del mismo connection string: el host es el del pooler, el puerto 5432, la base
 ## Entornos y configuración
 
 El backend distingue tres entornos con la variable `ENTORNO`: `desarrollo`,
-`staging` y `produccion`. Si no está definida, en Render es `produccion` y en
-cualquier otro lado `desarrollo`. Al arrancar se carga `backend/.env.<entorno>`
+`staging` y `produccion`. Si no está definida, usa `produccion` con
+`RENDER=true` o `NODE_ENV=production`; en los demás casos usa `desarrollo`. Al arrancar se carga `backend/.env.<entorno>`
 y después `backend/.env`; ninguno pisa lo que ya viene del entorno real (el
 panel de Render o la línea de comandos), así que el orden de prioridad es:
 entorno real, archivo del entorno, `.env` común.
@@ -106,21 +126,22 @@ queda como aviso en el log al arrancar.
 | Ruta | Qué revisa | Status |
 |---|---|---|
 | `GET /api/salud/vivo` | Que el proceso responda (no toca la base) | 200 |
-| `GET /api/salud` | Base, migraciones y servicios externos | 200, o 503 si la base no responde |
+| `GET /api/salud` | Base, migraciones y componentes | 200 en `ok` o `degradado`; 503 durante preparación o ante un fallo de base |
 
 `/api/salud` devuelve el estado general (`ok`, `degradado` o `error`) y el de
-cada componente:
+cada componente. Ejemplo ilustrativo, no una medición del despliegue actual:
 
 ```json
 { "exito": true, "estado": "degradado", "baseDeDatos": "conectada",
-  "entorno": "produccion", "version": "6e7430e", "activoDesdeSeg": 5,
+  "entorno": "produccion", "version": null, "activoDesdeSeg": 5,
   "componentes": {
     "baseDeDatos": { "estado": "ok", "latenciaMs": 9, "migracionesPendientes": 0 },
     "mercadoPago": { "estado": "ok" },
     "almacenamiento": { "estado": "no_configurado" },
     "googleDirections": { "estado": "configurado" },
     "modo": { "estado": "no_configurado" },
-    "sentry": { "estado": "no_configurado" } },
+    "sentry": { "estado": "no_configurado" },
+    "trabajos": { "estado": "ok" } },
   "avisosDeConfiguracion": 2 }
 ```
 
@@ -135,8 +156,11 @@ cada componente:
 - **Directions, MODO y Sentry** solo informan si están configurados: consultar
   Directions cuesta cuota.
 
-La respuesta nunca incluye el motivo de un error (va al log) y `version` es el
-commit desplegado, útil para confirmar qué versión está corriendo. Como health
+Los motivos internos de los fallos de componentes se registran en los logs;
+`version` toma el prefijo de `RENDER_GIT_COMMIT`, o `null` fuera de ese entorno.
+La salud no prueba login, cobros ni entregas completas y la falta de una
+integración opcional puede aparecer como `no_configurado` sin convertir todo el
+servicio en un error. Como health
 check de Render conviene `/api/salud/vivo`: si Supabase tiene un corte, no tiene
 sentido que Render reinicie la API.
 
@@ -159,26 +183,31 @@ instancia).
 | Cola | Qué hace | Cuándo |
 |---|---|---|
 | `barrer-ofertas-vencidas` | Busca envíos pagos que ningún chofer tomó a tiempo y encola uno por envío | Cada minuto y al arrancar |
-| `expirar-oferta` | Cancela el envío y devuelve el pago | Por envío, con reintentos |
+| `expirar-oferta` | Intenta reembolsar y cancela el envío según el resultado; puede dejar la devolución en revisión | Por envío, con reintentos |
 | `barrer-sla` | Busca envíos pagos ya retirados, entregados o con el plazo de retiro vencido | Cada minuto y al arrancar |
 | `revisar-sla` | Acredita un cupón de compensación y registra el evento `sla_excedido` | Por envío, con reintentos |
 | `barrer-impagos` | Busca pedidos que no se pagaron dentro de `MINUTOS_PARA_PAGAR` (5) | Cada minuto y al arrancar |
-| `eliminar-impago` | Borra el pedido de la base, con sus intentos de pago y eventos | Por envío, con reintentos |
+| `eliminar-impago` | Revisa pagos en curso y, si corresponde, borra el pedido y sus registros dependientes | Por envío, con reintentos |
+| `despachar-outbox` | Procesa eventos pendientes y genera avisos | Cada minuto, al arrancar y por activación tras registrar eventos |
 
 **Pedidos sin pagar.** Cada envío nace con `pago_vence_en` (5 minutos). Pasado
 ese límite el checkout, la tarjeta y la confirmación sandbox responden 409 con
 `codigo: 'pedido_vencido'`, y la preferencia de Mercado Pago vence a la misma
-hora. Un minuto después, el trabajo borra el pedido: en cascada se van sus
-eventos y sus intentos de pago, la cotización queda `vencida` y el cliente
-recibe una notificación. Antes de borrar se le pregunta a la pasarela por los
+hora. Transcurrido un minuto adicional de gracia, el pedido puede ser recogido
+por un barrido y eliminado: en cascada se van sus eventos e intentos de pago,
+la cotización queda `vencida` y se registra un evento para notificar al cliente.
+No se garantiza la eliminación en un segundo exacto: depende del barrido, los
+reintentos y la disponibilidad del proceso. Antes de borrar se le pregunta a la pasarela por los
 intentos reales pendientes: si figura un pago aprobado o en proceso, el pedido
 no se borra; si la pasarela no responde, se reintenta.
 
 Cada trabajo por envío se reintenta hasta 6 veces con espera creciente (de 30
 segundos a 15 minutos): un reembolso que la pasarela rechaza por un rato no
 frena al resto. Si agota los reintentos, queda como fallido en pg-boss y va al
-log y a Sentry. Las colas usan la política `exclusive`, así que no puede haber
-dos trabajos pendientes para el mismo envío ni dos barridos a la vez. Al
+log y a Sentry si está configurado. Las colas usan la política `exclusive` y
+los trabajos por envío se encolan con `singletonKey` para reducir duplicados;
+las reglas de negocio y las transacciones también verifican si todavía aplica
+cada operación. Al
 arrancar se barre enseguida: Render Free duerme el servicio y al despertar no
 esperamos al próximo minuto. El estado de los trabajos aparece en `/api/salud`.
 
@@ -201,21 +230,25 @@ cuenta la entrega. Si el retiro llegó tarde, o el plazo venció sin retiro, el
 trabajo acredita un único cupón del 10 % y marca `sla_revisado_en`; con un
 retiro a tiempo la revisión se cierra sin cupón, aunque la entrega se demore.
 `MINUTOS_SLA` (20) queda solo para cotizaciones sin tiempos estimados. Los
-envíos cancelados no reciben cupón: se les devuelve el pago. Antes el cupón lo pedía la app y
+envíos cancelados no reciben cupón por esta regla: se intenta devolver el pago
+según el resultado de la pasarela. Antes el cupón lo pedía la app y
 `POST /api/cupones` aceptaba el porcentaje que mandara el cliente; ahora esa
-ruta emite cupones a mano solo para un admin, y para un cliente funciona como
+ruta emite cupones a mano para cuentas con `cupones.emitir` (soporte y admin),
+y para el titular de un envío funciona como
 "revisá el SLA de mi envío" (así las versiones viejas de la app no se rompen).
 
 ## Eventos y notificaciones (outbox)
 
 Lo que un hecho de negocio tiene que disparar afuera de su transacción (avisarle
-al cliente, y más adelante un push o un mail) pasa por el patrón outbox
+al cliente mediante bandeja y, cuando está configurado, push) pasa por el patrón outbox
 (`src/outbox/`):
 
 1. La transacción que produce el hecho inserta una fila en `outbox_events` con
    `registrarEvento(cliente, …)`. Si la transacción se revierte, el evento no
    existe; si se confirma, queda garantizado aunque el proceso se caiga justo
-   después. Desde adentro de la transacción nunca se llama a un tercero.
+   después. `registrarEvento` persiste el hecho sin enviar por sí mismo un aviso
+   externo. Esto no implica que todas las otras transacciones de la aplicación
+   estén libres de llamadas a proveedores.
 2. El trabajo `despachar-outbox` (pg-boss) toma los pendientes y ejecuta el
    manejador de cada tipo. Cada evento se procesa en su propia transacción con
    `FOR UPDATE SKIP LOCKED`, junto con la marca `processed`: los efectos en la
@@ -225,7 +258,8 @@ al cliente, y más adelante un push o un mail) pasa por el patrón outbox
    Sentry. Los procesados se borran a los 30 días.
 
 El despachador corre cada minuto y, además, 2 segundos después de cada evento
-registrado: un pago aprobado se notifica en unos 3 segundos.
+registrado. El tiempo efectivo depende de la cola y del servidor; no es una
+garantía de entrega en tres segundos.
 
 | Evento | Lo produce | Efecto |
 |---|---|---|
@@ -233,11 +267,17 @@ registrado: un pago aprobado se notifica en unos 3 segundos.
 | `pago.duplicado` | Un segundo pago aprobado sobre el mismo envío | Notificación a los admins para devolverlo |
 | `envio.cancelado_sin_chofer` | Trabajo de expiración de ofertas | Notificación al cliente con el estado de la devolución |
 | `cupon.acreditado` | Trabajo de revisión del SLA | Notificación al cliente con el cupón |
+| `envio.eliminado_sin_pago` | Limpieza de impagos vencidos | Aviso al cliente para volver a cotizar |
+| `envio.asignado` | El chofer toma el envío | Aviso al cliente |
+| `envio.entregado` | Confirmación con PIN y foto | Aviso al cliente con acceso al detalle |
 
 Los payloads llevan ids, códigos y montos, nunca nombres ni direcciones. Las
 notificaciones (`notificaciones`) son la bandeja de cada usuario en la app y se
 borran al eliminar la cuenta. No hay mail: el modelo no guarda el email de los
-clientes. El push a los teléfonos (Hito 2.3) se suma como otro manejador.
+clientes. El envío push ya está implementado después de confirmar el evento:
+si falla, se registra y la notificación permanece en la bandeja. El outbox
+protege la persistencia de los efectos en la base; no garantiza por sí solo la
+entrega de un push al dispositivo.
 
 ## Entrega segura
 
@@ -274,7 +314,8 @@ backend en `GET /api/soporte/realtime`). El aviso no trae datos: dispara una
 consulta a la API. Con Realtime conectado, la consulta queda como respaldo cada
 60 segundos; sin Realtime, cada 10 (antes era cada 5). Las políticas de solo
 lectura dejan escuchar al cliente sus envíos, al chofer los que tiene asignados
-y al admin todos. Realtime se activa solo si están `SUPABASE_URL`,
+y al personal autorizado (soporte y admin) la operación. Realtime se activa
+solo si están `SUPABASE_URL`,
 `SUPABASE_ANON_KEY` y `SUPABASE_JWT_SECRET`.
 
 **RLS en todas las tablas.** La app recibe la anon key de Supabase para
@@ -282,7 +323,9 @@ conectarse a Realtime, y con esa clave la API REST de Supabase expone cualquier
 tabla del schema `public` sin RLS. Por eso todas las tablas tienen RLS activo:
 sin políticas, quien entre con la anon key o con el token de Realtime no lee
 nada, salvo lo que habilitan las políticas de solo lectura de soporte y
-seguimiento. El backend no se ve afectado porque es el dueño de las tablas. Una
+seguimiento. El acceso del backend usa la conexión PostgreSQL configurada. El efecto de RLS
+depende del rol de esa conexión y de los permisos realmente aplicados; no debe
+suponerse que cualquier usuario de base puede omitir las políticas. Una
 prueba de integración verifica que no quede ninguna tabla sin RLS: toda tabla
 nueva tiene que activarlo en su migración.
 
@@ -301,6 +344,9 @@ si en expo.dev está activa la seguridad reforzada de push.
 Cada cambio de esquema es un archivo nuevo en `migrations/`, con su `up` y su
 `down`. Nunca se edita una migración ya desplegada: se agrega otra.
 
+Estos comandos son para mantenimiento del esquema, no comprobaciones de solo
+lectura. `up`, `down` y `db:init` pueden modificar o eliminar información.
+
 ```bash
 npm run migrar:crear -- agregar-telefono-cliente   # crea migrations/<timestamp>_agregar-telefono-cliente.js
 npm run migrar                                     # aplica las pendientes
@@ -317,8 +363,10 @@ La primera, `1794520000000_esquema-inicial`, contiene el esquema completo que
 había antes de adoptar migraciones (`src/db/sql/esquema-inicial.sql`). Es
 idempotente, así que en una base vacía crea todo y en la de producción, que ya
 lo tenía, no cambia nada: solo queda registrada. Su `down` borra todas las
-tablas y por eso se niega a correr en producción (`RENDER=true` o
-`NODE_ENV=production`).
+tablas y por eso se niega a correr en los entornos desplegados (`staging` y
+`produccion`, resueltos por `nombreEntorno`). Los retrocesos de otras
+migraciones también pueden destruir datos; requieren revisión y respaldo del
+entorno correspondiente.
 
 El runner toma un advisory lock de PostgreSQL y, si otra instancia está
 migrando, espera. Por eso `DATABASE_URL` tiene que usar el pooler de Supabase en
@@ -328,14 +376,14 @@ sesión no funcionan.
 ## Pruebas
 
 Hay dos tipos. Las unitarias (cálculo de precio, reglas de asignación, firma de
-webhooks, permisos) no necesitan nada. Las de integración, en
+webhooks, permisos) necesitan las dependencias instaladas, pero no una base. Las de integración, en
 `src/integracion/`, levantan la API completa y le pegan con `supertest` contra
 un PostgreSQL real; sin `TEST_DATABASE_URL` se saltean.
 
 ```bash
 docker run -d --rm --name logitrak-pg-prueba -e POSTGRES_PASSWORD=prueba -p 55432:5432 postgres:16-alpine
 TEST_DATABASE_URL=postgresql://postgres:prueba@localhost:55432/postgres PGSSL=false npm test
-npm run test:cobertura    # lo mismo, con informe de cobertura y umbrales
+TEST_DATABASE_URL=postgresql://postgres:prueba@localhost:55432/postgres PGSSL=false npm run test:cobertura
 ```
 
 Las rutas principales tienen su archivo: `rutas-auth.test.js` (registro, login,
@@ -359,8 +407,8 @@ el RLS.
 La CI corre `npm run test:cobertura` con una base de PostgreSQL limpia y falla
 si la cobertura baja de 85 % de líneas, 75 % de ramas u 80 % de funciones.
 
-Las pruebas nunca leen el `.env` (que apunta a producción): cuando corren bajo
-`node --test` la configuración sale solo de las variables del entorno, y
+Por defecto, al correr bajo `node --test` no se cargan los archivos `.env`:
+la configuración de pruebas sale de las variables del entorno, y
 `levantarApi()` se niega a arrancar si el pool no apunta a `TEST_DATABASE_URL`.
 Conviene usar una base descartable: si se reutiliza muchas veces, se acumulan
 trabajos viejos de pg-boss y las pruebas que esperan un trabajo pueden tardar
@@ -368,8 +416,11 @@ más de la cuenta.
 
 ## Despliegue
 
-El backend corre en Render como Web Service, con despliegue automático desde
-`main`. Instala con `npm install` y arranca con `npm start`.
+El proyecto documenta Render como Web Service en
+[logitrak.onrender.com](https://logitrak.onrender.com), con instalación mediante
+`npm install` y arranque con `npm start`. El despliegue automático desde `main`,
+el plan y las variables activas se comprueban en el panel de Render; leer el
+repositorio no certifica esa configuración externa.
 
 Las variables no salen del `.env`, que no se versiona, sino que se cargan en el
 panel del servicio, en la sección Environment: van ahí `DATABASE_URL`,
@@ -377,53 +428,157 @@ panel del servicio, en la sección Environment: van ahí `DATABASE_URL`,
 Supabase Storage. Lo que no hay que definir es `PORT`, porque Render lo inyecta
 solo y fijarlo hace que el servicio no exponga el puerto correcto.
 
-Conviene tener presente que el plan gratuito apaga la instancia cuando no recibe
-tráfico, y el primer pedido después de ese apagado puede tardar unos cincuenta
-segundos. Eso afecta sobre todo a los webhooks de pago, así que para producción
-haría falta un plan que mantenga el servicio activo.
+La documentación del proyecto contempla Render Free y sus períodos de
+inactividad. Si el proceso está detenido o reiniciándose, se demoran el primer
+acceso, la atención de webhooks y los trabajos en segundo plano. No se garantiza
+un plazo fijo de arranque; la disponibilidad requerida debe evaluarse antes de
+usar el servicio para operaciones productivas.
 
 ## Endpoints
 
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| GET | `/api/salud` | Estado del servidor y la base |
-| POST | `/api/auth/login` | Inicia sesión y devuelve token y rol |
-| POST | `/api/auth/registro` | Crea una cuenta, siempre con rol `cliente` |
-| GET | `/api/auth/existe/:usuario` | Indica si un usuario ya está tomado |
-| POST | `/api/auth/recuperar` | Restablece contraseña (no aplica a admins) |
-| GET | `/api/auth/perfil` | Datos del usuario autenticado |
-| POST | `/api/choferes/postulacion` | Postula a un cliente como chofer |
-| GET | `/api/choferes/:codigo/documentos` | Selfie y DNI con URLs firmadas (solo admin) |
-| POST | `/api/cotizaciones` | Recalcula la cotización en el servidor y la guarda |
-| GET | `/api/cotizaciones` | Cotizaciones del usuario (admin ve todas) |
-| POST | `/api/envios` | Crea el envío a partir de una cotización vigente del cliente |
-| GET | `/api/envios` | Envíos según rol, con `?estado=` opcional |
-| GET | `/api/envios/metricas` | Totales para el panel |
-| GET | `/api/envios/:codigo` | Detalle del envío y su línea de tiempo |
-| POST | `/api/envios/:codigo/eventos` | Agrega un hito y transiciona el estado |
-| GET | `/api/asignaciones/disponibles` | Envíos que el chofer puede tomar |
-| POST | `/api/asignaciones/:codigoEnvio/tomar` | El chofer toma un envío |
-| POST | `/api/envios/:codigo/pin/desbloquear` | Desbloquea el PIN de entrega tras 5 errores (soporte o admin) |
-| PUT | `/api/admin/usuarios/:id/rol` | Cambia el rol de una cuenta: cliente, soporte o admin (solo admin) |
-| GET | `/api/asignaciones/activa` | Viaje en curso del chofer |
-| POST | `/api/asignaciones/:codigo/completar` | Cierra la entrega: exige el PIN del receptor y la foto de comprobante |
-| GET | `/api/asignaciones` | Historial de viajes del chofer |
-| GET | `/api/vehiculos` | Catálogo de la flota |
-| GET | `/api/cupones` | Cupones del cliente |
-| POST | `/api/cupones` | Emite un cupón por SLA incumplido |
-| POST | `/api/pagos/checkout` | Inicia el pago por QR o deeplink |
-| POST | `/api/pagos/tarjeta` | Cobra con tarjeta (procesador simulado) |
-| POST | `/api/pagos/:codigo/confirmar` | Confirma un pago sandbox |
-| GET | `/api/pagos/:codigo` | Estado del pago |
-| GET | `/api/pagos` | Pagos del cliente (admin ve todos) |
-| POST | `/api/pagos/webhook/mercadopago` | Webhook de Mercado Pago, sin auth |
-| GET | `/api/perfil/resumen` | Resumen de cuenta para la pantalla de Perfil |
-| GET | `/api/recorridos` | Ruta por calles entre dos puntos (Google Directions, con caché) |
-| GET | `/api/notificaciones` | Bandeja del usuario (`?soloNoLeidas=true`, `?limite=`) y cantidad sin leer |
-| POST | `/api/notificaciones/leidas` | Marca como leídas las indicadas en `ids`, o todas |
-| POST | `/api/notificaciones/push-token` | Registra el teléfono (token de Expo) para recibir push |
-| DELETE | `/api/notificaciones/push-token` | Da de baja el token del teléfono (al cerrar sesión) |
-| POST | `/api/perfil/eliminar-cuenta` | Elimina la cuenta propia (pide la contraseña) |
+Inventario extraído de `src/app.js` y `src/rutas/`. Salvo las excepciones
+públicas indicadas, las rutas requieren `Authorization: Bearer <token>` y las
+reglas de acceso del recurso. Una capacidad del backend no implica que exista
+un control equivalente en el frontend.
+
+### Salud y autenticación
+
+| Método | Ruta | Función y acceso |
+|---|---|---|
+| GET | `/` | Identificación del servicio; público. |
+| GET | `/api/salud/vivo` | Vida del proceso; público, sin consulta a la base. |
+| GET | `/api/salud` | Preparación y salud de componentes; público. |
+| POST | `/api/auth/login` | Valida credenciales; sesión normal o comprobación con encabezado `verificar`. |
+| POST | `/api/auth/refresh` | Rota el refresh token y emite acceso; requiere refresh válido. |
+| POST | `/api/auth/logout` | Revoca el refresh token indicado; no requiere JWT de acceso. |
+| POST | `/api/auth/registro` | Crea cliente mediante registro público. |
+| GET | `/api/auth/existe/:usuario` | Consulta pública de disponibilidad de nombre de usuario. |
+| POST | `/api/auth/recuperar` | Restablecimiento público para cuentas que no son del equipo; ver limitación de identidad. |
+| GET | `/api/auth/perfil` | Identidad del usuario autenticado. |
+
+### Perfil, choferes y flota
+
+| Método | Ruta | Función y acceso |
+|---|---|---|
+| GET | `/api/perfil/editable` | Datos editables de la cuenta autenticada. |
+| PUT | `/api/perfil` | Actualiza campos admitidos de la propia cuenta; el cambio de contraseña valida la actual. |
+| GET | `/api/perfil/resumen` | Resumen de la propia cuenta. |
+| POST | `/api/perfil/eliminar-cuenta` | Anonimización con contraseña y restricciones operativas/por rol. |
+| POST | `/api/choferes/postulacion` | Alta verificada de chofer; solo cliente autenticado. |
+| GET | `/api/choferes/:codigo/documentos` | URLs firmadas de documentos; permiso `choferes.ver_documentos`. |
+| GET | `/api/vehiculos` | Catálogo de flota; requiere sesión. |
+
+### Cotizaciones, envíos y asignaciones
+
+| Método | Ruta | Función y acceso |
+|---|---|---|
+| POST | `/api/cotizaciones` | Recalcula y guarda la cotización; cliente, chofer o admin. |
+| GET | `/api/cotizaciones` | Cotizaciones propias; el personal con permiso puede consultar todas. |
+| POST | `/api/envios` | Crea pedido desde cotización y comprueba titularidad. |
+| GET | `/api/envios` | Lista según acceso y `estado`; hasta 200 registros, sin paginación general. |
+| GET | `/api/envios/metricas` | Totales por estado según alcance del usuario. |
+| GET | `/api/envios/:codigo` | Detalle, eventos y datos de entrega; controla acceso al envío. |
+| POST | `/api/envios/:codigo/eventos` | Avances permitidos del chofer asignado o admin; no cierra entregas ni cancela. |
+| POST | `/api/envios/:codigo/pin/desbloquear` | Desbloqueo de PIN; permiso `envios.desbloquear_pin`. |
+| POST | `/api/envios/:codigo/reembolsar` | Solicita devolución; permiso `envios.reembolsar`. |
+| POST | `/api/envios/:codigo/archivar` | Operación administrativa sobre envío, con opciones y validaciones de devolución; permiso `envios.archivar`. |
+| POST | `/api/envios/:codigo/desarchivar` | Restauración administrativa de visibilidad; permiso `envios.archivar`. |
+| GET | `/api/asignaciones/disponibles` | Ofertas vigentes compatibles; solo chofer. |
+| POST | `/api/asignaciones/:codigoEnvio/tomar` | Toma una oferta con control de concurrencia; solo chofer. |
+| GET | `/api/asignaciones/activa` | Asignación en curso del chofer. |
+| POST | `/api/asignaciones/:codigo/completar` | PIN y foto para cerrar la asignación del chofer. |
+| GET | `/api/asignaciones` | Historial de asignaciones del chofer. |
+| GET | `/api/recorridos` | Ruta entre coordenadas; sesión, validación, caché y límite de consultas. |
+
+### Pagos y cupones
+
+| Método | Ruta | Función y acceso |
+|---|---|---|
+| POST | `/api/pagos/checkout` | Inicia/reutiliza checkout; sesión y acceso al envío, `Idempotency-Key` opcional. |
+| POST | `/api/pagos/tarjeta` | Procesador simulado; sesión y acceso al envío, `Idempotency-Key` opcional. |
+| POST | `/api/pagos/:codigo/confirmar` | Confirma exclusivamente un pago sandbox autorizado. |
+| GET | `/api/pagos/retorno` | Página pública de retorno del proveedor. |
+| GET | `/api/pagos/:codigo` | Consulta de pago con control de acceso; puede conciliar con la pasarela. |
+| GET | `/api/pagos` | Lista según permisos; filtro `envioCodigo`, hasta 100 registros. |
+| POST | `/api/pagos/webhook/mercadopago` | Sin JWT de usuario; exige firma de Mercado Pago y consulta el pago al proveedor. |
+| POST | `/api/pagos/webhook/modo` | Sin JWT de usuario; consulta intención al proveedor. Requiere revisar autenticación y pruebas antes de activar MODO real. |
+| GET | `/api/cupones` | Cupones propios, hasta 100 registros. |
+| POST | `/api/cupones` | Soporte/admin emiten manualmente; otros usuarios solicitan revisión del SLA de su propio envío. |
+
+### Administración, soporte y notificaciones
+
+| Método | Ruta | Función y acceso |
+|---|---|---|
+| GET | `/api/admin/usuarios` | Listado, filtros, resumen y paginación; permiso `usuarios.listar`. |
+| PUT | `/api/admin/usuarios/:id/rol` | Cambia rol entre cliente, soporte y admin; permiso `usuarios.cambiar_rol` y restricciones de integridad. |
+| POST | `/api/admin/reset` | Reinicio destructivo de información; permiso `sistema.reiniciar`. No usar como diagnóstico. |
+| GET | `/api/soporte/realtime` | Credencial de lectura Realtime para la sesión. |
+| GET | `/api/soporte/tickets` | Lista tickets propios o del equipo, según permiso. |
+| POST | `/api/soporte/tickets` | Crea ticket para la cuenta autenticada. |
+| GET | `/api/soporte/tickets/:codigo` | Detalle e hilo con control de acceso. |
+| POST | `/api/soporte/tickets/:codigo/mensajes` | Agrega mensaje/adjuntos según acceso al ticket. |
+| POST | `/api/soporte/tickets/:codigo/escalar` | Deriva la consulta al equipo según reglas del ticket. |
+| POST | `/api/soporte/tickets/:codigo/resolver` | Resuelve el ticket según titularidad/permisos. |
+| POST | `/api/soporte/tickets/:codigo/cerrar` | Cierre por el equipo; permiso `soporte.atender`. |
+| GET | `/api/notificaciones` | Bandeja propia y contador; filtros `soloNoLeidas` y `limite`. |
+| POST | `/api/notificaciones/leidas` | Marca notificaciones propias, por `ids` o todas. |
+| POST | `/api/notificaciones/push-token` | Registra token Expo de la sesión. |
+| DELETE | `/api/notificaciones/push-token` | Da de baja token Expo propio. |
+
+Los detalles de body, límites y validaciones están en cada ruta y en
+`src/esquemas/`. Las respuestas de negocio suelen usar `exito` y `error`, pero
+los webhooks pueden responder solo con estado HTTP y `/api/pagos/retorno`
+devuelve HTML. No debe asumirse que todos los endpoints comparten un único
+formato JSON.
+
+Los errores incluyen 400 (entrada inválida), 401 (credenciales/token),
+403 (permisos), 404 (recurso/ruta), 409 (conflicto o pedido vencido),
+422 (reglas de identidad/idempotencia), 423 (PIN bloqueado), 429 (límites),
+503 (preparación o servicio requerido ausente) y 500 (error interno), según
+el endpoint.
+
+## Mi Perfil y reautenticación
+
+`GET /api/perfil/editable` devuelve `usuario`, `rol`, `nombreCompleto` y ficha
+`chofer` cuando corresponde. `PUT /api/perfil` admite nombre y cambio de
+contraseña; para un chofer admite además email, teléfono, domicilio y vehículo.
+No implementa cambio del nombre de usuario, ni campos separados de nombre y
+apellido para todos los roles.
+
+La contraseña actual se compara con bcrypt contra el hash del usuario del JWT
+cuando el body pide cambiar la contraseña. No se exige esa misma comprobación
+para cada modificación de los otros campos.
+
+Existe una comprobación de credenciales en `POST /api/auth/login` con
+`X-Logitrak-Sesion: verificar`: devuelve la identidad sin crear una nueva sesión.
+No es un endpoint independiente de autorización de cambios ni emite un permiso
+breve vinculado al usuario y campo. El frontend compara la identidad devuelta,
+pero eso no convierte la operación posterior en una edición reautenticada por
+el servidor. Por ese motivo mantiene bloqueada la edición individual de varios
+datos. Email y teléfono no tienen un circuito de confirmación de nuevo contacto.
+
+Para habilitar ese comportamiento hace falta un contrato de backend que valide
+la contraseña y el cambio sensible en una operación, o un permiso de
+reautenticación acotado y verificable al guardar. Esta documentación no
+implementa ninguna de esas alternativas.
+
+## Consulta administrativa e integración con el frontend
+
+El backend permite listar usuarios con búsqueda, rol, fechas, orden y
+paginación; `consultaUsuariosAdmin` valida la consulta. Soporte puede consultar,
+pero cambiar roles está reservado al admin. No hay un endpoint general para que
+el administrador edite todos los datos del perfil de otra cuenta.
+
+`GET /api/envios` admite filtro por estado y limita el resultado a 200 registros.
+No proporciona paginación completa ni todos los filtros de búsqueda y fechas
+que muestra el frontend. `GET /api/envios/metricas` devuelve totales por estado;
+los indicadores de últimas 24 horas del panel se calculan en la app sobre lo
+recuperado, no mediante un endpoint exclusivo de analítica histórica.
+
+El cliente intenta ampliar por estado si la lista no coincide con las métricas,
+pero siguen existiendo límites. Consultar la operación y obtener un histórico
+completo son capacidades distintas. La consulta excluye registros con
+`archivado_en`, aunque la interfaz no exponga herramientas de archivo.
 
 ## Cómo se calcula el precio
 
@@ -485,9 +640,10 @@ Hay cuatro roles:
 
 Los permisos se definen por **capacidad** en `src/middleware/permisos.js`: cada
 acción sensible tiene un nombre (`envios.reembolsar`, `soporte.atender`…) y una
-matriz dice qué roles la tienen. Las rutas usan `exigirPermiso('…')` o
-`tienePermiso(req.usuario, '…')` en lugar de comparar el rol, así que sumar un
-rol o mover una capacidad es cambiar una línea. Un nombre de permiso mal
+matriz dice qué roles la tienen. Las operaciones del equipo usan `exigirPermiso('…')` o
+`tienePermiso(req.usuario, '…')`. Otras rutas todavía usan `exigirRol` o reglas
+específicas de titularidad, por lo que añadir un rol exige revisar también esas
+validaciones. Un nombre de permiso mal
 escrito falla al cargar la ruta, no en un pedido.
 
 | Capacidad | soporte | admin |
@@ -506,7 +662,9 @@ acciones con eso; la API los vuelve a verificar en cada pedido.
 'soporte' | 'admin' }`, solo admin. Un admin no puede cambiar su propio rol ni
 sacarle el rol al último admin, y los choferes no pasan por acá (su rol sale de
 la postulación verificada). El cambio cierra las sesiones de esa cuenta: con el
-token viejo puede seguir a lo sumo 15 minutos con el rol anterior. Queda en el
+token de acceso ya emitido conserva su rol hasta vencer: por defecto son
+15 minutos en el circuito con refresh y 8 horas en el de compatibilidad, con
+plazos configurables. Queda en el
 log con quién lo hizo.
 
 El personal (soporte y admin) no puede restablecer la contraseña ni eliminar su
@@ -516,28 +674,35 @@ recibe en vivo las consultas y ve los envíos.
 
 ## Verificación de identidad
 
-Validar contra RENAPER requiere un convenio y credenciales SID que no están al
-alcance del proyecto, así que resolvimos la verificación de forma offline y en
-tres capas. Las dos más avanzadas quedan registradas pero no son obligatorias por
-defecto, para que el alta siga funcionando en Expo Go y en web.
+La implementación activa sin credenciales RENAPER verifica datos de DNI por
+PDF417, coincidencia con nombre y apellido ingresados y el resultado de selfie
+que envía el cliente. `LIVENESS_REQUERIDO=true` exige además el resultado de la
+prueba de vida. Esta comprobación offline no equivale a una validación oficial
+de identidad, ni una bandera enviada por la app constituye por sí sola una
+prueba biométrica verificable por el servidor.
 
-La primera capa lee el código PDF417 del dorso del DNI y lo cruza contra los
-datos que la persona tipeó: si el número o el apellido no coinciden, el alta se
-rechaza. Esta capa está activa y es obligatoria.
+**RENAPER real todavía no está implementado.** `llamarApiReal` en
+`src/servicios/verificacionIdentidad.js` lanza un error. Definir
+`RENAPER_API_URL` y `RENAPER_API_KEY` selecciona ese camino pendiente, no una
+integración funcional. Hace falta implementar y validar el contrato antes de
+configurarlo como proveedor activo.
 
-La segunda es la prueba de vida, que pide dos gestos y los valida en el
-dispositivo con ML Kit. Se guarda el resultado en `liveness_ok`, pero para
-exigirla hay que poner `LIVENESS_REQUERIDO=true` y usar un dev build de la
-aplicación, porque ML Kit no corre en Expo Go.
+La prueba de vida con ML Kit se ejecuta en un build nativo compatible de la app;
+no está disponible de forma equivalente en web o Expo Go. La comparación facial
+de servidor usa `faceMatch.js`, requiere `@tensorflow/tfjs-node` y los modelos
+`ssdMobilenetv1`, `faceLandmark68Net` y `faceRecognitionNet` en `backend/models`
+o `FACE_MODELS_DIR`. El runtime TensorFlow no está declarado como dependencia
+normal del backend y su instalación/compatibilidad debe resolverse por separado.
 
-La tercera compara la selfie con la foto del frente del DNI usando face-api y
-guarda el puntaje en `face_match_score`. Para exigirla hace falta
-`FACE_MATCH_REQUERIDO=true`, además de instalar el runtime nativo con
-`npm install @tensorflow/tfjs-node` sobre Node LTS y descargar los pesos de los
-modelos `ssdMobilenetv1`, `faceLandmark68Net` y `faceRecognitionNet` a
-`backend/models`, o bien apuntar `FACE_MODELS_DIR` a donde los tengas. Si el
-runtime o los modelos no están, el match se saltea con puntaje nulo y el alta
-sigue adelante: preferimos que una dependencia ausente no bloquee el registro.
+`FACE_MATCH_REQUERIDO=true` rechaza una comparación disponible que no coincide.
+Actualmente, si faltan imágenes, runtime o modelos, o si no se detecta una cara,
+la ruta no aplica el mismo rechazo: no debe describirse esta bandera como una
+garantía de bloqueo ante toda verificación facial incompleta. Cuando hay
+comparación se registra su distancia en `face_match_score`.
+
+La postulación aprobada crea la ficha y cambia el rol a `chofer` en una
+transacción. Esto no implementa una cola general de revisión manual por un
+administrador.
 
 ### Dónde quedan las fotos
 
@@ -546,7 +711,8 @@ por defecto se llama `verificacion-identidad`. En la base guardamos únicamente 
 ruta interna del objeto, en `selfie_path` y `dni_frente_path`, nunca la imagen ni
 una URL pública. Para revisarlas está `GET /api/choferes/:codigo/documentos`,
 que solo responde a un admin y devuelve URLs firmadas que vencen a los 5 minutos,
-de manera que el bucket nunca queda expuesto. Los adjuntos del chat de soporte
+sin publicar directamente los objetos del bucket. Las URLs firmadas siguen
+siendo accesos temporales y deben tratarse como información privada. Los adjuntos del chat de soporte
 usan el mismo bucket con URLs de 10 minutos. Antes de la primera subida, el servidor revisa que
 el bucket sea privado y se niega a subir nada si alguien lo marcó como público.
 
@@ -559,9 +725,9 @@ La configuración va en el `.env` y en el panel de Render:
 | `SUPABASE_BUCKET` | Nombre del bucket privado |
 
 El bucket hay que crearlo antes del primer uso. Si estas variables quedan vacías
-las imágenes caen al disco local, lo cual alcanza para desarrollo. En producción
-(`RENDER=true` o `NODE_ENV=production`) nunca se escriben fotos de documentos en
-disco: sin Storage, el alta sigue sin las fotos y queda registrado en el log.
+las imágenes caen al disco local, lo cual alcanza para desarrollo. En entornos desplegados (`staging` o `produccion`, según
+`src/config/entorno.js`) no se escriben fotos de documentos en disco: sin Storage, el alta puede continuar sin fotos de verificación y se registra
+el problema. La entrega con foto tiene sus propios requisitos de almacenamiento.
 
 ## Pagos
 
@@ -585,36 +751,37 @@ URL y le vuelve a pedir el pago a Mercado Pago antes de aprobar. Si algo falla d
 nuestro lado responde 500, para que Mercado Pago reintente.
 
 **Idempotencia.** `POST /api/pagos/checkout` y `POST /api/pagos/tarjeta` aceptan
-el encabezado opcional `Idempotency-Key` (un UUID, que la app genera en cada
-intento): repetir el pedido con la misma clave devuelve el resultado original en
+el encabezado opcional `Idempotency-Key` (UUID). La app conserva la clave de la
+operación si reintenta por falta de conexión: repetir el pedido con la misma clave devuelve el resultado original en
 vez de cobrar de nuevo, y usarla para otro envío o método responde 422. Además,
 cada pedido bloquea el envío dentro de una transacción, así que reintentos y
-doble clic se serializan; un checkout pendiente y vigente (15 minutos) del mismo
-envío y método se reutiliza en lugar de crear otro pago y otra preferencia, y si
+doble clic se serializan; un checkout pendiente del mismo envío y método con
+menos de 15 minutos puede reutilizarse si cumple las condiciones de
+`intentos.js`. Ese criterio no amplía el plazo de pago del envío (5 minutos
+por defecto). Se reutiliza en lugar de crear otro pago y otra preferencia, y si
 la pasarela falla no queda ninguna fila huérfana. Aprobar también es
 idempotente, y si un envío llegara a recibir un segundo cobro aprobado, ese pago
 queda marcado como duplicado (`detalle.duplicadoDe`) para reembolsarlo.
 
-Un punto importante para el alcance: como el QR de Mercado Pago es interoperable
-bajo el estándar de Transferencias 3.0 del BCRA, un usuario de MODO puede escanear
-ese mismo código y pagar desde su banco. Es decir, los usuarios de MODO ya quedan
-cubiertos por el QR, sin necesitar una integración aparte.
+El QR real se genera a partir del enlace `init_point` de Checkout Pro. El texto
+de la interfaz menciona MODO, pero este código no implementa por sí mismo un QR
+interoperable de Transferencias 3.0. La aceptación desde otras billeteras debe
+validarse con el proveedor y un flujo de prueba autorizado.
 
-La integración directa con MODO (deeplink nativo a su app) queda como trabajo a
-futuro. Requiere un convenio de comercio con MODO para acceder a su API, que hoy
-no tenemos, así que la sacamos de la selección de métodos de pago. El servicio
-`servicios/pagos/modo.js` permanece en el código, apagado mientras no haya
-credenciales, y todas sus URLs son configurables por variable de entorno
-(`MODO_API_URL`, `MODO_CLIENT_ID`, `MODO_CLIENT_SECRET`, y opcionalmente
-`MODO_TOKEN_URL`, `MODO_INTENTION_URL`, `MODO_STATUS_URL`, `MODO_STORE_ID`). El
-día que exista el convenio, reactivarla es cuestión de configuración.
+La integración directa con MODO no está seleccionable en la pantalla actual.
+`servicios/pagos/modo.js` y su webhook siguen presentes: admiten configuración
+mediante `MODO_API_URL`, `MODO_CLIENT_ID`, `MODO_CLIENT_SECRET`, `MODO_STORE_ID`
+y las URLs opcionales `MODO_TOKEN_URL`, `MODO_INTENTION_URL`, `MODO_STATUS_URL`.
+Sin configuración se usa sandbox. La disponibilidad de credenciales no confirma
+compatibilidad productiva ni activa por sí sola una opción en la interfaz.
 
 El pago con tarjeta, en cambio, es simulado siempre. El procesador valida el
 número por el algoritmo de Luhn, la marca, el vencimiento y el CVV, y guarda
 únicamente la marca y los últimos cuatro dígitos: el número completo nunca se
-persiste. La razón es concreta: cobrar tarjetas de verdad exige certificación
-PCI-DSS y un acuerdo con un adquirente, algo que excede el alcance del proyecto.
-Para llevarlo a producción habría que reemplazar `servicios/pagos/tarjeta.js` por
+persiste en el registro de pago. **No deben usarse tarjetas reales en este
+circuito simulado.** Para cobrar de verdad hace falta diseñar una integración
+con un proveedor que tokenice los datos en el cliente y revisar los requisitos
+aplicables al tratamiento de datos de pago. Habría que reemplazar `servicios/pagos/tarjeta.js` por
 un gateway que tokenice la tarjeta del lado del cliente, de forma que el número
 no pase nunca por este backend. En el sandbox, cualquier número válido según
 Luhn se aprueba, salvo el `4000 0000 0000 0002`, que rechazamos a propósito para
@@ -631,8 +798,11 @@ de acceso fresco, releyendo el usuario de la base. Si un refresh token ya usado
 vuelve a aparecer, se revoca toda su cadena, porque probablemente lo copiaron;
 si aparece dentro de los 30 segundos de rotado, se responde 409 sin revocar
 nada, porque suelen ser dos pestañas renovando a la vez. `POST /api/auth/logout`
-revoca la sesión del dispositivo, y cambiar la contraseña cierra todas las de la
-cuenta. Un token de acceso vencido responde 401 con `codigo: 'token_vencido'`, y
+revoca el refresh token de la sesión del dispositivo. La recuperación por
+`/api/auth/recuperar` revoca los refresh tokens de la cuenta; el cambio por
+`PUT /api/perfil` no llama actualmente a esa revocación. Un JWT de acceso ya
+emitido no se invalida inmediatamente por revocar el refresh: `autenticar`
+comprueba firma y expiración, no consulta el estado de la sesión en la base. Un token de acceso vencido responde 401 con `codigo: 'token_vencido'`, y
 la app lo renueva sola y repite el pedido.
 
 Compatibilidad: la app nueva se identifica con el encabezado
@@ -640,9 +810,10 @@ Compatibilidad: la app nueva se identifica con el encabezado
 recibiendo el token de `JWT_EXPIRA` (8 h) sin refresh token, como antes; ese
 camino se puede quitar cuando nadie las use.
 
-**Validación de entradas** (`src/middleware/validar.js` y `src/esquemas/`): cada
-ruta que recibe datos declara un esquema de Zod (auth, cotizaciones, envíos,
-pagos y postulación de chofer). Si el pedido no lo cumple se corta antes de
+**Validación de entradas** (`src/middleware/validar.js` y `src/esquemas/`):
+auth, cotizaciones, creación de envíos, pagos y postulación usan esquemas de
+Zod. Otras operaciones, como partes de perfil, soporte y cupones, mantienen
+validaciones manuales; la validación no está unificada en todas las rutas. Si el pedido no lo cumple se corta antes de
 tocar la base con un 400 estándar:
 
 ```json
@@ -678,26 +849,26 @@ ruta.
 | Guardar cotización | 30 cada 10 minutos |
 | Checkout, pago con tarjeta y confirmación | 20 cada 10 minutos |
 
-**Derecho de supresión** (Ley 25.326, `src/servicios/eliminacionCuenta.js`):
-`POST /api/perfil/eliminar-cuenta` pide la contraseña y elimina la cuenta. No
-hace un `DELETE`: los envíos, pagos y comprobantes se tienen que conservar por
-obligaciones fiscales, y el borrado en cascada se los llevaría. En cambio, en
-una sola transacción:
+**Eliminación y anonimización** (`src/servicios/eliminacionCuenta.js`):
+`POST /api/perfil/eliminar-cuenta` pide la contraseña. El usuario se anonimiza
+en lugar de borrarse físicamente y se conservan registros de la operación. Esta
+descripción refleja el código, no certifica cumplimiento legal ni define por sí
+sola los plazos de conservación. En una transacción:
 
 - el usuario pasa a llamarse `eliminado-<id>`, pierde nombre y contraseña
   (queda un hash al azar) y se marca `eliminado_en`; el nombre de usuario queda
   libre para otra persona;
 - se cierran todas sus sesiones;
-- si era chofer, se borran nombre, email, teléfono, domicilio, DNI y las fotos
-  de verificación (también del Storage);
+- si era chofer, se quitan datos personales y referencias a las fotos;
+  el borrado de archivos en Storage se intenta después de confirmar la transacción;
 - los envíos sin pagar se cancelan, y en envíos y cotizaciones se borran
   direcciones, coordenadas y descripción de la carga; el precio queda;
 - los pagos conservan monto, estado y comprobante, pero el detalle del pagador
   y los últimos dígitos de la tarjeta se descartan;
-- se borran sus tickets de soporte con los adjuntos;
+- se borran tickets de soporte y se reúnen sus adjuntos para intentar el borrado externo;
 - la auditoría de accesos se conserva sin IP ni user-agent.
 
-No se puede eliminar una cuenta de admin, ni la de un cliente con un envío pago
+No se puede eliminar una cuenta de soporte o admin, ni la de un cliente con un envío pago
 todavía en curso, ni la de un chofer con un viaje asignado: primero tienen que
 terminar (responde 409 explicando el motivo).
 
@@ -705,7 +876,8 @@ terminar (responde 409 explicando el motivo).
 `GET /api/recorridos`, que llama a Google Directions con `GOOGLE_DIRECTIONS_KEY`.
 Esa clave nunca sale del servidor; las respuestas se guardan 30 minutos en
 memoria y el endpoint exige sesión y tiene un límite de 60 consultas cada 10
-minutos por IP, así que no sirve como proxy gratuito. Sin la clave responde 503
+minutos por IP. Esto limita su uso pero no equivale a una garantía de ausencia
+de abuso o consumo de cuota. Sin la clave responde 503
 y la app muestra solo los puntos de retiro y entrega.
 
 **Logs y errores** (`src/observabilidad/`): los logs salen con `pino`, en JSON,
@@ -714,15 +886,17 @@ una línea por evento. Cada pedido HTTP deja una línea al terminar:
 ```json
 { "level": "info", "time": "2026-11-12T23:45:24.906Z", "requestId": "054eaf04-…",
   "userId": 4, "method": "POST", "path": "/api/cotizaciones", "status": 201,
-  "responseTime": 11.3, "ip": "181.95.67.131", "msg": "POST /api/cotizaciones 201 11.3ms" }
+  "responseTime": 11.3, "ip": "192.0.2.1", "msg": "POST /api/cotizaciones 201 11.3ms" }
 ```
 
 El `requestId` se devuelve en el encabezado `X-Request-Id` y en el cuerpo de los
 500, así que si alguien reporta un error se busca ese id en los logs de Render y
 aparecen juntas la línea del pedido y la del error. Los servicios loguean con
 `log()`, que ya trae el `requestId` y el `userId` del pedido en curso aunque no
-reciban el `req`. Contraseñas, tokens, números de tarjeta, DNI y el encabezado
-`Authorization` se reemplazan por `[oculto]` antes de escribir. El chequeo de
+reciban el `req`. El logger contiene reglas de ocultamiento para contraseñas, tokens,
+números de tarjeta, DNI y `Authorization`. Esas reglas deben mantenerse y
+verificarse al introducir campos o mensajes nuevos; no habilitan registrar
+cuerpos sensibles sin revisión. El chequeo de
 salud solo se loguea cuando falla.
 
 Los errores inesperados pasan por `registrarError`, que además del log los manda
@@ -736,18 +910,67 @@ como rastro, de modo que el error de la app se puede cruzar con el del servidor.
 Si se corta una conexión inactiva con PostgreSQL (reinicio del pooler, corte de
 red), el pool lo registra y abre otra: antes ese evento tiraba abajo el proceso.
 
-**Dependencias**: `npm audit` del backend da 0 vulnerabilidades. La CI no lo
-exige todavía, así que conviene correrlo antes de cada entrega.
+**Dependencias**: el resultado de `npm audit` depende de la fecha, el lockfile
+y las bases de avisos vigentes. No se afirma un número permanente de
+vulnerabilidades. Debe ejecutarse y evaluarse en cada revisión; el workflow
+actual no impone una auditoría de dependencias del backend como condición.
 
-Las contraseñas se guardan hasheadas con bcrypt y nunca en texto plano, y las
-sesiones viajan en un JWT firmado con expiración configurable a través de
-`JWT_EXPIRA`. El login y la recuperación de contraseña tienen rate limiting de
-diez intentos por IP cada quince minutos, y todos los intentos de acceso quedan
-auditados en `auditoria_accesos` con IP, user-agent y resultado, sirvan o no.
+Las contraseñas de usuarios se almacenan con bcrypt. Los tokens de acceso
+usan `ACCESS_TOKEN_EXPIRA` en el circuito con refresh y `JWT_EXPIRA` en el
+circuito de compatibilidad. El login y la recuperación de contraseña tienen rate limiting de
+diez intentos por IP cada quince minutos, y los intentos que llegan a la función de auditoría se registran en
+`auditoria_accesos` con IP, user-agent y resultado.
 
-Las cuentas de administrador no se pueden registrar ni restablecer desde la
-aplicación, justamente para que no haya forma de escalar privilegios desde el
-frontend. Todas las consultas SQL van parametrizadas, sin concatenar strings, de
-manera que no hay superficie para inyección. Y el alta de chofer corre dentro de
-una transacción, así el cambio de rol y la creación de la ficha se aplican juntos
-o no se aplica ninguno.
+El registro público crea clientes y la recuperación excluye cuentas del equipo.
+Los permisos por rol no certifican por sí solos la seguridad de todos los flujos.
+Las consultas usan parámetros para valores y algunas construyen filtros o
+columnas con listas controladas; hay que mantener esa separación al agregar
+consultas. No se afirma que el sistema esté libre de inyección u otras
+vulnerabilidades por usar esas técnicas.
+
+Los datos de ficha y el cambio de rol del alta de chofer se guardan en una
+transacción. Las subidas a Storage son efectos externos y no se revierten de
+forma automática por un rollback de PostgreSQL.
+
+
+## Limitaciones y revisiones pendientes
+
+- Recuperación de contraseña: el contrato actual no acredita titularidad mediante
+  un token o código enviado a un contacto verificado. No debe presentarse como
+  recuperación segura para producción hasta corregir ese diseño.
+- Inicialización administrativa: deben eliminarse credenciales iniciales
+  predecibles y verificarse las cuentas del despliegue. Este documento no publica
+  usuarios ni contraseñas de acceso.
+- Cambio de contraseña en perfil: falta unificar la revocación de sesiones con la
+  recuperación y revisar el tratamiento de JWT ya emitidos.
+- Edición individual de perfil: falta reautenticación vinculada al cambio y
+  confirmación de nuevos contactos.
+- Identidad: RENAPER real es una función pendiente y la obligatoriedad del match
+  facial no bloquea todos los casos de verificación incompleta.
+- Pagos: tarjeta es simulada; MODO real, webhooks y reembolsos necesitan pruebas
+  específicas del proveedor/entorno. El webhook de MODO no aplica el mismo
+  middleware de firma que Mercado Pago.
+- Un segundo cobro aprobado se registra como duplicado para revisión; eso no
+  equivale a una devolución automática ya completada.
+- Los cupones se acreditan, pero aún no se aplican a nuevos pagos.
+- Push se intenta después de confirmar el evento. Un fallo no elimina el aviso
+  de la bandeja, pero tampoco garantiza una nueva entrega push.
+- El borrado de archivos externos después de anonimizar puede fallar; se
+  registra, y hace falta un mecanismo de recuperación periódica.
+- Faltan paginación de envíos, filtros de servidor e históricos adecuados para
+  un panel administrativo de mayor volumen.
+- Disponibilidad, restricciones de claves y credenciales de servicios externos
+  deben revisarse en sus paneles; no se verifican leyendo el repositorio.
+
+Ver [pendientes](../docs/pendientes-logitrak.md), [roadmap](../docs/ROADMAP.md) y
+[plan de mantenimiento](../docs/qa/plan-de-mantenimiento.md). Son documentación
+de apoyo y pueden conservar referencias históricas que deben contrastarse con
+el código.
+
+**Base de esta actualización:** `main`, commit
+[`0e91c37`](https://github.com/ccchimi/Logitrak/commit/0e91c37c766b2d44d535e2700b3a2f9e7ab75d73),
+revisado el 15 de noviembre de 2026. Se revisaron archivos y contratos; no se
+inició el backend, no se ejecutaron migraciones ni suites, y no se probaron
+pagos o registros reales como parte de esta actualización documental. Los
+cambios locales sin publicar y la configuración activa del despliegue quedan
+fuera de ese alcance.

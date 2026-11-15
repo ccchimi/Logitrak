@@ -1,231 +1,309 @@
 # Logitrak
 
-Logitrak es una plataforma de logística de última milla que conecta a quien
-necesita enviar algo con la flota que puede llevarlo. El cliente cotiza su envío
-conversando con un asistente, lo paga, y a partir de ahí lo sigue en un mapa
-hasta que llega a destino.
+Logitrak es una plataforma de logística de última milla que conecta a quienes necesitan enviar una carga con los choferes que pueden transportarla. Permite cotizar con Boxy, crear un pedido, pagarlo, asignarlo a un chofer y seguir sus avances hasta la entrega.
 
-La idea detrás del proyecto es que mandar un paquete debería ser tan simple como
-pedir un viaje. Para eso nos apoyamos en tres decisiones que atraviesan todo el
-sistema. La primera es que el precio se explica: en lugar de mostrar una tarifa
-cerrada, el motor de cotización desglosa cuánto pesa el vehículo elegido, la
-distancia, el peso volumétrico y la franja horaria. La segunda es que la
-confianza se construye con datos verificables, así que los choferes pasan por una
-verificación de identidad y el cliente ve en todo momento quién lleva su carga y
-en qué unidad. La tercera es que la misma aplicación corre en web, Android e iOS
-desde una única base de código, para no mantener tres productos distintos.
+La aplicación comparte una base de código para **web, Android e iOS**, desarrollada con Expo, React Native y TypeScript. Consume una API REST de Node.js y Express, con PostgreSQL en Supabase.
 
-## Cómo funciona el circuito
+| Servicio | Dirección o tecnología |
+|---|---|
+| Web App | [ccchimi.github.io/Logitrak](https://ccchimi.github.io/Logitrak/) — GitHub Pages |
+| API | [logitrak.onrender.com](https://logitrak.onrender.com) — Render |
+| Salud de la API | [GET /api/salud](https://logitrak.onrender.com/api/salud) |
+| Base de datos | PostgreSQL en Supabase |
+| Archivos privados | Supabase Storage, según configuración |
+| Builds móviles | Expo Application Services (EAS Build) |
 
-El cliente arranca cotizando con Boxy, el asistente que corre en el propio
-dispositivo: interpreta las direcciones y la descripción de la carga, elige el
-vehículo que corresponde y arma el precio. Cuando confirma y paga, el envío deja
-de ser una cotización y pasa a estar disponible para la flota.
+Estas direcciones corresponden a la configuración documentada del proyecto; su disponibilidad y las credenciales activas se verifican en cada entorno.
 
-Ahí entra el modelo que usamos para asignar: el envío pagado se publica para
-todos los choferes cuyo vehículo puede transportar esa carga, y el primero que lo
-toma se lo queda. Es el mismo esquema de las aplicaciones de movilidad, y nos
-evita tener que decidir centralmente a quién le toca cada viaje. Desde ese
-momento el cliente ve el nombre del chofer, su identificador y la unidad real que
-salió a buscar el paquete, mientras el chofer va marcando los hitos del viaje
-desde su propia consola.
+## Funcionalidades y roles
 
-Si el envío supera el plazo comprometido, se emite un cupón de compensación a
-favor del cliente. Conviene aclarar que hoy ese cupón se dispara desde la
-aplicación cuando vence el contador, y no desde un proceso en el servidor: es una
-deuda que tenemos pendiente y está anotada como tal.
+El sistema tiene cuatro roles. Los permisos efectivos se comprueban en el backend; ocultar una acción en la interfaz no reemplaza esa autorización.
 
-El sistema maneja tres roles. Cliente es cualquiera que se registra. Chofer es un
-cliente que se postuló, declaró con qué vehículo trabaja y aprobó la verificación
-de identidad. Admin se siembra por sistema y no puede crearse desde la
-aplicación.
+| Rol | Acceso y funciones principales |
+|---|---|
+| `cliente` | Se registra en la aplicación. Cotiza con Boxy, crea y paga pedidos, consulta seguimiento, historial, cupones, notificaciones y soporte. |
+| `chofer` | Se obtiene mediante la postulación y verificación de identidad. Consulta ofertas compatibles con su vehículo, toma viajes, registra avances y confirma entregas. |
+| `soporte` | Lo asigna un administrador. Accede al panel operativo, consulta envíos, usuarios, cotizaciones y pagos; atiende consultas y puede desbloquear un PIN de entrega. |
+| `admin` | Las cuentas iniciales se siembran al arrancar; luego otro administrador puede asignar el rol. Tiene las capacidades de soporte y permisos adicionales sobre reembolsos, roles, documentación y mantenimiento. |
 
-## Cómo está organizado el repositorio
+El panel del equipo incluye métricas, indicadores de las últimas 24 horas, consulta de pedidos y listado de usuarios con búsqueda, filtros y paginación. Los datos se obtienen de la API: los indicadores temporales y parte de los filtros de pedidos se calculan sobre la lista recuperada por el frontend. El listado de envíos tiene límites de consulta, por lo que no debe asumirse que toda visualización equivale a un histórico completo.
 
-El proyecto se divide en dos partes que se desarrollan y se despliegan por
-separado.
+La aplicación también incluye una página pública de presentación, acceso y registro, recuperación de contraseña, Mi Perfil, preferencias de tema, notificaciones y formularios de postulación de choferes.
 
-En `backend/` vive la API REST, escrita en Node.js con Express sobre PostgreSQL.
-Resuelve la autenticación con roles, las cotizaciones, los envíos y su
-seguimiento, la asignación a choferes, los pagos, los cupones y la verificación
-de identidad.
+## Circuito de un envío
 
-En `frontend/` está la aplicación, hecha con Expo y React Native en TypeScript.
-Incluye a Boxy, el mapa de seguimiento, el circuito de pago y el alta de chofer.
+1. **Cotización.** Boxy interpreta direcciones y carga en el dispositivo y propone vehículo y tarifa. El backend recalcula el importe con una versión empaquetada del mismo cotizador; el precio del cliente no se acepta como autoridad.
+2. **Pedido y pago.** Al confirmar se crea un envío pendiente, con vencimiento para el pago. El pago aprobado habilita la oferta para la flota.
+3. **Asignación.** El envío se ofrece a choferes con vehículos compatibles. El primero que lo toma obtiene la asignación. El circuito actual no es una asignación predictiva por inteligencia artificial.
+4. **Seguimiento.** El chofer registra hitos y ubicación; el cliente consulta mapa, datos del chofer e historial de eventos. Realtime complementa las consultas periódicas cuando está configurado.
+5. **Entrega.** Se confirma mediante el PIN del receptor y una foto de comprobante. Hay un límite de intentos y un mecanismo de desbloqueo para soporte y administración.
+6. **Eventos y avisos.** El servidor registra eventos en un outbox y los procesa para generar notificaciones y solicitar envíos push cuando corresponde.
 
-Cada carpeta tiene su propio README con el detalle de configuración: el de
-[`backend/`](backend/README.md) para la API y el de [`frontend/`](frontend/README.md),
-que es el README específico de la aplicación mobile. El orden para levantar el
-proyecto es siempre el mismo: primero el backend apuntado a la base del equipo, y
-después el frontend apuntado a esa API.
+Los estados principales de los envíos son `pendiente`, `asignado`, `en_viaje`, `entregado` y `cancelado`. El estado del pago se registra por separado.
 
-### Web App y Mobile App
+### Pedidos impagos, falta de chofer y compensaciones
 
-La Web App está publicada en **https://ccchimi.github.io/Logitrak/** y la API en
-**https://logitrak.onrender.com**. La Web App y la Mobile App salen del mismo código de `frontend/`. Expo compila
-las pantallas de React Native a Android e iOS, y con `react-native-web` a una
-aplicación web. Las dos hablan con el mismo backend, así que la Web App completa
-es `frontend/` (en modo web) más `backend/`. Las diferencias por plataforma están
-resueltas dentro del código: el mapa tiene una versión web propia
-(`MapaSeguimiento.web.tsx`, con la API JavaScript de Google Maps) y la prueba de
-vida de la verificación de identidad solo corre en el teléfono, porque necesita
-la cámara y módulos nativos.
+- **Pedido sin pagar:** el plazo predeterminado es de 5 minutos (`MINUTOS_PARA_PAGAR`). Después del vencimiento, la API rechaza nuevos pagos sobre ese pedido y un trabajo del servidor puede eliminarlo. La limpieza contempla un minuto de gracia, barridos periódicos y comprobación de pagos en curso; no ocurre necesariamente en el segundo exacto del vencimiento.
+- **Pedido pagado sin chofer:** la oferta vence por defecto a los 5 minutos (`MINUTOS_ESPERA_CHOFER`). El servidor intenta reembolsarlo y registra el resultado. Un error de la pasarela puede requerir reintentos o revisión; la cancelación no garantiza por sí sola que el dinero ya haya sido devuelto.
+- **SLA de retiro:** el plazo comprometido se calcula desde el pago, con el tiempo estimado de llegada al retiro y un margen urbano o interurbano. Si el retiro incumple ese plazo, el servidor puede acreditar un cupón del **10 %**, evitando duplicarlo. `MINUTOS_SLA` es un respaldo para cotizaciones sin estimación, no el plazo universal de todos los envíos.
 
-## Arquitectura
+Estas tareas viven en el backend y usan `pg-boss` sobre PostgreSQL. No dependen de mantener abierta la aplicación. Sí dependen de que los trabajos estén habilitados y el proceso del servidor esté activo; se realizan barridos al arrancar y periódicamente.
+
+## Arquitectura y organización
 
 ```mermaid
-flowchart LR
-    subgraph Cliente["frontend/ (Expo + React Native + TypeScript)"]
-        UI["screens/ y components/"]
-        Boxy["services/botLogistica<br/>Boxy: NLP, direcciones,<br/>cargas y tarifas"]
-        SVC["services/*Service.ts<br/>cliente HTTP (api.ts)"]
-        UI --> Boxy
-        UI --> SVC
-    end
-
-    subgraph API["backend/ (Node.js + Express)"]
-        R["rutas/<br/>auth, cotizaciones, envíos,<br/>asignaciones, pagos, soporte…"]
-        MW["middleware/auth.js<br/>JWT + roles"]
-        S["servicios/<br/>cotizador (mismo código que Boxy),<br/>pagos, identidad, expiración"]
-        R --> MW
-        R --> S
-    end
-
-    SVC -- "REST + JSON (JWT)" --> R
-    S --> DB[("PostgreSQL<br/>Supabase")]
-    S --> ST[("Supabase Storage<br/>fotos de verificación")]
-    S --> MP["Mercado Pago / MODO"]
-    UI -. "Realtime (chat de soporte)" .-> DB
-    UI --> GM["Google Maps<br/>mapas y rutas"]
+flowchart TD
+    App["Aplicación Expo: web, Android e iOS"] --> API["API REST: Node.js y Express"]
+    API --> DB["PostgreSQL y trabajos pg-boss"]
+    API --> Integraciones["Storage, pagos, rutas y push"]
+    App -. "Suscripciones autorizadas" .-> RT["Supabase Realtime"]
 ```
 
-Es una arquitectura cliente-servidor en capas. En la app, las pantallas
-(`screens/`) se apoyan en componentes reutilizables (`components/`) y nunca llaman
-a la red directamente: lo hacen a través de los servicios de `services/`, que
-comparten un único cliente HTTP con la URL base y el token. Boxy corre en el
-dispositivo para responder al instante, pero el precio que vale es el que
-recalcula el backend con el mismo código (ver
-[`backend/README.md`](backend/README.md#cómo-se-calcula-el-precio)).
+| Ubicación | Responsabilidad |
+|---|---|
+| `frontend/App.tsx` | Entrada visual, fuentes, restauración de sesión y acceso a la aplicación. |
+| `frontend/src/navigation/` | Navegación y selección de pantallas según sesión y permisos. |
+| `frontend/src/screens/` | Pantallas públicas, de clientes, choferes y equipo operativo. |
+| `frontend/src/components/` | Formularios, botones, modales, mapas, navegación compartida y componentes de Boxy y administración. |
+| `frontend/src/services/` | Cliente HTTP, sesión, llamadas a la API, Realtime, push y almacenamiento local. |
+| `frontend/src/services/botLogistica/` | Interpretación de carga y direcciones, conversación y cotización de Boxy. |
+| `frontend/src/hooks/`, `theme/`, `styles/` | Preferencias, tema, movimiento reducido y estilos. |
+| `frontend/assets/` | Fuentes, iconos, ilustraciones e imágenes. |
+| `backend/src/index.js`, `app.js` | Arranque del servidor, montaje de rutas y manejo HTTP. |
+| `backend/src/rutas/` | Recursos de la API. |
+| `backend/src/middleware/`, `esquemas/` | Autenticación, permisos, límites, seguridad y validación de solicitudes. |
+| `backend/src/servicios/` | Lógica de negocio, sesiones, pagos, identidad, almacenamiento y operaciones de envíos. |
+| `backend/src/trabajos/`, `outbox/` | Vencimientos, revisión de SLA y procesamiento de eventos. |
+| `backend/src/db/`, `migrations/` | Conexión, inicialización y evolución versionada de la base. |
+| `backend/src/observabilidad/` | Logs con Pino e integración opcional con Sentry. |
+| `docs/` | Informe técnico, planes de pruebas, mantenimiento y evolución. |
+| `.github/workflows/` | Integración continua y publicación de la Web App. |
 
-En el backend, cada recurso tiene su archivo en `rutas/`, la autenticación y los
-permisos por rol están en `middleware/`, y la lógica que no es HTTP (cotizador,
-pasarelas de pago, verificación de identidad, expiración de ofertas) vive en
-`servicios/`. Todas las consultas a PostgreSQL van parametrizadas.
+Las rutas principales de la API se agrupan bajo `/api/auth`, `/api/perfil`, `/api/choferes`, `/api/vehiculos`, `/api/cotizaciones`, `/api/envios`, `/api/asignaciones`, `/api/pagos`, `/api/cupones`, `/api/admin`, `/api/soporte`, `/api/recorridos` y `/api/notificaciones`. El detalle está en el [README del backend](backend/README.md).
 
-## Variables de entorno
+La persistencia incluye usuarios, sesiones, choferes, vehículos, cotizaciones, envíos, asignaciones, eventos, pagos, cupones, soporte y notificaciones. Las migraciones son la referencia para la estructura de la base.
 
-Cada parte tiene su `.env.example` comentado línea por línea. Se copia a `.env`,
-que está en `.gitignore`, y se completa. En producción las variables se cargan
-en el panel de Render (backend) y en EAS (builds de la app), no en archivos.
+### Tecnologías principales
 
-**Backend** (`backend/.env`)
+| Área | Tecnologías |
+|---|---|
+| Aplicación | Expo SDK 54, React Native 0.81.5, React 19.1 y TypeScript 5.9 |
+| Navegación y web | React Navigation 7 y `react-native-web` |
+| UI y recursos | Componentes propios, fuentes Poppins, Syne y DM Sans; Material Icons |
+| Mapas y ubicación | `react-native-maps`, Google Maps JavaScript, Directions y `expo-location` |
+| Identidad | `expo-camera`, ML Kit en móvil y comparación facial en backend |
+| Persistencia local | AsyncStorage; las preferencias se guardan en el dispositivo o navegador |
+| API y datos | Express 4, `pg`, PostgreSQL, `node-pg-migrate` y `pg-boss` |
+| Sesiones y validación | JWT, `bcryptjs`, Zod, Helmet y `express-rate-limit` |
+| Integraciones | Supabase, Mercado Pago, MODO y Expo Push |
+| Observabilidad | Pino y Sentry opcional |
+| Pruebas | Jest y `ts-jest` en frontend; `node:test` y Supertest en backend |
 
-| Variable | Obligatoria | Para qué sirve |
-|---|---|---|
-| `DATABASE_URL` | Sí | Conexión a PostgreSQL (Supabase, *session pooler*) |
-| `JWT_SECRET` | Sí | Firma de los tokens de sesión |
-| `ACCESS_TOKEN_EXPIRA` | No | Duración del token de acceso de la app (por defecto `15m`) |
-| `REFRESH_TOKEN_DIAS` | No | Días que dura el refresh token sin usarse (por defecto `30`) |
-| `JWT_EXPIRA` | No | Token largo para versiones viejas de la app que no renuevan (por defecto `8h`) |
-| `PORT` | No | Puerto de la API en local (por defecto `4000`) |
-| `PUBLIC_API_URL` | No | URL pública del backend, para los callbacks de pago |
-| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_BUCKET` | No | Bucket privado para las fotos de verificación |
-| `SUPABASE_ANON_KEY`, `SUPABASE_JWT_SECRET` | No | Chat de soporte en tiempo real |
-| `MP_ACCESS_TOKEN` | No | Mercado Pago (vacío = sandbox simulado) |
-| `MODO_API_URL`, `MODO_CLIENT_ID`, `MODO_CLIENT_SECRET`, `MODO_STORE_ID` | No | MODO (vacío = sandbox simulado) |
-| `RENAPER_API_URL`, `RENAPER_API_KEY` | No | Verificación contra RENAPER (vacío = lectura offline del DNI) |
-| `MINUTOS_ESPERA_CHOFER` | No | Minutos que espera un envío pago a que lo tome un chofer (5) |
-| `MINUTOS_PARA_PAGAR` | No | Minutos para pagar un pedido antes de que se borre (5) |
-| `MINUTOS_SLA`, `DESCUENTO_SLA_PCT` | No | Plazo de entrega desde el pago (20) y cupón si se excede (15 %) |
-| `TRABAJOS_DESHABILITADOS` | No | `true` apaga los trabajos en segundo plano (pg-boss) |
-| `GOOGLE_DIRECTIONS_KEY` | Para mapas | Ruta por calles del seguimiento en la app móvil (solo servidor) |
-| `SENTRY_DSN` | No | Envía los errores del backend a Sentry (vacío = solo logs) |
-| `EXPO_ACCESS_TOKEN` | No | Token de Expo para push, solo si se activó la seguridad reforzada |
-| `LOG_LEVEL` | No | Nivel de los logs: `debug`, `info` (por defecto), `warn`, `error` |
-| `ENTORNO` | No | `desarrollo`, `staging` o `produccion` (por defecto: `produccion` en Render, `desarrollo` en local). Carga `backend/.env.<entorno>` antes que `.env` |
+### Diferencias entre web y móvil
 
-**Frontend** (`frontend/.env`)
+El mapa tiene implementaciones separadas: `MapaSeguimiento.tsx` para móvil y `MapaSeguimiento.web.tsx` para web. La ruta por calles del móvil se solicita a `GET /api/recorridos`; la clave de Directions del servidor no se entrega a la aplicación.
 
-| Variable | Obligatoria | Para qué sirve |
-|---|---|---|
-| `EXPO_PUBLIC_API_URL` | Sí | URL del backend (en local, la IP LAN de la PC, no `localhost`) |
-| `EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_KEY` | Para mapas | Mapa nativo en Android |
-| `EXPO_PUBLIC_GOOGLE_MAPS_WEB_KEY` | Para mapas | Mapa de la versión web |
-| `EXPO_PUBLIC_SENTRY_DSN` | No | Envía los errores de la app a Sentry (vacío = desactivado) |
-
-Todo lo que empieza con `EXPO_PUBLIC_` queda dentro de la app, así que ahí nunca
-van secretos de servidor. Las dos claves de Google que sí viajan en la app van
-restringidas en Google Cloud: la de Android por package name (`com.logitrak.frontend`) + SHA-1 y solo
-Maps SDK for Android; la web por dominio (`https://ccchimi.github.io/*`) y solo
-Maps JavaScript y Directions. La ruta por calles del móvil la pide la app al
-backend (`GET /api/recorridos`), que usa `GOOGLE_DIRECTIONS_KEY`: una llamada a
-Google hecha desde el JavaScript del teléfono no lleva paquete ni dominio, así
-que esa clave no se podría restringir.
-
-## Librerías principales
-
-| Parte | Librería | Uso |
-|---|---|---|
-| App | Expo SDK 54, React Native 0.81, React 19 | Base de la aplicación mobile y web |
-| App | `react-native-web` | Versión web desde el mismo código |
-| App | React Navigation (`native-stack`) | Navegación entre pantallas |
-| App | `react-native-maps` | Mapa y ruta del seguimiento (la ruta la calcula el backend) |
-| App | `expo-location` | Ubicación del chofer |
-| App | `expo-camera`, `@react-native-ml-kit/face-detection` | Escaneo de DNI, selfie y prueba de vida |
-| App | `@supabase/supabase-js` | Chat de soporte en tiempo real |
-| App | `@react-native-async-storage/async-storage` | Sesión guardada en el dispositivo |
-| API | Express 4 | Servidor HTTP y rutas REST |
-| API | `pg` | Acceso a PostgreSQL |
-| API | `jsonwebtoken`, `bcryptjs` | Sesiones con JWT y contraseñas hasheadas |
-| API | `express-rate-limit` | Límite de intentos en login y recuperación |
-| API | `mercadopago`, `qrcode` | Cobros con Mercado Pago y pagos por QR |
-| API | `@supabase/supabase-js` | Storage privado de las fotos de verificación |
-| API | `@vladmandic/face-api`, `jpeg-js` | Comparación facial de la selfie con el DNI |
-| Calidad | Jest + `ts-jest`, `node:test`, esbuild | Pruebas del cotizador y del backend; empaquetado del cotizador para el servidor |
+Los módulos nativos de detección facial y prueba de vida requieren un build de desarrollo compatible. No debe asumirse que el circuito completo de identidad funciona en web o Expo Go. Las notificaciones push nativas también necesitan dispositivo, permisos y credenciales de plataforma; el código omite su registro en web.
 
 ## Puesta en marcha
 
-```bash
-# 1) Backend
-cd backend && npm install
-cp .env.example .env        # pegá el DATABASE_URL del proyecto de Supabase
-npm run dev                 # API en http://localhost:4000
+### Requisitos
 
-# 2) Frontend (en otra terminal)
-cd frontend && npm install
-cp .env.example .env        # fijá EXPO_PUBLIC_API_URL a la IP LAN de tu backend
-npm start                   # escaneá el QR con Expo Go o elegí plataforma
-npm run web                 # o directamente la Web App en el navegador
+- **Node.js 22.12.0 o superior**, según `backend/package.json`; los workflows usan Node 22.
+- npm y Git.
+- PostgreSQL propio o un entorno de desarrollo/staging de Supabase para ejecutar el backend.
+- Herramientas nativas de Android o iOS si se va a generar un build local móvil.
+
+Cloná el repositorio y entrá en su carpeta:
+
+```bash
+git clone https://github.com/ccchimi/Logitrak.git
+cd Logitrak
 ```
 
-Hace falta Node.js 20 o superior. Para la app en el teléfono alcanza con Expo Go;
-la prueba de vida de la verificación de identidad necesita un dev build
-(`npx expo run:android`).
+### Trabajar solamente en frontend
+
+No hace falta levantar ni modificar el backend si ya existe una API del equipo disponible para desarrollo.
+
+```bash
+cd frontend
+npm ci
+cp .env.example .env
+```
+
+Revisá `frontend/.env` y configurá `EXPO_PUBLIC_API_URL` con la API que corresponda. El ejemplo apunta a Render; las operaciones realizadas contra esa dirección usan los datos de ese entorno. Para pruebas que creen o modifiquen registros, usá una API y datos destinados a pruebas.
+
+```bash
+npm run web
+```
+
+Para iniciar Metro y elegir plataforma:
+
+```bash
+npm start
+```
+
+Los comandos `npm run android` y `npm run ios` generan y ejecutan builds nativos locales y requieren las herramientas de cada plataforma. Los perfiles de EAS están en [`frontend/eas.json`](frontend/eas.json).
+
+### Ejecutar también el backend local
+
+En otra terminal, desde la raíz del repositorio:
+
+```bash
+cd backend
+npm ci
+cp .env.example .env
+```
+
+Configurá `DATABASE_URL` con una base de desarrollo y definí un `JWT_SECRET` propio antes de arrancar:
+
+```bash
+npm run dev
+```
+
+**El arranque del backend aplica migraciones pendientes y siembra datos base.** No es una comprobación de solo lectura y no debe apuntarse a una base real para una prueba exploratoria. La API local usa por defecto el puerto `4000`.
+
+Si el frontend corre en el navegador de la misma computadora, puede usar `http://localhost:4000`. Desde un teléfono físico, usá la IP LAN de la computadora con el puerto `4000`, o una API pública de pruebas. Reiniciá Expo cuando cambies las variables del bundle.
+
+## Configuración
+
+Los ejemplos completos están en [`backend/.env.example`](backend/.env.example) y [`frontend/.env.example`](frontend/.env.example). Los archivos con valores reales no se suben al repositorio.
+
+### Backend
+
+| Variable o grupo | Uso |
+|---|---|
+| `DATABASE_URL`, `JWT_SECRET` | Obligatorios para iniciar: conexión a PostgreSQL y firma de sesiones. |
+| `PORT`, `PUBLIC_API_URL` | Puerto local y URL pública usada para callbacks. Render asigna `PORT`. |
+| `ENTORNO` | `desarrollo`, `staging` o `produccion`. Por defecto se selecciona producción en Render o con `NODE_ENV=production`, y desarrollo en los demás casos. |
+| `ACCESS_TOKEN_EXPIRA`, `REFRESH_TOKEN_DIAS`, `JWT_EXPIRA` | Acceso corto (por defecto 15 min), refresh renovable (30 días por token) y token de compatibilidad (8 h). |
+| `PGSSL`, `PGSSL_STRICT` | Configuración SSL de la conexión a PostgreSQL. |
+| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_BUCKET` | Storage privado para documentos y comprobantes. |
+| `SUPABASE_ANON_KEY`, `SUPABASE_JWT_SECRET` | Junto con Supabase, habilitan las suscripciones Realtime autorizadas de la aplicación. |
+| `MP_ACCESS_TOKEN`, `MP_WEBHOOK_SECRET` | Mercado Pago y validación de sus webhooks. Sin el secreto, los avisos del webhook se rechazan. |
+| `MODO_API_URL`, `MODO_CLIENT_ID`, `MODO_CLIENT_SECRET`, `MODO_STORE_ID` | Integración con MODO; ver opciones adicionales en el ejemplo. |
+| `RENAPER_API_URL`, `RENAPER_API_KEY` | Consulta externa de identidad cuando está configurada. |
+| `MINUTOS_PARA_PAGAR`, `MINUTOS_ESPERA_CHOFER`, `MINUTOS_SLA` | Vencimiento de pago, espera por chofer y plazo de respaldo para SLA. |
+| `TRABAJOS_DESHABILITADOS` | `true` desactiva los trabajos de `pg-boss`. |
+| `GOOGLE_DIRECTIONS_KEY` | Clave de servidor para recorridos del móvil. |
+| `EXPO_ACCESS_TOKEN` | Opcional, según la seguridad configurada para Expo Push. |
+| `LOG_LEVEL`, `SENTRY_DSN` | Nivel de logs y reporte opcional de errores. |
+| `CORS_ORIGENES`, `CORS_RED_LOCAL`, `TRUST_PROXY` | Orígenes web permitidos y configuración de proxy. |
+
+Se cargan primero `.env.<entorno>` y después `.env`, sin reemplazar variables ya definidas. Los valores del entorno del proceso tienen prioridad. En Render, se administran desde la configuración del servicio.
+
+El porcentaje de compensación actual proviene de `BONIFICACION_SLA_PCT` en el cotizador. No se configura mediante una variable de entorno `DESCUENTO_SLA_PCT`.
+
+### Frontend y builds
+
+| Variable | Uso |
+|---|---|
+| `EXPO_PUBLIC_API_URL` | URL base de la API. |
+| `EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_KEY` | Mapa nativo de Android. |
+| `EXPO_PUBLIC_GOOGLE_MAPS_WEB_KEY` | Google Maps en web. |
+| `EXPO_PUBLIC_SENTRY_DSN` | Reporte opcional de errores del cliente. |
+| `EXPO_BASE_URL` | Prefijo de exportación web; el workflow de Pages usa `/Logitrak`. |
+| `GOOGLE_SERVICES_JSON` | Archivo de configuración de Firebase para builds Android, si se utiliza. |
+| `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT` | Integración de Sentry en el build cuando está configurada. No son variables públicas de la app. |
+
+Las variables `EXPO_PUBLIC_*` quedan incorporadas en el cliente: nunca deben contener secretos de servidor. Las claves de Maps deben restringirse a las APIs, dominios o aplicaciones correspondientes. Las credenciales de Firebase, APNs y EAS se administran por los mecanismos de cada plataforma; no deben publicarse claves privadas.
+
+La publicación web toma variables y secretos de GitHub Actions. Los builds de EAS requieren su propia configuración de entorno; no se debe asumir que heredan las variables configuradas en Render.
+
+## Pagos: qué es real y qué es simulado
+
+| Método | Implementación actual |
+|---|---|
+| Mercado Pago | Integración con checkout, consulta de estado y webhook firmado. Usa sandbox local si no hay token; el tipo de credenciales del proveedor determina si hay cobros reales. |
+| MODO | Integración configurable con su API; sin configuración se utiliza un circuito simulado. |
+| Tarjeta ingresada directamente en Logitrak | **Procesador simulado:** valida datos y genera un resultado de prueba. No es una integración bancaria ni un cobro real de tarjeta. |
+
+Los endpoints de inicio de pago admiten `Idempotency-Key`; el frontend conserva la clave de una operación cuando debe reintentar por falta de conexión. Esto reduce duplicados por reintentos, pero no reemplaza la conciliación de pagos aprobados por vías distintas.
+
+No se deben ingresar datos reales de tarjetas en el procesador simulado. Para cobrar tarjetas de verdad se necesita integrar un proveedor que tokenice los datos del lado del cliente. Los reembolsos reales y las notificaciones de proveedores requieren validación específica del entorno; la existencia del código no certifica su funcionamiento productivo.
+
+## Sesiones, Mi Perfil y preferencias
+
+La aplicación utiliza JWT de acceso y refresh tokens rotativos y revocables. El backend guarda hashes de refresh tokens y contempla detección de reutilización. El cliente persiste la sesión con AsyncStorage; el uso de almacenamiento seguro nativo para el refresh token sigue pendiente.
+
+En Mi Perfil:
+
+- El cambio de contraseña comprueba la contraseña actual en el backend.
+- El frontend puede comprobar credenciales usando login con el encabezado de verificación, sin abrir una sesión nueva. Esa comprobación no emite una autorización reutilizable para editar otros campos.
+- La edición individual de los demás datos está limitada en la interfaz; email y teléfono están deshabilitados. No debe presentarse como una edición completa ya habilitada.
+- El backend admite algunos cambios de perfil, pero todavía no vincula cada cambio sensible con una autorización de reautenticación específica; el nombre de usuario no se modifica mediante ese contrato.
+- La eliminación de cuenta solicita contraseña y está sujeta a restricciones por rol y operaciones activas. El backend anonimiza datos y conserva los comprobantes previstos por su implementación.
+- El tema claro/oscuro y el modo silencioso se conservan localmente. No son preferencias sincronizadas con el servidor. El modo silencioso no está integrado de forma global con el sonido de las notificaciones push.
+
+La recuperación de contraseña existe, pero su verificación de identidad necesita reforzarse antes de considerarla un mecanismo seguro para producción.
 
 ## Pruebas y calidad
 
+Desde `frontend/`:
+
 ```bash
-cd frontend && npm test     # 107 pruebas del cotizador (Jest), con cobertura: npm run test:coverage
-cd backend && npm test      # pruebas del cálculo de precio en el servidor (node --test)
+npm run typecheck
+npm test -- --runInBand
+npm run test:coverage -- --ci
+npm run build:web
+npm run verify:backend
 ```
 
-Las dos baterías corren solas en GitHub Actions en cada push a `main`
-(`.github/workflows/ci.yml`). El plan de pruebas y el de mantenimiento están en
-[`docs/qa/`](docs/qa/), y las tareas pendientes en
-[`docs/pendientes-logitrak.md`](docs/pendientes-logitrak.md).
+`verify:backend` consulta la salud de la API configurada. No comprueba login, pagos ni el circuito completo de un envío. La cobertura de Jest se mide actualmente sobre los módulos de tarifas, cargas, direcciones y NLP definidos en `jest.config.js`, no sobre todas las pantallas.
 
-## Dónde corre
+Desde `backend/`, con dependencias instaladas:
 
-El backend está desplegado en Render como Web Service, con despliegue automático
-desde `main`, y responde en `https://logitrak.onrender.com`. La base de datos es
-un PostgreSQL gestionado en Supabase, que además nos guarda en un bucket privado
-las fotos de la verificación de identidad. La aplicación se compila con EAS
-Build, que es el servicio de builds de Expo.
+```bash
+npm test
+npm run test:cobertura
+```
 
-Una limitación a tener presente: el plan gratuito de Render apaga la instancia
-cuando no recibe tráfico, así que el primer pedido después de un rato puede
-demorar cerca de cincuenta segundos. Para producción hace falta un plan que
-mantenga el servicio siempre activo.
+Las pruebas que necesitan PostgreSQL deben usar `TEST_DATABASE_URL` con una base descartable. Sin esa configuración, parte de las pruebas de integración se omite. No se debe reutilizar la base operativa para ejecutar pruebas.
+
+La [CI](.github/workflows/ci.yml) ejecuta pruebas y cobertura de frontend y backend, verifica que el cotizador empaquetado esté actualizado y utiliza PostgreSQL descartable para integración. Se activa con push y pull requests a `main`, semanalmente y de forma manual. La publicación web está en un [workflow separado](.github/workflows/web.yml).
+
+La cantidad de pruebas y los resultados vigentes deben consultarse en cada ejecución; no se fija un número en este README ni se presupone que hayan pasado por actualizar documentación.
+
+## Despliegue y operación
+
+- **Frontend web:** GitHub Actions instala dependencias, exporta Expo y publica `frontend/dist` en GitHub Pages cuando cambian los archivos definidos por el workflow en `main`.
+- **Backend:** Render ejecuta la API. El repositorio documenta `npm install` y `npm start`; la configuración efectiva de despliegue automático se verifica en el panel de Render.
+- **Base y archivos:** PostgreSQL y Storage privado en Supabase. Las migraciones se aplican durante el arranque del backend.
+- **Móvil:** EAS Build utiliza los perfiles `development`, `preview` y `production`. El perfil `preview` es un perfil de compilación interna, no una vista previa local que evite la autenticación.
+- **Salud:** `GET /api/salud/vivo` verifica que el proceso responde; `GET /api/salud` informa preparación y estado de la base y componentes. Ninguno reemplaza pruebas funcionales.
+- **Observabilidad:** logs estructurados con Pino, identificador de solicitud y reporte opcional a Sentry. La configuración de Sentry y el envío de símbolos requieren credenciales del entorno correspondiente.
+
+El repositorio documenta el uso de Render Free. Cuando el servicio está detenido por inactividad o reiniciándose, el primer acceso puede demorarse y los trabajos de fondo no se ejecutan hasta que el proceso vuelva a estar activo. Para necesidades productivas, debe evaluarse la disponibilidad requerida del servicio y de sus integraciones.
+
+## Limitaciones y trabajo pendiente
+
+Además de las restricciones de Mi Perfil y pagos ya descritas:
+
+- Los cupones se acreditan y consultan, pero aún no se aplican al pago de un nuevo envío.
+- Guardar tarjetas o cuentas de cobro desde las pantallas de métodos está pendiente; esas pantallas no persisten los datos ingresados.
+- El listado de envíos devuelve hasta 200 registros por consulta. El panel intenta ampliar por estado, pero esto no sustituye una API con paginación e históricos completos.
+- Listar usuarios y cambiar roles no equivale a editar los perfiles completos de otras personas.
+- La compatibilidad y configuración de identidad, mapas y push deben validarse por plataforma. El despliegue iOS necesita sus credenciales específicas.
+- Las notificaciones por correo no están implementadas como canal general; el registro de clientes no pide email.
+- El código de recuperación y la inicialización de cuentas administrativas requieren revisión de seguridad antes de un uso productivo.
+- La inteligencia logística predictiva descrita en el roadmap es una evolución propuesta, no una capacidad ya implementada de Boxy.
+
+Consultá los [pendientes técnicos](docs/pendientes-logitrak.md) y el [roadmap](docs/ROADMAP.md). Esos documentos pueden contener referencias históricas: ante diferencias, debe contrastarse cada punto con el código y la configuración desplegada.
+
+## Documentación relacionada
+
+- [Backend: configuración, endpoints y operación](backend/README.md).
+- [Frontend: aplicación y estructura](frontend/README.md).
+- [Recursos gráficos y fuentes](frontend/assets/README.md).
+- [Informe técnico del Parcial 2](docs/informe-tecnico-parcial-2.md).
+- [Plan de pruebas](docs/qa/plan-de-pruebas-cotizador.md).
+- [Pruebas unitarias](docs/qa/pruebas-unitarias.md).
+- [Plan de mantenimiento](docs/qa/plan-de-mantenimiento.md).
+- [Propuesta de inteligencia logística predictiva](docs/MODULO-IA-PREDICTIVA.md).
+
+`node_modules/` contiene dependencias instaladas y `frontend/dist/` la exportación web generada. Ambas están excluidas por las reglas de Git; se regeneran a partir del código y los archivos de dependencias.
+
+**Base de esta actualización:** código publicado en `main`, commit [`0e91c37`](https://github.com/ccchimi/Logitrak/commit/0e91c37c766b2d44d535e2700b3a2f9e7ab75d73), revisado el 15 de noviembre de 2026. No incluye cambios locales que no estén publicados ni certifica la configuración activa de los servicios. La revisión documental no ejecutó servidores, migraciones ni operaciones sobre datos reales.
 
 ---
 

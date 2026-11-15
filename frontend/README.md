@@ -1,154 +1,205 @@
 # Logitrak · Aplicación
 
-Esta es la aplicación de Logitrak, construida con Expo y React Native sobre
-TypeScript. Una sola base de código corre en web, Android e iOS, y cubre el
-recorrido completo del usuario: cotizar un envío conversando con Boxy, pagarlo,
-seguirlo en el mapa y, si le interesa, postularse como chofer pasando por la
-verificación de identidad.
+Aplicación de Logitrak desarrollada con Expo, React Native y TypeScript. Comparte código entre web, Android e iOS y consume la API REST del proyecto para cotizar, gestionar pedidos, pagar, seguir envíos y atender la operación.
 
-## Con qué está hecha
+- [Web App en GitHub Pages](https://ccchimi.github.io/Logitrak/).
+- [API configurada en Render](https://logitrak.onrender.com).
+- [Documentación general](../README.md) y [backend](../backend/README.md).
 
-Corre sobre Expo SDK 54 con React Native 0.81 y React 19, y la navegación la
-resuelve React Navigation con un stack nativo. Los mapas y el trazado de rutas
-salen de `react-native-maps` junto con `react-native-maps-directions`, mientras
-que la ubicación la maneja `expo-location`. Para la verificación de identidad
-usamos `expo-camera` para capturar y `@react-native-ml-kit/face-detection` para
-la prueba de vida. La tipografía combina Syne y DM Sans, y los degradados salen
-de `expo-linear-gradient`; el resto de la interfaz son componentes propios.
+Las funciones que requieren sesión, datos, mapas, pagos o notificaciones dependen de la API y de las credenciales configuradas en cada entorno. Compartir código entre plataformas no implica que todos los módulos nativos funcionen en web o Expo Go.
 
-## Boxy, el motor de cotización
+## Tecnologías
 
-Boxy vive en `src/services/botLogistica/` y es la pieza que más nos interesa
-defender del proyecto. No es un modelo de lenguaje ni llama a ningún servicio
-externo: es un motor de inferencia basado en reglas que corre íntegramente en el
-dispositivo. Esa decisión no fue por simplicidad, sino porque acá se calculan
-precios y se manejan domicilios. Un motor determinista siempre devuelve lo mismo
-ante la misma entrada, no puede inventar una tarifa, y ningún dato del usuario
-sale del teléfono.
+| Área | Implementación actual |
+|---|---|
+| Base | Expo SDK 54, React Native 0.81.5, React 19.1 y TypeScript 5.9 |
+| Navegación | React Navigation 7, stack nativo y contexto de flujo raíz |
+| Web | `react-native-web` y exportación estática de Expo |
+| UI | Componentes propios, `expo-linear-gradient`, fuentes Poppins, Syne y DM Sans, Material Icons |
+| Mapas | `react-native-maps` en móvil y Google Maps JavaScript en web |
+| Ubicación e identidad | `expo-location`, `expo-camera` y ML Kit para detección facial nativa |
+| Sesión y preferencias | AsyncStorage, cliente HTTP compartido y hooks de tema/preferencias |
+| Tiempo real | Supabase Realtime para seguimiento y soporte, con credenciales emitidas por el backend |
+| Push | `expo-notifications`, `expo-device` y registro de tokens en la API |
+| Errores | Integración opcional con Sentry |
+| Pruebas | Jest y `ts-jest`; comprobación de tipos con `tsc` |
 
-Internamente se reparte en cuatro responsabilidades. El procesamiento de lenguaje
-(`nlp.ts` y `conversacion.ts`) interpreta las respuestas del usuario mientras le
-va pidiendo los datos: reconoce afirmaciones y negaciones, extrae números aunque
-vengan escritos con palabras, normaliza unidades y detecta texto ilegible. El
-análisis de direcciones (`direcciones.ts`) valida origen y destino contra la zona
-de cobertura, corrige la localidad cuando hace falta y estima la distancia. La
-clasificación de carga (`cargas.ts`) deduce de qué tipo de envío se trata y si
-requiere algo especial, como cadena de frío. Por último, `tarifas.ts` elige el
-vehículo más barato que cubra peso, bultos y volumen, y arma el desglose del
-precio contemplando franja horaria, día, demanda de la zona, peajes, seguro y
-peso volumétrico.
+El trazado por calles del móvil se solicita al backend mediante `GET /api/recorridos`. La dependencia `react-native-maps-directions` y la variable pública `EXPO_PUBLIC_GOOGLE_DIRECTIONS_KEY` no forman parte de la configuración actual.
 
-Lo que devuelve es una cotización explicada, con su nivel de confianza, que
-después se confirma contra la API.
+## Estructura
 
-## Recorrido de pantallas
+| Ubicación | Responsabilidad |
+|---|---|
+| `App.tsx` | Carga de fuentes, restauración de sesión, presentación pública y entrada a la aplicación. |
+| `src/navigation/AppNavigator.tsx` | Stack, persistencia de navegación y selección del inicio según permisos. |
+| `src/navigation/RootFlowContext.tsx` | Comunicación con el flujo raíz. |
+| `src/screens/` | Pantallas. |
+| `src/components/` | Controles reutilizables, modales, marco de aplicación, mapas y escáner. |
+| `src/components/boxy/`, `admin/`, `inicio/` | Componentes específicos de cotización, operación y presentación pública. |
+| `src/services/api.ts` | URL base, HTTP, encabezados, sesiones, refresh y tratamiento de errores de conexión. |
+| `src/services/*Service.ts` | Contratos y operaciones de cada dominio. |
+| `src/services/botLogistica/` | Conversación, interpretación y cotización de Boxy. |
+| `src/services/botSoporte/` | Asistente local de soporte. |
+| `src/services/realtime*.ts`, `pushService.ts` | Suscripciones y notificaciones móviles. |
+| `src/services/almacenamiento.ts`, `monitoreo/` | Persistencia local y reporte de errores. |
+| `src/hooks/` | Tema, preferencias, movimiento reducido, frases y panel operativo. |
+| `src/helpers/`, `constants/` | Funciones auxiliares y contenido estático. |
+| `src/theme/`, `styles/` | Paletas, variables de diseño y estilos. |
+| `assets/` | Fuentes, ilustraciones, iconos e imágenes; ver [recursos y licencias](assets/README.md). |
+| `scripts/verificar-backend.mjs` | Comprobación de salud de la API configurada. |
+| `app.config.js`, `app.json`, `eas.json` | Configuración Expo, permisos, claves de Maps y perfiles de compilación. |
 
-```
-Inicio (landing)
-   └─► Login ──► Registro · Recuperar contraseña
-          └─► Home
-                 ├─► SolicitudEnvio → Pago → Seguimiento
-                 ├─► Historial
-                 ├─► Perfil
-                 ├─► TrabajaConNosotros
-                 └─► Chofer
-```
+La mayoría de las operaciones de negocio se centralizan en los servicios y en `api.ts`. Los mapas, Realtime, push y otros módulos de plataforma tienen integraciones específicas; no todas las conexiones de red pasan por el mismo cliente HTTP.
 
-El pago (`PagoScreen`) se ubica entre la solicitud y el seguimiento, y ofrece QR
-de Mercado Pago o MODO además del pago con tarjeta. El seguimiento
-(`SeguimientoScreen` junto a `MapaSeguimiento`) dibuja la ruta y consulta el
-estado real del envío cada pocos segundos, así que el chofer y la unidad que se
-muestran son los que efectivamente tomaron el viaje. Como Google Maps se integra
-distinto en navegador que en nativo, ese componente tiene una variante `.web.tsx`
-propia.
+## Boxy y las cotizaciones
 
-La consola del chofer (`ChoferScreen`) funciona como un tablero de envíos
-disponibles: lista los que su vehículo puede transportar, le permite tomar uno y
-después ir marcando los hitos del viaje, que es lo que alimenta el seguimiento
-que ve el cliente.
+Boxy es un motor basado en reglas que se ejecuta en el cliente; no es un modelo de lenguaje remoto. Sus piezas principales son:
 
-El alta de chofer (`TrabajaConNosotros`, con `EscanerIdentidad`, `dniService` y
-`livenessService`) pide los datos personales, el vehículo con el que va a
-trabajar, el escaneo del código PDF417 del DNI y una selfie con prueba de vida.
+| Archivo | Función |
+|---|---|
+| `nlp.ts`, `conversacion.ts` | Interpretación de respuestas y conducción de la conversación. |
+| `direcciones.ts` | Validación y normalización de direcciones, cobertura y estimación de distancias. |
+| `cargas.ts` | Clasificación de la carga y necesidades especiales. |
+| `tarifas.ts` | Selección de vehículo y desglose del precio, capacidades, tiempos y condiciones. |
+| `conocimiento.ts`, `types.ts` | Datos y contratos compartidos por el motor. |
 
-## Estructura de carpetas
+La inferencia inicial es local, pero **las direcciones y los datos de carga sí se envían al backend** al guardar la cotización y crear el pedido. El backend recalcula con una versión empaquetada del mismo motor y su importe es la referencia para cobrar. Las franjas horarias, fechas y demás condiciones operativas también influyen en el resultado.
 
-```
-frontend/
-├─ App.tsx                  # Landing, transición animada y AppNavigator
-├─ app.config.js            # Config dinámica de Expo (clave de Maps, permisos)
-├─ src/
-│  ├─ navigation/           # Stack navigator y contexto de flujo raíz
-│  ├─ screens/              # Las pantallas (.tsx)
-│  ├─ styles/               # Las hojas de estilo de cada pantalla (.ts)
-│  ├─ components/           # Inputs, mapa, escáner de identidad, avisos
-│  │  ├─ boxy/              # Chat de cotización: mensajes, tarjeta, encabezado, caja de respuesta
-│  │  └─ inicio/            # Secciones de la landing
-│  ├─ services/             # Cliente de API y servicios por dominio
-│  │  └─ botLogistica/      # Boxy: NLP, direcciones, cargas y tarifas
-│  ├─ helpers/              # Funciones puras: formato de montos, guion del chat
-│  ├─ constants/            # Textos y datos estáticos (contenido de la landing)
-│  └─ theme/                # Paleta de colores
-└─ assets/                  # Íconos y splash
-```
+No debe confundirse este motor con las propuestas de predicción logística del roadmap, que siguen siendo una evolución futura.
 
-Separamos los estilos de las pantallas para que `screens/` quede con un solo
-archivo por vista y sea más fácil de recorrer. Todos los servicios de
-`src/services/` hablan con la API a través del cliente común `services/api.ts`,
-que centraliza la URL base y el token de sesión.
+## Pantallas y navegación
 
-## Qué necesitás para correrla
+`Inicio` se presenta desde `App.tsx`; no es una ruta del stack autenticado. Una sesión restaurada puede entrar directamente a la aplicación. Las rutas registradas incluyen:
 
-Hace falta Node.js 20 o superior, la aplicación Expo Go en el teléfono o bien un
-emulador de Android o iOS, y una instancia de la API alcanzable desde ese
-dispositivo.
+| Ruta | Pantalla y alcance |
+|---|---|
+| `Login`, `Registro`, `Recuperar` | Inicio de sesión, alta de clientes y recuperación de contraseña. |
+| `Home` | Inicio de cliente o panel operativo para cuentas con permiso de consultar todos los envíos. |
+| `SolicitudEnvio` | Conversación con Boxy y confirmación de cotización. |
+| `Pago` | Checkout de Mercado Pago y formulario de tarjeta simulada. |
+| `Seguimiento`, `DetalleEnvio` | Mapa, estado, eventos, datos del chofer y comprobante de entrega. |
+| `Historial` | Consulta de los envíos disponibles para la cuenta. |
+| `Perfil` | Datos, cambio de contraseña, preferencias, cierre de sesión y eliminación de cuenta según restricciones. |
+| `Cuponera` | Consulta de cupones acreditados. |
+| `TrabajaConNosotros` | Formulario de postulación por pasos, vehículo, DNI y selfie. |
+| `Chofer` | Ofertas compatibles, asignación, avances y cierre de viaje. |
+| `Estadisticas` | Estadísticas disponibles para el flujo del chofer. |
+| `TodosPedidos` | Consulta operativa de pedidos con filtros y búsqueda. |
+| `UsuariosAdmin` | Usuarios con filtros, paginación y cambio de roles según permisos. |
+| `Soporte` | Asistente, tickets, conversación y atención del equipo. |
+| `Notificaciones` | Bandeja y lectura de avisos. |
+| `MetodosPago`, `MetodoCobro` | Formularios visuales de métodos; su guardado todavía no está implementado. |
 
-## Configuración
+El chofer inicia en su consola. El acceso operativo se decide por capacidades devueltas en la sesión y consultadas por `permisos.ts`. El backend vuelve a comprobar los permisos y el acceso a cada recurso; registrar una pantalla en el navegador no concede autorización.
 
-Copiá `.env.example` a `.env` y completá las variables:
+### Panel del equipo
 
-```ini
-# URL de la API. Conviene fijarla a la IP de tu red local para que funcione
-# igual en web, emulador e iPhone. Si queda vacía se intenta deducir desde
-# Metro, pero eso falla en modo túnel y a veces en el emulador.
-EXPO_PUBLIC_API_URL=http://192.168.1.70:4000
+`AdminDashboardScreen`, `TodosPedidosScreen`, `UsuariosAdminScreen`, `usePanelAdmin` y los servicios de administración consumen datos de la API. El resumen de envíos viene de `/api/envios/metricas`; los indicadores por período y parte de los filtros se calculan sobre los registros recuperados.
 
-# Claves de Google Maps (mapa y ruteo)
-EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_KEY=...
-EXPO_PUBLIC_GOOGLE_DIRECTIONS_KEY=...
-EXPO_PUBLIC_GOOGLE_MAPS_WEB_KEY=...
-```
+`GET /api/envios` devuelve hasta 200 registros. El frontend intenta ampliar por estados y comparar con las métricas; eso no sustituye una API con paginación completa. El listado de usuarios sí recibe búsqueda, rol, fechas, orden y paginación desde el servidor. Poder listar usuarios o cambiar roles no equivale a editar sus perfiles completos.
 
-Todo lo que empieza con `EXPO_PUBLIC_` queda embebido en el bundle, así que ahí
-no van secretos de servidor. Conviene además restringir cada clave de Google por
-nombre de paquete y huella SHA-1, porque de lo contrario cualquiera que abra el
-bundle puede reutilizarlas. El archivo `.env` está en `.gitignore`.
+### Seguimiento, entrega y avisos
 
-## Cómo levantarla
+- Móvil y web usan implementaciones distintas de `MapaSeguimiento`.
+- El seguimiento escucha cambios con Realtime cuando está disponible. Mantiene consultas de respaldo cada 60 segundos con la conexión activa y cada 10 segundos sin ella.
+- El chofer confirma la entrega con el PIN informado por el receptor y una foto, mediante el servicio de asignaciones. El PIN y su bloqueo los controla el backend.
+- Soporte combina Realtime con consultas periódicas. La bandeja de notificaciones y el push son mecanismos distintos.
+- El registro push se omite en web; los builds móviles necesitan permisos, dispositivo y credenciales de la plataforma. La compatibilidad con iOS debe validarse con APNs y la configuración de EAS.
+
+## Mi Perfil, sesión y preferencias
+
+La aplicación guarda la sesión y utiliza refresh tokens para renovar el acceso. El cierre de sesión borra el estado local e intenta revocar la sesión remota y dar de baja el token push. Si no hay conexión, la revocación remota no queda garantizada por el borrado local.
+
+| Función | Estado del código actual |
+|---|---|
+| Consulta de perfil y resumen | Conectada a los servicios de perfil. |
+| Cambio de contraseña | Disponible; exige la contraseña actual al guardar en el backend. |
+| Comprobación previa de contraseña | Usa login con `X-Logitrak-Sesion: verificar`; comprueba que la identidad devuelta coincide con la cuenta local y no reemplaza la sesión. |
+| Edición individual de nombre, usuario y otros datos | Limitada en el frontend mientras no exista una autorización de reautenticación vinculada al cambio. |
+| Email y teléfono | Los controles de edición están deshabilitados; no se confirma un nuevo correo o número. |
+| Eliminación de cuenta | Conectada al endpoint correspondiente, con contraseña y restricciones por rol y operaciones activas. |
+| Tema claro/oscuro y modo silencioso | Guardados localmente por `preferenciasService.ts`; no se sincronizan con el servidor. |
+
+La comprobación previa de credenciales no entrega un permiso reutilizable para editar campos. La edición segura de datos sensibles requiere un contrato adicional del backend.
+
+El modo silencioso controla los sonidos que consultan ese servicio, pero no está aplicado globalmente: el manejador push sigue declarando `shouldPlaySound: true`. Los hooks y transiciones contemplan movimiento reducido en las partes que los utilizan; no constituyen una certificación de accesibilidad de todas las pantallas.
+
+La recuperación de contraseña está conectada a la API actual, pero su verificación de identidad debe reforzarse antes de considerarla apta para producción.
+
+## Pagos e identidad: alcance actual
+
+La interfaz ofrece Mercado Pago y tarjeta. La integración directa con MODO permanece en servicios, pero no aparece como un método independiente seleccionable. El QR de Checkout Pro representa el enlace devuelto por Mercado Pago; la compatibilidad de lectura y pago desde otras billeteras debe validarse con el proveedor, no deducirse del texto de la interfaz.
+
+El formulario de tarjeta utiliza un **procesador simulado en el backend**. No deben ingresarse tarjetas reales. Guardar tarjetas o cuentas de cobro desde `MetodosScreen` también está pendiente.
+
+La postulación de chofer combina datos personales, vehículo, lectura del DNI y selfie. La prueba de vida con ML Kit necesita un build nativo compatible. La comparación facial depende también del runtime y los modelos del servidor. Las variables de RENAPER existen, pero su integración real está pendiente en el backend: cargar esas variables no la implementa.
+
+## Requisitos y configuración
+
+Usá **Node.js 22.12.0 o superior** para trabajar con la versión actual del repositorio. Los workflows usan Node 22 y el backend declara ese mínimo. Hace falta una API alcanzable; no es obligatorio ejecutar el backend local para trabajar en frontend.
+
+Desde la raíz del repositorio:
 
 ```bash
 cd frontend
-npm install
-npm start          # abre Metro: escaneá el QR con Expo Go o elegí plataforma
+npm ci
+cp .env.example .env
 ```
 
-También están los atajos `npm run web`, `npm run android` y `npm run ios` para ir
-directo a una plataforma.
+Configurá las variables de `.env` antes de iniciar Expo:
 
-La versión web publicada está en https://ccchimi.github.io/Logitrak/ y se
-actualiza sola con cada cambio en `frontend/` que llega a `main` (workflow
-`.github/workflows/web.yml`). Para generarla a mano: `npx expo export --platform web`.
+| Variable | Uso |
+|---|---|
+| `EXPO_PUBLIC_API_URL` | URL de la API. El ejemplo apunta al servicio en Render. |
+| `EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_KEY` | Maps SDK de Android. |
+| `EXPO_PUBLIC_GOOGLE_MAPS_WEB_KEY` | Maps JavaScript y rutas en web. |
+| `EXPO_PUBLIC_SENTRY_DSN` | Reporte opcional de errores. |
 
-## Cosas a tener en cuenta
+Para navegador y backend en la misma computadora puede usarse `http://localhost:4000`. Desde un teléfono físico, `localhost` apunta al teléfono: usá la IP LAN de la computadora o una API pública de desarrollo. Conviene definir la URL explícitamente en lugar de depender de la inferencia desde Metro.
 
-La landing se muestra primero en todas las plataformas y entra al login con una
-transición animada, que se arma en `App.tsx`.
+Las variables `EXPO_PUBLIC_*` forman parte del bundle y no son secretas. Restringí las claves de Maps por aplicación/huella de firma en Android y por origen web en navegador. La clave `GOOGLE_DIRECTIONS_KEY` pertenece únicamente al backend. Reiniciá Expo después de cambiar variables del cliente.
 
-La prueba de vida con ML Kit no funciona en Expo Go, porque necesita módulos
-nativos: para probarla hay que generar un dev build con `expo run:android`. En
-Expo Go el alta de chofer sigue andando, pero degradando a las capas de
-verificación que no dependen de código nativo.
+El ejemplo de API pública utiliza datos del entorno al que apunta. Para pruebas que creen o modifiquen registros, usá un entorno y cuentas destinados a pruebas.
 
-Por último, Expo cambia bastante entre versiones, así que antes de tocar código
-conviene mirar la documentación de la versión que estamos usando en lugar de la
-genérica.
+## Ejecución, comprobaciones y builds
+
+Ejecutá los comandos desde `frontend/`:
+
+| Comando | Qué hace |
+|---|---|
+| `npm start` | Inicia Metro. |
+| `npm run web` | Inicia la aplicación web local. |
+| `npm run android` | Genera/ejecuta el proyecto nativo Android; necesita sus herramientas de desarrollo. |
+| `npm run ios` | Genera/ejecuta el proyecto nativo iOS; necesita macOS y las herramientas de Apple. |
+| `npm run typecheck` | Comprueba tipos sin generar archivos de compilación. |
+| `npm test -- --runInBand` | Ejecuta las pruebas Jest. |
+| `npm run test:coverage -- --ci` | Ejecuta Jest con cobertura y umbrales. |
+| `npm run build:web` | Exporta la Web App a `dist/`. |
+| `npm run verify:backend` | Consulta `/api/salud` en la API configurada. No prueba login ni operaciones de negocio. |
+
+Expo Go no incluye todos los módulos nativos del proyecto. Para verificar el circuito completo de identidad y push usá un build de desarrollo con las dependencias y credenciales apropiadas.
+
+Los tests cubren el cotizador, helpers y algunos servicios. El umbral de cobertura de `jest.config.js` se aplica a tarifas, cargas, direcciones y NLP; no mide la cobertura de toda la UI. La cantidad de casos y su resultado deben consultarse en la ejecución correspondiente.
+
+### Publicación web y móvil
+
+El [workflow web](../.github/workflows/web.yml) exporta Expo y publica en GitHub Pages cuando cambian los archivos definidos en `main`. Usa `EXPO_BASE_URL=/Logitrak`, la URL de API y las variables de Maps/Sentry configuradas en GitHub Actions. La exportación manual no se publica por sí sola.
+
+`eas.json` define perfiles `development`, `preview` y `production`. El perfil `preview` es una compilación interna; no es un acceso sin autenticación ni una vista previa local de datos ficticios.
+
+Los builds Android pueden recibir `GOOGLE_SERVICES_JSON` como archivo de configuración Firebase. Push requiere además las credenciales correspondientes en EAS. Para Sentry en el build se contemplan `SENTRY_AUTH_TOKEN`, `SENTRY_ORG` y `SENTRY_PROJECT`; nunca deben exponerse como `EXPO_PUBLIC_*`.
+
+## Limitaciones y documentación
+
+- Los cupones acreditados aún no pueden aplicarse para pagar otro envío.
+- Los vencimientos de pedidos impagos, ofertas y compensaciones dependen de trabajos del servidor, no de mantener abierta esta aplicación.
+- El panel operativo necesita mejorar la consulta paginada de pedidos para escalar a históricos completos.
+- Algunas ediciones de perfil y el guardado de métodos son funciones pendientes, aunque existan controles visuales.
+- La salud de la API y las funciones reales dependen del despliegue; una exportación web correcta no valida la integración completa.
+- Las propuestas predictivas no forman parte del cotizador actual.
+
+Ver [pendientes](../docs/pendientes-logitrak.md), [plan de pruebas](../docs/qa/plan-de-pruebas-cotizador.md), [mantenimiento](../docs/qa/plan-de-mantenimiento.md) y [roadmap](../docs/ROADMAP.md). Ante diferencias entre textos históricos y código, verificá el contrato vigente.
+
+`node_modules/`, `dist/`, archivos de entorno reales y credenciales de build están excluidos por las reglas de Git. Las dependencias y la exportación se regeneran desde los archivos versionados.
+
+**Referencia de esta actualización:** código publicado en `main`, commit [`0e91c37`](https://github.com/ccchimi/Logitrak/commit/0e91c37c766b2d44d535e2700b3a2f9e7ab75d73), revisado el 15 de noviembre de 2026. No incluye cambios locales sin publicar. Se revisó documentación y código; no se ejecutaron builds, suites ni pruebas funcionales en producción para esta actualización.
