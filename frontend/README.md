@@ -1,12 +1,14 @@
-# Logitrak · Aplicación
+# Logitrak · Frontend Web
 
-Aplicación de Logitrak desarrollada con Expo, React Native y TypeScript. Comparte código entre web, Android e iOS y consume la API REST del proyecto para cotizar, gestionar pedidos, pagar, seguir envíos y atender la operación.
+Documentación del frontend de Logitrak en su versión **Web App**: arquitectura, pantallas, configuración, ejecución local y publicación en navegador.
+
+El código de `frontend/` se comparte con Android e iOS mediante Expo y React Native. La instalación y compilación nativa tienen una [guía exclusiva de Mobile App](../docs/mobile/README.md). La carpeta `docs/mobile/` contiene documentación; no es otro proyecto de código.
 
 - [Web App en GitHub Pages](https://ccchimi.github.io/Logitrak/).
 - [API configurada en Render](https://logitrak.onrender.com).
 - [Documentación general](../README.md) y [backend](../backend/README.md).
 
-Las funciones que requieren sesión, datos, mapas, pagos o notificaciones dependen de la API y de las credenciales configuradas en cada entorno. Compartir código entre plataformas no implica que todos los módulos nativos funcionen en web o Expo Go.
+Las funciones que requieren sesión, datos, mapas, pagos o notificaciones dependen de la API y de las credenciales configuradas en cada entorno. Esta guía describe el navegador; los requisitos nativos se documentan por separado.
 
 ## Tecnologías
 
@@ -16,15 +18,14 @@ Las funciones que requieren sesión, datos, mapas, pagos o notificaciones depend
 | Navegación | React Navigation 7, stack nativo y contexto de flujo raíz |
 | Web | `react-native-web` y exportación estática de Expo |
 | UI | Componentes propios, `expo-linear-gradient`, fuentes Poppins, Syne y DM Sans, Material Icons |
-| Mapas | `react-native-maps` en móvil y Google Maps JavaScript en web |
-| Ubicación e identidad | `expo-location`, `expo-camera` y ML Kit para detección facial nativa |
+| Mapas web | Google Maps JavaScript y componente `MapaSeguimiento.web.tsx` |
+| Permisos y cámara web | Integración de los componentes compartidos según soporte del navegador |
 | Sesión y preferencias | AsyncStorage, cliente HTTP compartido y hooks de tema/preferencias |
 | Tiempo real | Supabase Realtime para seguimiento y soporte, con credenciales emitidas por el backend |
-| Push | `expo-notifications`, `expo-device` y registro de tokens en la API |
 | Errores | Integración opcional con Sentry |
 | Pruebas | Jest y `ts-jest`; comprobación de tipos con `tsc` |
 
-El trazado por calles del móvil se solicita al backend mediante `GET /api/recorridos`. La dependencia `react-native-maps-directions` y la variable pública `EXPO_PUBLIC_GOOGLE_DIRECTIONS_KEY` no forman parte de la configuración actual.
+El mapa web tiene su implementación en `MapaSeguimiento.web.tsx`. No se utiliza `react-native-maps-directions` ni una variable pública `EXPO_PUBLIC_GOOGLE_DIRECTIONS_KEY`. El contrato de rutas del móvil y su clave de servidor están explicados en la guía de Mobile App.
 
 ## Estructura
 
@@ -40,14 +41,14 @@ El trazado por calles del móvil se solicita al backend mediante `GET /api/recor
 | `src/services/*Service.ts` | Contratos y operaciones de cada dominio. |
 | `src/services/botLogistica/` | Conversación, interpretación y cotización de Boxy. |
 | `src/services/botSoporte/` | Asistente local de soporte. |
-| `src/services/realtime*.ts`, `pushService.ts` | Suscripciones y notificaciones móviles. |
+| `src/services/realtime*.ts` | Suscripciones para seguimiento y soporte. |
 | `src/services/almacenamiento.ts`, `monitoreo/` | Persistencia local y reporte de errores. |
 | `src/hooks/` | Tema, preferencias, movimiento reducido, frases y panel operativo. |
 | `src/helpers/`, `constants/` | Funciones auxiliares y contenido estático. |
 | `src/theme/`, `styles/` | Paletas, variables de diseño y estilos. |
 | `assets/` | Fuentes, ilustraciones, iconos e imágenes; ver [recursos y licencias](assets/README.md). |
 | `scripts/verificar-backend.mjs` | Comprobación de salud de la API configurada. |
-| `app.config.js`, `app.json`, `eas.json` | Configuración Expo, permisos, claves de Maps y perfiles de compilación. |
+| `app.config.js`, `app.json` | Configuración Expo y prefijo de exportación web. Los perfiles EAS se explican en la guía mobile. |
 
 La mayoría de las operaciones de negocio se centralizan en los servicios y en `api.ts`. Los mapas, Realtime, push y otros módulos de plataforma tienen integraciones específicas; no todas las conexiones de red pasan por el mismo cliente HTTP.
 
@@ -100,15 +101,15 @@ El chofer inicia en su consola. El acceso operativo se decide por capacidades de
 
 ### Seguimiento, entrega y avisos
 
-- Móvil y web usan implementaciones distintas de `MapaSeguimiento`.
+- El navegador utiliza `MapaSeguimiento.web.tsx`, con Google Maps JavaScript y una clave restringida por origen web.
 - El seguimiento escucha cambios con Realtime cuando está disponible. Mantiene consultas de respaldo cada 60 segundos con la conexión activa y cada 10 segundos sin ella.
 - El chofer confirma la entrega con el PIN informado por el receptor y una foto, mediante el servicio de asignaciones. El PIN y su bloqueo los controla el backend.
 - Soporte combina Realtime con consultas periódicas. La bandeja de notificaciones y el push son mecanismos distintos.
-- El registro push se omite en web; los builds móviles necesitan permisos, dispositivo y credenciales de la plataforma. La compatibilidad con iOS debe validarse con APNs y la configuración de EAS.
+- La Web App dispone de la bandeja de notificaciones, pero `pushService.ts` omite el registro push en web. La configuración de notificaciones nativas está en la guía mobile.
 
 ## Mi Perfil, sesión y preferencias
 
-La aplicación guarda la sesión y utiliza refresh tokens para renovar el acceso. El cierre de sesión borra el estado local e intenta revocar la sesión remota y dar de baja el token push. Si no hay conexión, la revocación remota no queda garantizada por el borrado local.
+La aplicación guarda la sesión y utiliza refresh tokens para renovar el acceso. El cierre de sesión borra el estado local e intenta revocar la sesión remota; la baja de push corresponde al flujo móvil. Si no hay conexión, la revocación remota no queda garantizada por el borrado local.
 
 | Función | Estado del código actual |
 |---|---|
@@ -122,7 +123,7 @@ La aplicación guarda la sesión y utiliza refresh tokens para renovar el acceso
 
 La comprobación previa de credenciales no entrega un permiso reutilizable para editar campos. La edición segura de datos sensibles requiere un contrato adicional del backend.
 
-El modo silencioso controla los sonidos que consultan ese servicio, pero no está aplicado globalmente: el manejador push sigue declarando `shouldPlaySound: true`. Los hooks y transiciones contemplan movimiento reducido en las partes que los utilizan; no constituyen una certificación de accesibilidad de todas las pantallas.
+El modo silencioso controla los sonidos que consultan el servicio de preferencias; no modifica las notificaciones externas del navegador. Los hooks y transiciones contemplan movimiento reducido en las partes que los utilizan; no constituyen una certificación de accesibilidad de todas las pantallas. La limitación del sonido push nativo se documenta en la guía mobile.
 
 La recuperación de contraseña está conectada a la API actual, pero su verificación de identidad debe reforzarse antes de considerarla apta para producción.
 
@@ -132,7 +133,7 @@ La interfaz ofrece Mercado Pago y tarjeta. La integración directa con MODO perm
 
 El formulario de tarjeta utiliza un **procesador simulado en el backend**. No deben ingresarse tarjetas reales. Guardar tarjetas o cuentas de cobro desde `MetodosScreen` también está pendiente.
 
-La postulación de chofer combina datos personales, vehículo, lectura del DNI y selfie. La prueba de vida con ML Kit necesita un build nativo compatible. La comparación facial depende también del runtime y los modelos del servidor. Las variables de RENAPER existen, pero su integración real está pendiente en el backend: cargar esas variables no la implementa.
+La postulación de chofer combina datos personales, vehículo, lectura del DNI y selfie. En navegador, la cámara y la lectura del documento dependen de sus permisos y compatibilidad. La prueba de vida de ML Kit requiere el flujo nativo documentado en Mobile App. La comparación facial depende de los modelos del servidor y RENAPER real sigue pendiente en backend.
 
 ## Requisitos y configuración
 
@@ -151,13 +152,12 @@ Configurá las variables de `.env` antes de iniciar Expo:
 | Variable | Uso |
 |---|---|
 | `EXPO_PUBLIC_API_URL` | URL de la API. El ejemplo apunta al servicio en Render. |
-| `EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_KEY` | Maps SDK de Android. |
 | `EXPO_PUBLIC_GOOGLE_MAPS_WEB_KEY` | Maps JavaScript y rutas en web. |
 | `EXPO_PUBLIC_SENTRY_DSN` | Reporte opcional de errores. |
 
-Para navegador y backend en la misma computadora puede usarse `http://localhost:4000`. Desde un teléfono físico, `localhost` apunta al teléfono: usá la IP LAN de la computadora o una API pública de desarrollo. Conviene definir la URL explícitamente en lugar de depender de la inferencia desde Metro.
+Para navegador y backend en la misma computadora puede usarse `http://localhost:4000`. Si la API corre en otra máquina o está desplegada, configurá su URL alcanzable. Un sitio servido por HTTPS debe consumir una API HTTPS para evitar bloqueos de contenido mixto. Conviene definir la URL explícitamente.
 
-Las variables `EXPO_PUBLIC_*` forman parte del bundle y no son secretas. Restringí las claves de Maps por aplicación/huella de firma en Android y por origen web en navegador. La clave `GOOGLE_DIRECTIONS_KEY` pertenece únicamente al backend. Reiniciá Expo después de cambiar variables del cliente.
+Las variables `EXPO_PUBLIC_*` forman parte del bundle y no son secretas. Restringí la clave web de Maps por origen y APIs utilizadas, incluyendo el dominio publicado y los orígenes locales necesarios. La clave `GOOGLE_DIRECTIONS_KEY` pertenece únicamente al backend. Reiniciá Expo después de cambiar variables del cliente.
 
 El ejemplo de API pública utiliza datos del entorno al que apunta. Para pruebas que creen o modifiquen registros, usá un entorno y cuentas destinados a pruebas.
 
@@ -167,27 +167,25 @@ Ejecutá los comandos desde `frontend/`:
 
 | Comando | Qué hace |
 |---|---|
-| `npm start` | Inicia Metro. |
+| `npm start` | Inicia Metro; permite elegir la plataforma web. |
 | `npm run web` | Inicia la aplicación web local. |
-| `npm run android` | Genera/ejecuta el proyecto nativo Android; necesita sus herramientas de desarrollo. |
-| `npm run ios` | Genera/ejecuta el proyecto nativo iOS; necesita macOS y las herramientas de Apple. |
 | `npm run typecheck` | Comprueba tipos sin generar archivos de compilación. |
 | `npm test -- --runInBand` | Ejecuta las pruebas Jest. |
 | `npm run test:coverage -- --ci` | Ejecuta Jest con cobertura y umbrales. |
 | `npm run build:web` | Exporta la Web App a `dist/`. |
 | `npm run verify:backend` | Consulta `/api/salud` en la API configurada. No prueba login ni operaciones de negocio. |
 
-Expo Go no incluye todos los módulos nativos del proyecto. Para verificar el circuito completo de identidad y push usá un build de desarrollo con las dependencias y credenciales apropiadas.
+Para abrir la versión de desarrollo ejecutá `npm run web` y usá la dirección que informe Expo. Para comprobar la exportación, ejecutá `npm run build:web` y serví `dist/` con un servidor estático; abrir el archivo HTML directamente no equivale al despliegue web.
 
 Los tests cubren el cotizador, helpers y algunos servicios. El umbral de cobertura de `jest.config.js` se aplica a tarifas, cargas, direcciones y NLP; no mide la cobertura de toda la UI. La cantidad de casos y su resultado deben consultarse en la ejecución correspondiente.
 
-### Publicación web y móvil
+### Publicación web
 
 El [workflow web](../.github/workflows/web.yml) exporta Expo y publica en GitHub Pages cuando cambian los archivos definidos en `main`. Usa `EXPO_BASE_URL=/Logitrak`, la URL de API y las variables de Maps/Sentry configuradas en GitHub Actions. La exportación manual no se publica por sí sola.
 
-`eas.json` define perfiles `development`, `preview` y `production`. El perfil `preview` es una compilación interna; no es un acceso sin autenticación ni una vista previa local de datos ficticios.
+El workflow copia `dist/index.html` a `dist/404.html` para que las rutas desconocidas vuelvan a la aplicación. La API permanece desplegada por separado en Render; la exportación de Expo no genera ni inicia un backend.
 
-Los builds Android pueden recibir `GOOGLE_SERVICES_JSON` como archivo de configuración Firebase. Push requiere además las credenciales correspondientes en EAS. Para Sentry en el build se contemplan `SENTRY_AUTH_TOKEN`, `SENTRY_ORG` y `SENTRY_PROJECT`; nunca deben exponerse como `EXPO_PUBLIC_*`.
+Los perfiles de EAS y la instalación Android/iOS se explican únicamente en la [guía Mobile App](../docs/mobile/README.md).
 
 ## Limitaciones y documentación
 
@@ -202,4 +200,4 @@ Ver [pendientes](../docs/pendientes-logitrak.md), [plan de pruebas](../docs/qa/p
 
 `node_modules/`, `dist/`, archivos de entorno reales y credenciales de build están excluidos por las reglas de Git. Las dependencias y la exportación se regeneran desde los archivos versionados.
 
-**Referencia de esta actualización:** código publicado en `main`, commit [`0e91c37`](https://github.com/ccchimi/Logitrak/commit/0e91c37c766b2d44d535e2700b3a2f9e7ab75d73), revisado el 15 de noviembre de 2026. No incluye cambios locales sin publicar. Se revisó documentación y código; no se ejecutaron builds, suites ni pruebas funcionales en producción para esta actualización.
+**Referencia técnica:** código publicado en `main`, commit [`0e91c37`](https://github.com/ccchimi/Logitrak/commit/0e91c37c766b2d44d535e2700b3a2f9e7ab75d73), revisado el 15 de noviembre de 2026. No incluye cambios locales sin publicar. Documentación separada de Mobile App el 15 de noviembre de 2026. Se revisaron archivos y contratos; no se ejecutaron builds, suites ni pruebas funcionales para esta separación.
