@@ -36,8 +36,9 @@ y verificado se saca de acá; el historial queda en los commits.
 7. Más tests del backend. Las rutas de envíos, pagos y autenticación ya tienen
    pruebas de integración con `supertest` contra PostgreSQL, y la CI exige
    cobertura mínima (75 % de líneas). Lo que sigue más flojo es `pagos.js` con
-   Mercado Pago y MODO reales (hoy se prueba el camino sandbox) y las rutas de
-   choferes y de administración.
+   Mercado Pago y MODO reales (hoy se prueba el camino sandbox). Choferes,
+   asignaciones y administración ya tienen sus pruebas; siguen flojas perfil,
+   soporte y vehículos.
 8. Verificar la firma del webhook con notificaciones reales de Mercado Pago.
    El backend ya exige la firma (`MP_WEBHOOK_SECRET`) y está probado con
    vectores calculados aparte, pero falta confirmar en Render que los avisos que

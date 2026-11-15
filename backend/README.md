@@ -330,7 +330,13 @@ Las rutas principales tienen su archivo: `rutas-auth.test.js` (registro, login,
 límite de intentos, sesiones, perfil y recuperación), `rutas-envios.test.js`
 (alta idempotente, listado por cliente, detalle, reembolso y archivo) y
 `rutas-pagos.test.js` (tarjeta aprobada y rechazada, checkout sandbox con
-`Idempotency-Key`, confirmación, permisos y webhooks firmados). Además hay
+`Idempotency-Key`, confirmación, permisos y webhooks firmados),
+`rutas-choferes.test.js` (postulación con verificación del DNI, documentos solo
+para el admin, ofertas según el vehículo, tomar un envío y dos choferes que lo
+toman a la vez) y `rutas-admin.test.js` (listado de usuarios con filtros y
+cambio de rol con sus negativas). El reinicio de la base (`POST
+/api/admin/reset`) solo se prueba en sus permisos: correrlo vaciaría la base que
+comparten los archivos de prueba, que corren en paralelo. Además hay
 pruebas de los trabajos de pg-boss, el outbox, la entrega con PIN, los roles y
 el RLS.
 
