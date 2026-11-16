@@ -10,9 +10,9 @@ La Mobile App usa Expo, React Native y TypeScript y comparte el código de [`fro
 
 ## Funcionalidades y alcance
 
-El código móvil contempla registro e inicio de sesión, cotización con Boxy, pago y seguimiento de envíos, historial, perfil, cupones, soporte y notificaciones. El flujo de chofer incluye postulación, DNI, selfie, vehículo, ofertas, avances y entrega con PIN y foto. Soporte y administración acceden a las pantallas y operaciones que permiten sus capacidades.
+El código móvil contempla registro e inicio de sesión, cotización con Boxy, pago y seguimiento de envíos, historial, perfil, cupones, soporte y notificaciones. El flujo de chofer incluye postulación, DNI, selfie, vehículo, ofertas filtradas por peso y bultos, avances y entrega con PIN y foto. Soporte y administración acceden a las pantallas y operaciones que permiten sus capacidades.
 
-Estas funciones dependen del backend y de la configuración de cada integración. La existencia de una pantalla o de código para Android/iOS no demuestra que el circuito completo haya sido probado en ambos sistemas.
+Estas funciones dependen del backend y de la configuración de cada integración. Para validar cada versión, seguí las comprobaciones de esta guía y registrá los resultados por plataforma y tipo de build.
 
 El pago directo con tarjeta es simulado, la edición de varios datos de perfil está limitada y los cupones aún no se aplican al pago de nuevos envíos. RENAPER real está pendiente de implementación en backend. Las restricciones compartidas se detallan en los README de frontend y backend.
 
@@ -78,7 +78,7 @@ Los comandos de las siguientes secciones se ejecutan desde **`Logitrak/frontend/
 | `GOOGLE_SERVICES_JSON` | Ruta/variable de archivo de Firebase para Android cuando se configura en el build. |
 | `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT` | Configuración privada de Sentry durante el build, si se usa. |
 
-`EXPO_PUBLIC_GOOGLE_MAPS_WEB_KEY` corresponde al navegador; no habilita los mapas nativos de Android. La configuración actual inyecta la clave de Maps en Android; no documenta una clave nativa equivalente para iOS. El funcionamiento del mapa en iOS debe validarse con su implementación y build.
+`EXPO_PUBLIC_GOOGLE_MAPS_WEB_KEY` corresponde al navegador; no habilita los mapas nativos de Android. La configuración actual inyecta la clave de Maps solo en Android. `MapaSeguimiento.tsx` fuerza `PROVIDER_GOOGLE` también en iOS, pero los archivos Expo versionados no configuran su clave nativa iOS: no hay una selección automática de Apple Maps. Falta completar esa integración y validar el build antes de presentar el mapa iOS como funcional.
 
 Las variables `EXPO_PUBLIC_*` viajan en la aplicación y no son secretas. La clave de Android se restringe en Google Cloud por package, huella de firma y API. Las credenciales privadas de servidor no van en la app.
 
@@ -128,7 +128,7 @@ npm run ios
 
 El script invoca `expo run:ios`. El destino físico y las capacidades de plataforma pueden requerir pasos adicionales de Xcode y firma. Tras instalar un build de desarrollo, usá `npx expo start --dev-client` para iniciar Metro cuando sea necesario.
 
-No se afirma que firma, APNs o distribución iOS estén configurados en el proyecto remoto. Esa configuración y el recorrido funcional deben verificarse antes de presentar un build iOS como probado.
+Antes de distribuir un build iOS, verificá en el proyecto remoto la firma, las credenciales APNs y el tipo de distribución, y completá el recorrido funcional en el dispositivo de destino.
 
 ## Alternativa: compilar con EAS
 
@@ -172,8 +172,8 @@ Los perfiles actuales no declaran `ios.simulator: true`: ese comando no debe pre
 | Cámara y DNI | Permiso de cámara, lectura PDF417 y captura de frente/selfie en el dispositivo. |
 | Prueba de vida | ML Kit requiere código nativo y un build compatible; no asumir funcionamiento completo en Expo Go. |
 | Comparación facial | Depende del runtime y modelos del backend, además de las imágenes enviadas. |
-| Ubicación del chofer | Permisos y funcionamiento de `expo-location`; no se certifica seguimiento continuo con la app cerrada. |
-| Mapa | `MapaSeguimiento.tsx`; la ruta por calles se obtiene de `/api/recorridos`, con `GOOGLE_DIRECTIONS_KEY` solo en servidor. |
+| Ubicación del chofer | La publicación de GPS real del conductor al mapa está pendiente, también en primer plano. El componente muestra un marcador animado de demostración. `expo-location` se usa para geocodificar direcciones; mostrar la ubicación del dispositivo que consulta el mapa no equivale a ubicar al chofer remoto. |
+| Mapa | `MapaSeguimiento.tsx`; la ruta por calles se obtiene de `/api/recorridos`, con `GOOGLE_DIRECTIONS_KEY` solo en servidor. El movimiento del marcador es simulado y la configuración de Google Maps iOS está pendiente. |
 | Push | Dispositivo, permisos, credenciales FCM/APNs, registro de token y entrega por Expo. |
 | Sesión | Persistencia local y renovación con refresh; el uso de un almacén seguro nativo sigue pendiente. |
 | Preferencias | Tema y modo silencioso locales; el modo silencioso no está aplicado globalmente al sonido push. |
@@ -202,7 +202,7 @@ Con cuentas y datos de prueba, verificá manualmente:
 5. Avances y cierre de entrega con PIN y foto.
 6. Notificaciones, soporte, preferencias y mensajes ante errores de red.
 
-Registrá plataforma, dispositivo, tipo de build y resultado. Tener código Android/iOS y un build generado no certifica que se hayan probado ambos sistemas ni todas las integraciones.
+Registrá plataforma, dispositivo, tipo de build y resultado para dejar constancia del alcance de cada prueba.
 
 ## Archivos generados y documentación relacionada
 
@@ -215,5 +215,3 @@ Referencias oficiales para los comandos y tipos de build:
 - [Builds de desarrollo de Expo](https://docs.expo.dev/develop/development-builds/create-a-build/).
 - [Configuración de perfiles EAS](https://docs.expo.dev/build/eas-json/).
 - [APK para dispositivos y emuladores Android](https://docs.expo.dev/build-reference/apk/).
-
-Esta guía documenta el proyecto existente, basado en el código revisado en [`0e91c37`](https://github.com/ccchimi/Logitrak/commit/0e91c37c766b2d44d535e2700b3a2f9e7ab75d73) y la documentación publicada en [`13596d5`](https://github.com/ccchimi/Logitrak/commit/13596d541ad26980d45fa66edb8f09dc1df6e44b). Separación documental del 15 de noviembre de 2026. No se modificó código ni configuración; tampoco se generaron builds ni se probaron dispositivos como parte de esta actualización.
