@@ -83,13 +83,15 @@ No debe confundirse este motor con las propuestas de predicción logística del 
 | `Perfil` | Datos, cambio de contraseña, preferencias, cierre de sesión y eliminación de cuenta según restricciones. |
 | `Cuponera` | Consulta de cupones acreditados. |
 | `TrabajaConNosotros` | Formulario de postulación por pasos, vehículo, DNI y selfie. |
-| `Chofer` | Ofertas compatibles, asignación, avances y cierre de viaje. |
+| `Chofer` | Ofertas filtradas por peso y bultos del vehículo, asignación, avances y cierre de viaje. |
 | `Estadisticas` | Estadísticas disponibles para el flujo del chofer. |
 | `TodosPedidos` | Consulta operativa de pedidos con filtros y búsqueda. |
 | `UsuariosAdmin` | Usuarios con filtros, paginación y cambio de roles según permisos. |
 | `Soporte` | Asistente, tickets, conversación y atención del equipo. |
 | `Notificaciones` | Bandeja y lectura de avisos. |
 | `MetodosPago`, `MetodoCobro` | Formularios visuales de métodos; su guardado todavía no está implementado. |
+
+Las ofertas y su toma se validan por peso y bultos. Falta comprobar volumen y capacidades especiales del vehículo, como cadena de frío o transporte de mercancía peligrosa; la recomendación del cotizador no reemplaza esas validaciones.
 
 El chofer inicia en su consola. El acceso operativo se decide por capacidades devueltas en la sesión y consultadas por `permisos.ts`. El backend vuelve a comprobar los permisos y el acceso a cada recurso; registrar una pantalla en el navegador no concede autorización.
 
@@ -101,8 +103,8 @@ El chofer inicia en su consola. El acceso operativo se decide por capacidades de
 
 ### Seguimiento, entrega y avisos
 
-- El navegador utiliza `MapaSeguimiento.web.tsx`, con Google Maps JavaScript y una clave restringida por origen web.
-- El seguimiento escucha cambios con Realtime cuando está disponible. Mantiene consultas de respaldo cada 60 segundos con la conexión activa y cada 10 segundos sin ella.
+- El navegador utiliza `MapaSeguimiento.web.tsx`, con Google Maps JavaScript y una clave restringida por origen web. El mapa calcula una ruta; el movimiento del marcador del chofer es una animación de demostración, no su posición GPS real.
+- El seguimiento escucha cambios de estados y eventos con Realtime cuando está disponible. Mantiene consultas de respaldo cada 60 segundos con la conexión activa y cada 10 segundos sin ella. Estas actualizaciones no transmiten GPS continuo del chofer al mapa.
 - El chofer confirma la entrega con el PIN informado por el receptor y una foto, mediante el servicio de asignaciones. El PIN y su bloqueo los controla el backend.
 - Soporte combina Realtime con consultas periódicas. La bandeja de notificaciones y el push son mecanismos distintos.
 - La Web App dispone de la bandeja de notificaciones, pero `pushService.ts` omite el registro push en web. La configuración de notificaciones nativas está en la guía mobile.
@@ -199,5 +201,3 @@ Los perfiles de EAS y la instalación Android/iOS se explican únicamente en la 
 Ver [pendientes](../docs/pendientes-logitrak.md), [plan de pruebas](../docs/qa/plan-de-pruebas-cotizador.md), [mantenimiento](../docs/qa/plan-de-mantenimiento.md) y [roadmap](../docs/ROADMAP.md). Ante diferencias entre textos históricos y código, verificá el contrato vigente.
 
 `node_modules/`, `dist/`, archivos de entorno reales y credenciales de build están excluidos por las reglas de Git. Las dependencias y la exportación se regeneran desde los archivos versionados.
-
-**Referencia técnica:** código publicado en `main`, commit [`0e91c37`](https://github.com/ccchimi/Logitrak/commit/0e91c37c766b2d44d535e2700b3a2f9e7ab75d73), revisado el 15 de noviembre de 2026. No incluye cambios locales sin publicar. Documentación separada de Mobile App el 15 de noviembre de 2026. Se revisaron archivos y contratos; no se ejecutaron builds, suites ni pruebas funcionales para esta separación.
