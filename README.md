@@ -22,7 +22,7 @@ El sistema tiene cuatro roles. Los permisos efectivos se comprueban en el backen
 | Rol | Acceso y funciones principales |
 |---|---|
 | `cliente` | Se registra en la aplicación. Cotiza con Boxy, crea y paga pedidos, consulta seguimiento, historial, cupones, notificaciones y soporte. |
-| `chofer` | Se obtiene mediante la postulación y verificación de identidad. Consulta ofertas compatibles con su vehículo, toma viajes, registra avances y confirma entregas. |
+| `chofer` | Se obtiene mediante la postulación y verificación de identidad. Consulta ofertas filtradas por peso y bultos de su vehículo, toma viajes, registra avances y confirma entregas. |
 | `soporte` | Lo asigna un administrador. Accede al panel operativo, consulta envíos, usuarios, cotizaciones y pagos; atiende consultas y puede desbloquear un PIN de entrega. |
 | `admin` | Las cuentas iniciales se siembran al arrancar; luego otro administrador puede asignar el rol. Tiene las capacidades de soporte y permisos adicionales sobre reembolsos, roles, documentación y mantenimiento. |
 
@@ -34,8 +34,8 @@ La aplicación también incluye una página pública de presentación, acceso y 
 
 1. **Cotización.** Boxy interpreta direcciones y carga en el dispositivo y propone vehículo y tarifa. El backend recalcula el importe con una versión empaquetada del mismo cotizador; el precio del cliente no se acepta como autoridad.
 2. **Pedido y pago.** Al confirmar se crea un envío pendiente, con vencimiento para el pago. El pago aprobado habilita la oferta para la flota.
-3. **Asignación.** El envío se ofrece a choferes con vehículos compatibles. El primero que lo toma obtiene la asignación. El circuito actual no es una asignación predictiva por inteligencia artificial.
-4. **Seguimiento.** El chofer registra hitos y ubicación; el cliente consulta mapa, datos del chofer e historial de eventos. Realtime complementa las consultas periódicas cuando está configurado.
+3. **Asignación.** El envío se ofrece a choferes cuyos vehículos admiten el peso y la cantidad de bultos.
+4. **Seguimiento.** El chofer registra hitos del viaje; el cliente consulta estados, datos del chofer, historial de eventos y una ruta en el mapa. El desplazamiento del marcador del chofer es una animación de demostración: no representa su ubicación GPS real. Realtime complementa las consultas periódicas de estados y eventos cuando está configurado.
 5. **Entrega.** Se confirma mediante el PIN del receptor y una foto de comprobante. Hay un límite de intentos y un mecanismo de desbloqueo para soporte y administración.
 6. **Eventos y avisos.** El servidor registra eventos en un outbox y los procesa para generar notificaciones y solicitar envíos push cuando corresponde.
 
@@ -182,7 +182,7 @@ Los ejemplos completos están en [`backend/.env.example`](backend/.env.example) 
 | `SUPABASE_ANON_KEY`, `SUPABASE_JWT_SECRET` | Junto con Supabase, habilitan las suscripciones Realtime autorizadas de la aplicación. |
 | `MP_ACCESS_TOKEN`, `MP_WEBHOOK_SECRET` | Mercado Pago y validación de sus webhooks. Sin el secreto, los avisos del webhook se rechazan. |
 | `MODO_API_URL`, `MODO_CLIENT_ID`, `MODO_CLIENT_SECRET`, `MODO_STORE_ID` | Integración con MODO; ver opciones adicionales en el ejemplo. |
-| `RENAPER_API_URL`, `RENAPER_API_KEY` | Consulta externa de identidad cuando está configurada. |
+| `RENAPER_API_URL`, `RENAPER_API_KEY` | Reservadas para RENAPER real, todavía pendiente de implementación. Configurar ambas selecciona un camino que lanza un error; la verificación vigente usa PDF417 y comprobaciones locales. |
 | `MINUTOS_PARA_PAGAR`, `MINUTOS_ESPERA_CHOFER`, `MINUTOS_SLA` | Vencimiento de pago, espera por chofer y plazo de respaldo para SLA. |
 | `TRABAJOS_DESHABILITADOS` | `true` desactiva los trabajos de `pg-boss`. |
 | `GOOGLE_DIRECTIONS_KEY` | Clave de servidor para recorridos del móvil. |
@@ -215,7 +215,7 @@ La publicación web toma variables y secretos de GitHub Actions. Los builds de E
 | Método | Implementación actual |
 |---|---|
 | Mercado Pago | Integración con checkout, consulta de estado y webhook firmado. Usa sandbox local si no hay token; el tipo de credenciales del proveedor determina si hay cobros reales. |
-| MODO | Integración configurable con su API; sin configuración se utiliza un circuito simulado. |
+| MODO | Integración configurable en servicios y API; no aparece como método independiente en la pantalla de pago. Sin configuración se utiliza un circuito simulado. |
 | Tarjeta ingresada directamente en Logitrak | **Procesador simulado:** valida datos y genera un resultado de prueba. No es una integración bancaria ni un cobro real de tarjeta. |
 
 Los endpoints de inicio de pago admiten `Idempotency-Key`; el frontend conserva la clave de una operación cuando debe reintentar por falta de conexión. Esto reduce duplicados por reintentos, pero no reemplaza la conciliación de pagos aprobados por vías distintas.
@@ -262,7 +262,7 @@ Las pruebas que necesitan PostgreSQL deben usar `TEST_DATABASE_URL` con una base
 
 La [CI](.github/workflows/ci.yml) ejecuta pruebas y cobertura de frontend y backend, verifica que el cotizador empaquetado esté actualizado y utiliza PostgreSQL descartable para integración. Se activa con push y pull requests a `main`, semanalmente y de forma manual. La publicación web está en un [workflow separado](.github/workflows/web.yml).
 
-La cantidad de pruebas y los resultados vigentes deben consultarse en cada ejecución; no se fija un número en este README ni se presupone que hayan pasado por actualizar documentación.
+Los resultados y la cantidad de pruebas de cada ejecución están disponibles en el [historial de CI de GitHub Actions](https://github.com/ccchimi/Logitrak/actions/workflows/ci.yml).
 
 ## Despliegue y operación
 
@@ -294,6 +294,7 @@ Consultá los [pendientes técnicos](docs/pendientes-logitrak.md) y el [roadmap]
 
 - [Backend: configuración, endpoints y operación](backend/README.md).
 - [Frontend: aplicación y estructura](frontend/README.md).
+- [Mobile App: instalación, configuración y builds Android/iOS](docs/mobile/README.md).
 - [Recursos gráficos y fuentes](frontend/assets/README.md).
 - [Informe técnico del Parcial 2](docs/informe-tecnico-parcial-2.md).
 - [Plan de pruebas](docs/qa/plan-de-pruebas-cotizador.md).
@@ -302,8 +303,6 @@ Consultá los [pendientes técnicos](docs/pendientes-logitrak.md) y el [roadmap]
 - [Propuesta de inteligencia logística predictiva](docs/MODULO-IA-PREDICTIVA.md).
 
 `node_modules/` contiene dependencias instaladas y `frontend/dist/` la exportación web generada. Ambas están excluidas por las reglas de Git; se regeneran a partir del código y los archivos de dependencias.
-
-**Base de esta actualización:** código publicado en `main`, commit [`0e91c37`](https://github.com/ccchimi/Logitrak/commit/0e91c37c766b2d44d535e2700b3a2f9e7ab75d73), revisado el 15 de noviembre de 2026. No incluye cambios locales que no estén publicados ni certifica la configuración activa de los servicios. La revisión documental no ejecutó servidores, migraciones ni operaciones sobre datos reales.
 
 ---
 
