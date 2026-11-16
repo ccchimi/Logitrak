@@ -132,7 +132,7 @@ queda como aviso en el log al arrancar.
 cada componente. Ejemplo ilustrativo, no una medición del despliegue actual:
 
 ```json
-{ "exito": true, "estado": "degradado", "baseDeDatos": "conectada",
+{ "exito": true, "estado": "ok", "baseDeDatos": "conectada",
   "entorno": "produccion", "version": null, "activoDesdeSeg": 5,
   "componentes": {
     "baseDeDatos": { "estado": "ok", "latenciaMs": 9, "migracionesPendientes": 0 },
@@ -310,8 +310,11 @@ borra del Storage.
 **Seguimiento en tiempo real.** La pantalla de seguimiento escucha por Supabase
 Realtime los cambios de su envío (`envios`) y sus eventos nuevos
 (`envio_eventos`), con el mismo token que el chat de soporte (lo firma el
-backend en `GET /api/soporte/realtime`). El aviso no trae datos: dispara una
-consulta a la API. Con Realtime conectado, la consulta queda como respaldo cada
+backend en `GET /api/soporte/realtime`). El cliente ignora el payload de los
+cambios recibidos y los usa como señal para volver a consultar la API; esto no
+significa que el transporte de Realtime carezca de datos de filas. El mapa
+muestra una ruta y un marcador animado de demostración, no la ubicación GPS
+real del chofer. Con Realtime conectado, la consulta queda como respaldo cada
 60 segundos; sin Realtime, cada 10 (antes era cada 5). Las políticas de solo
 lectura dejan escuchar al cliente sus envíos, al chofer los que tiene asignados
 y al personal autorizado (soporte y admin) la operación. Realtime se activa
@@ -419,14 +422,14 @@ más de la cuenta.
 El proyecto documenta Render como Web Service en
 [logitrak.onrender.com](https://logitrak.onrender.com), con instalación mediante
 `npm install` y arranque con `npm start`. El despliegue automático desde `main`,
-el plan y las variables activas se comprueban en el panel de Render; leer el
-repositorio no certifica esa configuración externa.
 
 Las variables no salen del `.env`, que no se versiona, sino que se cargan en el
 panel del servicio, en la sección Environment: van ahí `DATABASE_URL`,
 `JWT_SECRET`, `PUBLIC_API_URL` con la URL pública, y las tres variables de
-Supabase Storage. Lo que no hay que definir es `PORT`, porque Render lo inyecta
-solo y fijarlo hace que el servicio no exponga el puerto correcto.
+Supabase Storage. El servidor escucha en `process.env.PORT`; normalmente
+conviene conservar el valor asignado por Render. La plataforma permite
+reemplazarlo: si se cambia, el valor configurado y el puerto de escucha deben
+coincidir. Ver [configuración de puertos de Render](https://render.com/docs/web-services#port-binding).
 
 La documentación del proyecto contempla Render Free y sus períodos de
 inactividad. Si el proceso está detenido o reiniciándose, se demoran el primer
@@ -604,7 +607,7 @@ venció (15 minutos). Lo que se cobra en `/api/pagos` es ese precio.
 ## Cómo se asignan los envíos
 
 Elegimos el mismo modelo que usan las aplicaciones de movilidad: en vez de
-decidir centralmente a qué chofer le toca cada viaje, publicamos el envío y deja
+decidir centralmente a qué chofer le toca cada viaje, publicamos el envío y dejamos
 que la flota lo tome.
 
 El recorrido arranca cuando el cliente paga. Recién ahí el envío queda con
@@ -783,8 +786,9 @@ circuito simulado.** Para cobrar de verdad hace falta diseñar una integración
 con un proveedor que tokenice los datos en el cliente y revisar los requisitos
 aplicables al tratamiento de datos de pago. Habría que reemplazar `servicios/pagos/tarjeta.js` por
 un gateway que tokenice la tarjeta del lado del cliente, de forma que el número
-no pase nunca por este backend. En el sandbox, cualquier número válido según
-Luhn se aprueba, salvo el `4000 0000 0000 0002`, que rechazamos a propósito para
+no pase nunca por este backend. En el sandbox se aprueban las tarjetas de las
+marcas admitidas que superan todas las validaciones de número, titular,
+vencimiento y CVV, salvo el `4000 0000 0000 0002`, que rechazamos a propósito para
 poder mostrar el camino de error. Las transferencias bancarias no están
 soportadas, y es una decisión deliberada.
 
@@ -932,7 +936,6 @@ Los datos de ficha y el cambio de rol del alta de chofer se guardan en una
 transacción. Las subidas a Storage son efectos externos y no se revierten de
 forma automática por un rollback de PostgreSQL.
 
-
 ## Limitaciones y revisiones pendientes
 
 - Recuperación de contraseña: el contrato actual no acredita titularidad mediante
@@ -966,11 +969,3 @@ Ver [pendientes](../docs/pendientes-logitrak.md), [roadmap](../docs/ROADMAP.md) 
 [plan de mantenimiento](../docs/qa/plan-de-mantenimiento.md). Son documentación
 de apoyo y pueden conservar referencias históricas que deben contrastarse con
 el código.
-
-**Base de esta actualización:** `main`, commit
-[`0e91c37`](https://github.com/ccchimi/Logitrak/commit/0e91c37c766b2d44d535e2700b3a2f9e7ab75d73),
-revisado el 15 de noviembre de 2026. Se revisaron archivos y contratos; no se
-inició el backend, no se ejecutaron migraciones ni suites, y no se probaron
-pagos o registros reales como parte de esta actualización documental. Los
-cambios locales sin publicar y la configuración activa del despliegue quedan
-fuera de ese alcance.
