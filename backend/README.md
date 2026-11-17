@@ -483,6 +483,7 @@ un control equivalente en el frontend.
 | GET | `/api/envios/metricas` | Totales por estado según alcance del usuario. |
 | GET | `/api/envios/:codigo` | Detalle, eventos y datos de entrega; controla acceso al envío. |
 | POST | `/api/envios/:codigo/eventos` | Avances permitidos del chofer asignado o admin; no cierra entregas ni cancela. |
+| POST | `/api/envios/:codigo/cancelar` | Cancelación por el cliente dueño, mientras el envío está pendiente y sin chofer. Devuelve el importe si estaba pago o anula los intentos de pago pendientes; con un pago en curso en la pasarela responde 409. |
 | POST | `/api/envios/:codigo/pin/desbloquear` | Desbloqueo de PIN; permiso `envios.desbloquear_pin`. |
 | POST | `/api/envios/:codigo/reembolsar` | Solicita devolución; permiso `envios.reembolsar`. |
 | POST | `/api/envios/:codigo/archivar` | Operación administrativa sobre envío, con opciones y validaciones de devolución; permiso `envios.archivar`. |
