@@ -211,6 +211,7 @@ instancia).
 | `barrer-impagos` | Busca pedidos que no se pagaron dentro de `MINUTOS_PARA_PAGAR` (5) | Cada minuto y al arrancar |
 | `eliminar-impago` | Revisa pagos en curso y, si corresponde, borra el pedido y sus registros dependientes | Por envío, con reintentos |
 | `despachar-outbox` | Procesa eventos pendientes y genera avisos | Cada minuto, al arrancar y por activación tras registrar eventos |
+| `vencer-cupones` | Marca como `vencido` los cupones activos pasados de fecha, salvo los aplicados a un pago en curso | Cada hora (minuto 7) y al arrancar |
 
 **Pedidos sin pagar.** Cada envío nace con `pago_vence_en` (5 minutos). Pasado
 ese límite el checkout, la tarjeta y la confirmación sandbox responden 409 con
@@ -258,6 +259,17 @@ según el resultado de la pasarela. Antes el cupón lo pedía la app y
 ruta emite cupones a mano para cuentas con `cupones.emitir` (soporte y admin),
 y para el titular de un envío funciona como
 "revisá el SLA de mi envío" (así las versiones viejas de la app no se rompen).
+
+**Vencimiento de los cupones.** Cada cupón guarda `vence_en`: 90 días desde que
+se emite, o lo que diga `CUPONES_DIAS_VIGENCIA`. Los cupones emitidos antes de
+la migración vencen a los 90 días de su emisión. El trabajo `vencer-cupones`
+los pasa a `vencido` una vez por hora, pero la fecha se controla también en el
+momento: al pagar, un cupón pasado de fecha responde 409 (`cupon_no_disponible`,
+"Ese cupón venció.") aunque el barrido no haya corrido, y `GET /api/cupones` lo
+publica como `vencido` con su `venceEn`. Un cupón aplicado a un checkout que
+sigue en curso no se vence hasta que el pago termina: si se aprueba, se consume
+igual. Si después de la fecha se devuelve un pago que usó un cupón, el cupón
+vuelve como `vencido` y no como `activo`.
 
 ## Eventos y notificaciones (outbox)
 
@@ -535,7 +547,7 @@ un control equivalente en el frontend.
 | GET | `/api/pagos` | Lista según permisos; filtro `envioCodigo`, hasta 100 registros. |
 | POST | `/api/pagos/webhook/mercadopago` | Sin JWT de usuario; exige firma de Mercado Pago y consulta el pago al proveedor. |
 | POST | `/api/pagos/webhook/modo` | Sin JWT de usuario; consulta intención al proveedor. Requiere revisar autenticación y pruebas antes de activar MODO real. |
-| GET | `/api/cupones` | Cupones propios, hasta 100 registros. |
+| GET | `/api/cupones` | Cupones propios con su fecha de vencimiento (`venceEn`), hasta 100 registros. |
 | POST | `/api/cupones` | Soporte/admin emiten manualmente; otros usuarios solicitan revisión del SLA de su propio envío. |
 
 ### Administración, soporte y notificaciones
@@ -1000,7 +1012,7 @@ forma automática por un rollback de PostgreSQL.
   middleware de firma que Mercado Pago.
 - Un segundo cobro aprobado se registra como duplicado para revisión; eso no
   equivale a una devolución automática ya completada.
-- Los cupones se aplican al pagar (`cuponCodigo` en checkout y tarjeta) y vuelven a quedar activos si el pago se devuelve, pero todavía no vencen.
+- No hay notificación antes de que venza un cupón: el aviso es visual, en la Cuponera, durante su última semana.
 - Push se intenta después de confirmar el evento. Un fallo no elimina el aviso
   de la bandeja, pero tampoco garantiza una nueva entrega push.
 - El borrado de archivos externos después de anonimizar puede fallar; se

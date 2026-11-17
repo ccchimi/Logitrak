@@ -42,14 +42,14 @@ Estado de los módulos:
 | Asignación al primer chofer compatible que acepta, con vencimiento y reembolso automático | Implementado |
 | Seguimiento con mapa, ruta, línea de tiempo, chofer y vehículo | Implementado: estados y eventos en tiempo real con Supabase Realtime. El marcador del chofer en el mapa es una animación de demostración; falta publicar su ubicación GPS real |
 | Postulación de chofer y verificación de identidad (DNI, selfie, prueba de vida opcional) | Implementado |
-| Historial, perfil, eliminación de cuenta y cupones por SLA incumplido | Implementado; el SLA lo controla el servidor |
+| Historial, perfil, eliminación de cuenta y cupones por SLA incumplido | Implementado; el SLA lo controla el servidor y los cupones vencen a los 90 días |
 | Notificaciones: bandeja en la app y push en el teléfono | Implementado en Android; iOS pendiente |
 | Entrega con PIN del receptor y foto de comprobante | Implementado (nuevo en esta etapa) |
 | Valoraciones del chofer: el cliente califica con 1 a 5 estrellas y un comentario | Implementado (nuevo en esta etapa) |
 | Soporte: tickets, chat en tiempo real y bot de soporte | Implementado (no estaba en el diseño) |
 | Panel de administración y rol soporte | Implementado: métricas, reembolso y archivo de envíos, listado de usuarios con filtros, cambio de rol y edición de los datos de otras cuentas |
 
-**Calidad.** Hay 525 pruebas automáticas: 231 de la app en Jest y 294 del backend con `node:test`, entre ellas pruebas de integración de todas las rutas con `supertest` contra un PostgreSQL real. Todas corren en **GitHub Actions** en cada push a `main`, junto con una auditoría de dependencias, y la CI falla si la cobertura del backend baja del 85 % de líneas (hoy está en 89,5 %). Un segundo workflow publica la Web App en GitHub Pages.
+**Calidad.** Hay 534 pruebas automáticas: 235 de la app en Jest y 299 del backend con `node:test`, entre ellas pruebas de integración de todas las rutas con `supertest` contra un PostgreSQL real. Todas corren en **GitHub Actions** en cada push a `main`, junto con una auditoría de dependencias, y la CI falla si la cobertura del backend baja del 85 % de líneas (hoy está en 89,5 %). Un segundo workflow publica la Web App en GitHub Pages.
 
 ## 2. Decisiones tecnológicas tomadas
 
@@ -105,7 +105,7 @@ La arquitectura es cliente-servidor en capas. La app (web y mobile) no accede a 
 
 | Integrante | Rol | Responsabilidades en esta etapa |
 |---|---|---|
-| Franco Martin Schimizzi | Desarrollador Backend | API REST en Express, modelo de datos en PostgreSQL/Supabase con migraciones versionadas, autenticación con JWT, refresh token y permisos por rol (incluido soporte), pagos y reembolsos (Mercado Pago, MODO), asignación y vencimiento de envíos, trabajos en segundo plano, outbox, tiempo real, notificaciones push y RLS, entrega con PIN y foto, regla de SLA, valoraciones de los choferes, edición de perfiles desde el panel, verificación de identidad del lado del servidor, logs y chequeo de salud, pruebas de integración, despliegue en Render, integración continua y corrección de DEF-02. |
+| Franco Martin Schimizzi | Desarrollador Backend | API REST en Express, modelo de datos en PostgreSQL/Supabase con migraciones versionadas, autenticación con JWT, refresh token y permisos por rol (incluido soporte), pagos y reembolsos (Mercado Pago, MODO), asignación y vencimiento de envíos, trabajos en segundo plano, outbox, tiempo real, notificaciones push y RLS, entrega con PIN y foto, regla de SLA, valoraciones de los choferes, edición de perfiles desde el panel, vencimiento de cupones, verificación de identidad del lado del servidor, logs y chequeo de salud, pruebas de integración, despliegue en Render, integración continua y corrección de DEF-02. |
 | Melina Rocio Martins | Desarrolladora Frontend / UX-UI | Prototipos web y mobile, sistema visual (paleta, tipografías, estilos), landing, panel del cliente, chat con Boxy, seguimiento y perfil. |
 | Claudio Kevin Oturakdjian | Desarrollador Frontend / QA tester | Pantallas del chofer, pago e historial, flujo de postulación y escaneo de identidad, pruebas unitarias del cotizador, plan de pruebas y verificación de los circuitos en web y mobile. En esta etapa sumó además el panel de administración de pedidos y usuarios, el rediseño con navegación por rol, el tema claro y los recursos visuales compartidos. |
 | Candela Analia Nuñez | Gestión del proyecto | Planificación y seguimiento de tareas, relevamiento de requerimientos y casos de uso, coordinación de entregas, documentación (READMEs, informes) y control de cambios respecto al diseño. |

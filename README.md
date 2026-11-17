@@ -46,6 +46,7 @@ Los estados principales de los envíos son `pendiente`, `asignado`, `en_viaje`, 
 - **Pedido sin pagar:** el plazo predeterminado es de 5 minutos (`MINUTOS_PARA_PAGAR`). Después del vencimiento, la API rechaza nuevos pagos sobre ese pedido y un trabajo del servidor puede eliminarlo. La limpieza contempla un minuto de gracia, barridos periódicos y comprobación de pagos en curso; no ocurre necesariamente en el segundo exacto del vencimiento.
 - **Pedido pagado sin chofer:** la oferta vence por defecto a los 5 minutos (`MINUTOS_ESPERA_CHOFER`). El servidor intenta reembolsarlo y registra el resultado. Un error de la pasarela puede requerir reintentos o revisión; la cancelación no garantiza por sí sola que el dinero ya haya sido devuelto.
 - **SLA de retiro:** el plazo comprometido se calcula desde el pago, con el tiempo estimado de llegada al retiro y un margen urbano o interurbano. Si el retiro incumple ese plazo, el servidor puede acreditar un cupón del **10 %**, evitando duplicarlo. `MINUTOS_SLA` es un respaldo para cotizaciones sin estimación, no el plazo universal de todos los envíos.
+- **Vencimiento de cupones:** cada cupón vence a los 90 días de emitido (`CUPONES_DIAS_VIGENCIA`). Al pagar no se acepta uno pasado de fecha, y un trabajo del servidor los marca como vencidos una vez por hora. Si el cupón está aplicado a un pago en curso cuando vence, se respeta.
 
 Estas tareas viven en el backend y usan `pg-boss` sobre PostgreSQL. No dependen de mantener abierta la aplicación. Sí dependen de que los trabajos estén habilitados y el proceso del servidor esté activo; se realizan barridos al arrancar y periódicamente.
 
@@ -186,6 +187,7 @@ Los ejemplos completos están en [`backend/.env.example`](backend/.env.example) 
 | `MODO_API_URL`, `MODO_CLIENT_ID`, `MODO_CLIENT_SECRET`, `MODO_STORE_ID` | Integración con MODO; ver opciones adicionales en el ejemplo. |
 | `RENAPER_API_URL`, `RENAPER_API_KEY` | Reservadas para RENAPER real, todavía pendiente de implementación. Configurar ambas selecciona un camino que lanza un error; la verificación vigente usa PDF417 y comprobaciones locales. |
 | `MINUTOS_PARA_PAGAR`, `MINUTOS_ESPERA_CHOFER`, `MINUTOS_SLA` | Vencimiento de pago, espera por chofer y plazo de respaldo para SLA. |
+| `CUPONES_DIAS_VIGENCIA` | Días que dura un cupón desde que se emite (90 si no se configura). |
 | `TRABAJOS_DESHABILITADOS` | `true` desactiva los trabajos de `pg-boss`. |
 | `GOOGLE_DIRECTIONS_KEY` | Clave de servidor para recorridos del móvil. |
 | `EXPO_ACCESS_TOKEN` | Opcional, según la seguridad configurada para Expo Push. |
@@ -281,7 +283,6 @@ El repositorio documenta el uso de Render Free. Cuando el servicio está detenid
 
 Además de las restricciones de Mi Perfil y pagos ya descritas:
 
-- Los cupones se aplican al pagar un envío, pero todavía no vencen: el estado `vencido` existe y ningún proceso lo asigna.
 - Guardar tarjetas o cuentas de cobro desde las pantallas de métodos está pendiente; esas pantallas no persisten los datos ingresados.
 - El listado de envíos devuelve hasta 200 registros por consulta. El panel intenta ampliar por estado, pero esto no sustituye una API con paginación e históricos completos.
 - La compatibilidad y configuración de identidad, mapas y push deben validarse por plataforma. El despliegue iOS necesita sus credenciales específicas.

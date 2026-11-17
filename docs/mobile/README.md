@@ -14,7 +14,7 @@ El código móvil contempla registro e inicio de sesión, cotización con Boxy, 
 
 Estas funciones dependen del backend y de la configuración de cada integración. Para validar cada versión, seguí las comprobaciones de esta guía y registrá los resultados por plataforma y tipo de build.
 
-El pago directo con tarjeta es simulado, la edición de varios datos de perfil está limitada y los cupones todavía no vencen. RENAPER real está pendiente de implementación en backend. Las restricciones compartidas se detallan en los README de frontend y backend.
+El pago directo con tarjeta es simulado y la edición de varios datos de perfil está limitada. RENAPER real está pendiente de implementación en backend. Las restricciones compartidas se detallan en los README de frontend y backend.
 
 ## Tecnologías y archivos de referencia
 

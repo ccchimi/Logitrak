@@ -81,7 +81,7 @@ No debe confundirse este motor con las propuestas de predicción logística del 
 | `Seguimiento`, `DetalleEnvio` | Mapa, estado, eventos, datos del chofer con su promedio de calificaciones, comprobante de entrega y la calificación del envío. |
 | `Historial` | Consulta de los envíos disponibles para la cuenta. |
 | `Perfil` | Datos, cambio de contraseña, preferencias, cierre de sesión y eliminación de cuenta según restricciones. |
-| `Cuponera` | Consulta de cupones acreditados. |
+| `Cuponera` | Cupones acreditados con su vencimiento ("Vence en 3 días", "Venció el…"), resaltado en la última semana, y cómo usarlos. |
 | `TrabajaConNosotros` | Formulario de postulación por pasos, vehículo, DNI y selfie. |
 | `Chofer` | Ofertas filtradas por peso y bultos del vehículo, asignación, avances, cierre de viaje y la tarjeta "Tu calificación" con su promedio y los últimos comentarios. |
 | `Estadisticas` | Estadísticas disponibles para el flujo del chofer. |
@@ -194,7 +194,7 @@ Los perfiles de EAS y la instalación Android/iOS se explican únicamente en la 
 
 ## Limitaciones y documentación
 
-- Los cupones activos se eligen en la pantalla de pago y el total muestra el descuento; todavía no vencen.
+- Los cupones vigentes se eligen en la pantalla de pago, con su vencimiento al lado del código, y el total muestra el descuento. `helpers/cupones.ts` trata como vencido un cupón pasado de fecha aunque el servidor todavía no lo haya marcado.
 - Los vencimientos de pedidos impagos, ofertas y compensaciones dependen de trabajos del servidor, no de mantener abierta esta aplicación.
 - El panel operativo necesita mejorar la consulta paginada de pedidos para escalar a históricos completos.
 - Algunas ediciones de perfil y el guardado de métodos son funciones pendientes, aunque existan controles visuales.
