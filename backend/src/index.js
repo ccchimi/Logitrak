@@ -3,6 +3,7 @@ import { app } from './app.js';
 import { inicializarBaseDeDatos } from './db/init.js';
 import { pool } from './db/pool.js';
 import { marcarIniciando, marcarLista } from './arranque.js';
+import { adminsConContrasenaIgualAlUsuario } from './db/admins.js';
 import { iniciarTrabajos } from './trabajos/index.js';
 import { logger, registrarError } from './observabilidad/logger.js';
 
@@ -30,6 +31,13 @@ function arrancar() {
         .then(() => {
             marcarLista();
             logger.info({ ms: Date.now() - inicio }, 'API lista para atender pedidos');
+            adminsConContrasenaIgualAlUsuario(pool)
+                .then((debiles) => {
+                    if (debiles.length) {
+                        logger.warn({ admins: debiles }, 'Hay administradores con la contraseña igual al usuario: cambiala desde Mi Perfil.');
+                    }
+                })
+                .catch((e) => registrarError(e, 'No se pudieron revisar las contraseñas de los administradores'));
             iniciarTrabajos({ pool })
                 .then((boss) => {
                     trabajos = boss;

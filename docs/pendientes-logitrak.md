@@ -70,11 +70,12 @@ y verificado se saca de acá; el historial queda en los commits.
     (`@expo/cli`, metro, `image-size`), no en el código que llega al teléfono, y
     su arreglo exige el salto de SDK. Conviene hacerlo de a una versión, con
     `npx expo install --fix`, probando el mapa, la cámara y la detección facial.
-16. Admins sembrados con contraseña igual al usuario. `src/db/init.js` crea
-    `ccchimi`, `melirm` y `claukev` con la contraseña igual al nombre si no
-    existen (no pisa una contraseña ya cambiada). Hay que confirmar que en
-    producción se cambiaron y pasar la contraseña inicial a una variable de
-    entorno, o crear los admins con una migración sin contraseña conocida.
+16. Contraseñas de los admins de producción. El código ya no siembra admins
+    con contraseña conocida: si la base no tiene ninguno, crea el primero con
+    `ADMIN_INICIAL_USUARIO` y `ADMIN_INICIAL_CONTRASENA`. Las cuentas que ya
+    existen no cambian: si alguna tiene la contraseña igual al usuario, el log
+    de Render lo avisa al arrancar ("Hay administradores con la contraseña
+    igual al usuario"). Cada admin tiene que cambiarla desde Mi Perfil.
 17. Activar Sentry: crear en sentry.io un proyecto de Node y uno de React
     Native (el plan gratis alcanza), cargar `SENTRY_DSN` en Render y
     `EXPO_PUBLIC_SENTRY_DSN` en el `.env` de la app y como variable del repo
