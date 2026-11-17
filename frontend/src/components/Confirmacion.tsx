@@ -9,6 +9,8 @@ export default function Confirmacion({
   titulo,
   detalle,
   ocupado,
+  textoConfirmar = "Confirmar operación",
+  textoCancelar = "Cancelar",
   onCancelar,
   onConfirmar,
 }: {
@@ -16,6 +18,8 @@ export default function Confirmacion({
   titulo: string;
   detalle: string;
   ocupado?: boolean;
+  textoConfirmar?: string;
+  textoCancelar?: string;
   onCancelar: () => void;
   onConfirmar: () => void;
 }) {
@@ -38,13 +42,13 @@ export default function Confirmacion({
             <Text style={tema.estilo(s.detail)}>{detalle}</Text>
             <View style={tema.estilo({ gap: 12 })}>
               <Boton
-                texto="Cancelar"
+                texto={textoCancelar}
                 secundario
                 disabled={ocupado}
                 onPress={onCancelar}
               />
               <Boton
-                texto={ocupado ? "Procesando…" : "Confirmar operación"}
+                texto={ocupado ? "Procesando…" : textoConfirmar}
                 ocupado={ocupado}
                 onPress={onConfirmar}
               />

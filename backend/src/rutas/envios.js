@@ -11,6 +11,8 @@ import { registrarError } from '../observabilidad/logger.js';
 import { generarPin } from '../servicios/envios/entrega.js';
 import { urlFirmada } from '../servicios/almacenamiento.js';
 import { exigirPermiso, tienePermiso } from '../middleware/permisos.js';
+import { hayPagoEnCurso } from '../servicios/envios/vencimientoPago.js';
+import { registrarEvento } from '../outbox/index.js';
 
 export const rutasEnvios = Router();
 
@@ -408,6 +410,117 @@ const MENSAJE_REEMBOLSO = {
     reintentar: 'La pasarela no respondió. Probá de nuevo en un rato.',
     reembolso_pendiente: 'Mercado Pago rechazó la devolución. Quedó anotada para resolverla a mano.',
 };
+
+const MOTIVO_NO_CANCELABLE = {
+    asignado: 'Un chofer ya tomó el envío. Para cancelarlo, escribinos desde Soporte.',
+    en_viaje: 'El envío ya está en viaje. Para cancelarlo, escribinos desde Soporte.',
+    entregado: 'El envío ya fue entregado.',
+    cancelado: 'El envío ya estaba cancelado.',
+};
+
+rutasEnvios.post('/:codigo/cancelar', autenticar, async (req, res) => {
+    const envio = await buscarEnvioPorCodigo(req.params.codigo);
+    if (!envio || envio.archivado_en) return res.status(404).json({ exito: false, error: 'Envío no encontrado.' });
+    if (envio.cliente_id !== req.usuario.id) {
+        return res.status(403).json({ exito: false, error: 'Solo quien pidió el envío puede cancelarlo.' });
+    }
+    if (envio.estado !== 'pendiente' || envio.chofer_id) {
+        return res.status(409).json({ exito: false, error: MOTIVO_NO_CANCELABLE[envio.estado] ?? MOTIVO_NO_CANCELABLE.asignado });
+    }
+
+    if (envio.estado_pago !== 'pagado') {
+        const { rows: intentos } = await consultar(
+            `SELECT codigo, metodo, modo_proc, referencia_ext FROM pagos WHERE envio_id = $1 AND estado = 'pendiente'`,
+            [envio.id]
+        );
+        let enCurso;
+        try {
+            enCurso = await hayPagoEnCurso(intentos);
+        } catch (e) {
+            registrarError(e, 'No se pudo consultar la pasarela antes de cancelar');
+            return res.status(502).json({ exito: false, error: 'No pudimos verificar tu pago con la pasarela. Probá de nuevo en un rato.' });
+        }
+        if (enCurso) {
+            return res.status(409).json({ exito: false, error: 'Tenés un pago en curso para este envío. Esperá a que se acredite y después cancelalo.' });
+        }
+    }
+
+    const cliente = await pool.connect();
+    try {
+        await cliente.query('BEGIN');
+        const { rows } = await cliente.query(
+            `SELECT * FROM envios
+             WHERE id = $1 AND estado = 'pendiente' AND chofer_id IS NULL AND archivado_en IS NULL
+             FOR UPDATE`,
+            [envio.id]
+        );
+        const actual = rows[0];
+        if (!actual) {
+            await cliente.query('ROLLBACK');
+            const ahora = await buscarEnvioPorCodigo(envio.codigo);
+            return res.status(409).json({ exito: false, error: MOTIVO_NO_CANCELABLE[ahora?.estado] ?? MOTIVO_NO_CANCELABLE.asignado });
+        }
+
+        const estabaPago = actual.estado_pago === 'pagado';
+        let reembolso = { estado: 'sin_pago' };
+        if (estabaPago) {
+            reembolso = await reembolsarPagoDelEnvio(cliente, actual.id);
+            if (reembolso.estado === 'reintentar') {
+                await cliente.query('ROLLBACK');
+                return res.status(502).json({
+                    exito: false,
+                    error: 'No pudimos contactar a la pasarela para devolverte el importe. El envío no se canceló: probá de nuevo en un rato.',
+                });
+            }
+        } else {
+            await cliente.query(
+                `UPDATE pagos SET estado = 'cancelado', actualizado_en = now() WHERE envio_id = $1 AND estado = 'pendiente'`,
+                [actual.id]
+            );
+        }
+
+        const reembolsado = reembolso.estado === 'reembolsado';
+        await cliente.query(
+            `UPDATE envios
+             SET estado = 'cancelado',
+                 estado_pago = CASE WHEN $2 THEN 'reembolsado' ELSE estado_pago END,
+                 actualizado_en = now()
+             WHERE id = $1`,
+            [actual.id, reembolsado]
+        );
+        await cliente.query(
+            `INSERT INTO envio_eventos (envio_id, tipo, titulo, detalle) VALUES ($1, 'cancelado', 'Cancelado por el cliente', $2)`,
+            [
+                actual.id,
+                !estabaPago
+                    ? 'El cliente canceló el envío antes de pagarlo.'
+                    : reembolsado
+                        ? 'El cliente canceló el envío. Se devolvió el importe al medio de pago original.'
+                        : 'El cliente canceló el envío. La devolución quedó pendiente de revisión.',
+            ]
+        );
+        await registrarEvento(cliente, {
+            tipoAgregado: 'envio',
+            idAgregado: actual.codigo,
+            tipo: 'envio.cancelado_por_cliente',
+            datos: { clienteId: actual.cliente_id, envioCodigo: actual.codigo, estabaPago, reembolsado },
+        });
+        await cliente.query('COMMIT');
+
+        const mensaje = !estabaPago
+            ? 'Cancelaste el envío.'
+            : reembolsado
+                ? 'Cancelaste el envío y te devolvimos el importe al medio de pago original.'
+                : 'Cancelaste el envío. La devolución quedó en revisión: te avisamos cuando se acredite.';
+        return res.json({ exito: true, estado: 'cancelado', reembolso: reembolso.estado, mensaje });
+    } catch (e) {
+        await cliente.query('ROLLBACK').catch(() => {});
+        registrarError(e, 'No se pudo cancelar el envío');
+        return res.status(500).json({ exito: false, error: 'No se pudo cancelar el envío.' });
+    } finally {
+        cliente.release();
+    }
+});
 
 rutasEnvios.post('/:codigo/pin/desbloquear', autenticar, exigirPermiso('envios.desbloquear_pin'), async (req, res) => {
     const { rowCount } = await consultar(

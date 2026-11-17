@@ -167,6 +167,17 @@ export async function reembolsarEnvio(codigo: string): Promise<ResultadoAccionAd
     };
 }
 
+export async function cancelarEnvio(codigo: string): Promise<ResultadoAccionAdmin> {
+    const r = (await llamarApi<{ exito: boolean; mensaje: string }>(
+        `/api/envios/${encodeURIComponent(codigo)}/cancelar`,
+        { metodo: 'POST', conAuth: true }
+    )) as any;
+    return {
+        exito: Boolean(r.exito),
+        mensaje: r.mensaje || r.error || 'No se pudo cancelar el envío.',
+    };
+}
+
 export interface NuevoEvento {
     tipo: TipoEventoEnvio;
     titulo: string;

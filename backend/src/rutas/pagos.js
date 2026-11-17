@@ -65,11 +65,13 @@ async function buscarPorClave(cliente, clienteId, clave) {
     return rows[0] ?? null;
 }
 
+const RESPUESTA_CANCELADO = { exito: false, codigo: 'envio_cancelado', error: 'Este envío fue cancelado: ya no se puede pagar.' };
+
 async function aprobarPago(cliente, pagoId, extra = {}) {
     const previo = (await cliente.query('SELECT envio_id FROM pagos WHERE id = $1', [pagoId])).rows[0];
     if (!previo) return null;
 
-    await cliente.query('SELECT id FROM envios WHERE id = $1 FOR UPDATE', [previo.envio_id]);
+    const estadoEnvio = (await cliente.query('SELECT estado FROM envios WHERE id = $1 FOR UPDATE', [previo.envio_id])).rows[0]?.estado;
     const actual = (await cliente.query('SELECT * FROM pagos WHERE id = $1 FOR UPDATE', [pagoId])).rows[0];
     if (actual.estado === 'aprobado' || actual.estado === 'reembolsado') return actual;
 
@@ -78,10 +80,13 @@ async function aprobarPago(cliente, pagoId, extra = {}) {
         [actual.envio_id, pagoId]
     )).rows[0];
 
+    const cancelado = !otro && estadoEnvio === 'cancelado';
     const detalle = extra.detalle ?? actual.detalle ?? null;
     const detalleFinal = otro
         ? { ...(detalle ?? {}), duplicadoDe: otro.codigo, reembolsoPendiente: `pago duplicado de ${otro.codigo}` }
-        : detalle;
+        : cancelado
+            ? { ...(detalle ?? {}), reembolsoPendiente: 'el envío ya estaba cancelado' }
+            : detalle;
 
     const { rows } = await cliente.query(
         `UPDATE pagos SET
@@ -110,6 +115,12 @@ async function aprobarPago(cliente, pagoId, extra = {}) {
     if (otro) {
         registrarError(new Error('Pago aprobado duplicado'), `Pago ${pago.codigo} aprobado como DUPLICADO de ${otro.codigo}: hay que reembolsarlo.`, { pago: pago.codigo, duplicadoDe: otro.codigo });
         await registrarEvento(cliente, { tipoAgregado: 'pago', idAgregado: pago.codigo, tipo: 'pago.duplicado', datos: { ...datosEvento, duplicadoDe: otro.codigo } });
+        return pago;
+    }
+
+    if (cancelado) {
+        registrarError(new Error('Pago aprobado sobre un envío cancelado'), `Pago ${pago.codigo} aprobado sobre ${envioCodigo}, que estaba cancelado: hay que reembolsarlo.`, { pago: pago.codigo, envio: envioCodigo });
+        await registrarEvento(cliente, { tipoAgregado: 'pago', idAgregado: pago.codigo, tipo: 'pago.sobre_envio_cancelado', datos: datosEvento });
         return pago;
     }
 
@@ -182,6 +193,10 @@ rutasPagos.post('/checkout', limitePagos, autenticar, validarRequest({ body: esq
         if (envio.estado_pago === 'pagado') {
             await cliente.query('ROLLBACK');
             return res.status(409).json({ exito: false, error: 'Este envío ya está pagado.' });
+        }
+        if (envio.estado === 'cancelado') {
+            await cliente.query('ROLLBACK');
+            return res.status(409).json(RESPUESTA_CANCELADO);
         }
         if (pedidoVencido(envio)) {
             await cliente.query('ROLLBACK');
@@ -297,6 +312,10 @@ rutasPagos.post('/tarjeta', limitePagos, autenticar, validarRequest({ body: esqu
             await cliente.query('ROLLBACK');
             return res.status(409).json({ exito: false, error: 'Este envío ya está pagado.' });
         }
+        if (envio.estado === 'cancelado') {
+            await cliente.query('ROLLBACK');
+            return res.status(409).json(RESPUESTA_CANCELADO);
+        }
         if (pedidoVencido(envio)) {
             await cliente.query('ROLLBACK');
             return res.status(409).json(RESPUESTA_VENCIDO);
@@ -372,6 +391,10 @@ rutasPagos.post('/:codigo/confirmar', limitePagos, autenticar, validarRequest({ 
         if (envio && pedidoVencido(envio)) {
             await cliente.query('ROLLBACK');
             return res.status(409).json(RESPUESTA_VENCIDO);
+        }
+        if (envio?.estado === 'cancelado') {
+            await cliente.query('ROLLBACK');
+            return res.status(409).json(RESPUESTA_CANCELADO);
         }
         const actualizado = await aprobarPago(cliente, pago.id, { detalle: { confirmadoEn: 'sandbox' } });
         await cliente.query('COMMIT');

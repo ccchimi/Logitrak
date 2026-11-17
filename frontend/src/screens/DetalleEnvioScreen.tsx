@@ -12,6 +12,7 @@ import Confirmacion from "../components/Confirmacion";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
+  cancelarEnvio,
   obtenerEnvio,
   reembolsarEnvio,
   type DetalleEnvio,
@@ -170,7 +171,7 @@ export default function DetalleEnvioScreen({ navigation, route }: any) {
 
   const [datos, setDatos] = useState<DetalleEnvio | null>(null);
   const [cargando, setCargando] = useState(true);
-  const [confirmacion, setConfirmacion] = useState(false);
+  const [confirmacion, setConfirmacion] = useState<"devolver" | "cancelar" | null>(null);
   const [procesando, setProcesando] = useState(false);
 
   const esAdmin = puede("envios.ver_todos");
@@ -196,6 +197,15 @@ export default function DetalleEnvioScreen({ navigation, route }: any) {
       r.exito ? "Devolución emitida" : "No se pudo devolver",
       r.mensaje,
     );
+    void cargar();
+  };
+
+  const confirmarCancelacion = async () => {
+    if (procesando) return;
+    setProcesando(true);
+    const r = await cancelarEnvio(codigo);
+    setProcesando(false);
+    mostrar(r.exito ? "exito" : "error", r.exito ? "Envío cancelado" : "No se pudo cancelar", r.mensaje);
     void cargar();
   };
 
@@ -233,6 +243,12 @@ export default function DetalleEnvioScreen({ navigation, route }: any) {
     ? eventos.filter((ev) => ev.titulo !== "Envío archivado por un administrador")
     : eventos;
   const pagoAprobado = pagos.find((p) => p.estado === "aprobado") ?? null;
+  const puedeCancelar =
+    envio.clienteId === obtenerUsuarioSesion()?.id &&
+    envio.estado === "pendiente" &&
+    !envio.choferNombre &&
+    !envio.archivadoEn;
+  const estaPago = envio.estadoPago === "pagado";
   const dimensiones = [
     envio.pesoKg ? `${envio.pesoKg} kg` : null,
     envio.bultos ? `${envio.bultos} bultos` : null,
@@ -401,6 +417,25 @@ export default function DetalleEnvioScreen({ navigation, route }: any) {
             </View>
           )}
 
+          {puedeCancelar && (
+            <View style={tema.estilo(styles.tarjeta)}>
+              <Text style={tema.estilo(styles.tarjetaTitulo)}>¿Cambiaste de planes?</Text>
+              <Text style={tema.estilo([styles.vacio, { marginBottom: 12 }])}>
+                {estaPago
+                  ? "Podés cancelar el envío mientras ningún chofer lo haya tomado. Te devolvemos el importe al medio de pago original."
+                  : "Podés cancelar el envío mientras ningún chofer lo haya tomado. Como todavía no lo pagaste, no se te cobra nada."}
+              </Text>
+              <TouchableOpacity
+                style={tema.estilo([styles.boton, styles.botonPeligro, procesando && styles.botonDeshabilitado])}
+                disabled={procesando}
+                onPress={() => setConfirmacion("cancelar")}
+                accessibilityRole="button"
+              >
+                <Text style={tema.estilo(styles.botonPeligroTexto)}>Cancelar envío</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           {puedeReembolsar && (
             <View style={tema.estilo([styles.tarjeta, styles.zonaAdmin])}>
               <Text style={tema.estilo(styles.tarjetaTitulo)}>
@@ -414,7 +449,7 @@ export default function DetalleEnvioScreen({ navigation, route }: any) {
                     (!pagoAprobado || procesando) && styles.botonDeshabilitado,
                   ])}
                   disabled={!pagoAprobado || procesando}
-                  onPress={() => setConfirmacion(true)}
+                  onPress={() => setConfirmacion("devolver")}
                 >
                   <Text style={tema.estilo(styles.botonNeutroTexto)}>
                     {pagoAprobado ? "Devolver el importe" : "Nada que devolver"}
@@ -428,13 +463,29 @@ export default function DetalleEnvioScreen({ navigation, route }: any) {
       </ScrollView>
 
       <Confirmacion
-        visible={confirmacion}
+        visible={confirmacion === "devolver"}
         ocupado={procesando}
         titulo="¿Devolver el importe?"
         detalle="Se solicitará la devolución del pago aprobado de este envío. Revisá el código y el importe antes de confirmar."
-        onCancelar={() => setConfirmacion(false)}
+        onCancelar={() => setConfirmacion(null)}
         onConfirmar={() => {
-          void confirmarDevolucion().finally(() => setConfirmacion(false));
+          void confirmarDevolucion().finally(() => setConfirmacion(null));
+        }}
+      />
+      <Confirmacion
+        visible={confirmacion === "cancelar"}
+        ocupado={procesando}
+        titulo="¿Cancelar el envío?"
+        textoCancelar="Volver"
+        textoConfirmar="Sí, cancelar el envío"
+        detalle={
+          estaPago
+            ? "El envío se cancela y te devolvemos el importe al medio de pago original. No se puede deshacer."
+            : "El envío se cancela y ya no vas a poder pagarlo. No se puede deshacer."
+        }
+        onCancelar={() => setConfirmacion(null)}
+        onConfirmar={() => {
+          void confirmarCancelacion().finally(() => setConfirmacion(null));
         }}
       />
       <ToastStack toasts={toasts} onCerrar={cerrar} />

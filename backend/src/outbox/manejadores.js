@@ -81,6 +81,36 @@ export const MANEJADORES = {
         }, ctx);
     },
 
+    async 'envio.cancelado_por_cliente'(cliente, evento, ctx) {
+        const p = evento.payload;
+        await notificar(cliente, {
+            usuarioId: p.clienteId,
+            eventoId: evento.id,
+            tipo: evento.event_type,
+            titulo: 'Envío cancelado',
+            cuerpo: !p.estabaPago
+                ? `Cancelaste el envío ${p.envioCodigo}.`
+                : p.reembolsado
+                    ? `Cancelaste el envío ${p.envioCodigo}. Te devolvimos el pago al medio original.`
+                    : `Cancelaste el envío ${p.envioCodigo}. La devolución del pago quedó en revisión: te avisamos cuando se acredite.`,
+            datos: { envioCodigo: p.envioCodigo },
+        }, ctx);
+    },
+
+    async 'pago.sobre_envio_cancelado'(cliente, evento, ctx) {
+        const p = evento.payload;
+        for (const adminId of await adminsActivos(cliente)) {
+            await notificar(cliente, {
+                usuarioId: adminId,
+                eventoId: evento.id,
+                tipo: evento.event_type,
+                titulo: 'Pago para devolver',
+                cuerpo: `El pago ${p.pagoCodigo} (${pesos(p.monto, p.moneda)}) se aprobó sobre el envío ${p.envioCodigo}, que ya estaba cancelado. Hay que devolverlo.`,
+                datos: { envioCodigo: p.envioCodigo, pagoCodigo: p.pagoCodigo },
+            }, ctx);
+        }
+    },
+
     async 'envio.eliminado_sin_pago'(cliente, evento, ctx) {
         const p = evento.payload;
         await notificar(cliente, {

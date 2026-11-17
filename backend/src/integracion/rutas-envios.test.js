@@ -141,4 +141,79 @@ describe('/api/envios (integración)', { skip: SALTEAR }, () => {
             assert.equal(fila.estado_pago, 'reembolsado');
         });
     });
+
+    describe('POST /:codigo/cancelar (cliente)', () => {
+        const cancelar = (s, codigo) => e.http('post', `/api/envios/${codigo}/cancelar`, { token: s.token }).send({});
+        const fila = async (codigo) => (await e.pool.query('SELECT * FROM envios WHERE codigo = $1', [codigo])).rows[0];
+        const TARJETA = { numero: '4509953566233704', titular: 'APRO', vencimiento: '11/30', cvv: '123', cuotas: 1 };
+
+        test('sin pagar: se cancela, se anulan los intentos de pago y ya no se puede pagar', async () => {
+            const s = await e.cuenta('env.canc.imp');
+            const env = await e.crearEnvio(s, { pagar: false });
+            const intento = await e.http('post', '/api/pagos/checkout', { token: s.token }).send({ envioCodigo: env.codigo, metodo: 'mercadopago' });
+            assert.equal(intento.status, 201);
+
+            const r = await cancelar(s, env.codigo);
+            assert.equal(r.status, 200, JSON.stringify(r.body));
+            assert.equal(r.body.reembolso, 'sin_pago');
+            assert.equal(r.body.mensaje, 'Cancelaste el envío.');
+
+            const f = await fila(env.codigo);
+            assert.equal(f.estado, 'cancelado');
+            assert.equal(f.estado_pago, 'pendiente');
+            const pago = (await e.pool.query('SELECT estado FROM pagos WHERE codigo = $1', [intento.body.pago.codigo])).rows[0];
+            assert.equal(pago.estado, 'cancelado', 'el QR que quedó abierto ya no sirve');
+            const ev = await e.pool.query(`SELECT titulo FROM envio_eventos WHERE envio_id = $1 AND tipo = 'cancelado'`, [env.id]);
+            assert.equal(ev.rows[0].titulo, 'Cancelado por el cliente');
+            const aviso = await e.pool.query(`SELECT payload FROM outbox_events WHERE event_type = 'envio.cancelado_por_cliente' AND aggregate_id = $1`, [env.codigo]);
+            assert.equal(aviso.rows[0].payload.estabaPago, false);
+
+            const tarjeta = await e.http('post', '/api/pagos/tarjeta', { token: s.token }).send({ envioCodigo: env.codigo, ...TARJETA });
+            assert.equal(tarjeta.status, 409);
+            assert.equal(tarjeta.body.codigo, 'envio_cancelado');
+            assert.equal((await e.http('post', '/api/pagos/checkout', { token: s.token }).send({ envioCodigo: env.codigo, metodo: 'modo' })).body.codigo, 'envio_cancelado');
+            const confirmar = await e.http('post', `/api/pagos/${intento.body.pago.codigo}/confirmar`, { token: s.token });
+            assert.equal(confirmar.status, 409, 'tampoco se confirma el intento sandbox anulado');
+            assert.equal((await fila(env.codigo)).estado_pago, 'pendiente');
+
+            assert.equal((await cancelar(s, env.codigo)).status, 409, 'ya estaba cancelado');
+        });
+
+        test('pagado y sin chofer: se cancela y se devuelve el importe', async () => {
+            const s = await e.cuenta('env.canc.pag');
+            const env = await e.crearEnvio(s);
+            const r = await cancelar(s, env.codigo);
+            assert.equal(r.status, 200, JSON.stringify(r.body));
+            assert.equal(r.body.reembolso, 'reembolsado');
+            assert.match(r.body.mensaje, /devolvimos el importe/);
+
+            const f = await fila(env.codigo);
+            assert.equal(f.estado, 'cancelado');
+            assert.equal(f.estado_pago, 'reembolsado');
+            const pago = (await e.pool.query('SELECT estado FROM pagos WHERE envio_id = $1', [env.id])).rows[0];
+            assert.equal(pago.estado, 'reembolsado');
+            const aviso = await e.pool.query(`SELECT payload FROM outbox_events WHERE event_type = 'envio.cancelado_por_cliente' AND aggregate_id = $1`, [env.codigo]);
+            assert.deepEqual(
+                { estabaPago: aviso.rows[0].payload.estabaPago, reembolsado: aviso.rows[0].payload.reembolsado },
+                { estabaPago: true, reembolsado: true },
+            );
+        });
+
+        test('con chofer asignado o en viaje no se cancela desde la app; otro cliente tampoco puede', async () => {
+            const s = await e.cuenta('env.canc.asig');
+            const env = await e.crearEnvio(s);
+            const otro = await e.cuenta('env.canc.otro');
+            assert.equal((await cancelar(otro, env.codigo)).status, 403);
+            assert.equal((await cancelar(admin, env.codigo)).status, 403, 'tampoco el admin: tiene reembolsar y archivar');
+            assert.equal((await cancelar(s, 'TRK-0000-000000')).status, 404);
+
+            await e.pool.query(`UPDATE envios SET estado = 'asignado' WHERE id = $1`, [env.id]);
+            const asignado = await cancelar(s, env.codigo);
+            assert.equal(asignado.status, 409);
+            assert.match(asignado.body.error, /Soporte/);
+            await e.pool.query(`UPDATE envios SET estado = 'en_viaje' WHERE id = $1`, [env.id]);
+            assert.match((await cancelar(s, env.codigo)).body.error, /en viaje/);
+            assert.equal((await fila(env.codigo)).estado_pago, 'pagado', 'no se tocó el pago');
+        });
+    });
 });
