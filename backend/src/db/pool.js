@@ -7,9 +7,38 @@ export function configuracionSsl() {
     return { rejectUnauthorized: process.env.PGSSL_STRICT === 'true' };
 }
 
+const POR_DEFECTO = { consultaMs: 15000, transaccionInactivaMs: 30000, conexionMs: 10000 };
+
+function milisegundos(valor, porDefecto) {
+    if (valor === undefined || valor === '') return porDefecto;
+    const n = Number(valor);
+    return Number.isInteger(n) && n > 0 ? n : porDefecto;
+}
+
+export function limitesDeTiempo(env = process.env) {
+    return {
+        consultaMs: milisegundos(env.DB_LIMITE_CONSULTA_MS, POR_DEFECTO.consultaMs),
+        transaccionInactivaMs: milisegundos(env.DB_LIMITE_TRANSACCION_INACTIVA_MS, POR_DEFECTO.transaccionInactivaMs),
+        conexionMs: milisegundos(env.DB_LIMITE_CONEXION_MS, POR_DEFECTO.conexionMs),
+    };
+}
+
+export const limites = limitesDeTiempo();
+
+export function sentenciaDeLimites({ consultaMs, transaccionInactivaMs } = limites) {
+    return `SET statement_timeout = ${consultaMs}; SET idle_in_transaction_session_timeout = ${transaccionInactivaMs}`;
+}
+
 export const pool = new pg.Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: configuracionSsl(),
+    connectionTimeoutMillis: limites.conexionMs,
+});
+
+pool.on('connect', (cliente) => {
+    cliente.query(sentenciaDeLimites()).catch((err) => {
+        logger.warn({ err }, 'No se pudieron fijar los límites de tiempo en una conexión nueva');
+    });
 });
 
 pool.on('error', (err) => {
