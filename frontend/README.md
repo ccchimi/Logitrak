@@ -86,7 +86,7 @@ No debe confundirse este motor con las propuestas de predicción logística del 
 | `Chofer` | Ofertas filtradas por peso y bultos del vehículo, asignación, avances, cierre de viaje y la tarjeta "Tu calificación" con su promedio y los últimos comentarios. |
 | `Estadisticas` | Estadísticas disponibles para el flujo del chofer. |
 | `TodosPedidos` | Consulta operativa de pedidos con filtros y búsqueda. |
-| `UsuariosAdmin` | Usuarios con filtros, paginación y cambio de roles según permisos. |
+| `UsuariosAdmin` | Usuarios con filtros, paginación, edición de datos y cambio de roles según permisos. |
 | `Soporte` | Asistente, tickets, conversación y atención del equipo. |
 | `Notificaciones` | Bandeja y lectura de avisos. |
 | `MetodosPago`, `MetodoCobro` | Formularios visuales de métodos; su guardado todavía no está implementado. |
@@ -99,7 +99,9 @@ El chofer inicia en su consola. El acceso operativo se decide por capacidades de
 
 `AdminDashboardScreen`, `TodosPedidosScreen`, `UsuariosAdminScreen`, `usePanelAdmin` y los servicios de administración consumen datos de la API. El resumen de envíos viene de `/api/envios/metricas`; los indicadores por período y parte de los filtros se calculan sobre los registros recuperados.
 
-`GET /api/envios` devuelve hasta 200 registros. El frontend intenta ampliar por estados y comparar con las métricas; eso no sustituye una API con paginación completa. El listado de usuarios sí recibe búsqueda, rol, fechas, orden y paginación desde el servidor. Poder listar usuarios o cambiar roles no equivale a editar sus perfiles completos.
+`GET /api/envios` devuelve hasta 200 registros. El frontend intenta ampliar por estados y comparar con las métricas; eso no sustituye una API con paginación completa. El listado de usuarios sí recibe búsqueda, rol, fechas, orden y paginación desde el servidor.
+
+Con el permiso `usuarios.editar` (solo admin), cada fila de Usuarios abre `components/admin/EditarUsuarioModal.tsx`: el nombre de cualquier cuenta y, en los choferes, el email, el teléfono, el domicilio y el vehículo. El código de chofer y el DNI se muestran pero no se editan, y desde el mismo modal se pasa al cambio de rol. `helpers/perfilesAdmin.ts` arma solo los campos que cambiaron y los valida igual que el servidor. Soporte ve la lista pero no edita. El permiso llega con el inicio de sesión: un admin con la sesión abierta desde antes de esta versión tiene que volver a entrar para ver la opción.
 
 ### Seguimiento, entrega y avisos
 

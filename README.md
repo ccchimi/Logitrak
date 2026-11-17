@@ -24,9 +24,9 @@ El sistema tiene cuatro roles. Los permisos efectivos se comprueban en el backen
 | `cliente` | Se registra en la aplicación. Cotiza con Boxy, crea y paga pedidos, consulta seguimiento, historial, cupones, notificaciones y soporte, y califica al chofer cuando recibe el envío. |
 | `chofer` | Se obtiene mediante la postulación y verificación de identidad. Consulta ofertas filtradas por peso y bultos de su vehículo, toma viajes, registra avances y confirma entregas. Ve su promedio de calificaciones y los comentarios de los clientes. |
 | `soporte` | Lo asigna un administrador. Accede al panel operativo, consulta envíos, usuarios, cotizaciones y pagos; atiende consultas y puede desbloquear un PIN de entrega. |
-| `admin` | Si la base no tiene ningún admin, el primero se crea al arrancar con `ADMIN_INICIAL_USUARIO` y `ADMIN_INICIAL_CONTRASENA`; los demás los nombra otro administrador desde Usuarios. Tiene las capacidades de soporte y permisos adicionales sobre reembolsos, roles, documentación y mantenimiento. |
+| `admin` | Si la base no tiene ningún admin, el primero se crea al arrancar con `ADMIN_INICIAL_USUARIO` y `ADMIN_INICIAL_CONTRASENA`; los demás los nombra otro administrador desde Usuarios. Tiene las capacidades de soporte y permisos adicionales sobre reembolsos, roles, edición de los datos de otras cuentas, documentación y mantenimiento. |
 
-El panel del equipo incluye métricas, indicadores de las últimas 24 horas, consulta de pedidos y listado de usuarios con búsqueda, filtros y paginación. Los datos se obtienen de la API: los indicadores temporales y parte de los filtros de pedidos se calculan sobre la lista recuperada por el frontend. El listado de envíos tiene límites de consulta, por lo que no debe asumirse que toda visualización equivale a un histórico completo.
+El panel del equipo incluye métricas, indicadores de las últimas 24 horas, consulta de pedidos y listado de usuarios con búsqueda, filtros y paginación, desde donde el admin corrige los datos de otras cuentas. Los datos se obtienen de la API: los indicadores temporales y parte de los filtros de pedidos se calculan sobre la lista recuperada por el frontend. El listado de envíos tiene límites de consulta, por lo que no debe asumirse que toda visualización equivale a un histórico completo.
 
 La aplicación también incluye una página pública de presentación, acceso y registro, recuperación de contraseña, Mi Perfil, preferencias de tema, notificaciones y formularios de postulación de choferes.
 
@@ -284,7 +284,6 @@ Además de las restricciones de Mi Perfil y pagos ya descritas:
 - Los cupones se aplican al pagar un envío, pero todavía no vencen: el estado `vencido` existe y ningún proceso lo asigna.
 - Guardar tarjetas o cuentas de cobro desde las pantallas de métodos está pendiente; esas pantallas no persisten los datos ingresados.
 - El listado de envíos devuelve hasta 200 registros por consulta. El panel intenta ampliar por estado, pero esto no sustituye una API con paginación e históricos completos.
-- Listar usuarios y cambiar roles no equivale a editar los perfiles completos de otras personas.
 - La compatibilidad y configuración de identidad, mapas y push deben validarse por plataforma. El despliegue iOS necesita sus credenciales específicas.
 - Las notificaciones por correo no están implementadas como canal general; el registro de clientes no pide email.
 - La recuperación de contraseña requiere revisión de seguridad antes de un uso productivo. Las cuentas admin creadas antes de este cambio deben cambiar su contraseña desde Mi Perfil: al arrancar, el log avisa si alguna todavía es igual al usuario.

@@ -293,6 +293,7 @@ garantía de entrega en tres segundos.
 | `envio.asignado` | El chofer toma el envío | Aviso al cliente |
 | `envio.entregado` | Confirmación con PIN y foto | Aviso al cliente con acceso al detalle |
 | `envio.valorado` | El cliente califica un envío entregado | Aviso al chofer con las estrellas y si hay comentario |
+| `usuario.datos_editados` | Un admin edita los datos de otra cuenta | Aviso al usuario con los datos que cambiaron |
 
 Los payloads llevan ids, códigos y montos, nunca nombres ni direcciones. Las
 notificaciones (`notificaciones`) son la bandeja de cada usuario en la app y se
@@ -419,8 +420,10 @@ límite de intentos, sesiones, perfil y recuperación), `rutas-envios.test.js`
 `Idempotency-Key`, confirmación, permisos y webhooks firmados),
 `rutas-choferes.test.js` (postulación con verificación del DNI, documentos solo
 para el admin, ofertas según el vehículo, tomar un envío y dos choferes que lo
-toman a la vez) y `rutas-admin.test.js` (listado de usuarios con filtros y
-cambio de rol con sus negativas), `rutas-perfil.test.js` (editar el perfil
+toman a la vez), `rutas-admin.test.js` (listado de usuarios con filtros y
+cambio de rol con sus negativas), `perfiles-admin.test.js` (el admin edita los
+datos de otras cuentas: permisos, validaciones, aviso al usuario y vehículo con
+viaje en curso), `rutas-perfil.test.js` (editar el perfil
 del cliente y del chofer, cambio de contraseña, resumen y flota) y
 `rutas-soporte.test.js` (consultas: quién ve qué, la conversación con el
 asistente y el equipo, derivar, resolver, cerrar y la credencial de Realtime).
@@ -540,6 +543,8 @@ un control equivalente en el frontend.
 | Método | Ruta | Función y acceso |
 |---|---|---|
 | GET | `/api/admin/usuarios` | Listado, filtros, resumen y paginación; permiso `usuarios.listar`. |
+| GET | `/api/admin/usuarios/:id` | Datos editables de una cuenta y, si es chofer, su ficha; permiso `usuarios.editar`. |
+| PUT | `/api/admin/usuarios/:id` | Edita el nombre y, en choferes, email, teléfono, domicilio y vehículo; permiso `usuarios.editar`. |
 | PUT | `/api/admin/usuarios/:id/rol` | Cambia rol entre cliente, soporte y admin; permiso `usuarios.cambiar_rol` y restricciones de integridad. |
 | POST | `/api/admin/reset` | Reinicio destructivo de información; permiso `sistema.reiniciar`. No usar como diagnóstico. |
 | GET | `/api/soporte/realtime` | Credencial de lectura Realtime para la sesión. |
@@ -683,7 +688,7 @@ escrito falla al cargar la ruta, no en un pedido.
 | `cupones.emitir`, `envios.desbloquear_pin`, `usuarios.listar` | ✔ | ✔ |
 | `envios.reembolsar`, `envios.archivar`, `envios.registrar_avance`, `pagos.gestionar` | | ✔ |
 | `choferes.ver_documentos` (fotos de DNI y selfie) | | ✔ |
-| `usuarios.cambiar_rol`, `sistema.reiniciar` | | ✔ |
+| `usuarios.cambiar_rol`, `usuarios.editar`, `sistema.reiniciar` | | ✔ |
 
 El login devuelve la lista de permisos del rol y la app muestra u oculta
 acciones con eso; la API los vuelve a verificar en cada pedido.
@@ -696,6 +701,17 @@ token de acceso ya emitido conserva su rol hasta vencer: por defecto son
 15 minutos en el circuito con refresh y 8 horas en el de compatibilidad, con
 plazos configurables. Queda en el
 log con quién lo hizo.
+
+**Editar los datos de otra cuenta**: `GET` y `PUT /api/admin/usuarios/:id`,
+solo admin (`usuarios.editar`). El `PUT` acepta `nombreCompleto` en cualquier
+cuenta y, si la cuenta tiene ficha de chofer, `email`, `telefono`, `domicilio`
+y `vehiculoId`, con las mismas reglas que Mi Perfil; cualquier otro campo
+(usuario, contraseña, DNI, rol) responde 400. Solo se guardan los campos que
+cambian, y el nombre de un chofer se actualiza en `usuarios` y en `choferes`.
+No se editan los datos propios (409, van por Mi Perfil), las cuentas eliminadas
+(404) ni el vehículo de un chofer con un viaje en curso (409). Cada edición
+registra el evento `usuario.datos_editados`, que le avisa al usuario qué datos
+cambiaron, y queda en el log con quién la hizo.
 
 El personal (soporte y admin) no puede restablecer la contraseña ni eliminar su
 cuenta desde la app. En Supabase, las políticas de lectura de Realtime

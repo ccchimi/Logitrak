@@ -22,28 +22,26 @@ y verificado se saca de acá; el historial queda en los commits.
    tarjeta) y vuelven a estar disponibles si el pago se devuelve, pero no
    vencen nunca: el estado `vencido` existe en la tabla y ningún proceso lo
    asigna. Falta decidir el plazo y sumar un barrido que los venza.
-5. Que el admin pueda editar los perfiles de otros usuarios. Hoy cada rol edita
-   solo el suyo; falta una pantalla de listado de usuarios.
-6. Push en iOS. Realtime y push en Android ya funcionan en producción
+5. Push en iOS. Realtime y push en Android ya funcionan en producción
    (Storage, Realtime y FCM configurados; push probado en un teléfono real con
    el build de desarrollo). Para iOS falta una cuenta de Apple Developer y las
    credenciales de APNs en EAS. Para publicar en Play Store, generar el build
    `production` y, si se quiere el mapa en el build, cargar
    `EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_KEY` como variable de EAS.
-7. Más tests del backend. Todas las rutas tienen pruebas de integración con
+6. Más tests del backend. Todas las rutas tienen pruebas de integración con
    `supertest` contra PostgreSQL, y la CI exige cobertura mínima (85 % de
    líneas; hoy hay 89,5 %). Lo que sigue más flojo es `pagos.js` con Mercado
    Pago y MODO reales (hoy se prueba el camino sandbox) y los adjuntos de
    soporte con Storage.
-8. Verificar la firma del webhook con notificaciones reales de Mercado Pago.
+7. Verificar la firma del webhook con notificaciones reales de Mercado Pago.
    El backend ya exige la firma (`MP_WEBHOOK_SECRET`) y está probado con
    vectores calculados aparte, pero falta confirmar en Render que los avisos que
    llegan por el `notification_url` de las preferencias traen `x-signature`. Si
    no la trajeran, se rechazan con 401 y el pago se confirma igual por consulta.
-9. Backend en Render plan Free: el spin-down por inactividad afecta los webhooks
+8. Backend en Render plan Free: el spin-down por inactividad afecta los webhooks
    de pago. Para producción, plan pago o keep-alive. Mitigado en parte por el
    fallback de polling por `external_reference`.
-10. Aplicar las restricciones de las claves de Google en la Cloud Console (no
+9. Aplicar las restricciones de las claves de Google en la Cloud Console (no
     se puede hacer desde el código). Desde el Hito 0.6 la ruta del móvil la
     calcula el backend, así que la clave de Directions ya no viaja en la app.
     Falta: restringir la de Android a `com.logitrak.frontend` + SHA-1 y solo
@@ -52,40 +50,40 @@ y verificado se saca de acá; el historial queda en los commits.
     solo a Directions. Después, rotar la clave de Directions vieja, que estuvo
     expuesta en versiones anteriores de la app, y borrar el secret
     `EXPO_PUBLIC_GOOGLE_DIRECTIONS_KEY` del repo.
-11. Verificación de identidad tiers 2 y 3 (liveness y match facial). Funcionan
+10. Verificación de identidad tiers 2 y 3 (liveness y match facial). Funcionan
     solo con dev build, no en Expo Go ni web. Se activan por variable de entorno.
-12. Guardar el refresh token en el almacenamiento seguro del teléfono
+11. Guardar el refresh token en el almacenamiento seguro del teléfono
     (`expo-secure-store`) en lugar de AsyncStorage. En web no hay equivalente:
     queda en localStorage, protegido por la rotación y la detección de reuso.
-13. Quitar el token largo de compatibilidad (`JWT_EXPIRA`) cuando ya nadie use
+12. Quitar el token largo de compatibilidad (`JWT_EXPIRA`) cuando ya nadie use
     versiones de la app anteriores al Hito 0.4.
-14. Exportar los datos de la cuenta (derecho de acceso de la Ley 25.326). La
+13. Exportar los datos de la cuenta (derecho de acceso de la Ley 25.326). La
     eliminación ya está (Hito 0.5); falta que el usuario pueda descargar lo que
     tenemos guardado de él. Y un trabajo periódico que borre del Storage los
     archivos que hayan quedado si la eliminación no pudo borrarlos en el momento
     (hoy solo se registra en el log).
-15. Builds nativos después del salto a Expo SDK 58. La app pasó de SDK 54 a
+14. Builds nativos después del salto a Expo SDK 58. La app pasó de SDK 54 a
     58 de a una versión (React Native 0.88, New Architecture obligatoria). Falta
     generar un build de desarrollo nuevo de Android, porque el instalado es de
     SDK 54, y probar en el teléfono la cámara, el mapa y la prueba de vida con
     `@react-native-ml-kit/face-detection`, que no figura como probada con la New
     Architecture. Quedan 6 vulnerabilidades moderadas en herramientas de build
     (`glob`, `minimatch`), ninguna en el código que llega al teléfono.
-16. Contraseñas de los admins de producción. El código ya no siembra admins
+15. Contraseñas de los admins de producción. El código ya no siembra admins
     con contraseña conocida: si la base no tiene ninguno, crea el primero con
     `ADMIN_INICIAL_USUARIO` y `ADMIN_INICIAL_CONTRASENA`. Las cuentas que ya
     existen no cambian: si alguna tiene la contraseña igual al usuario, el log
     de Render lo avisa al arrancar ("Hay administradores con la contraseña
     igual al usuario"). Cada admin tiene que cambiarla desde Mi Perfil.
-17. Activar Sentry: crear en sentry.io un proyecto de Node y uno de React
+16. Activar Sentry: crear en sentry.io un proyecto de Node y uno de React
     Native (el plan gratis alcanza), cargar `SENTRY_DSN` en Render y
     `EXPO_PUBLIC_SENTRY_DSN` en el `.env` de la app y como variable del repo
     (Settings > Secrets and variables > Actions > Variables) para la Web App.
     Para ver los errores del móvil con el código original hay que agregar
     `SENTRY_AUTH_TOKEN`, `SENTRY_ORG` y `SENTRY_PROJECT` como secretos de EAS.
-18. Configurar en Render el health check del servicio en `/api/salud/vivo`
+17. Configurar en Render el health check del servicio en `/api/salud/vivo`
     (Settings > Health Check Path) y, si se arma staging, crear un segundo
     servicio con `ENTORNO=staging` y su propia base y credenciales.
-19. Mails: para mandar las notificaciones también por mail haría falta guardar
+18. Mails: para mandar las notificaciones también por mail haría falta guardar
     el email de los clientes, que hoy no se pide. La bandeja en la app y el
     push ya están.
