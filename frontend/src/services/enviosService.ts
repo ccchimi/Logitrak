@@ -125,11 +125,25 @@ export interface EntregaEnvio {
     conFoto: boolean;
 }
 
+export interface Valoracion {
+    puntaje: number;
+    comentario: string | null;
+    creadoEn: string;
+    envioCodigo?: string;
+}
+
+export interface ReputacionChofer {
+    cantidad: number;
+    promedio: number | null;
+}
+
 export interface DetalleEnvio {
     envio: Envio;
     eventos: EventoEnvio[];
     pagos: PagoDeEnvio[];
     entrega?: EntregaEnvio | null;
+    valoracion?: Valoracion | null;
+    reputacionChofer?: ReputacionChofer | null;
 }
 
 export async function obtenerEnvio(codigo: string): Promise<DetalleEnvio | null> {
@@ -137,7 +151,27 @@ export async function obtenerEnvio(codigo: string): Promise<DetalleEnvio | null>
         `/api/envios/${encodeURIComponent(codigo)}`,
         { conAuth: true }
     );
-    return r.exito ? { envio: r.envio, eventos: r.eventos, pagos: r.pagos ?? [], entrega: r.entrega ?? null } : null;
+    return r.exito
+        ? {
+              envio: r.envio,
+              eventos: r.eventos,
+              pagos: r.pagos ?? [],
+              entrega: r.entrega ?? null,
+              valoracion: r.valoracion ?? null,
+              reputacionChofer: r.reputacionChofer ?? null,
+          }
+        : null;
+}
+
+export type ResultadoValoracion = { exito: true; valoracion: Valoracion } | { exito: false; error: string };
+
+export async function valorarEnvio(codigo: string, puntaje: number, comentario?: string): Promise<ResultadoValoracion> {
+    const r = (await llamarApi<{ exito: true; valoracion: Valoracion }>(
+        `/api/envios/${encodeURIComponent(codigo)}/valoracion`,
+        { metodo: 'POST', conAuth: true, cuerpo: { puntaje, ...(comentario ? { comentario } : {}) } }
+    )) as any;
+    if (r.exito) return { exito: true, valoracion: r.valoracion };
+    return { exito: false, error: r.error || 'No se pudo guardar la calificación.' };
 }
 
 export type ResultadoAccionAdmin = { exito: boolean; mensaje: string };

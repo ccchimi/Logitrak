@@ -20,6 +20,13 @@ export const guardarCotizacion = z.object({
 const latitud = numeroOpcional('La latitud debe ser un número entre -90 y 90.', { min: -90, max: 90 });
 const longitud = numeroOpcional('La longitud debe ser un número entre -180 y 180.', { min: -180, max: 180 });
 
+const MENSAJE_PUNTAJE = 'Elegí una calificación de 1 a 5 estrellas.';
+
+export const valorarEnvio = z.object({
+    puntaje: z.number({ error: MENSAJE_PUNTAJE }).int(MENSAJE_PUNTAJE).min(1, MENSAJE_PUNTAJE).max(5, MENSAJE_PUNTAJE),
+    comentario: textoOpcional(500, 'El comentario puede tener hasta 500 caracteres.'),
+});
+
 export const crearEnvio = z
     .object({
         cotizacionId: numeroOpcional('La cotización indicada no es válida.', { entero: true, min: 1 }),

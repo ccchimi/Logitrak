@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { consultar, pool } from '../db/pool.js';
 import { autenticar } from '../middleware/auth.js';
 import { validarRequest } from '../middleware/validar.js';
-import { crearEnvio } from '../esquemas/envios.js';
+import { crearEnvio, valorarEnvio } from '../esquemas/envios.js';
 import { verificarCotizacionParaEnvio } from '../servicios/cotizador/index.js';
 import { plazoDeLaCotizacion } from '../servicios/envios/sla.js';
 import { MINUTOS_PARA_PAGAR } from '../servicios/envios/impagos.js';
@@ -13,6 +13,7 @@ import { urlFirmada } from '../servicios/almacenamiento.js';
 import { exigirPermiso, tienePermiso } from '../middleware/permisos.js';
 import { hayPagoEnCurso } from '../servicios/envios/vencimientoPago.js';
 import { registrarEvento } from '../outbox/index.js';
+import { publicarValoracion, reputacionDelChofer, valoracionDelEnvio } from '../servicios/envios/valoraciones.js';
 
 export const rutasEnvios = Router();
 
@@ -306,12 +307,19 @@ rutasEnvios.get('/:codigo', autenticar, async (req, res) => {
         conFoto: Boolean(envio.foto_entrega_path),
     };
 
+    const [valoracion, reputacionChofer] = await Promise.all([
+        valoracionDelEnvio(pool, envio.id),
+        envio.chofer_id ? reputacionDelChofer(pool, envio.chofer_id) : null,
+    ]);
+
     return res.json({
         exito: true,
         envio: publicar(envio),
         entrega,
         eventos: ev.rows.map(publicarEvento),
         pagos: pg.rows.map(publicarPago),
+        valoracion,
+        reputacionChofer,
     });
 });
 
@@ -517,6 +525,49 @@ rutasEnvios.post('/:codigo/cancelar', autenticar, async (req, res) => {
         await cliente.query('ROLLBACK').catch(() => {});
         registrarError(e, 'No se pudo cancelar el envío');
         return res.status(500).json({ exito: false, error: 'No se pudo cancelar el envío.' });
+    } finally {
+        cliente.release();
+    }
+});
+
+rutasEnvios.post('/:codigo/valoracion', autenticar, validarRequest({ body: valorarEnvio }), async (req, res) => {
+    const envio = await buscarEnvioPorCodigo(req.params.codigo);
+    if (!envio || envio.archivado_en) return res.status(404).json({ exito: false, error: 'Envío no encontrado.' });
+    if (envio.cliente_id !== req.usuario.id) {
+        return res.status(403).json({ exito: false, error: 'Solo quien pidió el envío puede calificarlo.' });
+    }
+    if (envio.estado !== 'entregado' || !envio.chofer_id) {
+        return res.status(409).json({ exito: false, error: 'Vas a poder calificar al chofer cuando el envío se entregue.' });
+    }
+
+    const { puntaje } = req.body;
+    const comentario = req.body.comentario || null;
+    const cliente = await pool.connect();
+    try {
+        await cliente.query('BEGIN');
+        const { rows } = await cliente.query(
+            `INSERT INTO valoraciones (envio_id, chofer_id, cliente_id, puntaje, comentario)
+             VALUES ($1, $2, $3, $4, $5)
+             ON CONFLICT (envio_id) DO NOTHING
+             RETURNING puntaje, comentario, creado_en`,
+            [envio.id, envio.chofer_id, envio.cliente_id, puntaje, comentario]
+        );
+        if (!rows[0]) {
+            await cliente.query('ROLLBACK');
+            return res.status(409).json({ exito: false, error: 'Ya calificaste este envío.' });
+        }
+        await registrarEvento(cliente, {
+            tipoAgregado: 'envio',
+            idAgregado: envio.codigo,
+            tipo: 'envio.valorado',
+            datos: { choferId: envio.chofer_id, envioCodigo: envio.codigo, puntaje, conComentario: Boolean(comentario) },
+        });
+        await cliente.query('COMMIT');
+        return res.status(201).json({ exito: true, valoracion: publicarValoracion(rows[0]) });
+    } catch (e) {
+        await cliente.query('ROLLBACK').catch(() => {});
+        registrarError(e, 'No se pudo guardar la valoración');
+        return res.status(500).json({ exito: false, error: 'No se pudo guardar la calificación.' });
     } finally {
         cliente.release();
     }

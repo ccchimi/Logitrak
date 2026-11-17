@@ -77,6 +77,21 @@ export async function tomarEnvio(envioCodigo: string): Promise<ResultadoTomar> {
     return { exito: true, asignacion: r.asignacion, envioCodigo: r.envioCodigo };
 }
 
+export interface ReputacionDetallada {
+    cantidad: number;
+    promedio: number | null;
+    distribucion: Record<'1' | '2' | '3' | '4' | '5', number>;
+    ultimas: { puntaje: number; comentario: string | null; creadoEn: string; envioCodigo?: string }[];
+}
+
+export async function obtenerReputacion(): Promise<ReputacionDetallada | null> {
+    const r = await llamarApi<{ exito: true; reputacion: ReputacionDetallada }>(
+        '/api/asignaciones/reputacion',
+        { metodo: 'GET', conAuth: true }
+    );
+    return r.exito ? r.reputacion : null;
+}
+
 export async function obtenerAsignacionActiva(): Promise<AsignacionRegistro | null> {
     const r = await llamarApi<{ exito: true; asignacion: AsignacionRegistro | null }>(
         '/api/asignaciones/activa',

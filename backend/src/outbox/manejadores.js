@@ -97,6 +97,21 @@ export const MANEJADORES = {
         }, ctx);
     },
 
+    async 'envio.valorado'(cliente, evento, ctx) {
+        const p = evento.payload;
+        const { rows } = await cliente.query('SELECT usuario_id FROM choferes WHERE id = $1', [p.choferId]);
+        if (!rows[0]) return;
+        const estrellas = p.puntaje === 1 ? '1 estrella' : `${p.puntaje} estrellas`;
+        await notificar(cliente, {
+            usuarioId: rows[0].usuario_id,
+            eventoId: evento.id,
+            tipo: evento.event_type,
+            titulo: 'Te calificaron',
+            cuerpo: `Recibiste ${estrellas} por el envío ${p.envioCodigo}.${p.conComentario ? ' El cliente dejó un comentario.' : ''}`,
+            datos: { envioCodigo: p.envioCodigo },
+        }, ctx);
+    },
+
     async 'pago.sobre_envio_cancelado'(cliente, evento, ctx) {
         const p = evento.payload;
         for (const adminId of await adminsActivos(cliente)) {

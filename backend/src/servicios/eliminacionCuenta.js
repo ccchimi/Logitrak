@@ -100,6 +100,8 @@ export async function anonimizarCuenta(db, usuario) {
         [id, DIRECCION_ELIMINADA]
     );
 
+    await db.query('UPDATE valoraciones SET comentario = NULL WHERE cliente_id = $1', [id]);
+
     const pagos = (await db.query('SELECT id, detalle FROM pagos WHERE cliente_id = $1', [id])).rows;
     for (const pago of pagos) {
         await db.query('UPDATE pagos SET detalle = $2::jsonb, tarjeta_ultimos = NULL WHERE id = $1', [

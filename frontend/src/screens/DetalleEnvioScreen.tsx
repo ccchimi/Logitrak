@@ -15,12 +15,15 @@ import {
   cancelarEnvio,
   obtenerEnvio,
   reembolsarEnvio,
+  valorarEnvio,
   type DetalleEnvio,
   type PagoDeEnvio,
 } from "../services/enviosService";
 import { obtenerUsuarioSesion } from "../services/authService";
 import { ToastStack, useToasts } from "../components/Toasts";
 import { puede } from "../services/permisos";
+import TarjetaValoracion from "../components/envio/TarjetaValoracion";
+import { textoPromedio, type Puntaje } from "../helpers/valoraciones";
 import {
   COLORS,
   ESTADO_ENVIO_COLOR,
@@ -173,6 +176,7 @@ export default function DetalleEnvioScreen({ navigation, route }: any) {
   const [cargando, setCargando] = useState(true);
   const [confirmacion, setConfirmacion] = useState<"devolver" | "cancelar" | null>(null);
   const [procesando, setProcesando] = useState(false);
+  const [valorando, setValorando] = useState(false);
 
   const esAdmin = puede("envios.ver_todos");
   const puedeReembolsar = puede("envios.reembolsar");
@@ -209,6 +213,20 @@ export default function DetalleEnvioScreen({ navigation, route }: any) {
     void cargar();
   };
 
+  const enviarValoracion = async (puntaje: Puntaje, comentario?: string) => {
+    if (valorando) return;
+    setValorando(true);
+    const r = await valorarEnvio(codigo, puntaje, comentario);
+    setValorando(false);
+    if (r.exito) {
+      mostrar("exito", "¡Gracias por calificar!", "Tu opinión ya le llegó al chofer.");
+      setDatos((d) => (d ? { ...d, valoracion: r.valoracion } : d));
+    } else {
+      mostrar("error", "No se pudo calificar", r.error);
+    }
+    void cargar();
+  };
+
   if (cargando) {
     return (
       <SafeAreaView style={tema.estilo(styles.safeArea)}>
@@ -238,13 +256,15 @@ export default function DetalleEnvioScreen({ navigation, route }: any) {
     );
   }
 
-  const { envio, eventos, pagos, entrega } = datos;
+  const { envio, eventos, pagos, entrega, valoracion = null, reputacionChofer = null } = datos;
+  const esCliente = envio.clienteId === obtenerUsuarioSesion()?.id;
+  const puedeCalificar = esCliente && envio.estado === "entregado" && Boolean(envio.choferId) && !envio.archivadoEn;
   const eventosVisibles = esAdmin
     ? eventos.filter((ev) => ev.titulo !== "Envío archivado por un administrador")
     : eventos;
   const pagoAprobado = pagos.find((p) => p.estado === "aprobado") ?? null;
   const puedeCancelar =
-    envio.clienteId === obtenerUsuarioSesion()?.id &&
+    esCliente &&
     envio.estado === "pendiente" &&
     !envio.choferNombre &&
     !envio.archivadoEn;
@@ -354,6 +374,9 @@ export default function DetalleEnvioScreen({ navigation, route }: any) {
                 <Dato etiqueta="Chofer" valor={envio.choferNombre} primera />
                 <Dato etiqueta="Legajo" valor={envio.choferCodigo} />
                 <Dato etiqueta="Teléfono" valor={envio.choferTelefono} />
+                {reputacionChofer ? (
+                  <Dato etiqueta="Calificación" valor={textoPromedio(reputacionChofer)} />
+                ) : null}
               </>
             ) : (
               <Text style={tema.estilo(styles.vacio)}>
@@ -378,6 +401,14 @@ export default function DetalleEnvioScreen({ navigation, route }: any) {
               <Text style={tema.estilo([styles.vacio, { marginTop: 8 }])}>Entregado con el PIN del receptor.</Text>
             </View>
           ) : null}
+
+          <TarjetaValoracion
+            valoracion={valoracion}
+            puedeCalificar={puedeCalificar}
+            esCliente={esCliente}
+            ocupado={valorando}
+            onEnviar={(p, c) => void enviarValoracion(p, c)}
+          />
 
           <View style={tema.estilo(styles.tarjeta)}>
             <Text style={tema.estilo(styles.tarjetaTitulo)}>

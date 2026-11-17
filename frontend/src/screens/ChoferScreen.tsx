@@ -32,6 +32,7 @@ import {
 import { DISENO as D } from "../theme/diseno";
 import { agregarEvento } from "../services/enviosService";
 import EntregaModal from "../components/EntregaModal";
+import TarjetaReputacion from "../components/chofer/TarjetaReputacion";
 
 const ETIQUETA_PRIORIDAD: Record<PrioridadOferta, string> = {
   alta: "PRIORIDAD ALTA",
@@ -137,6 +138,7 @@ export default function ChoferScreen({ navigation, route }: any) {
 
   const [historial, setHistorial] = useState<AsignacionRegistro[]>([]);
   const [cargandoHistorial, setCargandoHistorial] = useState(true);
+  const [versionReputacion, setVersionReputacion] = useState(0);
 
   const cargarHistorial = useCallback(async () => {
     const datos = await listarAsignaciones();
@@ -239,6 +241,7 @@ export default function ChoferScreen({ navigation, route }: any) {
     setEntregando(false);
     setViajeActivo(null);
     setPasoEstado(0);
+    setVersionReputacion((v) => v + 1);
     await cargarHistorial();
     await cargarOfertas();
   };
@@ -608,6 +611,7 @@ export default function ChoferScreen({ navigation, route }: any) {
                 })
               )}
             </View>
+            <TarjetaReputacion version={versionReputacion} />
           </View>
         </View>
       </ScrollView>

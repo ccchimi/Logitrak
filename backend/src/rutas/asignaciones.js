@@ -6,6 +6,7 @@ import { registrarEvento } from '../outbox/index.js';
 import { limiteEntregas } from '../middleware/limites.js';
 import { validarRequest } from '../middleware/validar.js';
 import { completarEntrega } from '../esquemas/entrega.js';
+import { REPUTACION_VACIA, reputacionDelChofer } from '../servicios/envios/valoraciones.js';
 import { guardarFotoEntrega, leerFoto, MAX_INTENTOS_PIN, pinCorrecto } from '../servicios/envios/entrega.js';
 
 export const rutasAsignaciones = Router();
@@ -361,6 +362,12 @@ rutasAsignaciones.get('/activa', autenticar, exigirRol('chofer'), async (req, re
         [chofer.id]
     );
     return res.json({ exito: true, asignacion: rows[0] ? publicar(rows[0]) : null });
+});
+
+rutasAsignaciones.get('/reputacion', autenticar, exigirRol('chofer'), async (req, res) => {
+    const chofer = await choferDe(req.usuario.id);
+    const reputacion = chofer ? await reputacionDelChofer(pool, chofer.id, { conComentarios: true }) : REPUTACION_VACIA;
+    return res.json({ exito: true, reputacion });
 });
 
 rutasAsignaciones.get('/', autenticar, exigirRol('chofer'), async (req, res) => {
