@@ -17,6 +17,9 @@ import { BuscadorCanva } from "../components/PanelCanva";
 import { useMovimientoReducido } from "../hooks/useMovimientoReducido";
 import Transicion from "../components/Transicion";
 import Icono from "../components/Icono";
+import { estadoDeCupon, textoVencimiento, venceProntoCupon } from "../helpers/cupones";
+
+const NOMBRE_ESTADO = { activo: "Disponible", usado: "Usado", vencido: "Vencido" } as const;
 export default function CuponeraScreen({ navigation }: any) {
   const tema = useTema();
   const reducido = useMovimientoReducido();
@@ -41,7 +44,7 @@ export default function CuponeraScreen({ navigation }: any) {
   }, [navigation, cargar]);
   const visibles = cupones.filter(
     (c) =>
-      (!activos || c.estado === "activo") &&
+      (!activos || estadoDeCupon(c) === "activo") &&
       `${c.codigo} ${c.motivo}`
         .toLocaleLowerCase()
         .includes(busqueda.toLocaleLowerCase()),
@@ -79,7 +82,7 @@ export default function CuponeraScreen({ navigation }: any) {
               style={tema.estilo([
                 s.coupon,
                 width >= 1200 && { width: "46%" },
-                c.estado !== "activo" && { opacity: 0.5 },
+                estadoDeCupon(c) !== "activo" && { opacity: 0.5 },
               ])}
             >
               <LinearGradient
@@ -105,6 +108,11 @@ export default function CuponeraScreen({ navigation }: any) {
                     <Text style={tema.estilo(s.discount)}>
                       {c.descuentoPct}% OFF en tu envío
                     </Text>
+                    {textoVencimiento(c) ? (
+                      <Text style={tema.estilo([s.vence, venceProntoCupon(c) && s.venceProntoTexto])}>
+                        {textoVencimiento(c)}
+                      </Text>
+                    ) : null}
                   </View>
                 </View>
                 <View style={tema.estilo(s.footer)}>
@@ -116,12 +124,13 @@ export default function CuponeraScreen({ navigation }: any) {
                     <Text style={tema.estilo(s.help)}>¿Tenés dudas?</Text>
                   </Pressable>
                   <Pressable
-                    disabled={c.estado !== "activo"}
+                    disabled={estadoDeCupon(c) !== "activo"}
                     onPress={() => setElegido(c)}
+                    accessibilityRole="button"
                     style={tema.estilo(s.apply)}
                   >
                     <Text style={tema.estilo(s.applyText)}>
-                      {c.estado === "activo" ? "Ver cupón" : c.estado}
+                      {estadoDeCupon(c) === "activo" ? "Ver cupón" : NOMBRE_ESTADO[estadoDeCupon(c)]}
                     </Text>
                   </Pressable>
                 </View>
@@ -143,9 +152,14 @@ export default function CuponeraScreen({ navigation }: any) {
           <View style={tema.estilo(s.dialog)}>
             <Text style={tema.estilo(s.title)}>{elegido?.motivo}</Text>
             <Text style={tema.estilo(s.body)}>
-              {elegido?.codigo} · {elegido?.descuentoPct}% OFF{"\n\n"}La
-              aplicación automática de cupones está pendiente. El descuento no
-              se aplicó a ningún envío.
+              {elegido?.codigo} · {elegido?.descuentoPct}% OFF
+              {elegido && textoVencimiento(elegido) ? ` · ${textoVencimiento(elegido)}` : ""}
+              {"\n\n"}
+              {elegido && estadoDeCupon(elegido) === "activo"
+                ? "Para usarlo, elegilo en la pantalla de pago de tu próximo envío: el descuento se aplica sobre el total. Se usa una sola vez y, si después se devuelve el pago, vuelve a quedar disponible hasta su vencimiento."
+                : elegido?.estado === "usado"
+                  ? `Ya lo usaste${elegido.usadoEnvioCodigo ? ` en el envío ${elegido.usadoEnvioCodigo}` : ""}.`
+                  : "Este cupón venció y ya no se puede aplicar."}
             </Text>
             <Pressable
               style={tema.estilo(s.apply)}
@@ -201,6 +215,8 @@ const s = StyleSheet.create({
   },
   title: { fontFamily: D.titulo, fontSize: 16, color: "#FFF", lineHeight: 22 },
   discount: { fontFamily: D.cuerpo, color: "#FFF", fontSize: 15, marginTop: 4 },
+  vence: { fontFamily: D.cuerpo, color: "#E2D9B2", fontSize: 12.5, marginTop: 4 },
+  venceProntoTexto: { fontFamily: D.medio, color: D.amarillo },
   footer: {
     flexDirection: "row",
     alignItems: "center",

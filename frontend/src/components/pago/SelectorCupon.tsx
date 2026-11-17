@@ -4,6 +4,7 @@ import { useTema } from "../../hooks/useTema";
 import { COLORS } from "../../styles/PagoStyles";
 import { DISENO as D } from "../../theme/diseno";
 import type { Cupon } from "../../services/cuponesService";
+import { textoVencimiento } from "../../helpers/cupones";
 
 type Props = {
   cupones: Cupon[];
@@ -31,7 +32,11 @@ export default function SelectorCupon({ cupones, elegido, deshabilitado, onElegi
         <Text style={tema.estilo([s.opcionTitulo, activo && { color: COLORS.accent }])}>
           {cupon ? `${cupon.descuentoPct} % de descuento` : "Sin cupón"}
         </Text>
-        {cupon ? <Text style={tema.estilo(s.opcionDetalle)}>{cupon.codigo}</Text> : null}
+        {cupon ? (
+          <Text style={tema.estilo(s.opcionDetalle)}>
+            {[cupon.codigo, textoVencimiento(cupon)].filter(Boolean).join(" · ")}
+          </Text>
+        ) : null}
       </Pressable>
     );
   };

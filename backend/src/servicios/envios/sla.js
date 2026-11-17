@@ -1,3 +1,4 @@
+import { DIAS_VIGENCIA_CUPON } from '../pagos/cupones.js';
 import { consultar, pool } from '../../db/pool.js';
 import { log } from '../../observabilidad/logger.js';
 import { registrarEvento } from '../../outbox/index.js';
@@ -64,8 +65,9 @@ export async function revisarSla(envioId) {
         const yaTiene = await cliente.query('SELECT 1 FROM cupones WHERE envio_id = $1 LIMIT 1', [envio.id]);
         if (!yaTiene.rowCount) {
             const cupon = await cliente.query(
-                `INSERT INTO cupones (cliente_id, envio_id, descuento_pct, motivo) VALUES ($1, $2, $3, $4) RETURNING codigo`,
-                [envio.cliente_id, envio.id, DESCUENTO_SLA_PCT, MOTIVO_SLA]
+                `INSERT INTO cupones (cliente_id, envio_id, descuento_pct, motivo, vence_en)
+                 VALUES ($1, $2, $3, $4, now() + make_interval(days => $5::int)) RETURNING codigo`,
+                [envio.cliente_id, envio.id, DESCUENTO_SLA_PCT, MOTIVO_SLA, DIAS_VIGENCIA_CUPON]
             );
             await registrarEvento(cliente, {
                 tipoAgregado: 'envio',

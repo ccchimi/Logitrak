@@ -3,6 +3,29 @@ import { MINUTOS_VIGENCIA_CHECKOUT } from './intentos.js';
 
 const centavos = (valor) => Math.round(Number(valor) * 100);
 
+export function diasDeVigencia(env = process.env) {
+    const n = Number(env.CUPONES_DIAS_VIGENCIA);
+    return Number.isInteger(n) && n > 0 && n <= 3650 ? n : 90;
+}
+
+export const DIAS_VIGENCIA_CUPON = diasDeVigencia();
+
+export async function vencerCupones(db) {
+    const { rows } = await db.query(
+        `UPDATE cupones c SET estado = 'vencido'
+         WHERE c.estado = 'activo' AND c.vence_en <= now()
+           AND NOT EXISTS (
+               SELECT 1 FROM pagos p
+               WHERE p.cupon_id = c.id AND p.estado = 'pendiente'
+                 AND p.creado_en > now() - make_interval(mins => $1::int)
+           )
+         RETURNING c.id`,
+        [MINUTOS_VIGENCIA_CHECKOUT]
+    );
+    if (rows.length) log().info({ cantidad: rows.length }, 'Cupones vencidos');
+    return rows.length;
+}
+
 export function aplicarDescuento(precio, descuentoPct) {
     const total = centavos(precio);
     const descuento = Math.round((total * Number(descuentoPct)) / 100);
@@ -15,7 +38,8 @@ export async function reservarCupon(cliente, { codigo, clienteId, envioId }) {
     if (!cupon || cupon.cliente_id !== clienteId) {
         return { error: { status: 404, body: { exito: false, codigo: 'cupon_inexistente', error: 'No encontramos ese cupón en tu cuenta.' } } };
     }
-    if (cupon.estado !== 'activo') {
+    const vencido = cupon.estado === 'vencido' || (cupon.estado === 'activo' && new Date(cupon.vence_en) <= new Date());
+    if (cupon.estado !== 'activo' || vencido) {
         const error = cupon.estado === 'usado' ? 'Ese cupón ya se usó.' : 'Ese cupón venció.';
         return { error: { status: 409, body: { exito: false, codigo: 'cupon_no_disponible', error } } };
     }
@@ -41,7 +65,7 @@ export async function consumirCupon(cliente, pago) {
     if (!pago.cupon_id) return;
     const r = await cliente.query(
         `UPDATE cupones SET estado = 'usado', usado_en = now(), usado_envio_id = $2
-         WHERE id = $1 AND estado = 'activo'`,
+         WHERE id = $1 AND estado IN ('activo', 'vencido')`,
         [pago.cupon_id, pago.envio_id]
     );
     if (!r.rowCount) log().error({ pago: pago.codigo, cuponId: pago.cupon_id }, 'Pago aprobado con un cupón que ya no estaba activo');
@@ -50,7 +74,9 @@ export async function consumirCupon(cliente, pago) {
 export async function devolverCupon(cliente, pago) {
     if (!pago.cupon_id) return;
     await cliente.query(
-        `UPDATE cupones SET estado = 'activo', usado_en = NULL, usado_envio_id = NULL
+        `UPDATE cupones
+         SET estado = CASE WHEN vence_en > now() THEN 'activo' ELSE 'vencido' END,
+             usado_en = NULL, usado_envio_id = NULL
          WHERE id = $1 AND estado = 'usado' AND usado_envio_id = $2`,
         [pago.cupon_id, pago.envio_id]
     );

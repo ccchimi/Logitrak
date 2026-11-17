@@ -8,6 +8,7 @@ export interface Cupon {
     motivo: string;
     estado: 'activo' | 'usado' | 'vencido';
     creadoEn: string;
+    venceEn?: string | null;
     usadoEn: string | null;
     usadoEnvioCodigo?: string | null;
 }

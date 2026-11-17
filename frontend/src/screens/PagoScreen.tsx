@@ -17,6 +17,7 @@ import { styles, COLORS } from '../styles/PagoStyles';
 import { formatearARS } from '../helpers/formato';
 import { obtenerEnvio } from '../services/enviosService';
 import { listarCupones, type Cupon } from '../services/cuponesService';
+import { cuponesDisponibles } from '../helpers/cupones';
 import { aplicarDescuento } from '../helpers/cupones';
 import SelectorCupon from '../components/pago/SelectorCupon';
 import { ToastStack, useToasts } from '../components/Toasts';
@@ -80,7 +81,7 @@ export default function PagoScreen({ navigation, route }: any) {
     useEffect(() => {
         let activo = true;
         void listarCupones().then((lista) => {
-            if (activo) setCupones(lista.filter((c) => c.estado === 'activo'));
+            if (activo) setCupones(cuponesDisponibles(lista));
         });
         return () => {
             activo = false;

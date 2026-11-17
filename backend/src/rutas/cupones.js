@@ -4,6 +4,7 @@ import { autenticar } from '../middleware/auth.js';
 import { registrarError } from '../observabilidad/logger.js';
 import { revisarSla } from '../servicios/envios/sla.js';
 import { tienePermiso } from '../middleware/permisos.js';
+import { DIAS_VIGENCIA_CUPON } from '../servicios/pagos/cupones.js';
 
 export const rutasCupones = Router();
 
@@ -14,8 +15,9 @@ function publicar(fila) {
         envioId: fila.envio_id,
         descuentoPct: fila.descuento_pct,
         motivo: fila.motivo,
-        estado: fila.estado,
+        estado: fila.estado === 'activo' && new Date(fila.vence_en) <= new Date() ? 'vencido' : fila.estado,
         creadoEn: fila.creado_en,
+        venceEn: fila.vence_en,
         usadoEn: fila.usado_en,
         usadoEnvioCodigo: fila.usado_envio_codigo ?? null,
     };
@@ -51,9 +53,10 @@ rutasCupones.post('/', autenticar, async (req, res) => {
 
     try {
         const { rows } = await consultar(
-            `INSERT INTO cupones (cliente_id, envio_id, descuento_pct, motivo)
-             VALUES ($1, (SELECT id FROM envios WHERE codigo = $2 AND cliente_id = $1), $3, $4) RETURNING *`,
-            [clienteId, b.envioCodigo ? String(b.envioCodigo) : null, Math.round(descuentoPct), motivo]
+            `INSERT INTO cupones (cliente_id, envio_id, descuento_pct, motivo, vence_en)
+             VALUES ($1, (SELECT id FROM envios WHERE codigo = $2 AND cliente_id = $1), $3, $4, now() + make_interval(days => $5::int))
+             RETURNING *`,
+            [clienteId, b.envioCodigo ? String(b.envioCodigo) : null, Math.round(descuentoPct), motivo, DIAS_VIGENCIA_CUPON]
         );
         return res.status(201).json({ exito: true, cupon: publicar(rows[0]) });
     } catch (e) {

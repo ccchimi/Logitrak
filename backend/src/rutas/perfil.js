@@ -180,7 +180,7 @@ rutasPerfil.get('/resumen', autenticar, async (req, res) => {
             [id]
         ),
         consultar(
-            `SELECT COUNT(*) FILTER (WHERE estado = 'activo')::int AS activos
+            `SELECT COUNT(*) FILTER (WHERE estado = 'activo' AND vence_en > now())::int AS activos
              FROM cupones WHERE cliente_id = $1`,
             [id]
         ),
