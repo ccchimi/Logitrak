@@ -1,418 +1,87 @@
 import { useTema } from "../hooks/useTema";
-import { useMovimientoReducido } from "../hooks/useMovimientoReducido";
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Animated,
-  Easing,
-  Keyboard,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { KeyboardAvoidingView, Platform, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { styles } from "../styles/SolicitudEnvioStyles";
-import {
-  analizarDireccion,
-  Cotizacion,
-  cotizarEnvio,
-  ContextoConversacion,
-  esAfirmacion,
-  esNegacion,
-  interpretarRespuesta,
-} from "../services/botLogistica";
-import { guardarCotizacion } from "../services/cotizacionesService";
+import { Cotizacion, esAfirmacion, esNegacion, interpretarRespuesta } from "../services/botLogistica";
 import { crearEnvio } from "../services/enviosService";
+import { contextoDeConversacion, cotizarYGuardar } from "../services/solicitudEnvioService";
 import {
   CampoEnvio,
   CHAT_STEPS,
   ChatStep,
   ConfirmacionPendiente,
-  createId,
   EnvioData,
   INITIAL_DATA,
   SLA_ENVIO_MIN,
 } from "../helpers/pasosSolicitudEnvio";
+import { useAnimacionesBoxy } from "../hooks/useAnimacionesBoxy";
+import { useEscrituraBoxy } from "../hooks/useEscrituraBoxy";
+import { useScrollAlMostrarTeclado } from "../hooks/useScrollAlMostrarTeclado";
 import ComposerBoxy from "../components/boxy/ComposerBoxy";
-import MensajeChat, { ChatMessage } from "../components/boxy/MensajeChat";
+import MensajeChat from "../components/boxy/MensajeChat";
+import BotonNuevaCotizacion from "../components/boxy/BotonNuevaCotizacion";
 
 export default function SolicitudEnvioScreen({ navigation }: any) {
   const tema = useTema();
   const scrollRef = useRef<ScrollView | null>(null);
-  const startedRef = useRef(false);
-  const solicitoEnvioRef = useRef(false);
-  const enviandoRef = useRef(false);
-  const typingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const tipeoEnCursoRef = useRef<{
-    id: string;
-    texto: string;
-    resolver: () => void;
-  } | null>(null);
-  const esperaEnCursoRef = useRef<{
-    timer: ReturnType<typeof setTimeout>;
-    resolver: () => void;
-  } | null>(null);
+  const iniciado = useRef(false);
+  const solicitoEnvio = useRef(false);
+  const enviando = useRef(false);
 
-  const reducido = useMovimientoReducido();
-  const pulseValue = useRef(new Animated.Value(0)).current;
-  const thinkingOpacity = useRef(new Animated.Value(0.35)).current;
+  const { pulso, opacidadPensando } = useAnimacionesBoxy();
+  const boxy = useEscrituraBoxy();
+  useScrollAlMostrarTeclado(scrollRef);
 
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [currentStep, setCurrentStep] = useState(0);
   const [inputValue, setInputValue] = useState("");
   const [envioData, setEnvioData] = useState<EnvioData>(INITIAL_DATA);
-  const [confirmacion, setConfirmacion] =
-    useState<ConfirmacionPendiente | null>(null);
-
-  const [isThinking, setIsThinking] = useState(false);
-  const [isBotTyping, setIsBotTyping] = useState(false);
+  const [confirmacion, setConfirmacion] = useState<ConfirmacionPendiente | null>(null);
   const [cargando, setCargando] = useState(false);
   const [cotizacion, setCotizacion] = useState<Cotizacion | null>(null);
   const [confirmando, setConfirmando] = useState(false);
 
-  const [tecladoVisible, setTecladoVisible] = useState(false);
-
-  useEffect(() => {
-    const eventoMostrar =
-      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
-    const eventoOcultar =
-      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
-
-    const subMostrar = Keyboard.addListener(eventoMostrar, () => {
-      setTecladoVisible(true);
-      requestAnimationFrame(() =>
-        scrollRef.current?.scrollToEnd({ animated: true }),
-      );
-    });
-    const subOcultar = Keyboard.addListener(eventoOcultar, () =>
-      setTecladoVisible(false),
-    );
-
-    return () => {
-      subMostrar.remove();
-      subOcultar.remove();
-    };
-  }, []);
-
   const currentQuestion: ChatStep | undefined = CHAT_STEPS[currentStep];
 
-  const pulseScale = pulseValue.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.9, 1.18],
-  });
-
-  const pulseOpacity = pulseValue.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.25, 0.75],
-  });
-
   useEffect(() => {
-    pulseValue.setValue(0);
-
-    if (reducido) {
-      pulseValue.setValue(0);
-      return;
-    }
-    const pulse = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseValue, {
-          toValue: 1,
-          duration: 850,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseValue, {
-          toValue: 0,
-          duration: 850,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ]),
-    );
-
-    pulse.start();
-
-    return () => {
-      pulse.stop();
-    };
-  }, [pulseValue, reducido]);
-
-  useEffect(() => {
-    if (reducido) {
-      thinkingOpacity.setValue(1);
-      return;
-    }
-    const thinkingAnimation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(thinkingOpacity, {
-          toValue: 1,
-          duration: 550,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(thinkingOpacity, {
-          toValue: 0.35,
-          duration: 550,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ]),
-    );
-
-    thinkingAnimation.start();
-
-    return () => {
-      thinkingAnimation.stop();
-    };
-  }, [thinkingOpacity, reducido]);
-
-  const typeBotMessage = useCallback(
-    (
-      fullText: string,
-      kind: ChatMessage["kind"] = "normal",
-      result?: Cotizacion,
-    ) => {
-      return new Promise<void>((resolve) => {
-        const id = createId("bot");
-
-        if (typingTimerRef.current) {
-          clearInterval(typingTimerRef.current);
-        }
-
-        if (reducido) {
-          setMessages((prev) => [
-            ...prev,
-            { id, sender: "bot", text: fullText, kind, result },
-          ]);
-          setIsBotTyping(false);
-          resolve();
-          return;
-        }
-        setIsBotTyping(true);
-        tipeoEnCursoRef.current = { id, texto: fullText, resolver: resolve };
-
-        setMessages((prev) => [
-          ...prev,
-          {
-            id,
-            sender: "bot",
-            text: "",
-            kind,
-            result,
-          },
-        ]);
-
-        let index = 0;
-
-        typingTimerRef.current = setInterval(() => {
-          index += 1;
-
-          setMessages((prev) =>
-            prev.map((message) =>
-              message.id === id
-                ? {
-                    ...message,
-                    text: fullText.slice(0, index),
-                  }
-                : message,
-            ),
-          );
-
-          if (index >= fullText.length) {
-            if (typingTimerRef.current) {
-              clearInterval(typingTimerRef.current);
-              typingTimerRef.current = null;
-            }
-
-            tipeoEnCursoRef.current = null;
-            setIsBotTyping(false);
-            resolve();
-          }
-        }, 14);
-      });
-    },
-    [reducido],
-  );
-
-  useEffect(() => {
-    if (startedRef.current) return;
-
-    startedRef.current = true;
-    void typeBotMessage(CHAT_STEPS[0].question);
-  }, [typeBotMessage]);
-
-  useEffect(() => {
-    return () => {
-      if (typingTimerRef.current) {
-        clearInterval(typingTimerRef.current);
-      }
-      if (esperaEnCursoRef.current) {
-        clearTimeout(esperaEnCursoRef.current.timer);
-      }
-    };
-  }, []);
-
-  const esperar = useCallback((ms: number) => {
-    return new Promise<void>((resolve) => {
-      const terminar = () => {
-        esperaEnCursoRef.current = null;
-        resolve();
-      };
-      const timer = setTimeout(terminar, ms);
-      esperaEnCursoRef.current = { timer, resolver: terminar };
-    });
-  }, []);
-
-  const saltearBoxy = useCallback(() => {
-    let salteo = false;
-
-    const espera = esperaEnCursoRef.current;
-    if (espera) {
-      clearTimeout(espera.timer);
-      espera.resolver();
-      salteo = true;
-    }
-
-    const tipeo = tipeoEnCursoRef.current;
-    if (tipeo) {
-      if (typingTimerRef.current) {
-        clearInterval(typingTimerRef.current);
-        typingTimerRef.current = null;
-      }
-      setMessages((prev) =>
-        prev.map((m) => (m.id === tipeo.id ? { ...m, text: tipeo.texto } : m)),
-      );
-      tipeoEnCursoRef.current = null;
-      setIsBotTyping(false);
-      tipeo.resolver();
-      salteo = true;
-    }
-
-    return salteo;
-  }, []);
-
-  const addThinkingMessage = useCallback(() => {
-    const id = createId("thinking");
-
-    setIsThinking(true);
-
-    setMessages((prev) => [
-      ...prev,
-      {
-        id,
-        sender: "bot",
-        text: "Analizando",
-        kind: "thinking",
-      },
-    ]);
-
-    return id;
-  }, []);
-
-  const removeThinkingMessage = useCallback((id: string) => {
-    setMessages((prev) => prev.filter((message) => message.id !== id));
-    setIsThinking(false);
-  }, []);
-
-  const construirContexto = (data: EnvioData): ContextoConversacion => ({
-    origen: data.origen ? analizarDireccion(data.origen) : null,
-    destino: data.destino ? analizarDireccion(data.destino) : null,
-    pesoKg: parseFloat(data.peso) || null,
-    bultos: parseInt(data.bultos, 10) || null,
-  });
+    if (iniciado.current) return;
+    iniciado.current = true;
+    void boxy.escribir(CHAT_STEPS[0].question);
+  }, [boxy.escribir]);
 
   const procesarEnvio = async (data: EnvioData) => {
-    const thinkingId = addThinkingMessage();
-
+    const pensandoId = boxy.agregarPensando();
     setCargando(true);
     setCotizacion(null);
-
-    let botText = "";
-    let resultado: Cotizacion | undefined;
-
+    let resultado;
     try {
-      const respuesta = await cotizarEnvio({
-        origen: data.origen,
-        destino: data.destino,
-        pesoKg: parseFloat(data.peso),
-        bultos: parseInt(data.bultos, 10),
-        descripcionCarga: data.descripcion || undefined,
-        dimensiones: {
-          largo: parseFloat(data.largo) || undefined,
-          ancho: parseFloat(data.ancho) || undefined,
-          alto: parseFloat(data.alto) || undefined,
-        },
-      });
-
-      if (respuesta.exito) {
-        const guardado = await guardarCotizacion(respuesta.cotizacion, {
-          origen: data.origen,
-          destino: data.destino,
-          pesoKg: parseFloat(data.peso),
-          bultos: parseInt(data.bultos, 10) || undefined,
-          descripcionCarga: data.descripcion || undefined,
-          largoCm: parseFloat(data.largo) || undefined,
-          anchoCm: parseFloat(data.ancho) || undefined,
-          altoCm: parseFloat(data.alto) || undefined,
-        });
-
-        if (guardado.exito) {
-          resultado = guardado.cotizacion;
-          setCotizacion(resultado);
-          botText = `Listo. Analicé ruta, carga y contexto operativo: esta es mi cotización con un ${resultado.puntajeConfianza}% de confianza.`;
-          if (guardado.precioAjustado) {
-            botText +=
-              "\n\nAjusté el precio con la tarifa vigente del servidor.";
-          }
-        } else {
-          botText = `No pude registrar la cotización: ${guardado.error}\n\nTocá "Nueva cotización" para intentarlo de nuevo.`;
-        }
-      } else {
-        const detalles = respuesta.problemas
-          .map((p) => `• ${p.mensaje}${p.sugerencia ? ` ${p.sugerencia}` : ""}`)
-          .join("\n");
-        botText = `${respuesta.motivo}\n${detalles}\n\nTocá "Nueva cotización" para corregir los datos.`;
-      }
-    } catch (_error) {
-      botText =
-        "No pude calcular la cotización en este momento. Revisá los datos e intentá nuevamente.";
+      resultado = await cotizarYGuardar(data);
     } finally {
-      removeThinkingMessage(thinkingId);
+      boxy.quitarPensando(pensandoId);
       setCargando(false);
     }
-
-    await typeBotMessage(botText, resultado ? "result" : "normal", resultado);
+    if (resultado.cotizacion) setCotizacion(resultado.cotizacion);
+    await boxy.escribir(
+      resultado.texto,
+      resultado.cotizacion ? "result" : "normal",
+      resultado.cotizacion,
+    );
   };
 
-  const avanzarChat = async (
-    nextData: EnvioData,
-    stepIndex: number,
-    prefacio?: string,
-  ) => {
+  const avanzarChat = async (nextData: EnvioData, stepIndex: number, prefacio?: string) => {
     if (stepIndex < CHAT_STEPS.length - 1) {
       const nextStep = stepIndex + 1;
-      const thinkingId = addThinkingMessage();
-
+      const pensandoId = boxy.agregarPensando();
       setCurrentStep(nextStep);
-
-      await esperar(650);
-
-      removeThinkingMessage(thinkingId);
-
+      await boxy.esperar(650);
+      boxy.quitarPensando(pensandoId);
       const pregunta = CHAT_STEPS[nextStep].question;
-      await typeBotMessage(prefacio ? `${prefacio}\n\n${pregunta}` : pregunta);
-
+      await boxy.escribir(prefacio ? `${prefacio}\n\n${pregunta}` : pregunta);
       return;
     }
 
     setCurrentStep(CHAT_STEPS.length);
-
-    if (prefacio) {
-      await typeBotMessage(prefacio);
-    }
-
+    if (prefacio) await boxy.escribir(prefacio);
     await procesarEnvio(nextData);
   };
 
@@ -428,30 +97,20 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
   };
 
   const responderBot = async (texto: string, msDeAnalisis = 550) => {
-    const thinkingId = addThinkingMessage();
-    await esperar(msDeAnalisis);
-    removeThinkingMessage(thinkingId);
-    await typeBotMessage(texto);
+    const pensandoId = boxy.agregarPensando();
+    await boxy.esperar(msDeAnalisis);
+    boxy.quitarPensando(pensandoId);
+    await boxy.escribir(texto);
   };
 
   const submitAnswer = async (value: string, skipped = false) => {
-    if (!currentQuestion || isThinking || isBotTyping || cargando) return;
+    if (!currentQuestion || boxy.pensando || boxy.escribiendo || cargando) return;
 
     const cleanValue = value.trim();
-
     if (!cleanValue && !currentQuestion.optional) return;
 
-    const visibleValue = skipped ? "Prefiero no indicarlo" : cleanValue;
-
     setInputValue("");
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: createId("user"),
-        sender: "user",
-        text: visibleValue,
-      },
-    ]);
+    boxy.agregarDelUsuario(skipped ? "Prefiero no indicarlo" : cleanValue);
 
     if (confirmacion) {
       if (skipped || esAfirmacion(cleanValue)) {
@@ -465,15 +124,11 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
         );
         return;
       }
-
       if (esNegacion(cleanValue)) {
         setConfirmacion(null);
-        await responderBot(
-          `Sin problema, descartado. ${currentQuestion.question}`,
-        );
+        await responderBot(`Sin problema, descartado. ${currentQuestion.question}`);
         return;
       }
-
       setConfirmacion(null);
     }
 
@@ -485,7 +140,7 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
     const interpretacion = interpretarRespuesta(
       currentQuestion.field,
       cleanValue,
-      construirContexto(envioData),
+      contextoDeConversacion(envioData),
     );
 
     if (interpretacion.resultado === "rechazado") {
@@ -510,33 +165,29 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
     );
   };
 
-  const manejarEnter = () => {
-    if (saltearBoxy()) return;
-    void handleSend();
-  };
-
   const handleSend = async () => {
-    const cleanValue = inputValue.trim();
-
     if (!currentQuestion) return;
-
+    const cleanValue = inputValue.trim();
     if (!cleanValue && currentQuestion.optional && !confirmacion) {
       await submitAnswer("", true);
       return;
     }
-
     await submitAnswer(cleanValue);
+  };
+
+  const manejarEnter = () => {
+    if (boxy.saltear()) return;
+    void handleSend();
   };
 
   const handleSkip = async () => {
     if (!currentQuestion?.optional || confirmacion) return;
-
     await submitAnswer("", true);
   };
 
   const confirmarYSolicitar = async (resultado: Cotizacion) => {
-    if (enviandoRef.current) return;
-    enviandoRef.current = true;
+    if (enviando.current) return;
+    enviando.current = true;
     setConfirmando(true);
 
     const creacion = await crearEnvio({
@@ -549,88 +200,56 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
     });
     const envio = creacion.exito ? creacion.envio : null;
 
-    const seguimiento = {
-      envioCodigo: envio?.codigo ?? null,
-      origen: resultado.origen.textoNormalizado,
-      destino: resultado.destino.textoNormalizado,
-      producto: resultado.carga.descripcion,
-      vehiculo: resultado.vehiculo.nombre,
-      precio: envio?.precio ?? resultado.precio,
-      referencia: envio?.codigo ?? resultado.id,
-    };
-
     if (!envio?.codigo) {
       setConfirmando(false);
-      enviandoRef.current = false;
-      if (!creacion.exito) await typeBotMessage(creacion.error);
+      enviando.current = false;
+      if (!creacion.exito) await boxy.escribir(creacion.error);
       return;
     }
 
-    solicitoEnvioRef.current = true;
+    solicitoEnvio.current = true;
     setConfirmando(false);
     navigation.navigate("Pago", {
       envioCodigo: envio.codigo,
       monto: envio.precio,
       moneda: envio.moneda,
-      seguimiento,
+      seguimiento: {
+        envioCodigo: envio.codigo,
+        origen: resultado.origen.textoNormalizado,
+        destino: resultado.destino.textoNormalizado,
+        producto: resultado.carga.descripcion,
+        vehiculo: resultado.vehiculo.nombre,
+        precio: envio.precio ?? resultado.precio,
+        referencia: envio.codigo,
+      },
     });
   };
 
   const resetChat = () => {
-    if (typingTimerRef.current) {
-      clearInterval(typingTimerRef.current);
-      typingTimerRef.current = null;
-    }
-    if (esperaEnCursoRef.current) {
-      clearTimeout(esperaEnCursoRef.current.timer);
-      esperaEnCursoRef.current = null;
-    }
-    tipeoEnCursoRef.current = null;
-
-    setMessages([]);
+    boxy.reiniciar();
     setCurrentStep(0);
     setInputValue("");
     setEnvioData(INITIAL_DATA);
     setConfirmacion(null);
     setCotizacion(null);
-    setIsThinking(false);
-    setIsBotTyping(false);
     setCargando(false);
-
-    void typeBotMessage(CHAT_STEPS[0].question);
+    void boxy.escribir(CHAT_STEPS[0].question);
   };
 
   useEffect(() => {
-    if (Platform.OS !== "web" || typeof document === "undefined") return;
-
-    const alPresionar = (evento: KeyboardEvent) => {
-      if (evento.key !== "Enter" || evento.shiftKey) return;
-      if (saltearBoxy()) evento.preventDefault();
-    };
-
-    document.addEventListener("keydown", alPresionar);
-    return () => document.removeEventListener("keydown", alPresionar);
-  }, [saltearBoxy]);
-
-  useEffect(() => {
     const unsubscribe = navigation.addListener("focus", () => {
-      if (solicitoEnvioRef.current) {
-        solicitoEnvioRef.current = false;
+      if (solicitoEnvio.current) {
+        solicitoEnvio.current = false;
         resetChat();
       }
     });
-
     return unsubscribe;
   }, [navigation]);
 
-  const pulso = { opacity: pulseOpacity, scale: pulseScale };
-
-  const isComposerDisabled =
-    isThinking || isBotTyping || cargando || !currentQuestion;
+  const isComposerDisabled = boxy.pensando || boxy.escribiendo || cargando || !currentQuestion;
   const isSendDisabled =
     isComposerDisabled ||
-    (!inputValue.trim() &&
-      (confirmacion !== null || !currentQuestion?.optional));
+    (!inputValue.trim() && (confirmacion !== null || !currentQuestion?.optional));
 
   return (
     <SafeAreaView style={tema.estilo(styles.safeArea)}>
@@ -647,23 +266,17 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
               contentContainerStyle={styles.messagesContent}
               keyboardShouldPersistTaps="handled"
               keyboardDismissMode={
-                Platform.OS === "ios"
-                  ? "interactive"
-                  : Platform.OS === "android"
-                    ? "on-drag"
-                    : "none"
+                Platform.OS === "ios" ? "interactive" : Platform.OS === "android" ? "on-drag" : "none"
               }
               showsVerticalScrollIndicator={false}
-              onContentSizeChange={() =>
-                scrollRef.current?.scrollToEnd({ animated: true })
-              }
+              onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
             >
-              {messages.map((mensaje) => (
+              {boxy.mensajes.map((mensaje) => (
                 <MensajeChat
                   key={mensaje.id}
                   mensaje={mensaje}
                   pulso={pulso}
-                  opacidadPensando={thinkingOpacity}
+                  opacidadPensando={opacidadPensando}
                   confirmando={confirmando}
                   onConfirmar={(r) => void confirmarYSolicitar(r)}
                 />
@@ -672,14 +285,7 @@ export default function SolicitudEnvioScreen({ navigation }: any) {
           </View>
 
           {cotizacion ? (
-            <View style={tema.estilo(styles.finalActions)}>
-              <TouchableOpacity
-                style={tema.estilo(styles.restartButton)}
-                onPress={resetChat}
-              >
-                <Text style={tema.estilo(styles.restartButtonText)}>Nueva cotización</Text>
-              </TouchableOpacity>
-            </View>
+            <BotonNuevaCotizacion onPress={resetChat} />
           ) : (
             <ComposerBoxy
               pregunta={currentQuestion}
