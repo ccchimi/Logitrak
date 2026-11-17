@@ -17,7 +17,7 @@ en el entorno correspondiente.
 
 El esquema se maneja con migraciones versionadas (`node-pg-migrate`), en
 `migrations/`. Al arrancar, la API aplica las pendientes y después siembra los
-datos base (admins y flota); cada migración corre una sola vez y queda
+datos base (el primer admin, si no hay ninguno, y la flota); cada migración corre una sola vez y queda
 registrada en la tabla `pgmigrations`. Ver [Migraciones](#migraciones).
 
 Las cuentas y sus roles viven en `usuarios`, y cuando alguien se convierte en
@@ -66,8 +66,12 @@ se versionan.
 pendientes y siembra datos base. Usá una base de desarrollo al ejecutar estos
 comandos; no se requiere ejecutar `db:init` antes de cada arranque.
 
-Al arrancar, el servidor aplica el esquema y siembra los tres administradores y
-la flota. La API queda escuchando en `http://localhost:4000`, o en el puerto que
+Al arrancar, el servidor aplica el esquema y siembra la flota. Si la base no
+tiene ningún administrador, crea el primero con `ADMIN_INICIAL_USUARIO` y
+`ADMIN_INICIAL_CONTRASENA` (al menos 12 caracteres, sin contener el usuario);
+si faltan, lo avisa en el log y no crea ninguno. Los demás admins se nombran
+desde Usuarios, cambiando el rol. Además, el log avisa si algún admin tiene la
+contraseña igual al usuario. La API queda escuchando en `http://localhost:4000`, o en el puerto que
 definas con `PORT`.
 
 ## Conexión a la base
@@ -641,7 +645,7 @@ Hay cuatro roles:
 | `cliente` | Registrándose en la app | Cotiza, paga y sigue sus envíos |
 | `chofer` | Postulación aprobada en "Trabajá con nosotros" (vehículo y verificación de identidad) | Toma envíos y los entrega |
 | `soporte` | Lo asigna un admin | Atiende consultas y mira la operación |
-| `admin` | Lo asigna otro admin (los primeros se siembran en `src/db/init.js`) | Todo, incluidos reembolsos, roles y mantenimiento |
+| `admin` | Lo asigna otro admin; el primero se crea con `ADMIN_INICIAL_USUARIO` y `ADMIN_INICIAL_CONTRASENA` (`src/db/admins.js`) | Todo, incluidos reembolsos, roles y mantenimiento |
 
 Los permisos se definen por **capacidad** en `src/middleware/permisos.js`: cada
 acción sensible tiene un nombre (`envios.reembolsar`, `soporte.atender`…) y una
@@ -943,9 +947,9 @@ forma automática por un rollback de PostgreSQL.
 - Recuperación de contraseña: el contrato actual no acredita titularidad mediante
   un token o código enviado a un contacto verificado. No debe presentarse como
   recuperación segura para producción hasta corregir ese diseño.
-- Inicialización administrativa: deben eliminarse credenciales iniciales
-  predecibles y verificarse las cuentas del despliegue. Este documento no publica
-  usuarios ni contraseñas de acceso.
+- Cuentas admin anteriores: el código ya no siembra credenciales predecibles,
+  pero las cuentas creadas antes conservan su contraseña. El log del arranque
+  avisa si alguna es igual al usuario; hay que cambiarla desde Mi Perfil.
 - Cambio de contraseña en perfil: falta unificar la revocación de sesiones con la
   recuperación y revisar el tratamiento de JWT ya emitidos.
 - Edición individual de perfil: falta reautenticación vinculada al cambio y

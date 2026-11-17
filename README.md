@@ -24,7 +24,7 @@ El sistema tiene cuatro roles. Los permisos efectivos se comprueban en el backen
 | `cliente` | Se registra en la aplicación. Cotiza con Boxy, crea y paga pedidos, consulta seguimiento, historial, cupones, notificaciones y soporte. |
 | `chofer` | Se obtiene mediante la postulación y verificación de identidad. Consulta ofertas filtradas por peso y bultos de su vehículo, toma viajes, registra avances y confirma entregas. |
 | `soporte` | Lo asigna un administrador. Accede al panel operativo, consulta envíos, usuarios, cotizaciones y pagos; atiende consultas y puede desbloquear un PIN de entrega. |
-| `admin` | Las cuentas iniciales se siembran al arrancar; luego otro administrador puede asignar el rol. Tiene las capacidades de soporte y permisos adicionales sobre reembolsos, roles, documentación y mantenimiento. |
+| `admin` | Si la base no tiene ningún admin, el primero se crea al arrancar con `ADMIN_INICIAL_USUARIO` y `ADMIN_INICIAL_CONTRASENA`; los demás los nombra otro administrador desde Usuarios. Tiene las capacidades de soporte y permisos adicionales sobre reembolsos, roles, documentación y mantenimiento. |
 
 El panel del equipo incluye métricas, indicadores de las últimas 24 horas, consulta de pedidos y listado de usuarios con búsqueda, filtros y paginación. Los datos se obtienen de la API: los indicadores temporales y parte de los filtros de pedidos se calculan sobre la lista recuperada por el frontend. El listado de envíos tiene límites de consulta, por lo que no debe asumirse que toda visualización equivale a un histórico completo.
 
@@ -174,6 +174,7 @@ Los ejemplos completos están en [`backend/.env.example`](backend/.env.example) 
 | Variable o grupo | Uso |
 |---|---|
 | `DATABASE_URL`, `JWT_SECRET` | Obligatorios para iniciar: conexión a PostgreSQL y firma de sesiones. |
+| `ADMIN_INICIAL_USUARIO`, `ADMIN_INICIAL_CONTRASENA` | Crean el primer administrador si la base no tiene ninguno. La contraseña necesita al menos 12 caracteres y no puede contener el usuario. Una vez creado, conviene vaciarlas. |
 | `PORT`, `PUBLIC_API_URL` | Puerto local y URL pública usada para callbacks. Render asigna `PORT`. |
 | `ENTORNO` | `desarrollo`, `staging` o `produccion`. Por defecto se selecciona producción en Render o con `NODE_ENV=production`, y desarrollo en los demás casos. |
 | `ACCESS_TOKEN_EXPIRA`, `REFRESH_TOKEN_DIAS`, `JWT_EXPIRA` | Acceso corto (por defecto 15 min), refresh renovable (30 días por token) y token de compatibilidad (8 h). |
@@ -285,7 +286,7 @@ Además de las restricciones de Mi Perfil y pagos ya descritas:
 - Listar usuarios y cambiar roles no equivale a editar los perfiles completos de otras personas.
 - La compatibilidad y configuración de identidad, mapas y push deben validarse por plataforma. El despliegue iOS necesita sus credenciales específicas.
 - Las notificaciones por correo no están implementadas como canal general; el registro de clientes no pide email.
-- El código de recuperación y la inicialización de cuentas administrativas requieren revisión de seguridad antes de un uso productivo.
+- La recuperación de contraseña requiere revisión de seguridad antes de un uso productivo. Las cuentas admin creadas antes de este cambio deben cambiar su contraseña desde Mi Perfil: al arrancar, el log avisa si alguna todavía es igual al usuario.
 - La inteligencia logística predictiva descrita en el roadmap es una evolución propuesta, no una capacidad ya implementada de Boxy.
 
 Consultá los [pendientes técnicos](docs/pendientes-logitrak.md) y el [roadmap](docs/ROADMAP.md). Esos documentos pueden contener referencias históricas: ante diferencias, debe contrastarse cada punto con el código y la configuración desplegada.
