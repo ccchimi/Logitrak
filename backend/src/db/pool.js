@@ -33,12 +33,7 @@ export const pool = new pg.Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: configuracionSsl(),
     connectionTimeoutMillis: limites.conexionMs,
-});
-
-pool.on('connect', (cliente) => {
-    cliente.query(sentenciaDeLimites()).catch((err) => {
-        logger.warn({ err }, 'No se pudieron fijar los límites de tiempo en una conexión nueva');
-    });
+    onConnect: (cliente) => cliente.query(sentenciaDeLimites()),
 });
 
 pool.on('error', (err) => {
