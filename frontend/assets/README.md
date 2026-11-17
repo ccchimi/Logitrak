@@ -7,5 +7,6 @@
 - `illustrations/boxy_sonriente.png`, `boxy_pensandoV2.png`: variantes rasterizadas del personaje Boxy. Los archivos `boxy_sonriente.svg` y `boxy_pensandoV2.svg` también contienen datos PNG pese a su extensión; no son originales vectoriales editables. No existe un recurso llamado `boxy.svg`.
 - `illustrations/money-mobile.svg` y `money-mobile.png`: ilustración de cobro/pago móvil en formatos vectorial y rasterizado.
 - `illustrations/metodos-escritorio.png`: ilustración de métodos para escritorio. No hay un SVG equivalente versionado ni un recurso llamado `money.svg`.
+- `illustrations/vehiculos-acceso.png`: ilustración de vehículos del marco `src/components/AuthFrame.tsx`, que usan las pantallas de inicio de sesión, registro, recuperación y métodos de pago. Solo existe en PNG; no hay un SVG equivalente versionado.
 
 Los archivos `vehicles.svg`, `vehicles-mobile.svg` y `money-mobile.svg` contienen SVG editables y tienen versiones PNG. Las variantes de Boxy con extensión `.svg` son PNG y requieren corregir su formato o extensión en una tarea de recursos; cambiar solo la extensión no las convierte en vectores. La aplicación utiliza los PNG sin un renderizador SVG adicional. Los recursos esenciales del rediseño no dependen de URLs temporales de Canva o CDN.

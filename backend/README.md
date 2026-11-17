@@ -421,7 +421,8 @@ más de la cuenta.
 
 El proyecto documenta Render como Web Service en
 [logitrak.onrender.com](https://logitrak.onrender.com), con instalación mediante
-`npm install` y arranque con `npm start`. El despliegue automático desde `main`,
+`npm install` y arranque con `npm start`. Se despliega automáticamente con cada
+push a `main`.
 
 Las variables no salen del `.env`, que no se versiona, sino que se cargan en el
 panel del servicio, en la sección Environment: van ahí `DATABASE_URL`,
