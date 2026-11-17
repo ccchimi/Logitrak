@@ -16,6 +16,7 @@ export const PERMISOS = Object.freeze({
     'cupones.emitir': PERSONAL,
     'usuarios.listar': PERSONAL,
     'usuarios.cambiar_rol': SOLO_ADMIN,
+    'usuarios.editar': SOLO_ADMIN,
     'choferes.ver_documentos': SOLO_ADMIN,
     'sistema.reiniciar': SOLO_ADMIN,
 });

@@ -31,6 +31,8 @@ import CargaLista from "../components/CargaLista";
 import Desplegable from "../components/Desplegable";
 import { puede } from "../services/permisos";
 import CambiarRolModal from "../components/admin/CambiarRolModal";
+import EditarUsuarioModal from "../components/admin/EditarUsuarioModal";
+import { ToastStack, useToasts } from "../components/Toasts";
 
 const ROLES: Record<RolUsuario, string> = {
   cliente: "Cliente",
@@ -61,6 +63,11 @@ function Usuarios() {
   const [editando, setEditando] = useState<UsuarioAdmin | null>(null);
   const yo = obtenerUsuarioSesion()?.id;
   const editable = (u: UsuarioAdmin) => puede("usuarios.cambiar_rol") && u.rol !== "chofer" && u.id !== yo;
+  const [editandoDatos, setEditandoDatos] = useState<UsuarioAdmin | null>(null);
+  const datosEditables = (u: UsuarioAdmin) => puede("usuarios.editar") && u.id !== yo;
+  const accionable = (u: UsuarioAdmin) => datosEditables(u) || editable(u);
+  const abrir = (u: UsuarioAdmin) => (datosEditables(u) ? setEditandoDatos(u) : setEditando(u));
+  const { toasts, mostrar, cerrar } = useToasts();
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
   const [actualizado, setActualizado] = useState("");
@@ -165,329 +172,359 @@ function Usuarios() {
     fechaHoraAdmin(u.creadoEn),
   ];
   return (
-    <ScrollView
-      keyboardShouldPersistTaps="handled"
-      style={{ flex: 1, backgroundColor: tema.colores.fondo }}
-      contentContainerStyle={[
-        s.content,
-        width < 900 && { padding: 16, paddingBottom: 120 },
-      ]}
-    >
-      <View style={s.row}>
-        <View style={{ flex: 1, minWidth: 200, gap: 6 }}>
-          <TextoAdmin tipo="eyebrow">COMUNIDAD LOGITRAK</TextoAdmin>
-          <TextoAdmin tipo="title">Todos los usuarios</TextoAdmin>
-          <TextoAdmin tipo="muted">
-            Encontrá cada cuenta registrada: clientes, choferes y
-            administradores.
-          </TextoAdmin>
-        </View>
-        <Boton
-          texto="Actualizar"
-          secundario
-          ocupado={cargando}
-          onPress={actualizar}
-        />
-      </View>
-      <View style={s.row}>
-        {(
-          [
-            [
-              "todos",
-              "Usuarios registrados",
-              datos?.resumen.total,
-              "Todas las cuentas de la aplicación",
-            ],
-            [
-              "cliente",
-              "Clientes",
-              datos?.resumen.clientes,
-              "Cuentas con rol de cliente",
-            ],
-            [
-              "chofer",
-              "Choferes",
-              datos?.resumen.choferes,
-              "Cuentas con rol de chofer",
-            ],
-            [
-              "admin",
-              "Administradores",
-              datos?.resumen.administradores,
-              "Cuentas con acceso administrativo",
-            ],
-          ] as const
-        ).map(([rol, titulo, valor, nota]) => (
-          <MetricaAdmin
-            key={rol}
-              style={width < 900 ? { flexBasis: 140, padding: 14 } : undefined}
-            titulo={titulo}
-            valor={valor ?? "—"}
-            nota={nota}
-            icono={rol === "chofer" ? "truck" : "person"}
-            destacado={filtros.rol === rol}
-            onPress={() => cambiar("rol", rol)}
-          />
-        ))}
-      </View>
-      <PanelAdmin>
+    <View style={{ flex: 1 }}>
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        style={{ flex: 1, backgroundColor: tema.colores.fondo }}
+        contentContainerStyle={[
+          s.content,
+          width < 900 && { padding: 16, paddingBottom: 120 },
+        ]}
+      >
         <View style={s.row}>
-          {campo(
-            "busqueda",
-            "Buscar usuarios",
-            "Nombre, usuario, ID, código, email o teléfono",
-          )}
+          <View style={{ flex: 1, minWidth: 200, gap: 6 }}>
+            <TextoAdmin tipo="eyebrow">COMUNIDAD LOGITRAK</TextoAdmin>
+            <TextoAdmin tipo="title">Todos los usuarios</TextoAdmin>
+            <TextoAdmin tipo="muted">
+              Encontrá cada cuenta registrada: clientes, choferes y
+              administradores.
+            </TextoAdmin>
+          </View>
           <Boton
-            texto="Limpiar filtros"
+            texto="Actualizar"
             secundario
-            disabled={!hayFiltros}
-            onPress={restablecer}
+            ocupado={cargando}
+            onPress={actualizar}
           />
         </View>
         <View style={s.row}>
-          {(["todos", "cliente", "chofer", "soporte", "admin"] as const).map((rol) => (
-            <ChipAdmin
+          {(
+            [
+              [
+                "todos",
+                "Usuarios registrados",
+                datos?.resumen.total,
+                "Todas las cuentas de la aplicación",
+              ],
+              [
+                "cliente",
+                "Clientes",
+                datos?.resumen.clientes,
+                "Cuentas con rol de cliente",
+              ],
+              [
+                "chofer",
+                "Choferes",
+                datos?.resumen.choferes,
+                "Cuentas con rol de chofer",
+              ],
+              [
+                "admin",
+                "Administradores",
+                datos?.resumen.administradores,
+                "Cuentas con acceso administrativo",
+              ],
+            ] as const
+          ).map(([rol, titulo, valor, nota]) => (
+            <MetricaAdmin
               key={rol}
-              texto={
-                rol === "todos"
-                  ? "Todos"
-                  : rol === "admin"
-                    ? "Administradores"
-                    : rol === "soporte"
-                      ? "Soporte"
-                      : rol === "cliente"
-                        ? "Clientes"
-                        : "Choferes"
-              }
-              activo={filtros.rol === rol}
+                style={width < 900 ? { flexBasis: 140, padding: 14 } : undefined}
+              titulo={titulo}
+              valor={valor ?? "—"}
+              nota={nota}
+              icono={rol === "chofer" ? "truck" : "person"}
+              destacado={filtros.rol === rol}
               onPress={() => cambiar("rol", rol)}
             />
           ))}
         </View>
-        <Boton
-          texto={
-            avanzados
-              ? "Ocultar fecha de alta y orden"
-              : "Filtrar por fecha de alta y ordenar"
-          }
-          icono="filter"
-          secundario
-          onPress={() => setAvanzados((v) => !v)}
-        />
-        <Desplegable visible={avanzados}>
+        <PanelAdmin>
           <View style={s.row}>
-            {campo("desde", "Registrados desde", "AAAA-MM-DD")}
-            {campo("hasta", "Registrados hasta", "AAAA-MM-DD")}
-            <SelectorAdmin
-              etiqueta="Ordenar por"
-              valor={filtros.orden}
-              opciones={[
-                { valor: "recientes", texto: "Más recientes" },
-                { valor: "antiguos", texto: "Más antiguos" },
-                { valor: "nombre_az", texto: "Nombre · A a Z" },
-                { valor: "nombre_za", texto: "Nombre · Z a A" },
-              ]}
-              onChange={(v) =>
-                cambiar("orden", v as FiltrosUsuariosAdmin["orden"])
-              }
+            {campo(
+              "busqueda",
+              "Buscar usuarios",
+              "Nombre, usuario, ID, código, email o teléfono",
+            )}
+            <Boton
+              texto="Limpiar filtros"
+              secundario
+              disabled={!hayFiltros}
+              onPress={restablecer}
             />
           </View>
-        </Desplegable>
-        <TextoAdmin tipo="muted">
-          La búsqueda abarca todas las cuentas, incluso sin pedidos. Los filtros
-          se combinan. Fechas de alta en horario de Argentina.
-        </TextoAdmin>
-        <TextoAdmin tipo="muted">
-          El email y el teléfono están disponibles para las cuentas de chofer
-          que los hayan registrado.
-        </TextoAdmin>
-        {!!fechaError && (
-          <TextoAdmin style={{ color: tema.colores.error }}>
-            {fechaError}
-          </TextoAdmin>
-        )}
-      </PanelAdmin>
-      {fechaError ? null : error ? (
-        <PanelAdmin>
-          <TextoAdmin tipo="heading">No pudimos cargar los usuarios</TextoAdmin>
-          <TextoAdmin>{error}</TextoAdmin>
-          <Boton texto="Reintentar" secundario onPress={actualizar} />
-        </PanelAdmin>
-      ) : cargando ? (
-        <CargaLista />
-      ) : (
-        datos && (
-          <>
-            <View accessibilityLiveRegion="polite" style={{ gap: 5 }}>
-              <TextoAdmin tipo="heading">
-                {datos.total}{" "}
-                {datos.total === 1
-                  ? "usuario encontrado"
-                  : "usuarios encontrados"}
-                {hayFiltros ? ` de ${datos.resumen.total} registrados` : ""}
-              </TextoAdmin>
-              <TextoAdmin tipo="muted">
-                Actualizado: {fechaHoraAdmin(actualizado)}
-              </TextoAdmin>
+          <View style={s.row}>
+            {(["todos", "cliente", "chofer", "soporte", "admin"] as const).map((rol) => (
+              <ChipAdmin
+                key={rol}
+                texto={
+                  rol === "todos"
+                    ? "Todos"
+                    : rol === "admin"
+                      ? "Administradores"
+                      : rol === "soporte"
+                        ? "Soporte"
+                        : rol === "cliente"
+                          ? "Clientes"
+                          : "Choferes"
+                }
+                activo={filtros.rol === rol}
+                onPress={() => cambiar("rol", rol)}
+              />
+            ))}
+          </View>
+          <Boton
+            texto={
+              avanzados
+                ? "Ocultar fecha de alta y orden"
+                : "Filtrar por fecha de alta y ordenar"
+            }
+            icono="filter"
+            secundario
+            onPress={() => setAvanzados((v) => !v)}
+          />
+          <Desplegable visible={avanzados}>
+            <View style={s.row}>
+              {campo("desde", "Registrados desde", "AAAA-MM-DD")}
+              {campo("hasta", "Registrados hasta", "AAAA-MM-DD")}
+              <SelectorAdmin
+                etiqueta="Ordenar por"
+                valor={filtros.orden}
+                opciones={[
+                  { valor: "recientes", texto: "Más recientes" },
+                  { valor: "antiguos", texto: "Más antiguos" },
+                  { valor: "nombre_az", texto: "Nombre · A a Z" },
+                  { valor: "nombre_za", texto: "Nombre · Z a A" },
+                ]}
+                onChange={(v) =>
+                  cambiar("orden", v as FiltrosUsuariosAdmin["orden"])
+                }
+              />
             </View>
-            {datos.usuarios.length === 0 ? (
-              <PanelAdmin>
+          </Desplegable>
+          <TextoAdmin tipo="muted">
+            La búsqueda abarca todas las cuentas, incluso sin pedidos. Los filtros
+            se combinan. Fechas de alta en horario de Argentina.
+          </TextoAdmin>
+          <TextoAdmin tipo="muted">
+            El email y el teléfono están disponibles para las cuentas de chofer
+            que los hayan registrado.
+          </TextoAdmin>
+          {!!fechaError && (
+            <TextoAdmin style={{ color: tema.colores.error }}>
+              {fechaError}
+            </TextoAdmin>
+          )}
+        </PanelAdmin>
+        {fechaError ? null : error ? (
+          <PanelAdmin>
+            <TextoAdmin tipo="heading">No pudimos cargar los usuarios</TextoAdmin>
+            <TextoAdmin>{error}</TextoAdmin>
+            <Boton texto="Reintentar" secundario onPress={actualizar} />
+          </PanelAdmin>
+        ) : cargando ? (
+          <CargaLista />
+        ) : (
+          datos && (
+            <>
+              <View accessibilityLiveRegion="polite" style={{ gap: 5 }}>
                 <TextoAdmin tipo="heading">
-                  {datos.resumen.total
-                    ? "Sin coincidencias"
-                    : "Todavía no hay usuarios"}
+                  {datos.total}{" "}
+                  {datos.total === 1
+                    ? "usuario encontrado"
+                    : "usuarios encontrados"}
+                  {hayFiltros ? ` de ${datos.resumen.total} registrados` : ""}
                 </TextoAdmin>
-                <TextoAdmin>
-                  {datos.resumen.total
-                    ? "Probá otro nombre o ajustá los filtros para encontrar la cuenta."
-                    : "Las cuentas aparecerán acá cuando se registren en Logitrak."}
+                <TextoAdmin tipo="muted">
+                  Actualizado: {fechaHoraAdmin(actualizado)}
                 </TextoAdmin>
-                {hayFiltros && (
-                  <Boton
-                    texto="Restablecer filtros"
-                    secundario
-                    onPress={restablecer}
-                  />
-                )}
-              </PanelAdmin>
-            ) : width >= 900 ? (
-              <PanelAdmin style={{ padding: 0, overflow: "hidden" }}>
-                <ScrollView horizontal showsHorizontalScrollIndicator>
-                  <View>
-                    <View
-                      style={[
-                        s.tableRow,
-                        {
-                          backgroundColor: tema.colores.campo,
-                          borderColor: tema.colores.borde,
-                        },
-                      ]}
-                    >
-                      {[
-                        "ID",
-                        "Nombre completo",
-                        "Usuario",
-                        "Rol",
-                        "Código de chofer",
-                        "Email",
-                        "Fecha de alta",
-                      ].map((t, i) => (
-                        <View
-                          key={t}
-                          style={{ width: ANCHOS[i], paddingRight: 16 }}
-                        >
-                          <TextoAdmin tipo="muted">{t}</TextoAdmin>
-                        </View>
-                      ))}
-                    </View>
-                    {datos.usuarios.map((u) => (
-                      <Pressable
-                        key={u.id}
-                        disabled={!editable(u)}
-                        onPress={() => setEditando(u)}
-                        accessibilityRole={editable(u) ? "button" : undefined}
-                        accessibilityLabel={editable(u) ? `Cambiar el rol de ${u.nombreCompleto}` : undefined}
+              </View>
+              {datos.usuarios.length === 0 ? (
+                <PanelAdmin>
+                  <TextoAdmin tipo="heading">
+                    {datos.resumen.total
+                      ? "Sin coincidencias"
+                      : "Todavía no hay usuarios"}
+                  </TextoAdmin>
+                  <TextoAdmin>
+                    {datos.resumen.total
+                      ? "Probá otro nombre o ajustá los filtros para encontrar la cuenta."
+                      : "Las cuentas aparecerán acá cuando se registren en Logitrak."}
+                  </TextoAdmin>
+                  {hayFiltros && (
+                    <Boton
+                      texto="Restablecer filtros"
+                      secundario
+                      onPress={restablecer}
+                    />
+                  )}
+                </PanelAdmin>
+              ) : width >= 900 ? (
+                <PanelAdmin style={{ padding: 0, overflow: "hidden" }}>
+                  <ScrollView horizontal showsHorizontalScrollIndicator>
+                    <View>
+                      <View
                         style={[
                           s.tableRow,
-                          { borderColor: tema.colores.borde },
+                          {
+                            backgroundColor: tema.colores.campo,
+                            borderColor: tema.colores.borde,
+                          },
                         ]}
                       >
-                        {celdas(u).map((valor, i) => (
+                        {[
+                          "ID",
+                          "Nombre completo",
+                          "Usuario",
+                          "Rol",
+                          "Código de chofer",
+                          "Email",
+                          "Fecha de alta",
+                        ].map((t, i) => (
                           <View
-                            key={i}
-                            style={{
-                              width: ANCHOS[i],
-                              paddingRight: 16,
-                              gap: 3,
-                            }}
+                            key={t}
+                            style={{ width: ANCHOS[i], paddingRight: 16 }}
                           >
-                            <TextoAdmin>{valor}</TextoAdmin>
-                            {i === 5 && !!u.telefono && (
-                              <TextoAdmin tipo="muted">{u.telefono}</TextoAdmin>
-                            )}
+                            <TextoAdmin tipo="muted">{t}</TextoAdmin>
                           </View>
                         ))}
-                      </Pressable>
-                    ))}
-                  </View>
-                </ScrollView>
-              </PanelAdmin>
-            ) : (
-              <View style={{ gap: 12 }}>
-                {datos.usuarios.map((u) => (
-                  <PanelAdmin key={u.id} style={{ padding: 18 }}>
-                    <View style={[s.row, { justifyContent: "space-between" }]}>
-                      <TextoAdmin tipo="heading" style={{ flexShrink: 1 }}>
-                        {u.nombreCompleto}
-                      </TextoAdmin>
-                      <TextoAdmin>{ROLES[u.rol] ?? u.rol}</TextoAdmin>
+                      </View>
+                      {datos.usuarios.map((u) => (
+                        <Pressable
+                          key={u.id}
+                          disabled={!accionable(u)}
+                          onPress={() => abrir(u)}
+                          accessibilityRole={accionable(u) ? "button" : undefined}
+                          accessibilityLabel={
+                            datosEditables(u)
+                              ? `Editar los datos de ${u.nombreCompleto}`
+                              : editable(u)
+                                ? `Cambiar el rol de ${u.nombreCompleto}`
+                                : undefined
+                          }
+                          style={[
+                            s.tableRow,
+                            { borderColor: tema.colores.borde },
+                          ]}
+                        >
+                          {celdas(u).map((valor, i) => (
+                            <View
+                              key={i}
+                              style={{
+                                width: ANCHOS[i],
+                                paddingRight: 16,
+                                gap: 3,
+                              }}
+                            >
+                              <TextoAdmin>{valor}</TextoAdmin>
+                              {i === 5 && !!u.telefono && (
+                                <TextoAdmin tipo="muted">{u.telefono}</TextoAdmin>
+                              )}
+                            </View>
+                          ))}
+                        </Pressable>
+                      ))}
                     </View>
-                    <TextoAdmin>
-                      @{u.usuario} · #{u.id}
-                    </TextoAdmin>
-                    {!!u.codigoChofer && (
-                      <TextoAdmin>Chofer: {u.codigoChofer}</TextoAdmin>
-                    )}
-                    {!!u.email && <TextoAdmin>Email: {u.email}</TextoAdmin>}
-                    {!!u.telefono && (
-                      <TextoAdmin>Teléfono: {u.telefono}</TextoAdmin>
-                    )}
-                    <TextoAdmin tipo="muted">
-                      Alta: {fechaHoraAdmin(u.creadoEn)}
-                    </TextoAdmin>
-                    {editable(u) && (
-                      <Boton texto="Cambiar rol" secundario onPress={() => setEditando(u)} />
-                    )}
-                  </PanelAdmin>
-                ))}
-              </View>
-            )}
-            <PanelAdmin>
-              <View style={s.row}>
-                <TextoAdmin>
-                  Página {datos.pagina} de {datos.paginas} ·{" "}
-                  {datos.total ? (datos.pagina - 1) * datos.cantidad + 1 : 0}–
-                  {Math.min(datos.pagina * datos.cantidad, datos.total)} de{" "}
-                  {datos.total}
-                </TextoAdmin>
-                <Boton
-                  texto="Anterior"
-                  secundario
-                  disabled={datos.pagina <= 1}
-                  onPress={() => setPagina(datos.pagina - 1)}
-                />
-                <Boton
-                  texto="Siguiente"
-                  secundario
-                  disabled={datos.pagina >= datos.paginas}
-                  onPress={() => setPagina(datos.pagina + 1)}
-                />
-                <SelectorAdmin
-                  etiqueta="Usuarios por página"
-                  valor={cantidad}
-                  opciones={["10", "25", "50", "100"].map((v) => ({
-                    valor: v,
-                    texto: v,
-                  }))}
-                  onChange={(v) => {
-                    setCantidad(v);
-                    setPagina(1);
-                  }}
-                />
-              </View>
-            </PanelAdmin>
-          </>
-        )
-      )}
-      <CambiarRolModal
-        usuario={editando}
-        onCerrar={() => setEditando(null)}
-        onCambiado={() => {
-          setEditando(null);
-          setVersion((v) => v + 1);
-        }}
-      />
-    </ScrollView>
+                  </ScrollView>
+                </PanelAdmin>
+              ) : (
+                <View style={{ gap: 12 }}>
+                  {datos.usuarios.map((u) => (
+                    <PanelAdmin key={u.id} style={{ padding: 18 }}>
+                      <View style={[s.row, { justifyContent: "space-between" }]}>
+                        <TextoAdmin tipo="heading" style={{ flexShrink: 1 }}>
+                          {u.nombreCompleto}
+                        </TextoAdmin>
+                        <TextoAdmin>{ROLES[u.rol] ?? u.rol}</TextoAdmin>
+                      </View>
+                      <TextoAdmin>
+                        @{u.usuario} · #{u.id}
+                      </TextoAdmin>
+                      {!!u.codigoChofer && (
+                        <TextoAdmin>Chofer: {u.codigoChofer}</TextoAdmin>
+                      )}
+                      {!!u.email && <TextoAdmin>Email: {u.email}</TextoAdmin>}
+                      {!!u.telefono && (
+                        <TextoAdmin>Teléfono: {u.telefono}</TextoAdmin>
+                      )}
+                      <TextoAdmin tipo="muted">
+                        Alta: {fechaHoraAdmin(u.creadoEn)}
+                      </TextoAdmin>
+                      {(datosEditables(u) || editable(u)) && (
+                        <View style={s.row}>
+                          {datosEditables(u) && (
+                            <Boton texto="Editar datos" secundario onPress={() => setEditandoDatos(u)} />
+                          )}
+                          {editable(u) && (
+                            <Boton texto="Cambiar rol" secundario onPress={() => setEditando(u)} />
+                          )}
+                        </View>
+                      )}
+                    </PanelAdmin>
+                  ))}
+                </View>
+              )}
+              <PanelAdmin>
+                <View style={s.row}>
+                  <TextoAdmin>
+                    Página {datos.pagina} de {datos.paginas} ·{" "}
+                    {datos.total ? (datos.pagina - 1) * datos.cantidad + 1 : 0}–
+                    {Math.min(datos.pagina * datos.cantidad, datos.total)} de{" "}
+                    {datos.total}
+                  </TextoAdmin>
+                  <Boton
+                    texto="Anterior"
+                    secundario
+                    disabled={datos.pagina <= 1}
+                    onPress={() => setPagina(datos.pagina - 1)}
+                  />
+                  <Boton
+                    texto="Siguiente"
+                    secundario
+                    disabled={datos.pagina >= datos.paginas}
+                    onPress={() => setPagina(datos.pagina + 1)}
+                  />
+                  <SelectorAdmin
+                    etiqueta="Usuarios por página"
+                    valor={cantidad}
+                    opciones={["10", "25", "50", "100"].map((v) => ({
+                      valor: v,
+                      texto: v,
+                    }))}
+                    onChange={(v) => {
+                      setCantidad(v);
+                      setPagina(1);
+                    }}
+                  />
+                </View>
+              </PanelAdmin>
+            </>
+          )
+        )}
+        <CambiarRolModal
+          usuario={editando}
+          onCerrar={() => setEditando(null)}
+          onCambiado={() => {
+            setEditando(null);
+            setVersion((v) => v + 1);
+          }}
+        />
+        <EditarUsuarioModal
+          usuario={editandoDatos}
+          puedeCambiarRol={!!editandoDatos && editable(editandoDatos)}
+          onCerrar={() => setEditandoDatos(null)}
+          onGuardado={(mensaje) => {
+            setEditandoDatos(null);
+            mostrar("exito", "Datos actualizados", mensaje);
+            setVersion((v) => v + 1);
+          }}
+          onCambiarRol={(u) => {
+            setEditandoDatos(null);
+            setEditando(u);
+          }}
+        />
+      </ScrollView>
+      <ToastStack toasts={toasts} onCerrar={cerrar} />
+    </View>
   );
 }
 

@@ -1,4 +1,5 @@
 import { llamarApi, obtenerUsuarioSesion, RolUsuario } from "./api";
+import type { CambiosPerfilAdmin, PerfilAdmin } from "../helpers/perfilesAdmin";
 
 export interface UsuarioAdmin {
   id: number;
@@ -90,4 +91,25 @@ export async function cambiarRolUsuario(
     conAuth: true,
   });
   return r.exito ? { exito: true } : { exito: false, error: (r as any).error ?? "No se pudo cambiar el rol." };
+}
+
+export async function obtenerPerfilUsuario(
+  id: number,
+): Promise<{ exito: true; perfil: PerfilAdmin } | { exito: false; error: string }> {
+  const r = await llamarApi<{ exito: true; perfil: PerfilAdmin }>(`/api/admin/usuarios/${id}`, { conAuth: true });
+  return r.exito ? { exito: true, perfil: r.perfil } : { exito: false, error: (r as any).error ?? "No pudimos cargar los datos." };
+}
+
+export async function editarPerfilUsuario(
+  id: number,
+  cambios: CambiosPerfilAdmin,
+): Promise<{ exito: true; perfil: PerfilAdmin; sinCambios?: boolean } | { exito: false; error: string }> {
+  const r = await llamarApi<{ exito: true; perfil: PerfilAdmin; sinCambios?: boolean }>(`/api/admin/usuarios/${id}`, {
+    metodo: "PUT",
+    cuerpo: cambios,
+    conAuth: true,
+  });
+  return r.exito
+    ? { exito: true, perfil: r.perfil, sinCambios: r.sinCambios }
+    : { exito: false, error: (r as any).error ?? "No se pudieron guardar los cambios." };
 }

@@ -13,6 +13,7 @@ export type Permiso =
     | 'cupones.emitir'
     | 'usuarios.listar'
     | 'usuarios.cambiar_rol'
+    | 'usuarios.editar'
     | 'choferes.ver_documentos'
     | 'sistema.reiniciar';
 

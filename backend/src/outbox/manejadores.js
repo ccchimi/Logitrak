@@ -1,3 +1,4 @@
+import { listaDeCampos } from '../servicios/perfilesAdmin.js';
 const pesos = (monto, moneda = 'ARS') =>
     `${moneda === 'ARS' ? '$' : `${moneda} `}${Number(monto).toLocaleString('es-AR', { maximumFractionDigits: 2 })}`;
 
@@ -109,6 +110,17 @@ export const MANEJADORES = {
             titulo: 'Te calificaron',
             cuerpo: `Recibiste ${estrellas} por el envío ${p.envioCodigo}.${p.conComentario ? ' El cliente dejó un comentario.' : ''}`,
             datos: { envioCodigo: p.envioCodigo },
+        }, ctx);
+    },
+
+    async 'usuario.datos_editados'(cliente, evento, ctx) {
+        const p = evento.payload;
+        await notificar(cliente, {
+            usuarioId: p.usuarioId,
+            eventoId: evento.id,
+            tipo: evento.event_type,
+            titulo: 'Actualizamos tus datos',
+            cuerpo: `Un administrador de Logitrak actualizó tu ${listaDeCampos(p.campos)}. Si no lo pediste, escribinos desde Soporte.`,
         }, ctx);
     },
 

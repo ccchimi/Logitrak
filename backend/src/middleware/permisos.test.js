@@ -15,7 +15,7 @@ describe('matriz de permisos', () => {
         for (const p of ['soporte.atender', 'envios.ver_todos', 'pagos.ver_todos', 'cupones.emitir', 'envios.desbloquear_pin', 'usuarios.listar']) {
             assert.equal(tienePermiso(soporte, p), true, p);
         }
-        for (const p of ['envios.reembolsar', 'envios.archivar', 'pagos.gestionar', 'choferes.ver_documentos', 'usuarios.cambiar_rol', 'sistema.reiniciar']) {
+        for (const p of ['envios.reembolsar', 'envios.archivar', 'pagos.gestionar', 'choferes.ver_documentos', 'usuarios.cambiar_rol', 'usuarios.editar', 'sistema.reiniciar']) {
             assert.equal(tienePermiso(soporte, p), false, p);
         }
     });

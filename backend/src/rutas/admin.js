@@ -6,6 +6,8 @@ import { log, registrarError } from '../observabilidad/logger.js';
 import { z } from 'zod';
 import { validarRequest } from '../middleware/validar.js';
 import { exigirPermiso } from '../middleware/permisos.js';
+import { registrarEvento } from '../outbox/index.js';
+import { aplicarCambios, CAMPOS_CHOFER, cambiosPedidos, perfilParaAdmin } from '../servicios/perfilesAdmin.js';
 
 export const rutasAdmin = Router();
 
@@ -79,6 +81,108 @@ rutasAdmin.put(
             await cliente.query('ROLLBACK').catch(() => {});
             registrarError(e, 'No se pudo cambiar el rol');
             return res.status(500).json({ exito: false, error: 'No se pudo cambiar el rol.' });
+        } finally {
+            cliente.release();
+        }
+    }
+);
+
+const ES_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const textoLimpio = (min, max, mensaje) => z.string({ error: mensaje }).trim().min(min, mensaje).max(max, mensaje);
+
+const SOLO_CAMPOS_EDITABLES = 'Solo se pueden editar el nombre y, en los choferes, el email, el teléfono, el domicilio y el vehículo.';
+
+const cuerpoPerfil = z
+    .strictObject({
+        nombreCompleto: textoLimpio(3, 120, 'El nombre debe tener entre 3 y 120 caracteres.').optional(),
+        email: textoLimpio(3, 120, 'Ingresá un email válido.')
+            .toLowerCase()
+            .refine((v) => ES_EMAIL.test(v), 'Ingresá un email válido.')
+            .optional(),
+        telefono: textoLimpio(8, 30, 'Ingresá un teléfono válido.')
+            .refine((v) => v.replace(/\D/g, '').length >= 8, 'Ingresá un teléfono válido.')
+            .optional(),
+        domicilio: textoLimpio(6, 200, 'Ingresá el domicilio completo (entre 6 y 200 caracteres).').optional(),
+        vehiculoId: textoLimpio(1, 40, 'Elegí un vehículo de la flota.').optional(),
+    }, { error: (issue) => (issue.code === 'unrecognized_keys' ? SOLO_CAMPOS_EDITABLES : undefined) })
+    .refine((d) => Object.values(d).some((v) => v !== undefined), 'No mandaste ningún dato para cambiar.');
+
+rutasAdmin.get(
+    '/usuarios/:id',
+    autenticar,
+    exigirPermiso('usuarios.editar'),
+    validarRequest({ params: paramsUsuario }),
+    async (req, res) => {
+        res.set('Cache-Control', 'no-store');
+        const perfil = await perfilParaAdmin(pool, req.params.id);
+        if (!perfil) return res.status(404).json({ exito: false, error: 'Usuario no encontrado.' });
+        return res.json({ exito: true, perfil });
+    }
+);
+
+rutasAdmin.put(
+    '/usuarios/:id',
+    autenticar,
+    exigirPermiso('usuarios.editar'),
+    validarRequest({ params: paramsUsuario, body: cuerpoPerfil }),
+    async (req, res) => {
+        const { id } = req.params;
+        if (id === req.usuario.id) {
+            return res.status(409).json({ exito: false, error: 'Tus propios datos se editan desde Mi Perfil.' });
+        }
+
+        const cliente = await pool.connect();
+        try {
+            await cliente.query('BEGIN');
+            const perfil = await perfilParaAdmin(cliente, id, { bloquear: true });
+            if (!perfil) {
+                await cliente.query('ROLLBACK');
+                return res.status(404).json({ exito: false, error: 'Usuario no encontrado.' });
+            }
+            if (!perfil.chofer && CAMPOS_CHOFER.some((c) => req.body[c] !== undefined)) {
+                await cliente.query('ROLLBACK');
+                return res.status(400).json({ exito: false, error: 'El email, el teléfono, el domicilio y el vehículo son datos de la ficha de chofer, y esta cuenta no la tiene.' });
+            }
+
+            const cambios = cambiosPedidos(perfil, req.body);
+            const campos = Object.keys(cambios);
+            if (!campos.length) {
+                await cliente.query('ROLLBACK');
+                return res.json({ exito: true, perfil, sinCambios: true });
+            }
+
+            if (cambios.vehiculoId !== undefined) {
+                const v = await cliente.query('SELECT 1 FROM vehiculos WHERE id = $1', [cambios.vehiculoId]);
+                if (!v.rowCount) {
+                    await cliente.query('ROLLBACK');
+                    return res.status(400).json({ exito: false, error: 'El vehículo no pertenece a la flota.' });
+                }
+                const enViaje = await cliente.query(
+                    `SELECT 1 FROM asignaciones a JOIN choferes c ON c.id = a.chofer_id JOIN envios e ON e.id = a.envio_id
+                     WHERE c.usuario_id = $1 AND a.estado = 'aceptada' AND e.estado IN ('asignado', 'en_viaje')`,
+                    [id]
+                );
+                if (enViaje.rowCount) {
+                    await cliente.query('ROLLBACK');
+                    return res.status(409).json({ exito: false, error: 'El chofer tiene un viaje en curso: cambiale el vehículo cuando lo termine.' });
+                }
+            }
+
+            await aplicarCambios(cliente, perfil, cambios);
+            await registrarEvento(cliente, {
+                tipoAgregado: 'usuario',
+                idAgregado: String(id),
+                tipo: 'usuario.datos_editados',
+                datos: { usuarioId: id, campos },
+            });
+            const actualizado = await perfilParaAdmin(cliente, id);
+            await cliente.query('COMMIT');
+            log().info({ usuarioId: id, campos, por: req.usuario.id }, 'Datos de usuario editados por un admin');
+            return res.json({ exito: true, perfil: actualizado });
+        } catch (e) {
+            await cliente.query('ROLLBACK').catch(() => {});
+            registrarError(e, 'No se pudieron editar los datos del usuario');
+            return res.status(500).json({ exito: false, error: 'No se pudieron guardar los cambios.' });
         } finally {
             cliente.release();
         }
