@@ -191,7 +191,7 @@ Los perfiles de EAS y la instalación Android/iOS se explican únicamente en la 
 
 ## Limitaciones y documentación
 
-- Los cupones acreditados aún no pueden aplicarse para pagar otro envío.
+- Los cupones activos se eligen en la pantalla de pago y el total muestra el descuento; todavía no vencen.
 - Los vencimientos de pedidos impagos, ofertas y compensaciones dependen de trabajos del servidor, no de mantener abierta esta aplicación.
 - El panel operativo necesita mejorar la consulta paginada de pedidos para escalar a históricos completos.
 - Algunas ediciones de perfil y el guardado de métodos son funciones pendientes, aunque existan controles visuales.

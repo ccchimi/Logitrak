@@ -957,7 +957,7 @@ forma automática por un rollback de PostgreSQL.
   middleware de firma que Mercado Pago.
 - Un segundo cobro aprobado se registra como duplicado para revisión; eso no
   equivale a una devolución automática ya completada.
-- Los cupones se acreditan, pero aún no se aplican a nuevos pagos.
+- Los cupones se aplican al pagar (`cuponCodigo` en checkout y tarjeta) y vuelven a quedar activos si el pago se devuelve, pero todavía no vencen.
 - Push se intenta después de confirmar el evento. Un fallo no elimina el aviso
   de la bandeja, pero tampoco garantiza una nueva entrega push.
 - El borrado de archivos externos después de anonimizar puede fallar; se

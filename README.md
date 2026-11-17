@@ -279,7 +279,7 @@ El repositorio documenta el uso de Render Free. Cuando el servicio está detenid
 
 Además de las restricciones de Mi Perfil y pagos ya descritas:
 
-- Los cupones se acreditan y consultan, pero aún no se aplican al pago de un nuevo envío.
+- Los cupones se aplican al pagar un envío, pero todavía no vencen: el estado `vencido` existe y ningún proceso lo asigna.
 - Guardar tarjetas o cuentas de cobro desde las pantallas de métodos está pendiente; esas pantallas no persisten los datos ingresados.
 - El listado de envíos devuelve hasta 200 registros por consulta. El panel intenta ampliar por estado, pero esto no sustituye una API con paginación e históricos completos.
 - Listar usuarios y cambiar roles no equivale a editar los perfiles completos de otras personas.
