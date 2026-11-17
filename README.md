@@ -179,6 +179,7 @@ Los ejemplos completos están en [`backend/.env.example`](backend/.env.example) 
 | `ENTORNO` | `desarrollo`, `staging` o `produccion`. Por defecto se selecciona producción en Render o con `NODE_ENV=production`, y desarrollo en los demás casos. |
 | `ACCESS_TOKEN_EXPIRA`, `REFRESH_TOKEN_DIAS`, `JWT_EXPIRA` | Acceso corto (por defecto 15 min), refresh renovable (30 días por token) y token de compatibilidad (8 h). |
 | `PGSSL`, `PGSSL_STRICT` | Configuración SSL de la conexión a PostgreSQL. |
+| `DB_LIMITE_CONSULTA_MS`, `DB_LIMITE_TRANSACCION_INACTIVA_MS`, `DB_LIMITE_CONEXION_MS` | Límites de tiempo de la base: 15 s por consulta, 30 s para una transacción inactiva y 10 s para conectar, si no se configuran. Detalle en `backend/README.md`. |
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_BUCKET` | Storage privado para documentos y comprobantes. |
 | `SUPABASE_ANON_KEY`, `SUPABASE_JWT_SECRET` | Junto con Supabase, habilitan las suscripciones Realtime autorizadas de la aplicación. |
 | `MP_ACCESS_TOKEN`, `MP_WEBHOOK_SECRET` | Mercado Pago y validación de sus webhooks. Sin el secreto, los avisos del webhook se rechazan. |

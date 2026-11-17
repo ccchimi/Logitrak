@@ -96,6 +96,22 @@ identidad del servidor son controles distintos. La validación del certificado
 debe configurarse y comprobarse según el proveedor. `PGSSL=false` está disponible
 para un PostgreSQL local que no use SSL, no como solución general de despliegue.
 
+Cada conexión del pool (`src/db/pool.js`) trabaja con límites de tiempo, para
+que una consulta trabada o una caída de Supabase devuelvan un error en lugar de
+dejar el pedido esperando sin fin:
+
+| Variable | Por defecto | Qué controla |
+|---|---|---|
+| `DB_LIMITE_CONSULTA_MS` | 15000 | Tiempo máximo de una consulta. Postgres la cancela con el código `57014` (`statement_timeout`). |
+| `DB_LIMITE_TRANSACCION_INACTIVA_MS` | 30000 | Tiempo que una transacción puede quedar abierta sin actividad antes de que Postgres cierre la sesión (`idle_in_transaction_session_timeout`). |
+| `DB_LIMITE_CONEXION_MS` | 10000 | Tiempo que el pool espera para obtener o abrir una conexión. |
+
+Los valores se aplican con `SET` al abrir cada conexión, lo que funciona con el
+Session pooler de Supabase. Un valor vacío, cero, negativo o no entero se
+reemplaza por el de la tabla. Las migraciones (`src/db/migrar.js`) corren sin
+límite, para que un cambio de esquema largo no quede a medias, y al terminar
+devuelven la conexión al pool con los límites restaurados.
+
 Si querés conectarte desde un cliente como DBeaver o IntelliJ, los datos salen
 del mismo connection string: el host es el del pooler, el puerto 5432, la base
 `postgres` y el SSL es obligatorio (`sslmode=require`).
