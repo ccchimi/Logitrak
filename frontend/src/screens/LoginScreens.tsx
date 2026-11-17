@@ -16,12 +16,13 @@ import { COLORS, styles, tamanosAuth } from "../styles/LoginStyles";
 import { useRootFlow } from "../navigation/RootFlowContext";
 import AuthFrame from "../components/AuthFrame";
 import { iniciarSesion } from "../services/authService";
+import type { RefTextInput } from "../types/refs";
 
 export default function LoginScreens({ navigation }: any) {
   const tema = useTema();
   const usuarioRef = useRef("");
   const contrasenaRef = useRef("");
-  const campoContrasenaRef = useRef<TextInput | null>(null);
+  const campoContrasenaRef = useRef<RefTextInput | null>(null);
 
   const { width } = useWindowDimensions();
   const { caja } = tamanosAuth(width >= 900 ? width * 0.56 : width);

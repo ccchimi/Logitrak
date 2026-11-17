@@ -1,7 +1,8 @@
 import { RefObject, useEffect } from "react";
 import { Keyboard, Platform, ScrollView } from "react-native";
+import type { RefScrollView } from "../types/refs";
 
-export function useScrollAlMostrarTeclado(scroll: RefObject<ScrollView | null>) {
+export function useScrollAlMostrarTeclado(scroll: RefObject<RefScrollView | null>) {
   useEffect(() => {
     const evento = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
     const sub = Keyboard.addListener(evento, () =>

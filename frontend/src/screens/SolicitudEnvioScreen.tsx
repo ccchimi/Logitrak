@@ -21,10 +21,11 @@ import { useScrollAlMostrarTeclado } from "../hooks/useScrollAlMostrarTeclado";
 import ComposerBoxy from "../components/boxy/ComposerBoxy";
 import MensajeChat from "../components/boxy/MensajeChat";
 import BotonNuevaCotizacion from "../components/boxy/BotonNuevaCotizacion";
+import type { RefScrollView } from "../types/refs";
 
 export default function SolicitudEnvioScreen({ navigation }: any) {
   const tema = useTema();
-  const scrollRef = useRef<ScrollView | null>(null);
+  const scrollRef = useRef<RefScrollView | null>(null);
   const iniciado = useRef(false);
   const solicitoEnvio = useRef(false);
   const enviando = useRef(false);

@@ -3,10 +3,11 @@ import React from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { styles } from '../../styles/InicioStyles';
 import { plans } from '../../constants/contenidoInicio';
+import type { RefView } from '../../types/refs';
 
 type Props = {
   isMobile: boolean;
-  sectionRef: React.Ref<View>;
+  sectionRef: React.Ref<RefView>;
   onElegirPlan: () => void;
 };
 

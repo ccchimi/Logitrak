@@ -82,7 +82,7 @@ export const styles = StyleSheet.create({
 
   hero: { justifyContent: "center", width: "100%", overflow: "hidden" },
   heroOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: "rgba(0,0,0,0.7)",
   },
   heroContent: { paddingHorizontal: "15%", paddingVertical: 48, zIndex: 2 },

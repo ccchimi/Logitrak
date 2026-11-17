@@ -8,9 +8,10 @@ import type { DatosChofer, ErroresChofer } from "../../helpers/postulacion";
 import CampoFormulario from "../CampoFormulario";
 import Icono, { NombreIcono } from "../Icono";
 import { ORDEN_CAMPOS } from "./pasos";
+import type { RefTextInput } from "../../types/refs";
 
 export type RefsCampos = MutableRefObject<
-  Partial<Record<keyof DatosChofer, TextInput | null>>
+  Partial<Record<keyof DatosChofer, RefTextInput | null>>
 >;
 
 type Props = {

@@ -30,6 +30,7 @@ import SeccionFaq from "../components/inicio/SeccionFaq";
 import SeccionPlanes from "../components/inicio/SeccionPlanes";
 import SeccionTestimonios from "../components/inicio/SeccionTestimonios";
 import SeccionTracking from "../components/inicio/SeccionTracking";
+import type { RefScrollView, RefView } from "../types/refs";
 
 type SectionKey = "services" | "solutions" | "how" | "coverage" | "plans";
 
@@ -54,8 +55,8 @@ export default function Inicio({ onGoLogin }: InicioProps) {
   const [loginHover, setLoginHover] = useState(false);
   const [menuAbierto, setMenuAbierto] = useState(false);
 
-  const sectionRefs = useRef<Partial<Record<SectionKey, View | null>>>({});
-  const scrollRef = useRef<ScrollView | null>(null);
+  const sectionRefs = useRef<Partial<Record<SectionKey, RefView | null>>>({});
+  const scrollRef = useRef<RefScrollView | null>(null);
   const irArriba = () => {
     setMenuAbierto(false);
     scrollRef.current?.scrollTo({ y: 0, animated: !reducido });
@@ -75,7 +76,7 @@ export default function Inicio({ onGoLogin }: InicioProps) {
     onGoLogin();
   };
 
-  const guardarSeccion = (section: SectionKey) => (node: View | null) => {
+  const guardarSeccion = (section: SectionKey) => (node: RefView | null) => {
     sectionRefs.current[section] = node;
   };
 

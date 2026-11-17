@@ -30,7 +30,7 @@ export default function Interruptor({
       aria-checked={value}
       onPress={() => onValueChange(!value)}
       {...(Platform.OS === "web"
-        ? {
+        ? ({
             onKeyDown: (evento: {
               key: string;
               repeat: boolean;
@@ -41,7 +41,7 @@ export default function Interruptor({
                 if (!evento.repeat) onValueChange(!value);
               }
             },
-          }
+          } as object)
         : {})}
       style={({ pressed }) => [s.control, pressed && { opacity: 0.8 }]}
     >

@@ -24,6 +24,7 @@ import Transicion from "./Transicion";
 import { DISENO as D } from "../theme/diseno";
 import { useTema } from "../hooks/useTema";
 import { useMovimientoReducido } from "../hooks/useMovimientoReducido";
+import type { RefTextInput, RefView } from "../types/refs";
 
 const TITULOS: Record<CampoPerfil, string> = {
   nombreCompleto: "nombre completo",
@@ -52,8 +53,8 @@ export default function EditarPerfilModal({ campo, onClose, onSaved }: Props) {
   const [ocupado, setOcupado] = useState(false);
   const bloqueo = useRef(false);
   const vigente = useRef(true);
-  const input = useRef<TextInput>(null);
-  const cierre = useRef<View>(null);
+  const input = useRef<RefTextInput>(null);
+  const cierre = useRef<RefView>(null);
   const limitacion = limitacionEdicion(campo);
   useEffect(() => {
     vigente.current = true;

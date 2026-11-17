@@ -26,6 +26,7 @@ import PasoIdentidad from "../components/postulacion/PasoIdentidad";
 import PasoRevision from "../components/postulacion/PasoRevision";
 import ExitoPostulacion from "../components/postulacion/ExitoPostulacion";
 import { ORDEN_CAMPOS, PASOS } from "../components/postulacion/pasos";
+import type { RefScrollView } from "../types/refs";
 
 const ULTIMO_PASO = PASOS.length - 1;
 
@@ -53,7 +54,7 @@ export default function TrabajaConNosotrosScreen({ navigation }: any) {
   const [escaneo, setEscaneo] = useState<ResultadoEscaneo | null>(null);
   const bloqueo = useRef(false);
   const vivo = useRef(true);
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<RefScrollView>(null);
   const inputs: RefsCampos = useRef({});
   const encabezado = useRef<Text>(null);
 

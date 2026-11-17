@@ -31,7 +31,9 @@ export default function Confirmacion({
       transparent
       visible={visible}
       animationType={reducido ? "none" : "fade"}
-      onRequestClose={() => !ocupado && onCancelar()}
+      onRequestClose={() => {
+        if (!ocupado) onCancelar();
+      }}
     >
       <View style={tema.estilo(s.overlay)}>
         <View style={tema.estilo(s.dialog)}>

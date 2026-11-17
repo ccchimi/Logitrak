@@ -87,7 +87,7 @@ La persistencia incluye usuarios, sesiones, choferes, vehículos, cotizaciones, 
 
 | Área | Tecnologías |
 |---|---|
-| Aplicación | Expo SDK 54, React Native 0.81.5, React 19.1 y TypeScript 5.9 |
+| Aplicación | Expo SDK 58, React Native 0.88, React 19.3 y TypeScript 6.0 |
 | Navegación y web | React Navigation 7 y `react-native-web` |
 | UI y recursos | Componentes propios, fuentes Poppins, Syne y DM Sans; Material Icons |
 | Mapas y ubicación | `react-native-maps`, Google Maps JavaScript, Directions y `expo-location` |
@@ -109,7 +109,7 @@ Los módulos nativos de detección facial y prueba de vida requieren un build de
 
 ### Requisitos
 
-- **Node.js 22.12.0 o superior**, según `backend/package.json`; los workflows usan Node 22.
+- **Node.js 22.13.0 o superior**: lo pide Expo SDK 58 (el backend declara 22.12.0); los workflows usan Node 22.
 - npm y Git.
 - PostgreSQL propio o un entorno de desarrollo/staging de Supabase para ejecutar el backend.
 - Herramientas nativas de Android o iOS si se va a generar un build local móvil.

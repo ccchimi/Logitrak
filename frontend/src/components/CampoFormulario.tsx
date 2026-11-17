@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { DISENO as D } from "../theme/diseno";
 import Icono, { NombreIcono } from "./Icono";
+import type { RefTextInput } from "../types/refs";
 
 type Props = TextInputProps & {
   label: string;
@@ -17,7 +18,7 @@ type Props = TextInputProps & {
   obligatorio?: boolean;
   icono?: NombreIcono;
 };
-const CampoFormulario = forwardRef<TextInput, Props>(function CampoFormulario(
+const CampoFormulario = forwardRef<RefTextInput, Props>(function CampoFormulario(
   { label, error, ayuda, obligatorio, icono, style, onFocus, onBlur, ...props },
   ref,
 ) {

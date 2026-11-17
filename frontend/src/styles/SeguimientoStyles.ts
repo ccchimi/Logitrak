@@ -56,7 +56,7 @@ export const styles = StyleSheet.create({
     },
 
     mapa: {
-        ...StyleSheet.absoluteFillObject,
+        ...StyleSheet.absoluteFill,
     },
 
     headerFlotante: {

@@ -14,7 +14,7 @@ Las funciones que requieren sesión, datos, mapas, pagos o notificaciones depend
 
 | Área | Implementación actual |
 |---|---|
-| Base | Expo SDK 54, React Native 0.81.5, React 19.1 y TypeScript 5.9 |
+| Base | Expo SDK 58, React Native 0.88, React 19.3 y TypeScript 6.0 |
 | Navegación | React Navigation 7, stack nativo y contexto de flujo raíz |
 | Web | `react-native-web` y exportación estática de Expo |
 | UI | Componentes propios, `expo-linear-gradient`, fuentes Poppins, Syne y DM Sans, Material Icons |
@@ -139,7 +139,7 @@ La postulación de chofer combina datos personales, vehículo, lectura del DNI y
 
 ## Requisitos y configuración
 
-Usá **Node.js 22.12.0 o superior** para trabajar con la versión actual del repositorio. Los workflows usan Node 22 y el backend declara ese mínimo. Hace falta una API alcanzable; no es obligatorio ejecutar el backend local para trabajar en frontend.
+Usá **Node.js 22.13.0 o superior**, el mínimo de Expo SDK 58. Los workflows usan Node 22. Hace falta una API alcanzable; no es obligatorio ejecutar el backend local para trabajar en frontend.
 
 Desde la raíz del repositorio:
 

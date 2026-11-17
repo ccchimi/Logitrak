@@ -313,7 +313,7 @@ const s = StyleSheet.create({
     backgroundColor: "#1D1D1D",
   },
   newsArtwork: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     width: "100%",
     height: "100%",
   },

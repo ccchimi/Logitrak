@@ -32,6 +32,7 @@ import EliminarCuentaModal from "../components/EliminarCuentaModal";
 import Confirmacion from "../components/Confirmacion";
 import Transicion from "../components/Transicion";
 import { esPersonal, NOMBRE_ROL, puede } from "../services/permisos";
+import type { RefView } from "../types/refs";
 
 export default function PerfilScreen({ navigation }: any) {
   const tema = useTema();
@@ -55,7 +56,7 @@ export default function PerfilScreen({ navigation }: any) {
   const bloqueoReset = useRef(false);
   const vigente = useRef(true);
   const ultimoControl = useRef<any>(null);
-  const dialogoAviso = useRef<View>(null);
+  const dialogoAviso = useRef<RefView>(null);
   useEffect(() => {
     if (!aviso) return;
     const frame = requestAnimationFrame(() => dialogoAviso.current?.focus());

@@ -20,7 +20,7 @@ El pago directo con tarjeta es simulado, la edición de varios datos de perfil e
 
 | Área | Implementación |
 |---|---|
-| Aplicación | Expo SDK 54, React Native 0.81.5, React 19.1 y TypeScript 5.9 |
+| Aplicación | Expo SDK 58, React Native 0.88, React 19.3 y TypeScript 6.0 |
 | Navegación | React Navigation 7 y stack nativo |
 | Desarrollo nativo | `expo-dev-client` y comandos `expo run:android` / `expo run:ios` |
 | Mapas y ubicación | `react-native-maps`, `expo-location` y recorridos solicitados al backend |
@@ -43,11 +43,11 @@ Las claves de mapas, certificados, credenciales de notificaciones y firma deben 
 
 Para ambas plataformas:
 
-- Git, npm y **Node.js 22.12.0 o superior** para trabajar con esta versión del repositorio.
+- Git, npm y **Node.js 22.13.0 o superior**, el mínimo de Expo SDK 58.
 - Una API de desarrollo alcanzable desde el teléfono o emulador; no es necesario iniciar el backend local si ya existe ese entorno.
 - Un dispositivo o emulador compatible. Cámara, documentos, ubicación y push deben validarse también en dispositivos físicos cuando corresponda.
 
-Para compilar localmente en Android, necesitás Android Studio, Android SDK, JDK y un emulador configurado o un teléfono con depuración USB habilitada. Usá versiones compatibles con Expo SDK 54.
+Para compilar localmente en Android, necesitás Android Studio, Android SDK, JDK y un emulador configurado o un teléfono con depuración USB habilitada. Usá versiones compatibles con Expo SDK 58.
 
 Para compilar localmente en iOS, necesitás macOS, Xcode, sus herramientas de línea de comandos y dependencias nativas, incluido CocoaPods. La ejecución en dispositivo requiere configurar la firma. Las credenciales de Apple/APNs y los requisitos de distribución deben resolverse según el tipo de build.
 
@@ -129,6 +129,18 @@ npm run ios
 El script invoca `expo run:ios`. El destino físico y las capacidades de plataforma pueden requerir pasos adicionales de Xcode y firma. Tras instalar un build de desarrollo, usá `npx expo start --dev-client` para iniciar Metro cuando sea necesario.
 
 Antes de distribuir un build iOS, verificá en el proyecto remoto la firma, las credenciales APNs y el tipo de distribución, y completá el recorrido funcional en el dispositivo de destino.
+
+## Probar en un iPhone con Expo Go
+
+Sin un build propio de iOS, la app se puede abrir en un iPhone con Expo Go, la app de Expo del App Store (tiene que ser la versión de SDK 58). Desde `frontend/`:
+
+```bash
+npx expo start --go
+```
+
+El parámetro `--go` es necesario: como el proyecto tiene `expo-dev-client`, `npx expo start` arma por defecto un QR para el build de desarrollo, y la cámara del iPhone responde que no encontró datos utilizables. Con `--go`, el QR abre Expo Go. El teléfono y la computadora tienen que estar en la misma red; si no, usá `npx expo start --go --tunnel`, que requiere `npx expo login`.
+
+En Expo Go no funcionan las notificaciones push ni la prueba de vida con ML Kit, que necesitan un build propio. Para recorrer la app completa en iOS hace falta un build de EAS, con la firma y las credenciales de Apple.
 
 ## Alternativa: compilar con EAS
 

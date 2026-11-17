@@ -44,6 +44,7 @@ import {
     ESTADO_TICKET_TEXTO,
     styles,
 } from '../styles/SoporteStyles';
+import type { RefScrollView } from "../types/refs";
 
 const TIPOS_ACEPTADOS = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'application/pdf'];
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -158,7 +159,7 @@ export default function SoporteScreen({ navigation }: any) {
     const [enviando, setEnviando] = useState(false);
     const [enVivo, setEnVivo] = useState(false);
 
-    const scrollRef = useRef<ScrollView | null>(null);
+    const scrollRef = useRef<RefScrollView | null>(null);
     const intentosRef = useRef(0);
     const envioRef = useRef<string | null>(null);
 

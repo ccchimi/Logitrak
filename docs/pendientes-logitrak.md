@@ -64,12 +64,13 @@ y verificado se saca de acá; el historial queda en los commits.
     tenemos guardado de él. Y un trabajo periódico que borre del Storage los
     archivos que hayan quedado si la eliminación no pudo borrarlos en el momento
     (hoy solo se registra en el log).
-15. Actualizar Expo de SDK 54 a la versión vigente. En el Hito 0.6 quedaron
-    corregidas todas las vulnerabilidades críticas y las del backend; las 21
-    restantes del frontend (1 alta) están en las herramientas de build de Expo
-    (`@expo/cli`, metro, `image-size`), no en el código que llega al teléfono, y
-    su arreglo exige el salto de SDK. Conviene hacerlo de a una versión, con
-    `npx expo install --fix`, probando el mapa, la cámara y la detección facial.
+15. Builds nativos después del salto a Expo SDK 58. La app pasó de SDK 54 a
+    58 de a una versión (React Native 0.88, New Architecture obligatoria). Falta
+    generar un build de desarrollo nuevo de Android, porque el instalado es de
+    SDK 54, y probar en el teléfono la cámara, el mapa y la prueba de vida con
+    `@react-native-ml-kit/face-detection`, que no figura como probada con la New
+    Architecture. Quedan 6 vulnerabilidades moderadas en herramientas de build
+    (`glob`, `minimatch`), ninguna en el código que llega al teléfono.
 16. Contraseñas de los admins de producción. El código ya no siembra admins
     con contraseña conocida: si la base no tiene ninguno, crea el primero con
     `ADMIN_INICIAL_USUARIO` y `ADMIN_INICIAL_CONTRASENA`. Las cuentas que ya

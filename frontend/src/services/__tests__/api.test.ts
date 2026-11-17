@@ -19,14 +19,14 @@ jest.mock('../monitoreo', () => ({
     registrarFallaApi: jest.fn(),
 }));
 
-const fetchOriginal = global.fetch;
+const fetchOriginal = globalThis.fetch;
 
 beforeEach(() => {
     jest.useFakeTimers();
 });
 
 afterEach(() => {
-    global.fetch = fetchOriginal;
+    globalThis.fetch = fetchOriginal;
     jest.useRealTimers();
 });
 
@@ -36,7 +36,7 @@ test('termina una solicitud sin respuesta y permite una nueva solicitud', async 
             opciones.signal.addEventListener('abort', () => reject(new Error('Abortado')));
         })
     );
-    global.fetch = fetchSimulado;
+    globalThis.fetch = fetchSimulado;
 
     const solicitud = llamarApi('/api/auth/registro', {
         metodo: 'POST',
@@ -58,7 +58,7 @@ test('termina una solicitud sin respuesta y permite una nueva solicitud', async 
 });
 
 test('conserva los errores de validación del backend y limpia el temporizador', async () => {
-    global.fetch = jest.fn().mockResolvedValue({
+    globalThis.fetch = jest.fn().mockResolvedValue({
         json: async () => ({ exito: false, error: 'El usuario ya existe.' }),
     });
 
@@ -87,7 +87,7 @@ test('renueva el token vencido y reintenta el pedido con el token nuevo', async 
         .mockResolvedValueOnce(tokenVencido())
         .mockResolvedValueOnce({ ok: true, json: async () => ({ token: 'nuevo', refreshToken: 'refresh2', usuario }) })
         .mockResolvedValueOnce({ status: 200, json: async () => ({ exito: true }) });
-    global.fetch = llamar;
+    globalThis.fetch = llamar;
     expect(await llamarApi('/api/admin/usuarios', { conAuth: true })).toEqual({ exito: true });
     expect(llamar.mock.calls[1][0]).toMatch(/\/api\/auth\/refresh$/);
     expect(llamar.mock.calls[2][1].headers.Authorization).toBe('Bearer nuevo');
@@ -97,7 +97,7 @@ test('renueva el token vencido y reintenta el pedido con el token nuevo', async 
 
 test('el límite de espera también cubre la renovación y conserva la sesión', async () => {
     guardarSesion('viejo', usuario, 'refresh1');
-    global.fetch = jest.fn().mockResolvedValueOnce(tokenVencido())
+    globalThis.fetch = jest.fn().mockResolvedValueOnce(tokenVencido())
         .mockImplementationOnce((_url, opciones) => new Promise((_resolve, reject) => {
             opciones.signal.addEventListener('abort', () => reject(new Error('Abortado')));
         }));
@@ -112,8 +112,8 @@ test('el límite de espera también cubre la renovación y conserva la sesión',
 test('no repite la eliminación de cuenta si el servidor rechaza la contraseña', async () => {
     guardarSesion('actual', usuario, 'refresh1');
     const rechazo = { exito: false, error: 'La contraseña no es correcta.' };
-    global.fetch = jest.fn().mockResolvedValue({ status: 401, json: async () => rechazo });
+    globalThis.fetch = jest.fn().mockResolvedValue({ status: 401, json: async () => rechazo });
     expect(await llamarApi('/api/perfil/eliminar-cuenta', { metodo: 'POST', conAuth: true })).toEqual(rechazo);
-    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
     cerrarSesion();
 });

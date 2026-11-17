@@ -361,7 +361,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     justifyContent: "center",
     alignItems: "center",
   },

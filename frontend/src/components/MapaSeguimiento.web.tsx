@@ -385,7 +385,7 @@ const estilos = StyleSheet.create({
     },
 
     overlay: {
-        ...StyleSheet.absoluteFillObject,
+        ...StyleSheet.absoluteFill,
         backgroundColor: '#0E0E0E',
         alignItems: 'center',
         justifyContent: 'center',
