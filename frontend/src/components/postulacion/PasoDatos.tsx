@@ -3,6 +3,7 @@ import { Text, TextInput, View } from "react-native";
 import { useTema } from "../../hooks/useTema";
 import { DISENO as D } from "../../theme/diseno";
 import { styles as s } from "../../styles/PostulacionStyles";
+import { normalizarDni } from "../../helpers/postulacion";
 import type { DatosChofer, ErroresChofer } from "../../helpers/postulacion";
 import CampoFormulario from "../CampoFormulario";
 import Icono, { NombreIcono } from "../Icono";
@@ -79,9 +80,8 @@ export default function PasoDatos({
         {campo("dni", "DNI", "Sin puntos", "card", {
           keyboardType: "number-pad",
           inputMode: "numeric",
-          maxLength: 8,
           autoCapitalize: "none",
-          onChangeText: (valor) => onCambiar("dni", valor.replace(/\D/g, "")),
+          onChangeText: (valor) => onCambiar("dni", normalizarDni(valor)),
         })}
       </View>
       <View style={tema.estilo([s.fieldRow, !columnas && s.vertical])}>

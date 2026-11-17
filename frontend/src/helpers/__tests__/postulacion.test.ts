@@ -1,4 +1,4 @@
-import { DatosChofer, validarDatosChofer } from "../postulacion";
+import { DatosChofer, normalizarDni, validarDatosChofer } from "../postulacion";
 const datos: DatosChofer = {
   nombreCompleto: "Laura Prueba",
   email: "laura@example.com",
@@ -57,5 +57,20 @@ describe("Validación previa a la postulación", () => {
     expect(
       validarDatosChofer({ ...datos, telefono: "+54 (11) 12" }).telefono,
     ).toBeDefined();
+  });
+});
+describe("Normalización del DNI mientras se escribe", () => {
+  test("acepta el DNI con puntos o espacios y conserva los 8 dígitos", () => {
+    expect(normalizarDni("30.123.456")).toBe("30123456");
+    expect(normalizarDni("30 123 456")).toBe("30123456");
+    expect(normalizarDni("7.654.321")).toBe("7654321");
+  });
+  test("descarta letras y signos, y corta en 8 dígitos", () => {
+    expect(normalizarDni("DNI: 30-123-456")).toBe("30123456");
+    expect(normalizarDni("301234567890")).toBe("30123456");
+    expect(normalizarDni("")).toBe("");
+  });
+  test("el DNI pegado con puntos queda válido", () => {
+    expect(validarDatosChofer({ ...datos, dni: normalizarDni("30.123.456") }).dni).toBeUndefined();
   });
 });

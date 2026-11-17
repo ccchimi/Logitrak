@@ -8,6 +8,12 @@ export type DatosChofer = {
 export type ErroresChofer = Partial<
   Record<keyof DatosChofer | "vehiculoId" | "identidad", string>
 >;
+export const DIGITOS_DNI = 8;
+
+export function normalizarDni(valor: string): string {
+  return valor.replace(/\D/g, "").slice(0, DIGITOS_DNI);
+}
+
 export function validarDatosChofer(datos: DatosChofer): ErroresChofer {
   const errores: ErroresChofer = {};
   if (datos.nombreCompleto.trim().length < 5)
