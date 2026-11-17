@@ -33,7 +33,9 @@ avanza por los estados `pendiente`, `asignado`, `en_viaje`, `entregado` o `cance
 hito de ese recorrido queda como una fila en `envio_eventos`, que es lo que
 alimenta la línea de tiempo del seguimiento. Los viajes que toma cada chofer se
 registran en `asignaciones`, los cobros en `pagos` y las compensaciones por SLA
-incumplido en `cupones`. También se registran sesiones, tickets y mensajes de
+incumplido en `cupones`. Cuando el envío se entrega, el cliente puede dejar una
+calificación del chofer en `valoraciones` (una por envío, de 1 a 5 estrellas y
+con comentario opcional). También se registran sesiones, tickets y mensajes de
 soporte, eventos outbox, notificaciones y tokens push. El estado de pago se
 mantiene separado del estado logístico. Las migraciones, no un diagrama o un
 README histórico, definen el esquema vigente.
@@ -290,6 +292,7 @@ garantía de entrega en tres segundos.
 | `envio.eliminado_sin_pago` | Limpieza de impagos vencidos | Aviso al cliente para volver a cotizar |
 | `envio.asignado` | El chofer toma el envío | Aviso al cliente |
 | `envio.entregado` | Confirmación con PIN y foto | Aviso al cliente con acceso al detalle |
+| `envio.valorado` | El cliente califica un envío entregado | Aviso al chofer con las estrellas y si hay comentario |
 
 Los payloads llevan ids, códigos y montos, nunca nombres ni direcciones. Las
 notificaciones (`notificaciones`) son la bandeja de cada usuario en la app y se
@@ -501,9 +504,10 @@ un control equivalente en el frontend.
 | POST | `/api/envios` | Crea pedido desde cotización y comprueba titularidad. |
 | GET | `/api/envios` | Lista según acceso y `estado`; hasta 200 registros, sin paginación general. |
 | GET | `/api/envios/metricas` | Totales por estado según alcance del usuario. |
-| GET | `/api/envios/:codigo` | Detalle, eventos y datos de entrega; controla acceso al envío. |
+| GET | `/api/envios/:codigo` | Detalle, eventos, datos de entrega, calificación del envío y promedio del chofer; controla acceso al envío. |
 | POST | `/api/envios/:codigo/eventos` | Avances permitidos del chofer asignado o admin; no cierra entregas ni cancela. |
 | POST | `/api/envios/:codigo/cancelar` | Cancelación por el cliente dueño, mientras el envío está pendiente y sin chofer. Devuelve el importe si estaba pago o anula los intentos de pago pendientes; con un pago en curso en la pasarela responde 409. |
+| POST | `/api/envios/:codigo/valoracion` | Calificación del chofer por el cliente dueño: `puntaje` entero de 1 a 5 y `comentario` opcional de hasta 500 caracteres. Solo con el envío entregado (409 si no) y una sola vez (409 si se repite). |
 | POST | `/api/envios/:codigo/pin/desbloquear` | Desbloqueo de PIN; permiso `envios.desbloquear_pin`. |
 | POST | `/api/envios/:codigo/reembolsar` | Solicita devolución; permiso `envios.reembolsar`. |
 | POST | `/api/envios/:codigo/archivar` | Operación administrativa sobre envío, con opciones y validaciones de devolución; permiso `envios.archivar`. |
@@ -511,6 +515,7 @@ un control equivalente en el frontend.
 | GET | `/api/asignaciones/disponibles` | Ofertas vigentes compatibles; solo chofer. |
 | POST | `/api/asignaciones/:codigoEnvio/tomar` | Toma una oferta con control de concurrencia; solo chofer. |
 | GET | `/api/asignaciones/activa` | Asignación en curso del chofer. |
+| GET | `/api/asignaciones/reputacion` | Promedio, cantidad, distribución por estrellas y últimas 5 calificaciones del chofer; solo chofer. |
 | POST | `/api/asignaciones/:codigo/completar` | PIN y foto para cerrar la asignación del chofer. |
 | GET | `/api/asignaciones` | Historial de asignaciones del chofer. |
 | GET | `/api/recorridos` | Ruta entre coordenadas; sesión, validación, caché y límite de consultas. |
@@ -889,6 +894,8 @@ sola los plazos de conservación. En una transacción:
   el borrado de archivos en Storage se intenta después de confirmar la transacción;
 - los envíos sin pagar se cancelan, y en envíos y cotizaciones se borran
   direcciones, coordenadas y descripción de la carga; el precio queda;
+- en las calificaciones que dejó se borra el comentario y queda el puntaje,
+  para que el promedio del chofer no cambie;
 - los pagos conservan monto, estado y comprobante, pero el detalle del pagador
   y los últimos dígitos de la tarjeta se descartan;
 - se borran tickets de soporte y se reúnen sus adjuntos para intentar el borrado externo;

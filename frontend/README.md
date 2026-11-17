@@ -78,12 +78,12 @@ No debe confundirse este motor con las propuestas de predicción logística del 
 | `Home` | Inicio de cliente o panel operativo para cuentas con permiso de consultar todos los envíos. |
 | `SolicitudEnvio` | Conversación con Boxy y confirmación de cotización. |
 | `Pago` | Checkout de Mercado Pago y formulario de tarjeta simulada. |
-| `Seguimiento`, `DetalleEnvio` | Mapa, estado, eventos, datos del chofer y comprobante de entrega. |
+| `Seguimiento`, `DetalleEnvio` | Mapa, estado, eventos, datos del chofer con su promedio de calificaciones, comprobante de entrega y la calificación del envío. |
 | `Historial` | Consulta de los envíos disponibles para la cuenta. |
 | `Perfil` | Datos, cambio de contraseña, preferencias, cierre de sesión y eliminación de cuenta según restricciones. |
 | `Cuponera` | Consulta de cupones acreditados. |
 | `TrabajaConNosotros` | Formulario de postulación por pasos, vehículo, DNI y selfie. |
-| `Chofer` | Ofertas filtradas por peso y bultos del vehículo, asignación, avances y cierre de viaje. |
+| `Chofer` | Ofertas filtradas por peso y bultos del vehículo, asignación, avances, cierre de viaje y la tarjeta "Tu calificación" con su promedio y los últimos comentarios. |
 | `Estadisticas` | Estadísticas disponibles para el flujo del chofer. |
 | `TodosPedidos` | Consulta operativa de pedidos con filtros y búsqueda. |
 | `UsuariosAdmin` | Usuarios con filtros, paginación y cambio de roles según permisos. |
@@ -106,6 +106,7 @@ El chofer inicia en su consola. El acceso operativo se decide por capacidades de
 - El navegador utiliza `MapaSeguimiento.web.tsx`, con Google Maps JavaScript y una clave restringida por origen web. El mapa calcula una ruta; el movimiento del marcador del chofer es una animación de demostración, no su posición GPS real.
 - El seguimiento escucha cambios de estados y eventos con Realtime cuando está disponible. Mantiene consultas de respaldo cada 60 segundos con la conexión activa y cada 10 segundos sin ella. Estas actualizaciones no transmiten GPS continuo del chofer al mapa.
 - El chofer confirma la entrega con el PIN informado por el receptor y una foto, mediante el servicio de asignaciones. El PIN y su bloqueo los controla el backend.
+- Con el envío entregado, el detalle le muestra al cliente la tarjeta "¿Cómo fue la entrega?" (`components/envio/TarjetaValoracion.tsx`): elige de 1 a 5 estrellas, cada una con su nombre (Mala a Excelente) y accesible como grupo de opciones, y puede dejar un comentario de hasta 500 caracteres. Se califica una sola vez; después queda a la vista como "Tu calificación". El chofer ve su promedio y la distribución en `components/chofer/TarjetaReputacion.tsx`, que se recarga al cerrar cada entrega. Los textos y el formato del promedio están en `helpers/valoraciones.ts`.
 - Soporte combina Realtime con consultas periódicas. La bandeja de notificaciones y el push son mecanismos distintos.
 - La Web App dispone de la bandeja de notificaciones, pero `pushService.ts` omite el registro push en web. La configuración de notificaciones nativas está en la guía mobile.
 

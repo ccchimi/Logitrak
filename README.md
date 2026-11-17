@@ -21,8 +21,8 @@ El sistema tiene cuatro roles. Los permisos efectivos se comprueban en el backen
 
 | Rol | Acceso y funciones principales |
 |---|---|
-| `cliente` | Se registra en la aplicación. Cotiza con Boxy, crea y paga pedidos, consulta seguimiento, historial, cupones, notificaciones y soporte. |
-| `chofer` | Se obtiene mediante la postulación y verificación de identidad. Consulta ofertas filtradas por peso y bultos de su vehículo, toma viajes, registra avances y confirma entregas. |
+| `cliente` | Se registra en la aplicación. Cotiza con Boxy, crea y paga pedidos, consulta seguimiento, historial, cupones, notificaciones y soporte, y califica al chofer cuando recibe el envío. |
+| `chofer` | Se obtiene mediante la postulación y verificación de identidad. Consulta ofertas filtradas por peso y bultos de su vehículo, toma viajes, registra avances y confirma entregas. Ve su promedio de calificaciones y los comentarios de los clientes. |
 | `soporte` | Lo asigna un administrador. Accede al panel operativo, consulta envíos, usuarios, cotizaciones y pagos; atiende consultas y puede desbloquear un PIN de entrega. |
 | `admin` | Si la base no tiene ningún admin, el primero se crea al arrancar con `ADMIN_INICIAL_USUARIO` y `ADMIN_INICIAL_CONTRASENA`; los demás los nombra otro administrador desde Usuarios. Tiene las capacidades de soporte y permisos adicionales sobre reembolsos, roles, documentación y mantenimiento. |
 
@@ -81,7 +81,7 @@ flowchart TD
 
 Las rutas principales de la API se agrupan bajo `/api/auth`, `/api/perfil`, `/api/choferes`, `/api/vehiculos`, `/api/cotizaciones`, `/api/envios`, `/api/asignaciones`, `/api/pagos`, `/api/cupones`, `/api/admin`, `/api/soporte`, `/api/recorridos` y `/api/notificaciones`. El detalle está en el [README del backend](backend/README.md).
 
-La persistencia incluye usuarios, sesiones, choferes, vehículos, cotizaciones, envíos, asignaciones, eventos, pagos, cupones, soporte y notificaciones. Las migraciones son la referencia para la estructura de la base.
+La persistencia incluye usuarios, sesiones, choferes, vehículos, cotizaciones, envíos, asignaciones, eventos, pagos, cupones, calificaciones de los choferes, soporte y notificaciones. Las migraciones son la referencia para la estructura de la base.
 
 ### Tecnologías principales
 

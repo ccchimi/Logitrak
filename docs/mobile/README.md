@@ -10,7 +10,7 @@ La Mobile App usa Expo, React Native y TypeScript y comparte el código de [`fro
 
 ## Funcionalidades y alcance
 
-El código móvil contempla registro e inicio de sesión, cotización con Boxy, pago y seguimiento de envíos, historial, perfil, cupones, soporte y notificaciones. El flujo de chofer incluye postulación, DNI, selfie, vehículo, ofertas filtradas por peso y bultos, avances y entrega con PIN y foto. Soporte y administración acceden a las pantallas y operaciones que permiten sus capacidades.
+El código móvil contempla registro e inicio de sesión, cotización con Boxy, pago y seguimiento de envíos, calificación del chofer, historial, perfil, cupones, soporte y notificaciones. El flujo de chofer incluye postulación, DNI, selfie, vehículo, ofertas filtradas por peso y bultos, avances, entrega con PIN y foto, y su promedio de calificaciones. Soporte y administración acceden a las pantallas y operaciones que permiten sus capacidades.
 
 Estas funciones dependen del backend y de la configuración de cada integración. Para validar cada versión, seguí las comprobaciones de esta guía y registrá los resultados por plataforma y tipo de build.
 
