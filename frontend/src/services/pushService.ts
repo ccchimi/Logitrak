@@ -1,13 +1,18 @@
-import Constants from 'expo-constants';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as Device from 'expo-device';
-import * as Notifications from 'expo-notifications';
+import type * as ModuloNotificaciones from 'expo-notifications';
 import { Platform } from 'react-native';
 import { hayToken, llamarApi, obtenerUsuarioSesion } from './api';
 import { avisarCambio, destinoDeNotificacion } from './notificacionesService';
 
 let tokenActual: string | null = null;
 
-if (Platform.OS !== 'web') {
+const enExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+
+const Notifications: typeof ModuloNotificaciones | null =
+    Platform.OS === 'web' || enExpoGo ? null : require('expo-notifications');
+
+if (Notifications) {
     Notifications.setNotificationHandler({
         handleNotification: async () => ({
             shouldShowBanner: true,
@@ -19,7 +24,7 @@ if (Platform.OS !== 'web') {
 }
 
 export async function registrarTelefono(): Promise<boolean> {
-    if (Platform.OS === 'web' || !Device.isDevice) return false;
+    if (!Notifications || !Device.isDevice) return false;
     try {
         if (Platform.OS === 'android') {
             await Notifications.setNotificationChannelAsync('default', {
@@ -57,7 +62,7 @@ export async function darDeBajaTelefono(): Promise<void> {
 
 type Navegar = (ruta: string, params?: Record<string, unknown>) => void;
 
-function abrirDesdePush(respuesta: Notifications.NotificationResponse | null, navegar: Navegar) {
+function abrirDesdePush(respuesta: ModuloNotificaciones.NotificationResponse | null, navegar: Navegar) {
     if (!respuesta || !hayToken()) return;
     const datos = respuesta.notification.request.content.data as { tipo?: string; envioCodigo?: string } | undefined;
     const destino = destinoDeNotificacion(datos, obtenerUsuarioSesion()?.rol);
@@ -65,7 +70,7 @@ function abrirDesdePush(respuesta: Notifications.NotificationResponse | null, na
 }
 
 export function escucharPush(navegar: Navegar): () => void {
-    if (Platform.OS === 'web') return () => {};
+    if (!Notifications) return () => {};
     const toque = Notifications.addNotificationResponseReceivedListener((r) => abrirDesdePush(r, navegar));
     const llegada = Notifications.addNotificationReceivedListener(() => void avisarCambio());
     void Notifications.getLastNotificationResponseAsync()

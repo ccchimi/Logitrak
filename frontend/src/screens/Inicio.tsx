@@ -1,7 +1,7 @@
 import { useTema } from "../hooks/useTema";
 import React, { useRef, useState } from "react";
 import {
-  ImageBackground,
+  Image,
   Pressable,
   ScrollView,
   Text,
@@ -199,11 +199,13 @@ export default function Inicio({ onGoLogin }: InicioProps) {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <ImageBackground
-          source={require("../../assets/hero-warehouse.jpg")}
-          resizeMode="cover"
-          style={tema.estilo([styles.hero, { minHeight: height - navH }])}
-        >
+        <View style={tema.estilo([styles.hero, { minHeight: height - navH }])}>
+          <Image
+            source={require("../../assets/hero-warehouse.jpg")}
+            resizeMode="cover"
+            style={styles.heroImagen}
+            accessible={false}
+          />
           <View style={styles.heroOverlay} />
 
           <View
@@ -237,7 +239,7 @@ export default function Inicio({ onGoLogin }: InicioProps) {
               </TouchableOpacity>
             </View>
           </View>
-        </ImageBackground>
+        </View>
 
         <View style={tema.estilo(styles.statsBand)}>
           <View style={tema.estilo([styles.statsBar, isMobile && styles.column])}>

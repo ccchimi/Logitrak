@@ -81,6 +81,7 @@ export const styles = StyleSheet.create({
   navCtaTextHover: { color: COLORS.black },
 
   hero: { justifyContent: "center", width: "100%", overflow: "hidden" },
+  heroImagen: { ...StyleSheet.absoluteFill, width: "100%", height: "100%" },
   heroOverlay: {
     ...StyleSheet.absoluteFill,
     backgroundColor: "rgba(0,0,0,0.7)",
