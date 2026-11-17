@@ -9,6 +9,7 @@ export interface Cupon {
     estado: 'activo' | 'usado' | 'vencido';
     creadoEn: string;
     usadoEn: string | null;
+    usadoEnvioCodigo?: string | null;
 }
 
 export async function listarCupones(): Promise<Cupon[]> {

@@ -155,4 +155,98 @@ describe('/api/pagos (integración)', { skip: SALTEAR }, () => {
             assert.match(r.headers['content-type'], /text\/html/);
         });
     });
+
+    describe('cupones al pagar', () => {
+        const nuevoCupon = async (s, pct = 10) =>
+            (await e.pool.query(
+                `INSERT INTO cupones (cliente_id, descuento_pct, motivo) VALUES ($1, $2, 'Cupón de prueba') RETURNING *`,
+                [s.perfil.id, pct]
+            )).rows[0];
+        const cupon = async (id) => (await e.pool.query('SELECT * FROM cupones WHERE id = $1', [id])).rows[0];
+        const precioDe = async (codigo) => Number((await e.pool.query('SELECT precio FROM envios WHERE codigo = $1', [codigo])).rows[0].precio);
+        const tarjeta = (s, envioCodigo, extra = {}) =>
+            e.http('post', '/api/pagos/tarjeta', { token: s.token }).send({ envioCodigo, ...TARJETA, ...extra });
+
+        test('con tarjeta: cobra con el descuento, guarda el descuento y consume el cupón', async () => {
+            const s = await e.cuenta('pag.cup.tar');
+            const env = await e.crearEnvio(s, { pagar: false });
+            const c = await nuevoCupon(s, 10);
+            const precio = await precioDe(env.codigo);
+
+            const r = await tarjeta(s, env.codigo, { cuponCodigo: c.codigo.toLowerCase() });
+            assert.equal(r.status, 201, JSON.stringify(r.body));
+            assert.equal(r.body.pago.monto, Math.round(precio * 90) / 100);
+            assert.equal(r.body.pago.descuento, Math.round(precio * 10) / 100);
+
+            const usado = await cupon(c.id);
+            assert.equal(usado.estado, 'usado');
+            assert.equal(usado.usado_envio_id, env.id);
+            const lista = await e.http('get', '/api/cupones', { token: s.token });
+            const publicado = lista.body.cupones.find((x) => x.codigo === c.codigo);
+            assert.equal(publicado.estado, 'usado');
+            assert.equal(publicado.usadoEnvioCodigo, env.codigo);
+
+            const otro = await e.crearEnvio(s, { pagar: false });
+            const repetido = await tarjeta(s, otro.codigo, { cuponCodigo: c.codigo });
+            assert.equal(repetido.status, 409);
+            assert.equal(repetido.body.codigo, 'cupon_no_disponible');
+        });
+
+        test('un cupón ajeno o inexistente no se aplica; un pago rechazado no lo consume', async () => {
+            const a = await e.cuenta('pag.cup.a');
+            const b = await e.cuenta('pag.cup.b');
+            const env = await e.crearEnvio(b, { pagar: false });
+            const deA = await nuevoCupon(a);
+            assert.equal((await tarjeta(b, env.codigo, { cuponCodigo: deA.codigo })).body.codigo, 'cupon_inexistente');
+            assert.equal((await tarjeta(b, env.codigo, { cuponCodigo: 'SLA-INCUMP-999999' })).status, 404);
+
+            const propio = await nuevoCupon(b);
+            const rechazada = await tarjeta(b, env.codigo, { numero: '4000000000000002', cuponCodigo: propio.codigo });
+            assert.equal(rechazada.status, 402);
+            assert.equal((await cupon(propio.id)).estado, 'activo');
+        });
+
+        test('con checkout: queda reservado mientras el pago está en curso y se consume al aprobarse', async () => {
+            const s = await e.cuenta('pag.cup.mp');
+            const env = await e.crearEnvio(s, { pagar: false });
+            const otro = await e.crearEnvio(s, { pagar: false });
+            const c = await nuevoCupon(s, 20);
+            const precio = await precioDe(env.codigo);
+            const checkout = (envioCodigo, cuponCodigo) =>
+                e.http('post', '/api/pagos/checkout', { token: s.token }).send({ envioCodigo, metodo: 'mercadopago', cuponCodigo });
+
+            const r = await checkout(env.codigo, c.codigo);
+            assert.equal(r.status, 201, JSON.stringify(r.body));
+            assert.equal(r.body.pago.monto, Math.round(precio * 80) / 100);
+            assert.equal((await cupon(c.id)).estado, 'activo', 'todavía no se pagó');
+
+            const reservado = await checkout(otro.codigo, c.codigo);
+            assert.equal(reservado.status, 409);
+            assert.equal(reservado.body.codigo, 'cupon_reservado');
+
+            assert.equal((await checkout(env.codigo, c.codigo)).body.pago.codigo, r.body.pago.codigo, 'mismo cupón: se reutiliza el intento');
+            const sinCupon = await checkout(env.codigo);
+            assert.notEqual(sinCupon.body.pago.codigo, r.body.pago.codigo, 'sin cupón es otro monto: otro intento');
+            assert.equal(sinCupon.body.pago.monto, precio);
+
+            const ok = await e.http('post', `/api/pagos/${r.body.pago.codigo}/confirmar`, { token: s.token });
+            assert.equal(ok.status, 200);
+            assert.equal((await cupon(c.id)).estado, 'usado');
+            assert.equal((await e.pool.query('SELECT estado_pago FROM envios WHERE id = $1', [env.id])).rows[0].estado_pago, 'pagado');
+        });
+
+        test('si el envío se cancela y se devuelve el pago, el cupón vuelve a estar disponible', async () => {
+            const s = await e.cuenta('pag.cup.canc');
+            const env = await e.crearEnvio(s, { pagar: false });
+            const c = await nuevoCupon(s, 10);
+            assert.equal((await tarjeta(s, env.codigo, { cuponCodigo: c.codigo })).status, 201);
+            assert.equal((await cupon(c.id)).estado, 'usado');
+
+            const cancelado = await e.http('post', `/api/envios/${env.codigo}/cancelar`, { token: s.token }).send({});
+            assert.equal(cancelado.status, 200, JSON.stringify(cancelado.body));
+            const devuelto = await cupon(c.id);
+            assert.equal(devuelto.estado, 'activo');
+            assert.equal(devuelto.usado_envio_id, null);
+        });
+    });
 });

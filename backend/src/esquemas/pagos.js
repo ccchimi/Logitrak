@@ -4,10 +4,12 @@ import { numeroOpcional, textoOpcional, textoRequerido } from './comunes.js';
 const envioCodigo = textoRequerido(30, 'Falta el envío a pagar.', {
     mensajeLargo: 'El código de envío no es válido.',
 });
+const cuponCodigo = textoOpcional(40, 'El código del cupón no es válido.');
 
 export const checkout = z.object({
     envioCodigo,
     metodo: z.enum(['mercadopago', 'modo'], { error: 'Método de checkout inválido (usá mercadopago o modo).' }),
+    cuponCodigo,
 });
 
 export const tarjeta = z.object({
@@ -17,6 +19,7 @@ export const tarjeta = z.object({
     vencimiento: textoOpcional(7, 'La fecha de vencimiento es inválida.'),
     cvv: textoOpcional(4, 'El código de seguridad es inválido.'),
     cuotas: numeroOpcional('Elegí entre 1 y 24 cuotas.', { entero: true, min: 1, max: 24 }),
+    cuponCodigo,
 });
 
 export const codigoPago = z.object({

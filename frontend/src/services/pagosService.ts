@@ -25,6 +25,7 @@ export interface Pago {
     envioId: number;
     metodo: MetodoPago;
     monto: number;
+    descuento?: number | null;
     moneda: string;
     estado: EstadoPago;
     modoProc: 'sandbox' | 'real';
@@ -47,17 +48,18 @@ export interface CheckoutPago {
 
 export async function iniciarCheckout(
     envioCodigo: string,
-    metodo: 'mercadopago' | 'modo'
-): Promise<{ pago: Pago; checkout: CheckoutPago } | null> {
-    const operacion = `checkout:${envioCodigo}:${metodo}`;
-    const r = await llamarApi<{ exito: true; pago: Pago; checkout: CheckoutPago }>('/api/pagos/checkout', {
+    metodo: 'mercadopago' | 'modo',
+    cuponCodigo?: string | null
+): Promise<{ pago: Pago; checkout: CheckoutPago } | { error: string }> {
+    const operacion = `checkout:${envioCodigo}:${metodo}:${cuponCodigo ?? '-'}`;
+    const r = (await llamarApi<{ exito: true; pago: Pago; checkout: CheckoutPago }>('/api/pagos/checkout', {
         metodo: 'POST',
-        cuerpo: { envioCodigo, metodo },
+        cuerpo: { envioCodigo, metodo, ...(cuponCodigo ? { cuponCodigo } : {}) },
         conAuth: true,
         encabezados: { 'Idempotency-Key': claveIdempotencia(operacion) },
-    });
+    })) as any;
     cerrarOperacion(operacion, r);
-    return r.exito ? { pago: r.pago, checkout: r.checkout } : null;
+    return r.exito ? { pago: r.pago, checkout: r.checkout } : { error: r.error || 'Probá de nuevo o con otro método.' };
 }
 
 export interface DatosTarjeta {
@@ -76,12 +78,13 @@ export interface ResultadoTarjeta {
 
 export async function pagarConTarjeta(
     envioCodigo: string,
-    datos: DatosTarjeta
+    datos: DatosTarjeta,
+    cuponCodigo?: string | null
 ): Promise<ResultadoTarjeta> {
-    const operacion = `tarjeta:${envioCodigo}`;
+    const operacion = `tarjeta:${envioCodigo}:${cuponCodigo ?? '-'}`;
     const r = (await llamarApi<{ exito: boolean }>('/api/pagos/tarjeta', {
         metodo: 'POST',
-        cuerpo: { envioCodigo, ...datos },
+        cuerpo: { envioCodigo, ...datos, ...(cuponCodigo ? { cuponCodigo } : {}) },
         conAuth: true,
         encabezados: { 'Idempotency-Key': claveIdempotencia(operacion) },
     })) as any;

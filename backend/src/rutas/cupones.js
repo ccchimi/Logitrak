@@ -17,12 +17,15 @@ function publicar(fila) {
         estado: fila.estado,
         creadoEn: fila.creado_en,
         usadoEn: fila.usado_en,
+        usadoEnvioCodigo: fila.usado_envio_codigo ?? null,
     };
 }
 
 rutasCupones.get('/', autenticar, async (req, res) => {
     const { rows } = await consultar(
-        'SELECT * FROM cupones WHERE cliente_id = $1 ORDER BY creado_en DESC LIMIT 100',
+        `SELECT c.*, e.codigo AS usado_envio_codigo FROM cupones c
+         LEFT JOIN envios e ON e.id = c.usado_envio_id
+         WHERE c.cliente_id = $1 ORDER BY c.creado_en DESC LIMIT 100`,
         [req.usuario.id]
     );
     return res.json({ exito: true, cupones: rows.map(publicar) });

@@ -16,6 +16,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { styles, COLORS } from '../styles/PagoStyles';
 import { formatearARS } from '../helpers/formato';
 import { obtenerEnvio } from '../services/enviosService';
+import { listarCupones, type Cupon } from '../services/cuponesService';
+import { aplicarDescuento } from '../helpers/cupones';
+import SelectorCupon from '../components/pago/SelectorCupon';
 import { ToastStack, useToasts } from '../components/Toasts';
 import {
     iniciarCheckout,
@@ -72,6 +75,20 @@ export default function PagoScreen({ navigation, route }: any) {
 
     const aprobado = pago?.estado === 'aprobado';
 
+    const [cupones, setCupones] = useState<Cupon[]>([]);
+    const [cupon, setCupon] = useState<Cupon | null>(null);
+    useEffect(() => {
+        let activo = true;
+        void listarCupones().then((lista) => {
+            if (activo) setCupones(lista.filter((c) => c.estado === 'activo'));
+        });
+        return () => {
+            activo = false;
+        };
+    }, []);
+    const conCupon = cupon ? aplicarDescuento(monto, cupon.descuentoPct) : null;
+    const total = pago?.monto ?? conCupon?.monto ?? monto;
+
     const [venceEn, setVenceEn] = useState<number | null>(null);
     const [restanteSeg, setRestanteSeg] = useState<number | null>(null);
     useEffect(() => {
@@ -122,11 +139,11 @@ export default function PagoScreen({ navigation, route }: any) {
     const elegirQr = async (m: 'mercadopago' | 'modo') => {
         setMetodo(m);
         setProcesando(true);
-        const res = await iniciarCheckout(envioCodigo, m);
+        const res = await iniciarCheckout(envioCodigo, m, cupon?.codigo);
         setProcesando(false);
 
-        if (!res) {
-            mostrar('error', 'No se pudo iniciar el pago', 'Probá de nuevo o con otro método.');
+        if ('error' in res) {
+            mostrar('error', 'No se pudo iniciar el pago', res.error);
             setMetodo(null);
             return;
         }
@@ -160,7 +177,7 @@ export default function PagoScreen({ navigation, route }: any) {
             return;
         }
         setProcesando(true);
-        const res = await pagarConTarjeta(envioCodigo, { numero, titular, vencimiento, cvv, cuotas });
+        const res = await pagarConTarjeta(envioCodigo, { numero, titular, vencimiento, cvv, cuotas }, cupon?.codigo);
         setProcesando(false);
 
         if (res.aprobado && res.pago) {
@@ -200,7 +217,16 @@ export default function PagoScreen({ navigation, route }: any) {
     const renderMonto = () => (
         <View style={tema.estilo(styles.montoCard)}>
             <Text style={tema.estilo(styles.montoLabel)}>Total a pagar</Text>
-            <Text style={tema.estilo(styles.montoValor)}>{formatearARS(monto)}</Text>
+            <Text style={tema.estilo(styles.montoValor)}>{formatearARS(total)}</Text>
+            {cupon && conCupon && !pago ? (
+                <Text style={tema.estilo([styles.montoRef, { color: tema.color(COLORS.green) }])}>
+                    {formatearARS(monto)} − {formatearARS(conCupon.descuento)} con el cupón {cupon.codigo}
+                </Text>
+            ) : pago?.descuento ? (
+                <Text style={tema.estilo([styles.montoRef, { color: tema.color(COLORS.green) }])}>
+                    Incluye {formatearARS(pago.descuento)} de descuento con cupón
+                </Text>
+            ) : null}
             <Text style={tema.estilo(styles.montoRef)}>Envío {envioCodigo}</Text>
             {!aprobado && restanteSeg !== null && restanteSeg > 0 ? (
                 <Text
@@ -215,6 +241,7 @@ export default function PagoScreen({ navigation, route }: any) {
 
     const renderSelector = () => (
         <>
+            <SelectorCupon cupones={cupones} elegido={cupon} onElegir={setCupon} deshabilitado={procesando} />
             <Text style={tema.estilo(styles.seccionTitulo)}>Elegí cómo pagar</Text>
 
             <TouchableOpacity style={tema.estilo(styles.metodoCard)} onPress={() => void elegirQr('mercadopago')} activeOpacity={0.85}>
@@ -264,7 +291,7 @@ export default function PagoScreen({ navigation, route }: any) {
 
             <Text style={tema.estilo(styles.qrInstruccion)}>
                 Escaneá el QR con {metodo === 'modo' ? 'la app MODO' : 'Mercado Pago o MODO'} para pagar{' '}
-                {formatearARS(monto)}.
+                {formatearARS(total)}.
             </Text>
 
             <TouchableOpacity style={tema.estilo(styles.botonPrimario)} onPress={() => void abrirApp()}>
@@ -375,7 +402,7 @@ export default function PagoScreen({ navigation, route }: any) {
                 disabled={procesando}
             >
                 <Text style={tema.estilo(styles.botonPrimarioTexto)}>
-                    {procesando ? 'Procesando…' : `Pagar ${formatearARS(monto)}`}
+                    {procesando ? 'Procesando…' : `Pagar ${formatearARS(total)}`}
                 </Text>
             </TouchableOpacity>
 
@@ -414,7 +441,7 @@ export default function PagoScreen({ navigation, route }: any) {
                 ) : null}
                 <View style={tema.estilo(styles.comprobanteLinea)}>
                     <Text style={tema.estilo(styles.comprobanteLabel)}>Importe</Text>
-                    <Text style={tema.estilo(styles.comprobanteValor)}>{formatearARS(monto)}</Text>
+                    <Text style={tema.estilo(styles.comprobanteValor)}>{formatearARS(total)}</Text>
                 </View>
                 <View style={tema.estilo(styles.comprobanteLinea)}>
                     <Text style={tema.estilo(styles.comprobanteLabel)}>Envío</Text>

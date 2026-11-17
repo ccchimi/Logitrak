@@ -18,10 +18,10 @@ y verificado se saca de acá; el historial queda en los commits.
 3. Handoff por QR para la verificación de DNI: generar un QR en desktop,
    continuar el escaneo en el teléfono y mostrar el resultado en tiempo real en
    el desktop. Se apoya en Supabase Realtime, que entra en el plan Free.
-4. Usar los cupones para pagar. La regla del SLA ya está alineada: el servidor
-   compensa con el 10 % si el chofer no registra el retiro en el plazo que
-   prometió la cotización. Pero los cupones todavía no se pueden aplicar al
-   pagar un envío.
+4. Vencimiento de los cupones. Los cupones ya se aplican al pagar (checkout y
+   tarjeta) y vuelven a estar disponibles si el pago se devuelve, pero no
+   vencen nunca: el estado `vencido` existe en la tabla y ningún proceso lo
+   asigna. Falta decidir el plazo y sumar un barrido que los venza.
 5. Que el admin pueda editar los perfiles de otros usuarios. Hoy cada rol edita
    solo el suyo; falta una pantalla de listado de usuarios.
 6. Push en iOS. Realtime y push en Android ya funcionan en producción

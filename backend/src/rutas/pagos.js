@@ -11,6 +11,7 @@ import { limitePagos } from '../middleware/limites.js';
 import { validarRequest } from '../middleware/validar.js';
 import * as esquemas from '../esquemas/pagos.js';
 import { esReutilizable, leerClaveIdempotencia, minutosRestantes, mismaOperacion } from '../servicios/pagos/intentos.js';
+import { aplicarDescuento, consumirCupon, reservarCupon } from '../servicios/pagos/cupones.js';
 import { log, registrarError } from '../observabilidad/logger.js';
 import { registrarEvento } from '../outbox/index.js';
 import { pedidoVencido, RESPUESTA_VENCIDO } from '../servicios/envios/impagos.js';
@@ -32,6 +33,7 @@ function publicar(fila) {
         envioId: fila.envio_id,
         metodo: fila.metodo,
         monto: num(fila.monto),
+        descuento: num(fila.descuento),
         moneda: fila.moneda,
         estado: fila.estado,
         modoProc: fila.modo_proc,
@@ -66,6 +68,14 @@ async function buscarPorClave(cliente, clienteId, clave) {
 }
 
 const RESPUESTA_CANCELADO = { exito: false, codigo: 'envio_cancelado', error: 'Este envío fue cancelado: ya no se puede pagar.' };
+
+async function precioConCupon(cliente, { cuponCodigo, envio, usuario }) {
+    if (!cuponCodigo) return { monto: Number(envio.precio), descuento: null, cuponId: null };
+    const r = await reservarCupon(cliente, { codigo: cuponCodigo.trim().toUpperCase(), clienteId: usuario.id, envioId: envio.id });
+    if (r.error) return r;
+    const { monto, descuento } = aplicarDescuento(envio.precio, r.cupon.descuento_pct);
+    return { monto, descuento, cuponId: r.cupon.id };
+}
 
 async function aprobarPago(cliente, pagoId, extra = {}) {
     const previo = (await cliente.query('SELECT envio_id FROM pagos WHERE id = $1', [pagoId])).rows[0];
@@ -135,6 +145,7 @@ async function aprobarPago(cliente, pagoId, extra = {}) {
          WHERE id = $1`,
         [pago.envio_id, MINUTOS_ESPERA_CHOFER]
     );
+    await consumirCupon(cliente, pago);
     await registrarEvento(cliente, {
         tipoAgregado: 'pago',
         idAgregado: pago.codigo,
@@ -163,7 +174,7 @@ async function responderCheckout(res, pago, { estado, reutilizado = false }) {
 }
 
 rutasPagos.post('/checkout', limitePagos, autenticar, validarRequest({ body: esquemas.checkout }), async (req, res) => {
-    const { metodo, envioCodigo } = req.body;
+    const { metodo, envioCodigo, cuponCodigo } = req.body;
 
     const idem = leerClaveIdempotencia(req.get('Idempotency-Key'));
     if (idem.error) return res.status(400).json({ exito: false, error: idem.error });
@@ -203,6 +214,12 @@ rutasPagos.post('/checkout', limitePagos, autenticar, validarRequest({ body: esq
             return res.status(409).json(RESPUESTA_VENCIDO);
         }
 
+        const precio = await precioConCupon(cliente, { cuponCodigo, envio, usuario: req.usuario });
+        if (precio.error) {
+            await cliente.query('ROLLBACK');
+            return res.status(precio.error.status).json(precio.error.body);
+        }
+
         const real = metodo === 'mercadopago' ? mpHabilitado() : modoHabilitado();
         const modoProc = real ? 'real' : 'sandbox';
 
@@ -212,15 +229,15 @@ rutasPagos.post('/checkout', limitePagos, autenticar, validarRequest({ body: esq
              ORDER BY creado_en DESC LIMIT 1`,
             [envio.id, metodo]
         );
-        if (esReutilizable(pendientes[0], { envio, metodo, modoProc })) {
+        if (esReutilizable(pendientes[0], { envio, metodo, modoProc, monto: precio.monto, cuponId: precio.cuponId })) {
             await cliente.query('ROLLBACK');
             return responderCheckout(res, pendientes[0], { estado: 200, reutilizado: true });
         }
 
         const ins = await cliente.query(
-            `INSERT INTO pagos (envio_id, cliente_id, metodo, monto, moneda, modo_proc, idempotency_key)
-             VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7::uuid, gen_random_uuid())) RETURNING *`,
-            [envio.id, envio.cliente_id, metodo, envio.precio, envio.moneda, modoProc, idem.clave]
+            `INSERT INTO pagos (envio_id, cliente_id, metodo, monto, moneda, modo_proc, idempotency_key, cupon_id, descuento)
+             VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7::uuid, gen_random_uuid()), $8, $9) RETURNING *`,
+            [envio.id, envio.cliente_id, metodo, precio.monto, envio.moneda, modoProc, idem.clave, precio.cuponId, precio.descuento]
         );
         let pago = ins.rows[0];
 
@@ -321,6 +338,12 @@ rutasPagos.post('/tarjeta', limitePagos, autenticar, validarRequest({ body: esqu
             return res.status(409).json(RESPUESTA_VENCIDO);
         }
 
+        const precio = await precioConCupon(cliente, { cuponCodigo: b.cuponCodigo, envio, usuario: req.usuario });
+        if (precio.error) {
+            await cliente.query('ROLLBACK');
+            return res.status(precio.error.status).json(precio.error.body);
+        }
+
         const resultado = procesarTarjeta({
             numero: b.numero,
             titular: b.titular,
@@ -331,15 +354,15 @@ rutasPagos.post('/tarjeta', limitePagos, autenticar, validarRequest({ body: esqu
 
         const ins = await cliente.query(
             `INSERT INTO pagos (envio_id, cliente_id, metodo, monto, moneda, modo_proc,
-                                estado, tarjeta_marca, tarjeta_ultimos, cuotas, detalle, idempotency_key)
-             VALUES ($1,$2,'tarjeta',$3,$4,'sandbox',$5,$6,$7,$8,$9, COALESCE($10::uuid, gen_random_uuid()))
+                                estado, tarjeta_marca, tarjeta_ultimos, cuotas, detalle, idempotency_key, cupon_id, descuento)
+             VALUES ($1,$2,'tarjeta',$3,$4,'sandbox',$5,$6,$7,$8,$9, COALESCE($10::uuid, gen_random_uuid()), $11, $12)
              RETURNING *`,
             [
-                envio.id, envio.cliente_id, envio.precio, envio.moneda,
+                envio.id, envio.cliente_id, precio.monto, envio.moneda,
                 resultado.aprobado ? 'pendiente' : 'rechazado',
                 resultado.marca ?? null, resultado.ultimos ?? null, resultado.cuotas ?? null,
                 JSON.stringify({ motivo: resultado.motivo, codigoAutorizacion: resultado.codigoAutorizacion ?? null }),
-                idem.clave,
+                idem.clave, precio.cuponId, precio.descuento,
             ]
         );
         let pago = ins.rows[0];

@@ -1,4 +1,5 @@
 import { reembolsarPagoMp } from './mercadoPago.js';
+import { devolverCupon } from './cupones.js';
 
 export async function reembolsarPagoDelEnvio(cliente, envioId) {
     const { rows } = await cliente.query(
@@ -24,6 +25,7 @@ export async function reembolsarPagoDelEnvio(cliente, envioId) {
              WHERE id = $1`,
             [pago.id, r.motivo]
         );
+        await devolverCupon(cliente, pago);
         return { estado: 'reembolsado', pago, motivo: r.motivo };
     }
 

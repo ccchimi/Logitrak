@@ -67,6 +67,14 @@ describe('esReutilizable', () => {
         assert.equal(esReutilizable(pendiente, { ...pedido, envio: { ...envio, precio: '40000.00' } }, AHORA), false);
     });
 
+    test('con cupón: reutiliza solo si coinciden el monto con descuento y el cupón', () => {
+        const conCupon = { ...pendiente, monto: '31500.00', cupon_id: 7 };
+        assert.equal(esReutilizable(conCupon, { ...pedido, monto: 31500, cuponId: 7 }, AHORA), true);
+        assert.equal(esReutilizable(conCupon, { ...pedido, monto: 31500, cuponId: 8 }, AHORA), false, 'otro cupón');
+        assert.equal(esReutilizable(conCupon, pedido, AHORA), false, 'ahora sin cupón');
+        assert.equal(esReutilizable(pendiente, { ...pedido, monto: 31500, cuponId: 7 }, AHORA), false, 'antes sin cupón');
+    });
+
     test('no reutiliza un intento sin datos de checkout (anterior a la idempotencia)', () => {
         assert.equal(esReutilizable({ ...pendiente, checkout_datos: null }, pedido, AHORA), false);
     });
