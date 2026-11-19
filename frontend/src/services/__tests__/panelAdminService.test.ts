@@ -33,13 +33,19 @@ beforeEach(() => {
     chofer: null,
   });
 });
+// Simula el listado paginado del servidor: páginas de `limite` con cursor.
 function responder(envios: Envio[], total: number) {
   api.mockImplementation(async (ruta: string) => {
     if (ruta === "/api/auth/perfil")
       return { exito: true, usuario: { rol: "admin" } } as any;
     if (ruta === "/api/envios/metricas")
       return { exito: true, metricas: metricas(total) } as any;
-    return { exito: true, envios } as any;
+    const q = new URLSearchParams(ruta.split("?")[1] ?? "");
+    const limite = Number(q.get("limite") ?? 200);
+    const desde = Number(q.get("cursor") ?? 0);
+    const pagina = envios.slice(desde, desde + limite);
+    const siguiente = desde + limite < envios.length ? String(desde + limite) : null;
+    return { exito: true, envios: pagina, siguiente } as any;
   });
 }
 test.each(["cliente", "chofer", null])(
@@ -71,7 +77,7 @@ test("lista completa real y minimiza campos conservados", async () => {
   expect(r.completa).toBe(true);
   expect(r.pedidos).toHaveLength(1);
   expect(r.pedidos[0]).not.toHaveProperty("choferTelefono");
-  expect(api).toHaveBeenCalledWith("/api/envios", { conAuth: true });
+  expect(api).toHaveBeenCalledWith("/api/envios?limite=100", { conAuth: true });
 });
 test("propaga errores en lugar de convertirlos en un listado vacío", async () => {
   api.mockImplementation(async (ruta) =>
@@ -81,56 +87,30 @@ test("propaga errores en lugar de convertirlos en un listado vacío", async () =
   );
   await expect(obtenerPanelAdmin()).rejects.toThrow("Servidor sin conexión");
 });
-test("si satura 200 no presenta resultados como completos aunque haya fila antigua en otro estado", async () => {
-  const envios = Array.from({ length: 200 }, (_, i) => pedido(i));
-  responder(envios, 301);
-  api.mockImplementation(async (ruta) => {
-    if (ruta === "/api/auth/perfil")
-      return { exito: true, usuario: { rol: "admin" } } as any;
-    if (ruta === "/api/envios/metricas")
-      return { exito: true, metricas: metricas(301) } as any;
-    if (ruta === "/api/envios?estado=entregado")
-      return {
-        exito: true,
-        envios: [
-          { ...pedido(999, "entregado"), creadoEn: "2020-01-01T00:00:00Z" },
-        ],
-      } as any;
-    return { exito: true, envios } as any;
-  });
-  const r = await obtenerPanelAdmin();
-  expect(r.completa).toBe(false);
-  expect(r.creacionesDesde).toBe(Date.parse("2026-11-12T10:00:00Z"));
-  expect(r.pedidos).toHaveLength(201);
-});
-test("puede reconstruir más de 200 si cada estado queda debajo del límite y coincide el total", async () => {
-  const envios = Array.from({ length: 250 }, (_, i) =>
-    pedido(i, i < 150 ? "pendiente" : "entregado"),
-  );
-  api.mockImplementation(async (ruta) => {
-    if (ruta === "/api/auth/perfil")
-      return { exito: true, usuario: { rol: "admin" } } as any;
-    if (ruta === "/api/envios/metricas")
-      return { exito: true, metricas: metricas(250) } as any;
-    const estado = ruta.split("estado=")[1];
-    return {
-      exito: true,
-      envios: estado
-        ? envios.filter((e) => e.estado === estado)
-        : envios.slice(0, 200),
-    } as any;
-  });
+test("recorre todas las páginas y queda completa si coincide con el total", async () => {
+  const envios = Array.from({ length: 250 }, (_, i) => pedido(i));
+  responder(envios, 250);
   const r = await obtenerPanelAdmin();
   expect(r.completa).toBe(true);
   expect(r.pedidos).toHaveLength(250);
+  expect(api).toHaveBeenCalledWith("/api/envios?limite=100&cursor=100", { conAuth: true });
+  expect(api).toHaveBeenCalledWith("/api/envios?limite=100&cursor=200", { conAuth: true });
 });
 
-test("exactamente 200 puede ser completo si coincide con el total global", async () => {
-  responder(
-    Array.from({ length: 200 }, (_, i) => pedido(i)),
-    200,
-  );
-  expect((await obtenerPanelAdmin()).completa).toBe(true);
+test("si el total no coincide no presenta los resultados como completos", async () => {
+  responder([pedido(1), pedido(2)], 5);
+  const r = await obtenerPanelAdmin();
+  expect(r.completa).toBe(false);
+  expect(r.creacionesDesde).toBe(Date.parse("2026-11-12T10:00:00Z"));
+});
+
+test("corta en 5000 pedidos y avisa que muestra los más recientes", async () => {
+  const envios = Array.from({ length: 5100 }, (_, i) => pedido(i));
+  responder(envios, 5100);
+  const r = await obtenerPanelAdmin();
+  expect(r.pedidos).toHaveLength(5000);
+  expect(r.completa).toBe(false);
+  expect(r.aviso).toMatch(/5000 pedidos más recientes/);
 });
 
 test("soporte también entra al panel de operación (Hito 3.2)", async () => {

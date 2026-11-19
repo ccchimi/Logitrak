@@ -1,6 +1,6 @@
 import { llamarApi, obtenerUsuarioSesion } from "./api";
 import type { Envio, MetricasEnvios } from "./enviosService";
-import { ESTADOS_ADMIN, instante, PedidoAdmin } from "../helpers/panelAdmin";
+import { instante, PedidoAdmin } from "../helpers/panelAdmin";
 
 export interface DatosPanelAdmin {
   pedidos: PedidoAdmin[];
@@ -10,6 +10,9 @@ export interface DatosPanelAdmin {
   aviso: string;
   creacionesDesde: number | null;
 }
+const TAMANO_PAGINA = 100;
+const MAX_PAGINAS = 50;
+
 export async function obtenerPanelAdmin(): Promise<DatosPanelAdmin> {
   const esEquipo = (rol?: string) => rol === "admin" || rol === "soporte";
   if (!esEquipo(obtenerUsuarioSesion()?.rol))
@@ -21,45 +24,38 @@ export async function obtenerPanelAdmin(): Promise<DatosPanelAdmin> {
   if (!identidad.exito) throw new Error(identidad.error);
   if (!esEquipo(identidad.usuario?.rol))
     throw new Error("El servidor no reconoce esta sesión como del equipo de Logitrak.");
-  const [lista, resumen] = await Promise.all([
-    llamarApi<{ exito: true; envios: Envio[] }>("/api/envios", {
-      conAuth: true,
-    }),
-    llamarApi<{ exito: true; metricas: MetricasEnvios }>(
-      "/api/envios/metricas",
-      { conAuth: true },
-    ),
-  ]);
-  if (!lista.exito) throw new Error(lista.error);
+  // Recorre el listado paginado del servidor (de a 100, del más nuevo al más
+  // viejo) hasta el final o hasta MAX_PAGINAS, y lo compara con el total.
+  const resumen = await llamarApi<{ exito: true; metricas: MetricasEnvios }>(
+    "/api/envios/metricas",
+    { conAuth: true },
+  );
   if (!resumen.exito) throw new Error(resumen.error);
-  if (
-    !Array.isArray(lista.envios) ||
-    !resumen.metricas ||
-    !Number.isInteger(resumen.metricas.total)
-  )
+  if (!resumen.metricas || !Number.isInteger(resumen.metricas.total))
     throw new Error(
       "La respuesta del servidor no permite verificar el alcance de los pedidos.",
     );
-  let envios = lista.envios;
+  const envios: Envio[] = [];
+  let cursor: string | null = null;
   let aviso = "";
-  if (resumen.metricas.total > envios.length) {
-    const respuestas = await Promise.all(
-      ESTADOS_ADMIN.map((estado) =>
-        llamarApi<{ exito: true; envios: Envio[] }>(
-          `/api/envios?estado=${estado}`,
-          { conAuth: true },
-        ),
-      ),
+  for (let pagina = 0; ; pagina++) {
+    if (pagina === MAX_PAGINAS) {
+      aviso = `Se muestran los ${envios.length} pedidos más recientes.`;
+      break;
+    }
+    type Pagina = { exito: true; envios: Envio[]; siguiente: string | null };
+    const r: Pagina | { exito: false; error: string } = await llamarApi<Pagina>(
+      `/api/envios?limite=${TAMANO_PAGINA}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`,
+      { conAuth: true },
     );
-    const unicos = new Map(envios.map((e) => [e.id, e]));
-    respuestas.forEach((r) => {
-      if (r.exito && Array.isArray(r.envios))
-        r.envios.forEach((e) => unicos.set(e.id, e));
-      else
-        aviso =
-          "No se pudieron ampliar todos los estados. Actualizá para reintentar.";
-    });
-    envios = [...unicos.values()];
+    if (!r.exito) throw new Error(r.error);
+    if (!Array.isArray(r.envios))
+      throw new Error(
+        "La respuesta del servidor no permite verificar el alcance de los pedidos.",
+      );
+    envios.push(...r.envios);
+    cursor = r.siguiente ?? null;
+    if (!cursor) break;
   }
   const pedidos = [...new Map(envios.map((e) => [e.id, e])).values()].map(
     (e): PedidoAdmin => ({
@@ -83,7 +79,7 @@ export async function obtenerPanelAdmin(): Promise<DatosPanelAdmin> {
     }),
   );
   const completa = !aviso && pedidos.length === resumen.metricas.total;
-  const fechas = lista.envios.map((e) => instante(e.creadoEn));
+  const fechas = envios.map((e) => instante(e.creadoEn));
   const creacionesDesde = completa
     ? 0
     : fechas.length && fechas.every(Number.isFinite)

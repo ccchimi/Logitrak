@@ -15,6 +15,7 @@ import { hayPagoEnCurso } from '../servicios/envios/vencimientoPago.js';
 import { registrarEvento } from '../outbox/index.js';
 import { publicarValoracion, reputacionDelChofer, valoracionDelEnvio } from '../servicios/envios/valoraciones.js';
 import { ubicacionDelEnvio } from '../servicios/envios/ubicacion.js';
+import { alcance, condicionesDelListado, consultaListado, cortarPagina } from '../servicios/envios/listado.js';
 import { resumenDelChat, rolEnElChat } from '../servicios/envios/chat.js';
 import { datosDelComprobante, generarComprobantePdf, nombreDelComprobante } from '../servicios/envios/comprobante.js';
 
@@ -44,6 +45,7 @@ const EVENTOS_DEL_CHOFER = new Set(['chofer_en_camino', 'retirado', 'en_viaje'])
 
 const SELECT_ENVIO = `
     SELECT e.*,
+           EXISTS (SELECT 1 FROM envio_eventos ev WHERE ev.envio_id = e.id AND ev.tipo = 'sla_excedido') AS sla_excedido,
            c.codigo        AS chofer_codigo,
            c.telefono      AS chofer_telefono,
            cv.id           AS chofer_vehiculo_id,
@@ -83,6 +85,7 @@ function publicar(fila) {
         estadoPago: fila.estado_pago,
         slaMin: fila.sla_min,
         slaVenceEn: fila.sla_vence_en,
+        slaExcedido: Boolean(fila.sla_excedido),
         retiradoEn: fila.retirado_en ?? null,
         ofertaVenceEn: fila.oferta_vence_en ?? null,
         pagoVenceEn: fila.estado_pago === 'pagado' ? null : fila.pago_vence_en ?? null,
@@ -246,35 +249,63 @@ rutasEnvios.get('/metricas', autenticar, async (req, res) => {
     });
 });
 
-rutasEnvios.get('/', autenticar, async (req, res) => {
-    const verTodos = tienePermiso(req.usuario, 'envios.ver_todos');
-    const choferId = verTodos ? null : await choferIdDe(req.usuario.id);
+async function quienConsulta(usuario) {
+    const verTodos = tienePermiso(usuario, 'envios.ver_todos');
+    return { verTodos, choferId: verTodos ? null : await choferIdDe(usuario.id), usuarioId: usuario.id };
+}
 
-    const cond = [];
+// Con `limite` pagina por cursor (`siguiente` trae el de la próxima página).
+// Sin `limite` devuelve hasta 200, como antes, para las versiones viejas de la app.
+rutasEnvios.get('/', autenticar, validarRequest({ query: consultaListado }), async (req, res) => {
+    const filtros = req.validado?.query ?? req.query;
+    const armado = condicionesDelListado(await quienConsulta(req.usuario), filtros);
+    if (armado.error) return res.status(400).json({ exito: false, error: armado.error });
+
+    const { rows } = await consultar(
+        `${SELECT_ENVIO} WHERE ${armado.where} ORDER BY e.creado_en DESC, e.id DESC LIMIT ${armado.tamano + 1}`,
+        armado.params
+    );
+    const { pagina, siguiente } = cortarPagina(rows, armado.tamano);
+    return res.json({ exito: true, envios: pagina.map(publicar), siguiente });
+});
+
+// Totales para el historial, calculados sobre todos los envíos y no sobre la
+// página cargada: cuántos hay, cuánto se pagó (sin cobros duplicados) y qué
+// parte de los que tenían un plazo de retiro lo cumplió.
+rutasEnvios.get('/resumen', autenticar, validarRequest({ query: consultaListado.pick({ estado: true }) }), async (req, res) => {
+    const filtros = req.validado?.query ?? req.query;
     const params = [];
-    if (verTodos) {
-    } else if (choferId) {
-        params.push(choferId);
-        cond.push(`e.chofer_id = $${params.length}`);
-    } else {
-        params.push(req.usuario.id);
-        cond.push(`e.cliente_id = $${params.length}`);
-    }
-
-    const estado = (req.query.estado || '').toString().trim();
-    if (estado) {
-        params.push(estado);
+    const cond = [alcance(await quienConsulta(req.usuario), params), 'e.archivado_en IS NULL'];
+    if (filtros.estado) {
+        params.push(filtros.estado);
         cond.push(`e.estado = $${params.length}`);
     }
-
-    cond.push('e.archivado_en IS NULL');
-
-    const where = cond.length ? `WHERE ${cond.join(' AND ')}` : '';
     const { rows } = await consultar(
-        `${SELECT_ENVIO} ${where} ORDER BY e.creado_en DESC LIMIT 200`,
+        `SELECT
+             COUNT(*)::int AS cantidad,
+             COALESCE(SUM((
+                 SELECT p.monto FROM pagos p
+                 WHERE p.envio_id = e.id AND p.estado = 'aprobado' AND NOT COALESCE(p.detalle ? 'duplicadoDe', false)
+                 ORDER BY p.pagado_en DESC NULLS LAST LIMIT 1
+             )), 0)::float8 AS total_pagado,
+             COUNT(*) FILTER (WHERE e.sla_min IS NOT NULL AND e.retirado_en IS NOT NULL)::int AS con_sla,
+             COUNT(*) FILTER (WHERE e.sla_min IS NOT NULL AND e.retirado_en IS NOT NULL AND NOT EXISTS (
+                 SELECT 1 FROM envio_eventos ev WHERE ev.envio_id = e.id AND ev.tipo = 'sla_excedido'
+             ))::int AS sla_cumplido
+         FROM envios e WHERE ${cond.join(' AND ')}`,
         params
     );
-    return res.json({ exito: true, envios: rows.map(publicar) });
+    const r = rows[0];
+    return res.json({
+        exito: true,
+        resumen: {
+            cantidad: r.cantidad,
+            totalPagado: Math.round(r.total_pagado * 100) / 100,
+            conSla: r.con_sla,
+            slaCumplido: r.sla_cumplido,
+            cumplimientoSla: r.con_sla > 0 ? Math.round((r.sla_cumplido / r.con_sla) * 100) : null,
+        },
+    });
 });
 
 rutasEnvios.get('/:codigo', autenticar, async (req, res) => {

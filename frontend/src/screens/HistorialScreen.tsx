@@ -1,17 +1,18 @@
 import { useTema } from "../hooks/useTema";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
   Text,
+  TextInput,
   TouchableOpacity,
   useWindowDimensions,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { styles } from "../styles/HistorialStyles";
+import { COLORS, styles } from "../styles/HistorialStyles";
 import { formatearARS } from "../helpers/formato";
-import { Envio, listarEnvios } from "../services/enviosService";
+import { Envio, listarPaginaEnvios, obtenerResumenEnvios, type ResumenEnvios } from "../services/enviosService";
 
 interface OrdenPasada {
   id: string;
@@ -21,7 +22,11 @@ interface OrdenPasada {
   destino: string;
   vehiculoIA: string;
   precio: number;
+  slaExcedido: boolean;
 }
+
+const TAMANO_PAGINA = 20;
+const ESPERA_BUSQUEDA_MS = 350;
 
 function formatearFecha(iso: string | null): string {
   if (!iso) return "";
@@ -41,6 +46,7 @@ function mapearOrden(e: Envio): OrdenPasada {
     destino: e.destino,
     vehiculoIA: e.vehiculoNombre ?? "Unidad asignada",
     precio: Number(e.precio) || 0,
+    slaExcedido: Boolean(e.slaExcedido),
   };
 }
 
@@ -48,21 +54,63 @@ export default function HistorialScreen({ navigation }: any) {
   const tema = useTema();
   const compacto = useWindowDimensions().width < 600;
   const [ordenes, setOrdenes] = useState<OrdenPasada[]>([]);
+  const [siguiente, setSiguiente] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
+  const [cargandoMas, setCargandoMas] = useState(false);
+  const [error, setError] = useState("");
+  const [busqueda, setBusqueda] = useState("");
+  const [buscada, setBuscada] = useState("");
+  const [resumen, setResumen] = useState<ResumenEnvios | null>(null);
+  // Cada pedido lleva un número: si llega la respuesta de una búsqueda vieja, se descarta.
+  const pedidoActual = useRef(0);
 
   useEffect(() => {
-    let activo = true;
-    listarEnvios("entregado").then((envios) => {
-      if (!activo) return;
-      setOrdenes(envios.map(mapearOrden));
-      setCargando(false);
-    });
-    return () => {
-      activo = false;
-    };
+    const id = setTimeout(() => setBuscada(busqueda.trim()), ESPERA_BUSQUEDA_MS);
+    return () => clearTimeout(id);
+  }, [busqueda]);
+
+  useEffect(() => {
+    void obtenerResumenEnvios("entregado").then(setResumen);
   }, []);
 
-  const totalGastado = ordenes.reduce((acc, o) => acc + o.precio, 0);
+  useEffect(() => {
+    const pedido = ++pedidoActual.current;
+    setCargando(true);
+    setError("");
+    void listarPaginaEnvios({ estado: "entregado", limite: TAMANO_PAGINA, q: buscada }).then((r) => {
+      if (pedido !== pedidoActual.current) return;
+      if (r.exito) {
+        setOrdenes(r.pagina.envios.map(mapearOrden));
+        setSiguiente(r.pagina.siguiente);
+      } else {
+        setOrdenes([]);
+        setSiguiente(null);
+        setError(r.error);
+      }
+      setCargando(false);
+    });
+  }, [buscada]);
+
+  const cargarMas = useCallback(async () => {
+    if (!siguiente || cargandoMas || cargando) return;
+    const pedido = pedidoActual.current;
+    setCargandoMas(true);
+    const r = await listarPaginaEnvios({ estado: "entregado", limite: TAMANO_PAGINA, q: buscada, cursor: siguiente });
+    if (pedido !== pedidoActual.current) return;
+    setCargandoMas(false);
+    if (r.exito) {
+      setOrdenes((previas) => {
+        const vistas = new Set(previas.map((o) => o.id));
+        return [...previas, ...r.pagina.envios.map(mapearOrden).filter((o) => !vistas.has(o.id))];
+      });
+      setSiguiente(r.pagina.siguiente);
+    } else {
+      setError(r.error);
+    }
+  }, [siguiente, cargandoMas, cargando, buscada]);
+
+  const cumplimiento =
+    resumen?.cumplimientoSla === null || resumen?.cumplimientoSla === undefined ? "—" : `${resumen.cumplimientoSla}%`;
 
   const Encabezado = (
     <>
@@ -87,19 +135,36 @@ export default function HistorialScreen({ navigation }: any) {
       >
         <View style={tema.estilo(styles.resumenCaja)}>
           <Text style={tema.estilo(styles.resumenLabel)}>Envíos completados</Text>
-          <Text style={tema.estilo(styles.resumenValor)}>{ordenes.length}</Text>
+          <Text style={tema.estilo(styles.resumenValor)}>{resumen ? resumen.cantidad : "—"}</Text>
         </View>
         <View style={tema.estilo(styles.resumenCaja)}>
           <Text style={tema.estilo(styles.resumenLabel)}>Inversión total</Text>
           <Text style={tema.estilo(styles.resumenValorAcento)}>
-            {formatearARS(totalGastado)}
+            {resumen ? formatearARS(resumen.totalPagado) : "—"}
           </Text>
         </View>
         <View style={tema.estilo(styles.resumenCaja)}>
           <Text style={tema.estilo(styles.resumenLabel)}>Cumplimiento SLA</Text>
-          <Text style={tema.estilo(styles.resumenValor)}>100%</Text>
+          <Text style={tema.estilo(styles.resumenValor)}>{cumplimiento}</Text>
         </View>
       </View>
+
+      <TextInput
+        style={tema.estilo(styles.buscador)}
+        value={busqueda}
+        onChangeText={setBusqueda}
+        placeholder="Buscar por código o dirección"
+        placeholderTextColor={tema.color(COLORS.muted)}
+        accessibilityLabel="Buscar en el historial por código o dirección"
+        autoCapitalize="none"
+        autoCorrect={false}
+        maxLength={80}
+      />
+      {error ? (
+        <Text accessibilityRole="alert" style={tema.estilo([styles.resumenLabel, { color: "#FF6B6B", marginBottom: 12 }])}>
+          {error}
+        </Text>
+      ) : null}
     </>
   );
 
@@ -128,7 +193,7 @@ export default function HistorialScreen({ navigation }: any) {
                 <Text
                   style={tema.estilo([styles.titulo, { fontSize: 18, textAlign: "center" }])}
                 >
-                  Todavía no hay envíos entregados
+                  {buscada ? "No encontramos envíos con esa búsqueda" : "Todavía no hay envíos entregados"}
                 </Text>
                 <Text
                   style={tema.estilo([
@@ -136,7 +201,7 @@ export default function HistorialScreen({ navigation }: any) {
                     { textAlign: "center", marginTop: 8 },
                   ])}
                 >
-                  Cuando completes tu primer envío con Boxy, vas a verlo acá.
+                  {buscada ? "Probá con otro código o parte de la dirección." : "Cuando completes tu primer envío con Boxy, vas a verlo acá."}
                 </Text>
               </View>
             )
@@ -167,13 +232,33 @@ export default function HistorialScreen({ navigation }: any) {
               </View>
 
               <View style={tema.estilo(styles.estadoEntregado)}>
-                <View style={tema.estilo(styles.estadoDot)} />
-                <Text style={tema.estilo(styles.estadoTexto)}>
-                  Entregado en tiempo y forma
+                <View style={tema.estilo([styles.estadoDot, item.slaExcedido && { backgroundColor: COLORS.accent }])} />
+                <Text style={tema.estilo([styles.estadoTexto, item.slaExcedido && { color: COLORS.accent }])}>
+                  {item.slaExcedido ? "Entregado · el retiro se demoró y se acreditó un cupón" : "Entregado"}
                 </Text>
               </View>
             </View>
           )}
+          onEndReached={() => void cargarMas()}
+          onEndReachedThreshold={0.4}
+          ListFooterComponent={
+            ordenes.length > 0 && (siguiente || cargandoMas) ? (
+              <View style={tema.estilo({ paddingVertical: 20, alignItems: "center" })}>
+                {cargandoMas ? (
+                  <ActivityIndicator color={tema.color("#FFD700")} />
+                ) : (
+                  <TouchableOpacity
+                    style={tema.estilo(styles.cargarMas)}
+                    onPress={() => void cargarMas()}
+                    accessibilityRole="button"
+                    accessibilityLabel="Cargar más envíos del historial"
+                  >
+                    <Text style={tema.estilo(styles.cargarMasTexto)}>Cargar más</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            ) : undefined
+          }
           showsVerticalScrollIndicator={false}
         />
       </View>

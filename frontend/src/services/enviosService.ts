@@ -49,6 +49,7 @@ export interface Envio {
     archivadoMotivo: string | null;
     slaMin: number | null;
     slaVenceEn: string | null;
+    slaExcedido?: boolean;
     retiradoEn?: string | null;
     creadoEn: string;
     actualizadoEn: string;
@@ -93,6 +94,42 @@ export async function crearEnvio(
         conAuth: true,
     });
     return r.exito ? { exito: true, envio: r.envio } : { exito: false, error: r.error };
+}
+
+export interface PaginaEnvios {
+    envios: Envio[];
+    /** Cursor de la página siguiente, o null si no hay más. */
+    siguiente: string | null;
+}
+
+/** Una página del listado, del más nuevo al más viejo. */
+export async function listarPaginaEnvios(
+    { estado, limite = 20, cursor, q }: { estado?: EstadoEnvio; limite?: number; cursor?: string | null; q?: string } = {}
+): Promise<{ exito: true; pagina: PaginaEnvios } | { exito: false; error: string }> {
+    const params = new URLSearchParams({ limite: String(limite) });
+    if (estado) params.set('estado', estado);
+    if (cursor) params.set('cursor', cursor);
+    if (q?.trim()) params.set('q', q.trim());
+    const r = (await llamarApi<{ exito: true; envios: Envio[]; siguiente: string | null }>(`/api/envios?${params}`, {
+        conAuth: true,
+    })) as any;
+    if (!r.exito) return { exito: false, error: r.error || 'No se pudieron cargar los envíos.' };
+    return { exito: true, pagina: { envios: r.envios, siguiente: r.siguiente ?? null } };
+}
+
+export interface ResumenEnvios {
+    cantidad: number;
+    totalPagado: number;
+    conSla: number;
+    slaCumplido: number;
+    /** Porcentaje de los envíos con plazo de retiro que lo cumplieron; null si no hay ninguno. */
+    cumplimientoSla: number | null;
+}
+
+export async function obtenerResumenEnvios(estado?: EstadoEnvio): Promise<ResumenEnvios | null> {
+    const qs = estado ? `?estado=${encodeURIComponent(estado)}` : '';
+    const r = (await llamarApi<{ exito: true; resumen: ResumenEnvios }>(`/api/envios/resumen${qs}`, { conAuth: true })) as any;
+    return r.exito ? r.resumen : null;
 }
 
 export async function listarEnvios(estado?: EstadoEnvio): Promise<Envio[]> {

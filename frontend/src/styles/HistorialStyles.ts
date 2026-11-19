@@ -252,5 +252,34 @@ export const styles = StyleSheet.create({
     color: COLORS.green,
     fontSize: 12,
     fontFamily: FONTS.titleBold,
+    flexShrink: 1,
+  },
+
+  buscador: {
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.borderStrong,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    color: COLORS.white,
+    fontFamily: FONTS.text,
+    fontSize: 14,
+    marginBottom: 16,
+  },
+
+  cargarMas: {
+    borderWidth: 1,
+    borderColor: COLORS.borderAccent,
+    borderRadius: 999,
+    paddingHorizontal: 22,
+    paddingVertical: 11,
+    minHeight: 44,
+    justifyContent: "center",
+  },
+  cargarMasTexto: {
+    color: COLORS.accent,
+    fontFamily: FONTS.titleBold,
+    fontSize: 13,
   },
 });
