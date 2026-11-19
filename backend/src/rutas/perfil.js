@@ -1,6 +1,3 @@
-import { rm } from 'node:fs/promises';
-import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import bcrypt from 'bcryptjs';
 import { Router } from 'express';
 import { consultar, pool } from '../db/pool.js';
@@ -11,7 +8,7 @@ import { validarRequest } from '../middleware/validar.js';
 import { eliminarCuenta, exportarDatos } from '../esquemas/perfil.js';
 import { exportarCuenta, nombreDelArchivo } from '../servicios/exportacionCuenta.js';
 import { anonimizarCuenta, impedimentoParaEliminar } from '../servicios/eliminacionCuenta.js';
-import { borrarArchivos } from '../servicios/almacenamiento.js';
+import { anotarParaBorrar, borrarAhora } from '../servicios/archivosPorBorrar.js';
 import { log, registrarError } from '../observabilidad/logger.js';
 
 export const rutasPerfil = Router();
@@ -228,8 +225,6 @@ rutasPerfil.post('/exportar', limiteExportacion, autenticar, validarRequest({ bo
     return res.json({ exito: true, archivo: nombreDelArchivo(usuario.usuario, ahora), datos });
 });
 
-const RAIZ_BACKEND = fileURLToPath(new URL('../../', import.meta.url));
-
 rutasPerfil.post('/eliminar-cuenta', limiteLogin, autenticar, validarRequest({ body: eliminarCuenta }), async (req, res) => {
     const cliente = await pool.connect();
     let archivos = [];
@@ -262,11 +257,14 @@ rutasPerfil.post('/eliminar-cuenta', limiteLogin, autenticar, validarRequest({ b
         cliente.release();
     }
 
-    const pendientes = await borrarArchivos(archivos);
-    for (const ruta of archivos.filter((r) => r.startsWith('uploads/'))) {
-        await rm(join(RAIZ_BACKEND, ruta), { force: true }).catch(() => pendientes.push(ruta));
+    const pendientes = await borrarAhora(archivos);
+    if (pendientes.length) {
+        // Se reintentan solos con el trabajo `borrar-archivos`.
+        await anotarParaBorrar(pool, pendientes, 'cuenta eliminada').catch((e) =>
+            registrarError(e, 'No se pudieron anotar los archivos sin borrar', { archivos: pendientes })
+        );
+        log().warn({ cantidad: pendientes.length }, 'Archivos de la cuenta eliminada sin borrar: quedan para reintentar');
     }
-    if (pendientes.length) log().error({ archivos: pendientes }, 'Archivos de la cuenta eliminada sin borrar');
     log().info('Cuenta eliminada por pedido de su titular');
 
     return res.json({

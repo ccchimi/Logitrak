@@ -6,6 +6,7 @@ import { alRegistrarEvento, despachar, purgarProcesados } from '../outbox/index.
 import { eliminarImpago, enviosImpagosVencidos } from '../servicios/envios/impagos.js';
 import { avisarCuponesPorVencer, vencerCupones } from '../servicios/pagos/cupones.js';
 import { devolverPagoDeMas, pagosParaDevolver } from '../servicios/pagos/devolucionDuplicados.js';
+import { reintentarBorrados } from '../servicios/archivosPorBorrar.js';
 
 export const COLAS = {
     barrerOfertas: 'barrer-ofertas-vencidas',
@@ -19,6 +20,7 @@ export const COLAS = {
     avisarCupones: 'avisar-cupones-por-vencer',
     barrerPagosDeMas: 'barrer-pagos-de-mas',
     devolverPagoDeMas: 'devolver-pago-de-mas',
+    borrarArchivos: 'borrar-archivos',
 };
 
 let ultimaPurga = 0;
@@ -115,6 +117,7 @@ async function iniciarColas(boss) {
     await boss.createQueue(COLAS.avisarCupones, { policy: 'exclusive', retryLimit: 2 });
     await boss.createQueue(COLAS.barrerPagosDeMas, { policy: 'exclusive', retryLimit: 2 });
     await boss.createQueue(COLAS.devolverPagoDeMas, { policy: 'exclusive', ...REINTENTOS });
+    await boss.createQueue(COLAS.borrarArchivos, { policy: 'exclusive', retryLimit: 2 });
 
     await boss.schedule(COLAS.barrerOfertas, '* * * * *');
     await boss.schedule(COLAS.barrerSla, '* * * * *');
@@ -123,6 +126,7 @@ async function iniciarColas(boss) {
     await boss.schedule(COLAS.vencerCupones, '7 * * * *');
     await boss.schedule(COLAS.avisarCupones, '37 * * * *');
     await boss.schedule(COLAS.barrerPagosDeMas, '* * * * *');
+    await boss.schedule(COLAS.borrarArchivos, '23 * * * *');
 
     const sondeo = { pollingIntervalSeconds: 5 };
     await boss.work(COLAS.barrerOfertas, sondeo, conRegistro(COLAS.barrerOfertas, 2, () =>
@@ -142,6 +146,7 @@ async function iniciarColas(boss) {
     await boss.work(COLAS.barrerPagosDeMas, sondeo, conRegistro(COLAS.barrerPagosDeMas, 2, () =>
         encolarPendientes(boss, { buscar: pagosParaDevolver, cola: COLAS.devolverPagoDeMas, prefijo: 'pago-de-mas', campo: 'pagoId' })
     ));
+    await boss.work(COLAS.borrarArchivos, sondeo, conRegistro(COLAS.borrarArchivos, 2, () => reintentarBorrados(poolDeTrabajos)));
     await boss.work(COLAS.devolverPagoDeMas, sondeo, conRegistro(COLAS.devolverPagoDeMas, REINTENTOS.retryLimit, (t) => procesarDevolucion(t.data.pagoId)));
     await boss.work(COLAS.despacharOutbox, { pollingIntervalSeconds: 2 }, conRegistro(COLAS.despacharOutbox, 2, () => despacharOutbox()));
 
@@ -156,4 +161,5 @@ async function iniciarColas(boss) {
     await boss.send(COLAS.vencerCupones);
     await boss.send(COLAS.avisarCupones);
     await boss.send(COLAS.barrerPagosDeMas);
+    await boss.send(COLAS.borrarArchivos);
 }
