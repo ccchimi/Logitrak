@@ -25,11 +25,11 @@ export async function obtenerChat(
 
 export async function enviarMensaje(
     codigo: string,
-    texto: string
+    { texto, foto }: { texto?: string; foto?: string | null }
 ): Promise<{ exito: true; mensaje: MensajeChat } | { exito: false; error: string; cerrado: boolean }> {
     const r = (await llamarApi<{ exito: true; mensaje: MensajeChat }>(`/api/envios/${encodeURIComponent(codigo)}/mensajes`, {
         metodo: 'POST',
-        cuerpo: { texto },
+        cuerpo: { ...(texto ? { texto } : {}), ...(foto ? { foto } : {}) },
         conAuth: true,
     })) as any;
     if (r.exito) return { exito: true, mensaje: r.mensaje };

@@ -119,7 +119,7 @@ describe('entrega con PIN y foto (integración)', { skip: SALTEAR }, () => {
         assert.equal(e.estado, 'entregado');
         assert.ok(e.entregado_en);
         assert.equal(e.pin_entrega, null, 'el PIN no se guarda después de entregar');
-        assert.match(e.foto_entrega_path, new RegExp(`entregas/${v.envio.codigo}/\\d+\\.jpg$`));
+        assert.match(e.foto_entrega_path, new RegExp(`entregas/${v.envio.codigo}/\\d+-\\d+\\.jpg$`));
         const ev = await pool.query(`SELECT detalle FROM envio_eventos WHERE envio_id = $1 AND tipo = 'entregado'`, [e.id]);
         assert.match(ev.rows[0].detalle, /PIN del receptor validado/);
         assert.equal((await pool.query(`SELECT 1 FROM outbox_events WHERE aggregate_id = $1 AND event_type = 'envio.entregado'`, [e.codigo])).rowCount, 1);

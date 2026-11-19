@@ -1,10 +1,11 @@
 import {
+  bytesDeBase64,
   estadoDeLectura,
   etiquetaDia,
   horaMensaje,
   itemsDelChat,
   MensajeChat,
-  textoValido,
+  problemaParaEnviar,
   unirMensajes,
 } from "../chat";
 
@@ -14,6 +15,7 @@ const msj = (id: number, creadoEn: string, extra: Partial<MensajeChat> = {}): Me
   autor: "cliente",
   propio: true,
   texto: `m${id}`,
+  foto: null,
   creadoEn,
   leidoEn: null,
   ...extra,
@@ -39,10 +41,18 @@ describe("Chat del envío", () => {
     expect(estadoDeLectura([msj(1, "2026-11-19T14:00:00Z", { leidoEn: "2026-11-19T14:02:00Z" })])).toEqual({ id: 1, texto: "Leído 11:02" });
   });
 
-  test("valida el texto antes de mandarlo", () => {
-    expect(textoValido("   ")).toBe("Escribí un mensaje.");
-    expect(textoValido("x".repeat(1001))).toMatch(/1000/);
-    expect(textoValido(" hola ")).toBeNull();
+  test("valida el texto y la foto antes de mandarlos", () => {
+    expect(problemaParaEnviar("   ")).toBe("Escribí un mensaje o elegí una foto.");
+    expect(problemaParaEnviar("x".repeat(1001))).toMatch(/1000/);
+    expect(problemaParaEnviar(" hola ")).toBeNull();
+    expect(problemaParaEnviar("", "aGVsbG8=")).toBeNull();
+    expect(problemaParaEnviar("", "A".repeat(12_000_000))).toMatch(/8 MB/);
+  });
+
+  test("calcula el tamaño de un archivo en base64", () => {
+    expect(bytesDeBase64("aGVsbG8=")).toBe(5);
+    expect(bytesDeBase64("data:image/jpeg;base64,aGVsbG8h")).toBe(6);
+    expect(bytesDeBase64("aGk=")).toBe(2);
   });
 
   test("une lo local con lo del servidor sin duplicar y en orden", () => {

@@ -101,7 +101,14 @@ export async function anonimizarCuenta(db, usuario) {
     );
 
     await db.query('UPDATE valoraciones SET comentario = NULL WHERE cliente_id = $1', [id]);
-    // El chat de sus envíos y lo que escribió como chofer en los de otros.
+    // El chat de sus envíos y lo que escribió como chofer en los de otros,
+    // con sus fotos.
+    const fotosChat = await db.query(
+        `SELECT foto_ruta FROM envio_mensajes
+         WHERE foto_ruta IS NOT NULL AND (autor_id = $1 OR envio_id IN (SELECT id FROM envios WHERE cliente_id = $1))`,
+        [id]
+    );
+    archivos.push(...fotosChat.rows.map((r) => r.foto_ruta));
     await db.query(
         'DELETE FROM envio_mensajes WHERE autor_id = $1 OR envio_id IN (SELECT id FROM envios WHERE cliente_id = $1)',
         [id]

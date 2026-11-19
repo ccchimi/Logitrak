@@ -2,7 +2,9 @@ export interface MensajeChat {
   id: number;
   autor: "cliente" | "chofer";
   propio: boolean;
-  texto: string;
+  texto: string | null;
+  /** url es null si la foto ya no se puede mostrar (por ejemplo, se borró). */
+  foto: { url: string | null; tipo: string } | null;
   creadoEn: string;
   leidoEn: string | null;
 }
@@ -52,11 +54,22 @@ export function estadoDeLectura(mensajes: MensajeChat[]): { id: number; texto: s
   return { id: ultimo.id, texto: ultimo.leidoEn ? `Leído ${horaMensaje(ultimo.leidoEn)}` : "Enviado" };
 }
 
-export function textoValido(texto: string): string | null {
+export const MAX_BYTES_FOTO_CHAT = 8 * 1024 * 1024;
+
+/** Por qué no se puede mandar todavía, o null si está todo bien. */
+export function problemaParaEnviar(texto: string, fotoBase64: string | null = null): string | null {
   const limpio = texto.trim();
-  if (!limpio) return "Escribí un mensaje.";
+  if (!limpio && !fotoBase64) return "Escribí un mensaje o elegí una foto.";
   if (limpio.length > MAX_TEXTO_CHAT) return `El mensaje no puede superar los ${MAX_TEXTO_CHAT} caracteres.`;
+  if (fotoBase64 && bytesDeBase64(fotoBase64) > MAX_BYTES_FOTO_CHAT) return "La foto pesa más de 8 MB. Elegí una más liviana.";
   return null;
+}
+
+/** Tamaño real de un archivo a partir de su base64 (con o sin prefijo data:). */
+export function bytesDeBase64(b64: string): number {
+  const limpio = b64.replace(/^data:[^,]*,/, "");
+  const relleno = limpio.endsWith("==") ? 2 : limpio.endsWith("=") ? 1 : 0;
+  return Math.floor((limpio.length * 3) / 4) - relleno;
 }
 
 /** Une la lista local con la del servidor sin duplicar (por id) y en orden. */

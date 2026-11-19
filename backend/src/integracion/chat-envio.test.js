@@ -21,7 +21,9 @@ describe('chat entre cliente y chofer (integración)', { skip: SALTEAR }, () => 
 
     after(async () => {
         for (const c of codigos) {
-            await rm(fileURLToPath(new URL(`../../uploads/entregas/${c}`, import.meta.url)), { recursive: true, force: true });
+            for (const carpeta of ['entregas', 'chat']) {
+                await rm(fileURLToPath(new URL(`../../uploads/${carpeta}/${c}`, import.meta.url)), { recursive: true, force: true });
+            }
         }
         await e?.cerrar();
     });
@@ -56,6 +58,7 @@ describe('chat entre cliente y chofer (integración)', { skip: SALTEAR }, () => 
     }
 
     const escribir = (token, codigo, texto) => api(`/api/envios/${codigo}/mensajes`, { metodo: 'POST', token, cuerpo: { texto } });
+    const mandar = (token, codigo, cuerpo) => api(`/api/envios/${codigo}/mensajes`, { metodo: 'POST', token, cuerpo });
     const leer = (token, codigo) => api(`/api/envios/${codigo}/mensajes`, { token });
     const detalle = (token, codigo) => api(`/api/envios/${codigo}`, { token });
 
@@ -166,17 +169,65 @@ describe('chat entre cliente y chofer (integración)', { skip: SALTEAR }, () => 
         assert.equal((await avisos(v.cliente.perfil.id))[0].titulo, 'Mensaje de tu chofer');
     });
 
+    test('se pueden mandar fotos, solas o con texto, y solo imágenes de verdad', async () => {
+        const v = await viaje();
+
+        const conTexto = await mandar(v.cliente.token, v.envio.codigo, { texto: 'Esta es la puerta', foto: FOTO });
+        assert.equal(conTexto.status, 201, JSON.stringify(conTexto.body));
+        assert.equal(conTexto.body.mensaje.texto, 'Esta es la puerta');
+        assert.equal(conTexto.body.mensaje.foto.tipo, 'image/jpeg');
+        assert.match(conTexto.body.mensaje.foto.url, /^data:image\/jpeg;base64,/, 'en desarrollo la foto local va embebida');
+
+        const sola = await mandar(v.chofer.token, v.envio.codigo, { foto: FOTO });
+        assert.equal(sola.status, 201, JSON.stringify(sola.body));
+        assert.equal(sola.body.mensaje.texto, null);
+
+        const malas = [
+            { foto: Buffer.from('<script>alert(1)</script>'.repeat(10)).toString('base64') },
+            { foto: 'abc' },
+            { texto: '   ' },
+            {},
+        ];
+        for (const cuerpo of malas) {
+            assert.equal((await mandar(v.cliente.token, v.envio.codigo, cuerpo)).status, 400, JSON.stringify(cuerpo).slice(0, 40));
+        }
+
+        const lista = await leer(v.chofer.token, v.envio.codigo);
+        assert.deepEqual(lista.body.mensajes.map((m) => [m.texto, Boolean(m.foto)]), [['Esta es la puerta', true], [null, true]]);
+        const filas = await e.pool.query('SELECT foto_ruta FROM envio_mensajes m JOIN envios x ON x.id = m.envio_id WHERE x.codigo = $1', [v.envio.codigo]);
+        assert.ok(filas.rows.every((f) => f.foto_ruta.startsWith(`uploads/chat/${v.envio.codigo}/`)));
+
+        const evento = (await e.pool.query(
+            `SELECT payload FROM outbox_events WHERE event_type = 'envio.mensaje' AND aggregate_id = $1 ORDER BY id`,
+            [v.envio.codigo]
+        )).rows.map((r) => r.payload.vista);
+        assert.deepEqual(evento, ['📷 Esta es la puerta', '📷 Foto']);
+    });
+
+    test('con el chat cerrado no se guarda la foto', async () => {
+        const sinChofer = await viaje({ tomar: false });
+        const r = await mandar(sinChofer.cliente.token, sinChofer.envio.codigo, { foto: FOTO });
+        assert.equal(r.status, 409);
+        const { existsSync } = await import('node:fs');
+        assert.equal(existsSync(fileURLToPath(new URL(`../../uploads/chat/${sinChofer.envio.codigo}`, import.meta.url))), false);
+    });
+
     test('al eliminar la cuenta del cliente se borra el chat de sus envíos', async () => {
         const v = await viaje();
         await escribir(v.cliente.token, v.envio.codigo, 'hola');
         await escribir(v.chofer.token, v.envio.codigo, 'hola, voy');
+        await mandar(v.cliente.token, v.envio.codigo, { foto: FOTO });
+        const carpeta = fileURLToPath(new URL(`../../uploads/chat/${v.envio.codigo}`, import.meta.url));
+        const { readdirSync } = await import('node:fs');
+        assert.equal(readdirSync(carpeta).length, 1);
         await e.pool.query(`UPDATE envios SET estado = 'entregado' WHERE codigo = $1`, [v.envio.codigo]);
 
         const exportado = await api('/api/perfil/exportar', { metodo: 'POST', token: v.cliente.token, cuerpo: { contrasena: e.clave } });
-        assert.deepEqual(exportado.body.datos.chatsDeEnvios.map((m) => m.autor), ['vos', 'chofer']);
+        assert.deepEqual(exportado.body.datos.chatsDeEnvios.map((m) => [m.autor, m.tieneFoto]), [['vos', false], ['chofer', false], ['vos', true]]);
 
         assert.equal((await api('/api/perfil/eliminar-cuenta', { metodo: 'POST', token: v.cliente.token, cuerpo: { contrasena: e.clave } })).status, 200);
         const quedan = await e.pool.query('SELECT count(*)::int AS n FROM envio_mensajes m JOIN envios x ON x.id = m.envio_id WHERE x.codigo = $1', [v.envio.codigo]);
         assert.equal(quedan.rows[0].n, 0);
+        assert.equal(readdirSync(carpeta).length, 0, 'se borra también la foto');
     });
 });

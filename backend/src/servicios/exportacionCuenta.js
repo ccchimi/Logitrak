@@ -273,7 +273,7 @@ async function datosComunes(db, usuario) {
         ),
         filas(
             db,
-            `SELECT e.codigo, m.autor_id, m.autor_rol, m.texto, m.creado_en
+            `SELECT e.codigo, m.autor_id, m.autor_rol, m.texto, m.foto_ruta, m.creado_en
              FROM envio_mensajes m
              JOIN envios e ON e.id = m.envio_id
              LEFT JOIN choferes c ON c.id = e.chofer_id
@@ -330,6 +330,7 @@ async function datosComunes(db, usuario) {
             envio: m.codigo,
             autor: m.autor_id === usuario.id ? 'vos' : m.autor_rol,
             texto: m.texto,
+            tieneFoto: Boolean(m.foto_ruta),
             fecha: fecha(m.creado_en),
         })),
         ingresos: accesos.map((a) => ({

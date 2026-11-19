@@ -1,4 +1,5 @@
 import { tienePermiso } from '../../middleware/permisos.js';
+import { urlDeFoto } from './entrega.js';
 
 // RF13: chat del envío entre su cliente y su chofer.
 export const MAX_TEXTO = 1000;
@@ -20,12 +21,13 @@ export function estadoDelChat(envio) {
     return { abierto: false, motivo: 'El envío terminó: el chat queda solo para leer.' };
 }
 
-export function publicarMensaje(fila, rolLector) {
+export async function publicarMensaje(fila, rolLector) {
     return {
         id: Number(fila.id),
         autor: fila.autor_rol,
         propio: fila.autor_rol === rolLector,
         texto: fila.texto,
+        foto: fila.foto_ruta ? { url: await urlDeFoto(fila.foto_ruta), tipo: fila.foto_tipo } : null,
         creadoEn: new Date(fila.creado_en).toISOString(),
         leidoEn: fila.leido_en ? new Date(fila.leido_en).toISOString() : null,
     };
