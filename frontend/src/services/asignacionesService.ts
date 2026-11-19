@@ -128,3 +128,23 @@ export async function listarAsignaciones(): Promise<AsignacionRegistro[]> {
     );
     return r.exito ? r.asignaciones ?? [] : [];
 }
+
+export interface PuntoGps {
+    lat: number;
+    lng: number;
+    precision?: number | null;
+    rumbo?: number | null;
+    velocidad?: number | null;
+}
+
+export type ResultadoUbicacion = { exito: true } | { exito: false; sinViaje: boolean; error: string };
+
+export async function publicarUbicacion(punto: PuntoGps): Promise<ResultadoUbicacion> {
+    const r = (await llamarApi<{ exito: true }>('/api/asignaciones/ubicacion', {
+        metodo: 'POST',
+        cuerpo: punto,
+        conAuth: true,
+    })) as any;
+    if (r.exito) return { exito: true };
+    return { exito: false, sinViaje: r.codigo === 'sin_viaje', error: r.error ?? 'No se pudo compartir la ubicación.' };
+}

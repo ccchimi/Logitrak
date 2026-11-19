@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import { calcularRumbo, obtenerRecorrido, type Coordenada, type PuntoRuta } from '../services/seguimientoService';
+import { ubicacionVieja, type UbicacionChofer } from '../helpers/ubicacion';
 
 export interface EventoMapa {
     tipo: 'exito' | 'info' | 'alerta' | 'error';
@@ -16,6 +17,11 @@ interface Props {
     chofer: string;
     onEvento?: (evento: EventoMapa) => void;
     compacto?: boolean;
+    /**
+     * Posición real del chofer. Sin la prop (undefined) el mapa es una
+     * demostración y anima el recorrido; con null espera la primera posición.
+     */
+    ubicacionChofer?: UbicacionChofer | null;
 }
 
 const ESTILO_NOCTURNO = [
@@ -36,7 +42,10 @@ const ESTILO_NOCTURNO = [
     { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#4a5b6b' }] },
 ];
 
-export default function MapaSeguimiento({ origen, destino, chofer, onEvento }: Props) {
+export default function MapaSeguimiento({ origen, destino, chofer, onEvento, ubicacionChofer }: Props) {
+    const enVivo = ubicacionChofer !== undefined;
+    const anteriorRef = useRef<Coordenada | null>(null);
+    const [rumboVivo, setRumboVivo] = useState(0);
   const tema = useTema();
     const mapRef = useRef<MapView>(null);
     const [rutaCoords, setRutaCoords] = useState<Coordenada[]>([]);
@@ -75,7 +84,18 @@ export default function MapaSeguimiento({ origen, destino, chofer, onEvento }: P
     }, [origen.latitude, origen.longitude, destino.latitude, destino.longitude]);
 
     useEffect(() => {
-        if (rutaCoords.length < 2) return;
+        if (!ubicacionChofer) return;
+        const actual = { latitude: ubicacionChofer.lat, longitude: ubicacionChofer.lng };
+        const anterior = anteriorRef.current;
+        if (ubicacionChofer.rumbo !== null) setRumboVivo(ubicacionChofer.rumbo);
+        else if (anterior && (anterior.latitude !== actual.latitude || anterior.longitude !== actual.longitude)) {
+            setRumboVivo(calcularRumbo(anterior, actual));
+        }
+        anteriorRef.current = actual;
+    }, [ubicacionChofer]);
+
+    useEffect(() => {
+        if (enVivo || rutaCoords.length < 2) return;
         setIdx(0);
         const stride = Math.max(1, Math.floor(rutaCoords.length / 120));
         const id = setInterval(() => {
@@ -85,11 +105,14 @@ export default function MapaSeguimiento({ origen, destino, chofer, onEvento }: P
             });
         }, 250);
         return () => clearInterval(id);
-    }, [rutaCoords]);
+    }, [rutaCoords, enVivo]);
 
-    const posChofer = rutaCoords[idx] ?? origen;
+    const posDemo = rutaCoords[idx] ?? origen;
     const posSiguiente = rutaCoords[Math.min(idx + 1, rutaCoords.length - 1)] ?? destino;
-    const rumbo = calcularRumbo(posChofer, posSiguiente);
+    const posChofer = ubicacionChofer ? { latitude: ubicacionChofer.lat, longitude: ubicacionChofer.lng } : posDemo;
+    const rumbo = enVivo ? rumboVivo : calcularRumbo(posDemo, posSiguiente);
+    const mostrarChofer = enVivo ? Boolean(ubicacionChofer) : rutaCoords.length > 0;
+    const vieja = ubicacionChofer ? ubicacionVieja(ubicacionChofer) : false;
 
     return (
         <MapView
@@ -119,10 +142,12 @@ export default function MapaSeguimiento({ origen, destino, chofer, onEvento }: P
                 pinColor="#10B981"
             />
 
-            {rutaCoords.length > 0 && (
+            {mostrarChofer && (
                 <Marker
                     coordinate={posChofer}
                     title={chofer}
+                    description={vieja ? 'Última ubicación conocida' : undefined}
+                    opacity={vieja ? 0.5 : 1}
                     anchor={{ x: 0.5, y: 0.5 }}
                     flat
                     rotation={rumbo}

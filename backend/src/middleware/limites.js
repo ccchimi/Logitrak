@@ -42,6 +42,10 @@ export const crearLimiteEntregas = () =>
 export const crearLimiteExportacion = () =>
     limite({ minutos: 60, maximo: 5, mensaje: `Ya pediste varias copias de tus datos. ${ESPERA}` });
 
+// El chofer manda su posición cada ~10 s mientras lleva un envío.
+export const crearLimiteUbicacion = () =>
+    limite({ minutos: 1, maximo: 30, mensaje: `Demasiadas actualizaciones de ubicación. ${ESPERA}` });
+
 export const limiteGeneral = crearLimiteGeneral();
 export const limiteLogin = crearLimiteLogin();
 export const limiteRegistro = crearLimiteRegistro();
@@ -51,3 +55,4 @@ export const limitePagos = crearLimitePagos();
 export const limiteRecorridos = crearLimiteRecorridos();
 export const limiteEntregas = crearLimiteEntregas();
 export const limiteExportacion = crearLimiteExportacion();
+export const limiteUbicacion = crearLimiteUbicacion();

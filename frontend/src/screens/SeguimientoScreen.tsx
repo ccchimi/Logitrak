@@ -30,6 +30,7 @@ import {
 } from "../services/seguimientoService";
 import { obtenerEnvio } from "../services/enviosService";
 import { escucharEnvio, type SuscripcionEnvio } from "../services/realtimeEnvios";
+import { detalleUbicacion, type UbicacionChofer } from "../helpers/ubicacion";
 
 const SLA_DEMO_SEG = 1200;
 
@@ -84,15 +85,26 @@ export default function SeguimientoScreen({ navigation, route }: any) {
   const esDesktop = width >= 1000;
   const { toasts, mostrar, cerrar } = useToasts();
 
-  const origenTxt: string | undefined = route?.params?.origen;
-  const destinoTxt: string | undefined = route?.params?.destino;
-  const producto: string =
-    route?.params?.producto ?? "Paquete protegido logitrak.";
-  const vehiculo: string =
-    route?.params?.vehiculo ?? "Unidad asignada por Boxy";
-  const precio: number | undefined = route?.params?.precio;
-  const referencia: string = route?.params?.referencia ?? "TRK-EN-VIVO";
   const envioCodigo: string | null = route?.params?.envioCodigo ?? null;
+  // Al abrir un envío real solo con su código (desde el panel), las
+  // direcciones y los datos salen del propio envío y no de la demostración.
+  const [delEnvio, setDelEnvio] = useState<{
+    codigo: string;
+    origen: string;
+    destino: string;
+    producto: string | null;
+    vehiculo: string | null;
+    precio: number | null;
+  } | null>(null);
+  const propio = delEnvio?.codigo === envioCodigo ? delEnvio : null;
+  const origenTxt: string | undefined = route?.params?.origen ?? propio?.origen;
+  const destinoTxt: string | undefined = route?.params?.destino ?? propio?.destino;
+  const producto: string =
+    route?.params?.producto ?? propio?.producto ?? "Paquete protegido logitrak.";
+  const vehiculo: string =
+    route?.params?.vehiculo ?? propio?.vehiculo ?? "Unidad asignada por Boxy";
+  const precio: number | undefined = route?.params?.precio ?? propio?.precio ?? undefined;
+  const referencia: string = route?.params?.referencia ?? "TRK-EN-VIVO";
   const [ahora, setAhora] = useState(Date.now);
   const [sla, setSla] = useState<{
     codigo: string | null;
@@ -103,6 +115,12 @@ export default function SeguimientoScreen({ navigation, route }: any) {
   const [etapa, setEtapa] = useState(0);
   const [chofer, setChofer] = useState<string | null>(null);
   const [choferDetalle, setChoferDetalle] = useState<string | null>(null);
+  // undefined: seguimiento de demostración (sin envío real), el mapa anima
+  // un recorrido. null: envío real sin posición del chofer todavía.
+  const [ubicacionChofer, setUbicacionChofer] = useState<UbicacionChofer | null | undefined>(
+    envioCodigo ? null : undefined,
+  );
+  const [viajeEnCurso, setViajeEnCurso] = useState(false);
   const [panelMinimizado, setPanelMinimizado] = useState(() => width < 1000);
   const esWeb = Platform.OS === "web";
 
@@ -187,6 +205,21 @@ export default function SeguimientoScreen({ navigation, route }: any) {
       if (!activo || !datos) return;
 
       const { envio, eventos } = datos;
+      setDelEnvio((previo) =>
+        previo?.codigo === envio.codigo
+          ? previo
+          : {
+              codigo: envio.codigo,
+              origen: envio.origen,
+              destino: envio.destino,
+              producto: envio.descripcionCarga ?? null,
+              vehiculo: envio.vehiculoNombre ?? null,
+              precio: typeof envio.precio === "number" ? envio.precio : null,
+            },
+      );
+      const enCurso = envio.estado === "asignado" || envio.estado === "en_viaje";
+      setViajeEnCurso(enCurso);
+      setUbicacionChofer(enCurso ? datos.ubicacionChofer ?? null : null);
 
       if (!escuchando) {
         escuchando = true;
@@ -195,6 +228,9 @@ export default function SeguimientoScreen({ navigation, route }: any) {
           () => void sondear(),
           (conectado) => {
             if (activo) programar(conectado ? SONDEO_CON_REALTIME_MS : SONDEO_SIN_REALTIME_MS);
+          },
+          (u) => {
+            if (activo) setUbicacionChofer(u);
           },
         ).then((s) => {
           if (activo) suscripcion = s;
@@ -271,6 +307,7 @@ export default function SeguimientoScreen({ navigation, route }: any) {
       setGeoError(null);
 
       if (!origenTxt || !destinoTxt) {
+        if (envioCodigo) return; // espera las direcciones del envío
         if (activo) {
           setOrigenPunto(ORIGEN);
           setDestinoPunto(DESTINO);
@@ -310,7 +347,7 @@ export default function SeguimientoScreen({ navigation, route }: any) {
     return () => {
       activo = false;
     };
-  }, [origenTxt, destinoTxt]);
+  }, [origenTxt, destinoTxt, envioCodigo]);
 
   const formatearTiempo = (segundosTotales: number) => {
     const minutos = Math.floor(segundosTotales / 60);
@@ -339,6 +376,7 @@ export default function SeguimientoScreen({ navigation, route }: any) {
             origen={origenPunto}
             destino={destinoPunto}
             chofer={chofer ?? "Chofer logitrak"}
+            ubicacionChofer={ubicacionChofer}
             onEvento={(e) => mostrar(e.tipo, e.titulo, e.detalle)}
           />
         ) : (
@@ -368,6 +406,11 @@ export default function SeguimientoScreen({ navigation, route }: any) {
               {chofer ?? "Buscando transportista…"}
             </Text>
             <Text style={tema.estilo(layout.muted)}>{choferDetalle ?? referencia}</Text>
+            {envioCodigo && viajeEnCurso ? (
+              <Text accessibilityLiveRegion="polite" style={tema.estilo([layout.muted, { color: ubicacionChofer ? "#10B981" : "#BBB" }])}>
+                {ubicacionChofer ? detalleUbicacion(ubicacionChofer, ahora) : "Esperando la ubicación del chofer…"}
+              </Text>
+            ) : null}
           </View>
         </View>
         {[

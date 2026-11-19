@@ -31,6 +31,8 @@ export default ({ config }) => ({
       {
         locationAlwaysAndWhenInUsePermission:
           'Permitir a logitrak acceder a tu ubicación para el seguimiento de envíos en tiempo real.',
+        locationWhenInUsePermission:
+          'Mientras llevás un envío, logitrak comparte tu ubicación con el cliente para que vea dónde está su paquete.',
       },
     ],
     [

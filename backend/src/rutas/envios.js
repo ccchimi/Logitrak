@@ -14,6 +14,7 @@ import { exigirPermiso, tienePermiso } from '../middleware/permisos.js';
 import { hayPagoEnCurso } from '../servicios/envios/vencimientoPago.js';
 import { registrarEvento } from '../outbox/index.js';
 import { publicarValoracion, reputacionDelChofer, valoracionDelEnvio } from '../servicios/envios/valoraciones.js';
+import { ubicacionDelEnvio } from '../servicios/envios/ubicacion.js';
 
 export const rutasEnvios = Router();
 
@@ -307,9 +308,10 @@ rutasEnvios.get('/:codigo', autenticar, async (req, res) => {
         conFoto: Boolean(envio.foto_entrega_path),
     };
 
-    const [valoracion, reputacionChofer] = await Promise.all([
+    const [valoracion, reputacionChofer, ubicacionChofer] = await Promise.all([
         valoracionDelEnvio(pool, envio.id),
         envio.chofer_id ? reputacionDelChofer(pool, envio.chofer_id) : null,
+        ubicacionDelEnvio(pool, envio),
     ]);
 
     return res.json({
@@ -320,6 +322,7 @@ rutasEnvios.get('/:codigo', autenticar, async (req, res) => {
         pagos: pg.rows.map(publicarPago),
         valoracion,
         reputacionChofer,
+        ubicacionChofer,
     });
 });
 

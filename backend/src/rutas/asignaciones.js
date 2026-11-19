@@ -3,9 +3,10 @@ import { consultar, pool } from '../db/pool.js';
 import { autenticar, exigirRol } from '../middleware/auth.js';
 import { registrarError } from '../observabilidad/logger.js';
 import { registrarEvento } from '../outbox/index.js';
-import { limiteEntregas } from '../middleware/limites.js';
+import { limiteEntregas, limiteUbicacion } from '../middleware/limites.js';
 import { validarRequest } from '../middleware/validar.js';
-import { completarEntrega } from '../esquemas/entrega.js';
+import { completarEntrega, ubicacionChofer } from '../esquemas/entrega.js';
+import { publicarUbicacion } from '../servicios/envios/ubicacion.js';
 import { REPUTACION_VACIA, reputacionDelChofer } from '../servicios/envios/valoraciones.js';
 import { guardarFotoEntrega, leerFoto, MAX_INTENTOS_PIN, pinCorrecto } from '../servicios/envios/entrega.js';
 
@@ -362,6 +363,15 @@ rutasAsignaciones.get('/activa', autenticar, exigirRol('chofer'), async (req, re
         [chofer.id]
     );
     return res.json({ exito: true, asignacion: rows[0] ? publicar(rows[0]) : null });
+});
+
+rutasAsignaciones.post('/ubicacion', limiteUbicacion, autenticar, exigirRol('chofer'), validarRequest({ body: ubicacionChofer }), async (req, res) => {
+    const chofer = await choferDe(req.usuario.id);
+    const r = chofer ? await publicarUbicacion(pool, chofer.id, req.body) : null;
+    if (!r) {
+        return res.status(409).json({ exito: false, codigo: 'sin_viaje', error: 'No tenés un viaje en curso: tu ubicación no se comparte.' });
+    }
+    return res.json({ exito: true, ...r });
 });
 
 rutasAsignaciones.get('/reputacion', autenticar, exigirRol('chofer'), async (req, res) => {

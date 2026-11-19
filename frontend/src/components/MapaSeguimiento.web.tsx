@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { analizarDireccion } from '../services/botLogistica';
 import { calcularRumbo, type Coordenada, type PuntoRuta } from '../services/seguimientoService';
+import { ubicacionVieja, type UbicacionChofer } from '../helpers/ubicacion';
 
 
 const WEB_MAPS_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_WEB_KEY?.trim();
@@ -19,6 +20,21 @@ interface Props {
     chofer: string;
     onEvento?: (evento: EventoMapa) => void;
     compacto?: boolean;
+    /**
+     * Posición real del chofer. Sin la prop (undefined) el mapa es una
+     * demostración y anima el recorrido; con null espera la primera posición.
+     */
+    ubicacionChofer?: UbicacionChofer | null;
+}
+
+interface MarcadoresChofer {
+    maps: any;
+    marcador: any;
+    flecha: any;
+    mapa: any;
+    anterior: Coordenada | null;
+    rumbo: number | null;
+    centrado: boolean;
 }
 
 let promesaGoogleMaps: Promise<any> | null = null;
@@ -102,7 +118,61 @@ async function resolverPunto(geocoder: any, punto: PuntoRuta): Promise<PuntoResu
     return null;
 }
 
-export default function MapaSeguimiento({ origen, destino, chofer, onEvento, compacto = false }: Props) {
+function moverChofer(m: MarcadoresChofer, u: UbicacionChofer | null) {
+    if (!u) {
+        m.marcador.setMap(null);
+        m.flecha.setMap(null);
+        m.anterior = null;
+        return;
+    }
+    const actual = { latitude: u.lat, longitude: u.lng };
+    const anterior = m.anterior;
+    const seMovio = anterior !== null && (anterior.latitude !== actual.latitude || anterior.longitude !== actual.longitude);
+    // Sin rumbo del GPS se calcula con la posición anterior; si el sondeo
+    // repite la misma posición, se mantiene el último rumbo conocido.
+    const rumbo = u.rumbo ?? (seMovio ? calcularRumbo(anterior!, actual) : m.rumbo);
+    m.rumbo = rumbo;
+    m.anterior = actual;
+    const vieja = ubicacionVieja(u);
+
+    m.marcador.setPosition({ lat: u.lat, lng: u.lng });
+    m.marcador.setOpacity(vieja ? 0.5 : 1);
+    m.marcador.setTitle(vieja ? 'Última ubicación conocida del chofer' : 'Chofer');
+    if (!m.marcador.getMap()) m.marcador.setMap(m.mapa);
+
+    if (rumbo === null || vieja) {
+        m.flecha.setMap(null);
+    } else {
+        const rad = (rumbo * Math.PI) / 180;
+        m.flecha.setPosition({ lat: u.lat + Math.cos(rad) * 0.00035, lng: u.lng + Math.sin(rad) * 0.00045 });
+        m.flecha.setIcon({
+            path: m.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+            scale: 4,
+            fillColor: '#FFD700',
+            fillOpacity: 1,
+            strokeColor: '#FFD700',
+            strokeWeight: 1,
+            rotation: rumbo,
+        });
+        if (!m.flecha.getMap()) m.flecha.setMap(m.mapa);
+    }
+
+    // La primera vez que aparece, se asegura de que el chofer quede a la vista.
+    if (!m.centrado) {
+        m.centrado = true;
+        const limites = m.mapa.getBounds?.();
+        if (limites && !limites.contains({ lat: u.lat, lng: u.lng })) {
+            limites.extend({ lat: u.lat, lng: u.lng });
+            m.mapa.fitBounds(limites, 60);
+        }
+    }
+}
+
+export default function MapaSeguimiento({ origen, destino, chofer, onEvento, compacto = false, ubicacionChofer }: Props) {
+    const enVivo = ubicacionChofer !== undefined;
+    const choferRef = useRef<MarcadoresChofer | null>(null);
+    const ubicacionRef = useRef(ubicacionChofer);
+    ubicacionRef.current = ubicacionChofer;
   const tema = useTema();
     const mapaRef = useRef<any>(null);
     const temaActual = useRef(tema.claro);
@@ -275,7 +345,7 @@ export default function MapaSeguimiento({ origen, destino, chofer, onEvento, com
             );
 
             const marcadorChofer = new maps.Marker({
-                map: mapa,
+                map: enVivo ? null : mapa,
                 position: { lat: ruta[0].latitude, lng: ruta[0].longitude },
                 title: chofer,
                 zIndex: 60,
@@ -291,7 +361,7 @@ export default function MapaSeguimiento({ origen, destino, chofer, onEvento, com
             });
 
             const flecha = new maps.Marker({
-                map: mapa,
+                map: enVivo ? null : mapa,
                 position: { lat: ruta[0].latitude, lng: ruta[0].longitude },
                 zIndex: 59,
                 clickable: false,
@@ -306,9 +376,12 @@ export default function MapaSeguimiento({ origen, destino, chofer, onEvento, com
                 },
             });
 
+            choferRef.current = { maps, marcador: marcadorChofer, flecha, mapa, anterior: null, rumbo: null, centrado: false };
+            if (enVivo) moverChofer(choferRef.current, ubicacionRef.current ?? null);
+
             let indice = 0;
             const paso = Math.max(1, Math.floor(ruta.length / 120));
-            const intervalo = setInterval(() => {
+            const intervalo = enVivo ? null : setInterval(() => {
                 indice = indice + paso >= ruta.length ? 0 : indice + paso;
                 const actual = ruta[indice];
                 const siguiente = ruta[Math.min(indice + paso, ruta.length - 1)];
@@ -332,7 +405,8 @@ export default function MapaSeguimiento({ origen, destino, chofer, onEvento, com
             }, 250);
 
             limpiezaRef.current = () => {
-                clearInterval(intervalo);
+                if (intervalo) clearInterval(intervalo);
+                choferRef.current = null;
                 marcadorOrigen.setMap(null);
                 marcadorDestino.setMap(null);
                 marcadorChofer.setMap(null);
@@ -348,7 +422,11 @@ export default function MapaSeguimiento({ origen, destino, chofer, onEvento, com
             limpiezaRef.current?.();
             limpiezaRef.current = null;
         };
-    }, [origen.direccion, destino.direccion, origen.latitude, destino.latitude, compacto]);
+    }, [origen.direccion, destino.direccion, origen.latitude, destino.latitude, compacto, enVivo]);
+
+    useEffect(() => {
+        if (enVivo && choferRef.current) moverChofer(choferRef.current, ubicacionChofer ?? null);
+    }, [enVivo, ubicacionChofer]);
 
     return (
         <View style={tema.estilo(estilos.contenedor)}>

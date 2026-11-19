@@ -1,4 +1,5 @@
 import { llamarApi } from './api';
+import type { UbicacionChofer } from '../helpers/ubicacion';
 
 export type EstadoEnvio = 'pendiente' | 'asignado' | 'en_viaje' | 'entregado' | 'cancelado';
 
@@ -144,6 +145,7 @@ export interface DetalleEnvio {
     entrega?: EntregaEnvio | null;
     valoracion?: Valoracion | null;
     reputacionChofer?: ReputacionChofer | null;
+    ubicacionChofer?: UbicacionChofer | null;
 }
 
 export async function obtenerEnvio(codigo: string): Promise<DetalleEnvio | null> {
@@ -159,6 +161,7 @@ export async function obtenerEnvio(codigo: string): Promise<DetalleEnvio | null>
               entrega: r.entrega ?? null,
               valoracion: r.valoracion ?? null,
               reputacionChofer: r.reputacionChofer ?? null,
+              ubicacionChofer: r.ubicacionChofer ?? null,
           }
         : null;
 }

@@ -33,6 +33,7 @@ import { DISENO as D } from "../theme/diseno";
 import { agregarEvento } from "../services/enviosService";
 import EntregaModal from "../components/EntregaModal";
 import TarjetaReputacion from "../components/chofer/TarjetaReputacion";
+import { TEXTO_ESTADO_UBICACION, useCompartirUbicacion } from "../hooks/useCompartirUbicacion";
 
 const ETIQUETA_PRIORIDAD: Record<PrioridadOferta, string> = {
   alta: "PRIORIDAD ALTA",
@@ -139,6 +140,7 @@ export default function ChoferScreen({ navigation, route }: any) {
   const [historial, setHistorial] = useState<AsignacionRegistro[]>([]);
   const [cargandoHistorial, setCargandoHistorial] = useState(true);
   const [versionReputacion, setVersionReputacion] = useState(0);
+  const ubicacion = useCompartirUbicacion(Boolean(viajeActivo?.envioCodigo));
 
   const cargarHistorial = useCallback(async () => {
     const datos = await listarAsignaciones();
@@ -512,6 +514,30 @@ export default function ChoferScreen({ navigation, route }: any) {
               {viajeActivo.pesoKg ?? "—"} kg · {viajeActivo.distanciaKm ?? "—"}{" "}
               km · Tu pago: {formatearARS(viajeActivo.pagoChofer)}
             </Text>
+
+            {ubicacion.estado !== "inactivo" && (
+              <View
+                accessibilityLiveRegion="polite"
+                style={tema.estilo({ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 10, flexWrap: "wrap" })}
+              >
+                <View
+                  style={tema.estilo({
+                    width: 8,
+                    height: 8,
+                    borderRadius: 4,
+                    backgroundColor: ubicacion.estado === "compartiendo" ? "#10B981" : ubicacion.estado === "pidiendo" ? D.amarillo : "#FF6B6B",
+                  })}
+                />
+                <Text style={tema.estilo([styles.itemTexto, { flex: 1, marginTop: 0 }])}>
+                  {TEXTO_ESTADO_UBICACION[ubicacion.estado]}
+                </Text>
+                {["sin_permiso", "sin_gps", "error"].includes(ubicacion.estado) && (
+                  <TouchableOpacity onPress={ubicacion.reintentar} accessibilityRole="button" style={tema.estilo({ minHeight: 44, justifyContent: "center" })}>
+                    <Text style={tema.estilo(styles.enlaceDetalle)}>Reintentar</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
 
             <TouchableOpacity
               style={tema.estilo([
