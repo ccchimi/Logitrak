@@ -46,7 +46,8 @@ Los estados principales de los envíos son `pendiente`, `asignado`, `en_viaje`, 
 - **Pedido sin pagar:** el plazo predeterminado es de 5 minutos (`MINUTOS_PARA_PAGAR`). Después del vencimiento, la API rechaza nuevos pagos sobre ese pedido y un trabajo del servidor puede eliminarlo. La limpieza contempla un minuto de gracia, barridos periódicos y comprobación de pagos en curso; no ocurre necesariamente en el segundo exacto del vencimiento.
 - **Pedido pagado sin chofer:** la oferta vence por defecto a los 5 minutos (`MINUTOS_ESPERA_CHOFER`). El servidor intenta reembolsarlo y registra el resultado. Un error de la pasarela puede requerir reintentos o revisión; la cancelación no garantiza por sí sola que el dinero ya haya sido devuelto.
 - **SLA de retiro:** el plazo comprometido se calcula desde el pago, con el tiempo estimado de llegada al retiro y un margen urbano o interurbano. Si el retiro incumple ese plazo, el servidor puede acreditar un cupón del **10 %**, evitando duplicarlo. `MINUTOS_SLA` es un respaldo para cotizaciones sin estimación, no el plazo universal de todos los envíos.
-- **Vencimiento de cupones:** cada cupón vence a los 90 días de emitido (`CUPONES_DIAS_VIGENCIA`). Al pagar no se acepta uno pasado de fecha, y un trabajo del servidor los marca como vencidos una vez por hora. Si el cupón está aplicado a un pago en curso cuando vence, se respeta.
+- **Vencimiento de cupones:** cada cupón vence a los 90 días de emitido (`CUPONES_DIAS_VIGENCIA`). Al pagar no se acepta uno pasado de fecha, y un trabajo del servidor los marca como vencidos una vez por hora. Si el cupón está aplicado a un pago en curso cuando vence, se respeta. Siete días antes del vencimiento (`CUPONES_DIAS_AVISO`) el cliente recibe una notificación y un push, una sola vez por cupón.
+- **Cobros de más:** si un envío se cobra dos veces (por ejemplo, un QR viejo que se paga tarde) o un pago llega con el envío ya cancelado, un trabajo del servidor lo devuelve solo y avisa al cliente. Si la pasarela no permite devolverlo (hoy solo Mercado Pago tiene devolución por API), queda en revisión y se avisa a los administradores para hacerlo a mano.
 
 Estas tareas viven en el backend y usan `pg-boss` sobre PostgreSQL. No dependen de mantener abierta la aplicación. Sí dependen de que los trabajos estén habilitados y el proceso del servidor esté activo; se realizan barridos al arrancar y periódicamente.
 
@@ -93,7 +94,7 @@ La persistencia incluye usuarios, sesiones, choferes, vehículos, cotizaciones, 
 | UI y recursos | Componentes propios, fuentes Poppins, Syne y DM Sans; Material Icons |
 | Mapas y ubicación | `react-native-maps`, Google Maps JavaScript, Directions y `expo-location` |
 | Identidad | `expo-camera`, ML Kit en móvil y comparación facial en backend |
-| Persistencia local | AsyncStorage; las preferencias se guardan en el dispositivo o navegador |
+| Persistencia local | `expo-secure-store` para la sesión en el teléfono; AsyncStorage para las preferencias y la sesión en la web |
 | API y datos | Express 4, `pg`, PostgreSQL, `node-pg-migrate` y `pg-boss` |
 | Sesiones y validación | JWT, `bcryptjs`, Zod, Helmet y `express-rate-limit` |
 | Integraciones | Supabase, Mercado Pago, MODO y Expo Push |
@@ -188,6 +189,7 @@ Los ejemplos completos están en [`backend/.env.example`](backend/.env.example) 
 | `RENAPER_API_URL`, `RENAPER_API_KEY` | Reservadas para RENAPER real, todavía pendiente de implementación. Configurar ambas selecciona un camino que lanza un error; la verificación vigente usa PDF417 y comprobaciones locales. |
 | `MINUTOS_PARA_PAGAR`, `MINUTOS_ESPERA_CHOFER`, `MINUTOS_SLA` | Vencimiento de pago, espera por chofer y plazo de respaldo para SLA. |
 | `CUPONES_DIAS_VIGENCIA` | Días que dura un cupón desde que se emite (90 si no se configura). |
+| `CUPONES_DIAS_AVISO` | Días antes del vencimiento en que se avisa al cliente (7 si no se configura; 0 apaga el aviso). |
 | `TRABAJOS_DESHABILITADOS` | `true` desactiva los trabajos de `pg-boss`. |
 | `GOOGLE_DIRECTIONS_KEY` | Clave de servidor para recorridos del móvil. |
 | `EXPO_ACCESS_TOKEN` | Opcional, según la seguridad configurada para Expo Push. |
@@ -228,7 +230,7 @@ No se deben ingresar datos reales de tarjetas en el procesador simulado. Para co
 
 ## Sesiones, Mi Perfil y preferencias
 
-La aplicación utiliza JWT de acceso y refresh tokens rotativos y revocables. El backend guarda hashes de refresh tokens y contempla detección de reutilización. El cliente persiste la sesión con AsyncStorage; el uso de almacenamiento seguro nativo para el refresh token sigue pendiente.
+La aplicación utiliza JWT de acceso y refresh tokens rotativos y revocables. El backend guarda hashes de refresh tokens y contempla detección de reutilización. En el teléfono, el token de acceso y el refresh token se guardan en el almacenamiento seguro del sistema (`expo-secure-store`: Keychain en iOS, Keystore en Android); las sesiones guardadas por versiones anteriores se migran solas. En la web quedan en el almacenamiento del navegador, protegidas por la rotación y la detección de reuso.
 
 En Mi Perfil:
 
@@ -236,6 +238,7 @@ En Mi Perfil:
 - El frontend puede comprobar credenciales usando login con el encabezado de verificación, sin abrir una sesión nueva. Esa comprobación no emite una autorización reutilizable para editar otros campos.
 - La edición individual de los demás datos está limitada en la interfaz; email y teléfono están deshabilitados. No debe presentarse como una edición completa ya habilitada.
 - El backend admite algunos cambios de perfil, pero todavía no vincula cada cambio sensible con una autorización de reautenticación específica; el nombre de usuario no se modifica mediante ese contrato.
+- "Descargar mis datos" entrega, con la contraseña, un archivo JSON con todo lo que Logitrak guarda de la cuenta (derecho de acceso de la Ley 25.326): datos personales, cotizaciones, envíos, pagos, cupones, soporte, notificaciones, sesiones e ingresos; a los choferes les suma verificación, viajes y calificaciones. No incluye contraseñas, tokens ni las fotos.
 - La eliminación de cuenta solicita contraseña y está sujeta a restricciones por rol y operaciones activas. El backend anonimiza datos y conserva los comprobantes previstos por su implementación.
 - El tema claro/oscuro y el modo silencioso se conservan localmente. No son preferencias sincronizadas con el servidor. El modo silencioso no está integrado de forma global con el sonido de las notificaciones push.
 

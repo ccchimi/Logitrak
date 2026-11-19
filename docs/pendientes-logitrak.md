@@ -9,12 +9,11 @@ y verificado se saca de acá; el historial queda en los commits.
    falla permanente —cancela el envío pero no marca el dinero como devuelto— y
    `MP_REEMBOLSOS_SIMULADOS=true` permite ejercitar el flujo completo en pruebas.
    Queda verificarlo recién con credenciales productivas.
-2. Reembolsar los pagos marcados como duplicados. Desde el Hito 0.1 ya no se
-   crean pagos duplicados por reintentos, pero si dos cobros llegan a aprobarse
-   para el mismo envío (por ejemplo, un QR viejo pagado tarde), el segundo queda
-   con `detalle.duplicadoDe` y `detalle.reembolsoPendiente`. Falta devolverlo
-   automáticamente o desde el panel del admin. `TRK-2026-000002` es anterior y
-   hay que revisarlo a mano.
+2. Devolución de cobros reales que no son de Mercado Pago. Los cobros de más
+   se devuelven solos, pero solo Mercado Pago tiene devolución por API: un
+   cobro real de MODO queda "en revisión" y se avisa a los admins para
+   devolverlo desde su panel. Falta un botón en el panel del admin para
+   marcar esas devoluciones como hechas.
 3. Handoff por QR para la verificación de DNI: generar un QR en desktop,
    continuar el escaneo en el teléfono y mostrar el resultado en tiempo real en
    el desktop. Se apoya en Supabase Realtime, que entra en el plan Free.
@@ -26,7 +25,7 @@ y verificado se saca de acá; el historial queda en los commits.
    `EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_KEY` como variable de EAS.
 5. Más tests del backend. Todas las rutas tienen pruebas de integración con
    `supertest` contra PostgreSQL, y la CI exige cobertura mínima (85 % de
-   líneas; hoy hay 89,5 %). Lo que sigue más flojo es `pagos.js` con Mercado
+   líneas; hoy hay 90,4 %). Lo que sigue más flojo es `pagos.js` con Mercado
    Pago y MODO reales (hoy se prueba el camino sandbox) y los adjuntos de
    soporte con Storage.
 6. Verificar la firma del webhook con notificaciones reales de Mercado Pago.
@@ -48,22 +47,21 @@ y verificado se saca de acá; el historial queda en los commits.
     `EXPO_PUBLIC_GOOGLE_DIRECTIONS_KEY` del repo.
 9. Verificación de identidad tiers 2 y 3 (liveness y match facial). Funcionan
     solo con dev build, no en Expo Go ni web. Se activan por variable de entorno.
-10. Guardar el refresh token en el almacenamiento seguro del teléfono
-    (`expo-secure-store`) en lugar de AsyncStorage. En web no hay equivalente:
-    queda en localStorage, protegido por la rotación y la detección de reuso.
+10. Sesión en la web: el refresh token queda en localStorage, protegido por
+    la rotación y la detección de reuso. Lo más seguro sería una cookie
+    `HttpOnly`, que necesita servir la Web App y la API desde el mismo dominio.
 11. Quitar el token largo de compatibilidad (`JWT_EXPIRA`) cuando ya nadie use
     versiones de la app anteriores al Hito 0.4.
-12. Exportar los datos de la cuenta (derecho de acceso de la Ley 25.326). La
-    eliminación ya está (Hito 0.5); falta que el usuario pueda descargar lo que
-    tenemos guardado de él. Y un trabajo periódico que borre del Storage los
-    archivos que hayan quedado si la eliminación no pudo borrarlos en el momento
-    (hoy solo se registra en el log).
+12. Un trabajo periódico que borre del Storage los archivos que hayan quedado
+    si la eliminación de una cuenta no pudo borrarlos en el momento (hoy solo
+    se registra en el log). La exportación de datos tampoco adjunta las fotos.
 13. Builds nativos después del salto a Expo SDK 58. La app pasó de SDK 54 a
     58 de a una versión (React Native 0.88, New Architecture obligatoria). Falta
     generar un build de desarrollo nuevo de Android, porque el instalado es de
     SDK 54, y probar en el teléfono la cámara, el mapa y la prueba de vida con
     `@react-native-ml-kit/face-detection`, que no figura como probada con la New
-    Architecture. Quedan 6 vulnerabilidades moderadas en herramientas de build
+    Architecture. Ese build también tiene que incluir `expo-secure-store` para
+    que la sesión pase al llavero del teléfono. Quedan 6 vulnerabilidades moderadas en herramientas de build
     (`glob`, `minimatch`), ninguna en el código que llega al teléfono.
 14. Contraseñas de los admins de producción. El código ya no siembra admins
     con contraseña conocida: si la base no tiene ninguno, crea el primero con

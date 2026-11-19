@@ -20,7 +20,7 @@ Las funciones que requieren sesión, datos, mapas, pagos o notificaciones depend
 | UI | Componentes propios, `expo-linear-gradient`, fuentes Poppins, Syne y DM Sans, Material Icons |
 | Mapas web | Google Maps JavaScript y componente `MapaSeguimiento.web.tsx` |
 | Permisos y cámara web | Integración de los componentes compartidos según soporte del navegador |
-| Sesión y preferencias | AsyncStorage, cliente HTTP compartido y hooks de tema/preferencias |
+| Sesión y preferencias | `expo-secure-store` para la sesión en el teléfono, AsyncStorage para preferencias (y la sesión en la web), cliente HTTP compartido y hooks de tema/preferencias |
 | Tiempo real | Supabase Realtime para seguimiento y soporte, con credenciales emitidas por el backend |
 | Errores | Integración opcional con Sentry |
 | Pruebas | Jest y `ts-jest`; comprobación de tipos con `tsc` |
@@ -80,8 +80,8 @@ No debe confundirse este motor con las propuestas de predicción logística del 
 | `Pago` | Checkout de Mercado Pago y formulario de tarjeta simulada. |
 | `Seguimiento`, `DetalleEnvio` | Mapa, estado, eventos, datos del chofer con su promedio de calificaciones, comprobante de entrega y la calificación del envío. |
 | `Historial` | Consulta de los envíos disponibles para la cuenta. |
-| `Perfil` | Datos, cambio de contraseña, preferencias, cierre de sesión y eliminación de cuenta según restricciones. |
-| `Cuponera` | Cupones acreditados con su vencimiento ("Vence en 3 días", "Venció el…"), resaltado en la última semana, y cómo usarlos. |
+| `Perfil` | Datos, cambio de contraseña, preferencias, descarga de los datos de la cuenta, cierre de sesión y eliminación de cuenta según restricciones. |
+| `Cuponera` | Cupones acreditados con su vencimiento ("Vence en 3 días", "Venció el…"), resaltado en la última semana, y cómo usarlos. El aviso de cupón por vencer abre esta pantalla. |
 | `TrabajaConNosotros` | Formulario de postulación por pasos, vehículo, DNI y selfie. |
 | `Chofer` | Ofertas filtradas por peso y bultos del vehículo, asignación, avances, cierre de viaje y la tarjeta "Tu calificación" con su promedio y los últimos comentarios. |
 | `Estadisticas` | Estadísticas disponibles para el flujo del chofer. |
@@ -114,7 +114,7 @@ Con el permiso `usuarios.editar` (solo admin), cada fila de Usuarios abre `compo
 
 ## Mi Perfil, sesión y preferencias
 
-La aplicación guarda la sesión y utiliza refresh tokens para renovar el acceso. El cierre de sesión borra el estado local e intenta revocar la sesión remota; la baja de push corresponde al flujo móvil. Si no hay conexión, la revocación remota no queda garantizada por el borrado local.
+La aplicación guarda la sesión y utiliza refresh tokens para renovar el acceso. En Android e iOS el token de acceso y el refresh token van al almacenamiento seguro del sistema (`leerSecreto`/`guardarSecreto` en `services/almacenamiento.ts`, con `expo-secure-store`); una sesión guardada por una versión anterior pasa sola al llavero y se borra la copia sin cifrar. Si el llavero falla, el secreto no se guarda en claro: la sesión sigue en memoria y al reabrir la app pide ingresar. En la web siguen en el almacenamiento del navegador. El cierre de sesión borra el estado local e intenta revocar la sesión remota; la baja de push corresponde al flujo móvil. Si no hay conexión, la revocación remota no queda garantizada por el borrado local.
 
 | Función | Estado del código actual |
 |---|---|
@@ -123,6 +123,7 @@ La aplicación guarda la sesión y utiliza refresh tokens para renovar el acceso
 | Comprobación previa de contraseña | Usa login con `X-Logitrak-Sesion: verificar`; comprueba que la identidad devuelta coincide con la cuenta local y no reemplaza la sesión. |
 | Edición individual de nombre, usuario y otros datos | Limitada en el frontend mientras no exista una autorización de reautenticación vinculada al cambio. |
 | Email y teléfono | Los controles de edición están deshabilitados; no se confirma un nuevo correo o número. |
+| Descargar mis datos | `ExportarDatosModal` pide la contraseña y guarda un JSON con todo lo de la cuenta: en la web se descarga, en Android se elige la carpeta y en iOS se abre la hoja de compartir (`services/descargas.ts`). |
 | Eliminación de cuenta | Conectada al endpoint correspondiente, con contraseña y restricciones por rol y operaciones activas. |
 | Tema claro/oscuro y modo silencioso | Guardados localmente por `preferenciasService.ts`; no se sincronizan con el servidor. |
 

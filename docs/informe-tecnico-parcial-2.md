@@ -38,18 +38,18 @@ Estado de los módulos:
 | Registro, login, recuperación de contraseña y roles (cliente, chofer, soporte, admin) | Implementado; sesiones con refresh token revocable |
 | Cotización con Boxy (direcciones, tipo de carga, vehículo y precio desglosado) | Implementado; el precio lo valida el servidor |
 | Creación de envíos y código de seguimiento `TRK-AAAA-NNNNNN` | Implementado |
-| Pagos: Mercado Pago (checkout, QR, webhook), MODO y tarjeta | Implementado; sin claves corre en modo sandbox |
+| Pagos: Mercado Pago (checkout, QR, webhook), MODO y tarjeta | Implementado; sin claves corre en modo sandbox. Si un envío se cobra dos veces, el segundo pago se devuelve solo |
 | Asignación al primer chofer compatible que acepta, con vencimiento y reembolso automático | Implementado |
 | Seguimiento con mapa, ruta, línea de tiempo, chofer y vehículo | Implementado: estados y eventos en tiempo real con Supabase Realtime. El marcador del chofer en el mapa es una animación de demostración; falta publicar su ubicación GPS real |
 | Postulación de chofer y verificación de identidad (DNI, selfie, prueba de vida opcional) | Implementado |
-| Historial, perfil, eliminación de cuenta y cupones por SLA incumplido | Implementado; el SLA lo controla el servidor y los cupones vencen a los 90 días |
+| Historial, perfil, descarga y eliminación de la cuenta, y cupones por SLA incumplido | Implementado; el SLA lo controla el servidor, los cupones vencen a los 90 días y se avisa una semana antes |
 | Notificaciones: bandeja en la app y push en el teléfono | Implementado en Android; iOS pendiente |
 | Entrega con PIN del receptor y foto de comprobante | Implementado (nuevo en esta etapa) |
 | Valoraciones del chofer: el cliente califica con 1 a 5 estrellas y un comentario | Implementado (nuevo en esta etapa) |
 | Soporte: tickets, chat en tiempo real y bot de soporte | Implementado (no estaba en el diseño) |
 | Panel de administración y rol soporte | Implementado: métricas, reembolso y archivo de envíos, listado de usuarios con filtros, cambio de rol y edición de los datos de otras cuentas |
 
-**Calidad.** Hay 534 pruebas automáticas: 235 de la app en Jest y 299 del backend con `node:test`, entre ellas pruebas de integración de todas las rutas con `supertest` contra un PostgreSQL real. Todas corren en **GitHub Actions** en cada push a `main`, junto con una auditoría de dependencias, y la CI falla si la cobertura del backend baja del 85 % de líneas (hoy está en 89,5 %). Un segundo workflow publica la Web App en GitHub Pages.
+**Calidad.** Hay 557 pruebas automáticas: 243 de la app en Jest y 314 del backend con `node:test`, entre ellas pruebas de integración de todas las rutas con `supertest` contra un PostgreSQL real. Todas corren en **GitHub Actions** en cada push a `main`, junto con una auditoría de dependencias, y la CI falla si la cobertura del backend baja del 85 % de líneas (hoy está en 90,4 %). Un segundo workflow publica la Web App en GitHub Pages.
 
 ## 2. Decisiones tecnológicas tomadas
 
@@ -67,6 +67,7 @@ Estado de los módulos:
 | **pino + Sentry** y chequeo de salud (`/api/salud`) | console.log | Logs estructurados por pedido y un chequeo que prueba la conectividad real con la base y los servicios externos. |
 | **Límites de tiempo** en la conexión a PostgreSQL | Esperar sin límite, que es lo que hace `pg` por defecto | Una consulta trabada o una caída de Supabase devuelve un error a los 15 s en lugar de dejar el pedido colgado y ocupar el pool. Las transacciones inactivas se cierran a los 30 s y conectar tiene un tope de 10 s. Las migraciones corren sin límite. |
 | **Token de acceso corto + refresh token revocable**, bcrypt y rate limiting | Sesiones en servidor, Supabase Auth | API sin estado y fácil de consumir desde web y mobile; el refresh token permite cerrar sesiones, por ejemplo al cambiar el rol de una cuenta. |
+| **Llavero del teléfono** (`expo-secure-store`) para guardar la sesión | AsyncStorage, que guarda en claro | En Android e iOS el token y el refresh token quedan cifrados por el sistema (Keystore y Keychain) y fuera de los respaldos; las sesiones viejas se migran solas. En la web quedan en el navegador. |
 | **Boxy como motor de reglas** que corre en el dispositivo | Un modelo de lenguaje (LLM) externo | El precio tiene que ser explicable y reproducible: ante la misma entrada da siempre lo mismo y no puede inventar una tarifa. Además responde al instante y no manda domicilios a terceros. |
 | **El servidor recalcula el precio** con el mismo código de Boxy (empaquetado con esbuild) | Confiar en el precio que manda la app | Evita que un cliente modifique el pedido y pague menos (defecto DEF-02, corregido en esta etapa). |
 | **Mercado Pago y MODO** con modo sandbox | Solo Mercado Pago | Son los medios de pago más usados en Argentina. El modo sandbox deja probar todo el circuito sin cobrar. |
@@ -94,6 +95,8 @@ Estado de los módulos:
 | — | Entrega con el PIN que tiene quien recibe y una foto de comprobante | Antes un envío podía marcarse como entregado sin pruebas, incluso por el propio cliente. |
 | — | Los pedidos sin pagar vencen a los 5 minutos y se eliminan | Evita pedidos pendientes para siempre que ocupan a los choferes. |
 | — | Eliminación de cuenta con anonimización y documentos de identidad en un bucket privado | Derecho de supresión (Ley 25.326) y protección de los datos personales. |
+| — | Descarga de los datos de la cuenta en un archivo, con la contraseña | Derecho de acceso (Ley 25.326, art. 14): el usuario ve todo lo que Logitrak guarda de él, sin contraseñas ni tokens. |
+| — | Los cobros de más se devuelven solos | Un segundo cobro sobre el mismo envío, o uno que llega con el envío cancelado, antes solo se avisaba al admin. Si la pasarela no permite devolverlo, queda en revisión. |
 
 ## 4. Diagrama actualizado de arquitectura
 

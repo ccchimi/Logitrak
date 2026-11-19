@@ -212,6 +212,9 @@ instancia).
 | `eliminar-impago` | Revisa pagos en curso y, si corresponde, borra el pedido y sus registros dependientes | Por envío, con reintentos |
 | `despachar-outbox` | Procesa eventos pendientes y genera avisos | Cada minuto, al arrancar y por activación tras registrar eventos |
 | `vencer-cupones` | Marca como `vencido` los cupones activos pasados de fecha, salvo los aplicados a un pago en curso | Cada hora (minuto 7) y al arrancar |
+| `avisar-cupones-por-vencer` | Registra `cupon.por_vencer` para los cupones activos que vencen dentro de `CUPONES_DIAS_AVISO` (7) días, una sola vez por cupón | Cada hora (minuto 37) y al arrancar |
+| `barrer-pagos-de-mas` | Busca cobros duplicados o aprobados sobre un envío cancelado que todavía no se devolvieron y encola uno por pago | Cada minuto y al arrancar |
+| `devolver-pago-de-mas` | Devuelve el pago al medio original (sin tocar el cupón) o lo deja en revisión si la pasarela no lo permite | Por pago, con reintentos |
 
 **Pedidos sin pagar.** Cada envío nace con `pago_vence_en` (5 minutos). Pasado
 ese límite el checkout, la tarjeta y la confirmación sandbox responden 409 con
@@ -271,6 +274,14 @@ sigue en curso no se vence hasta que el pago termina: si se aprueba, se consume
 igual. Si después de la fecha se devuelve un pago que usó un cupón, el cupón
 vuelve como `vencido` y no como `activo`.
 
+**Aviso de cupón por vencer.** El trabajo `avisar-cupones-por-vencer` busca los
+cupones activos que vencen dentro de `CUPONES_DIAS_AVISO` días (7 por
+defecto; 0 lo apaga) y los marca con `aviso_vencimiento_en` en la misma
+transacción que registra el evento, así cada cupón se avisa una sola vez
+aunque haya dos instancias. Al despachar se vuelve a mirar el cupón: si ya se
+usó o venció, no se notifica. El texto cuenta los días en la hora de Argentina
+("vence hoy", "mañana", "en 5 días (el 24/11)").
+
 ## Eventos y notificaciones (outbox)
 
 Lo que un hecho de negocio tiene que disparar afuera de su transacción (avisarle
@@ -298,9 +309,13 @@ garantía de entrega en tres segundos.
 | Evento | Lo produce | Efecto |
 |---|---|---|
 | `pago.aprobado` | Aprobación del pago (tarjeta, webhook, consulta, sandbox) | Notificación al cliente con monto y comprobante |
-| `pago.duplicado` | Un segundo pago aprobado sobre el mismo envío | Notificación a los admins para devolverlo |
+| `pago.duplicado` | Un segundo pago aprobado sobre el mismo envío | Aviso a los admins: se devuelve solo |
+| `pago.sobre_envio_cancelado` | Un pago aprobado con el envío ya cancelado | Aviso a los admins: se devuelve solo |
+| `pago.devuelto` | Trabajo de devolución de pagos de más | Aviso al cliente con el monto devuelto |
+| `pago.devolucion_fallida` | La pasarela no permitió devolver un pago de más | Aviso a los admins para devolverlo a mano |
 | `envio.cancelado_sin_chofer` | Trabajo de expiración de ofertas | Notificación al cliente con el estado de la devolución |
 | `cupon.acreditado` | Trabajo de revisión del SLA | Notificación al cliente con el cupón |
+| `cupon.por_vencer` | Trabajo de aviso de cupones | Aviso al cliente ("vence mañana", "en 5 días"), que abre la Cuponera; no avisa si el cupón ya se usó |
 | `envio.eliminado_sin_pago` | Limpieza de impagos vencidos | Aviso al cliente para volver a cotizar |
 | `envio.asignado` | El chofer toma el envío | Aviso al cliente |
 | `envio.entregado` | Confirmación con PIN y foto | Aviso al cliente con acceso al detalle |
@@ -505,6 +520,7 @@ un control equivalente en el frontend.
 | GET | `/api/perfil/editable` | Datos editables de la cuenta autenticada. |
 | PUT | `/api/perfil` | Actualiza campos admitidos de la propia cuenta; el cambio de contraseña valida la actual. |
 | GET | `/api/perfil/resumen` | Resumen de la propia cuenta. |
+| POST | `/api/perfil/exportar` | Copia en JSON de los datos de la propia cuenta; pide la contraseña, 5 por hora. |
 | POST | `/api/perfil/eliminar-cuenta` | Anonimización con contraseña y restricciones operativas/por rol. |
 | POST | `/api/choferes/postulacion` | Alta verificada de chofer; solo cliente autenticado. |
 | GET | `/api/choferes/:codigo/documentos` | URLs firmadas de documentos; permiso `choferes.ver_documentos`. |
@@ -819,7 +835,12 @@ menos de 15 minutos puede reutilizarse si cumple las condiciones de
 por defecto). Se reutiliza en lugar de crear otro pago y otra preferencia, y si
 la pasarela falla no queda ninguna fila huérfana. Aprobar también es
 idempotente, y si un envío llegara a recibir un segundo cobro aprobado, ese pago
-queda marcado como duplicado (`detalle.duplicadoDe`) para reembolsarlo.
+queda marcado como duplicado (`detalle.duplicadoDe`) y el trabajo
+`devolver-pago-de-mas` lo devuelve solo (lo mismo con un cobro que llega con el
+envío ya cancelado). La devolución no toca el cupón: el pago de más nunca lo
+consumió. Solo Mercado Pago tiene devolución por API; un cobro real por otro
+medio queda con `detalle.reembolsoEnRevision` y un aviso a los admins, y no se
+marca como devuelto hasta que alguien lo haga.
 
 El QR real se genera a partir del enlace `init_point` de Checkout Pro. El texto
 de la interfaz menciona MODO, pero este código no implementa por sí mismo un QR
@@ -907,6 +928,19 @@ ruta.
 | Registro | 5 cada hora |
 | Guardar cotización | 30 cada 10 minutos |
 | Checkout, pago con tarjeta y confirmación | 20 cada 10 minutos |
+| Exportar los datos de la cuenta | 5 cada hora |
+
+**Exportación de datos** (`src/servicios/exportacionCuenta.js`):
+`POST /api/perfil/exportar` pide la contraseña y devuelve un JSON con todo lo
+que se guarda de la cuenta (derecho de acceso de la Ley 25.326, art. 14):
+datos de la cuenta, cotizaciones, envíos con su historial y coordenadas,
+pagos, cupones, calificaciones, tickets de soporte con sus mensajes,
+notificaciones, sesiones, dispositivos con push y los últimos 200 intentos de
+ingreso; a un chofer le suma sus datos, la verificación de identidad, los
+viajes y las calificaciones recibidas. Quedan afuera el hash de la contraseña,
+los hashes de las sesiones, los tokens de push, el PIN de entrega y las rutas
+de los archivos (solo se indica si existen). La respuesta lleva
+`Cache-Control: no-store`.
 
 **Eliminación y anonimización** (`src/servicios/eliminacionCuenta.js`):
 `POST /api/perfil/eliminar-cuenta` pide la contraseña. El usuario se anonimiza
@@ -1010,9 +1044,8 @@ forma automática por un rollback de PostgreSQL.
 - Pagos: tarjeta es simulada; MODO real, webhooks y reembolsos necesitan pruebas
   específicas del proveedor/entorno. El webhook de MODO no aplica el mismo
   middleware de firma que Mercado Pago.
-- Un segundo cobro aprobado se registra como duplicado para revisión; eso no
-  equivale a una devolución automática ya completada.
-- No hay notificación antes de que venza un cupón: el aviso es visual, en la Cuponera, durante su última semana.
+- Los cobros de más se devuelven solos solo por Mercado Pago; uno real de
+  MODO queda en revisión para devolverlo desde su panel.
 - Push se intenta después de confirmar el evento. Un fallo no elimina el aviso
   de la bandeja, pero tampoco garantiza una nueva entrega push.
 - El borrado de archivos externos después de anonimizar puede fallar; se

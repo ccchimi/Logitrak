@@ -10,7 +10,7 @@ La Mobile App usa Expo, React Native y TypeScript y comparte el código de [`fro
 
 ## Funcionalidades y alcance
 
-El código móvil contempla registro e inicio de sesión, cotización con Boxy, pago y seguimiento de envíos, calificación del chofer, historial, perfil, cupones, soporte y notificaciones. El flujo de chofer incluye postulación, DNI, selfie, vehículo, ofertas filtradas por peso y bultos, avances, entrega con PIN y foto, y su promedio de calificaciones. Soporte y administración acceden a las pantallas y operaciones que permiten sus capacidades.
+El código móvil contempla registro e inicio de sesión, cotización con Boxy, pago y seguimiento de envíos, calificación del chofer, historial, perfil con descarga de los datos de la cuenta, cupones con aviso antes de que venzan, soporte y notificaciones. El flujo de chofer incluye postulación, DNI, selfie, vehículo, ofertas filtradas por peso y bultos, avances, entrega con PIN y foto, y su promedio de calificaciones. Soporte y administración acceden a las pantallas y operaciones que permiten sus capacidades.
 
 Estas funciones dependen del backend y de la configuración de cada integración. Para validar cada versión, seguí las comprobaciones de esta guía y registrá los resultados por plataforma y tipo de build.
 
@@ -26,7 +26,7 @@ El pago directo con tarjeta es simulado y la edición de varios datos de perfil 
 | Mapas y ubicación | `react-native-maps`, `expo-location` y recorridos solicitados al backend |
 | Captura e identidad | `expo-camera`, lectura PDF417 y ML Kit para detección facial/prueba de vida compatible |
 | Notificaciones | `expo-notifications`, Expo Push y credenciales de plataforma |
-| Sesión y preferencias | AsyncStorage; tema y modo silencioso locales |
+| Sesión y preferencias | `expo-secure-store` para la sesión; AsyncStorage para tema y modo silencioso locales |
 | Compilación | Perfiles de EAS Build en `frontend/eas.json` |
 | Configuración | `frontend/app.json`, `frontend/app.config.js` y `frontend/.env.example` |
 
@@ -187,7 +187,7 @@ Los perfiles actuales no declaran `ios.simulator: true`: ese comando no debe pre
 | Ubicación del chofer | La publicación de GPS real del conductor al mapa está pendiente, también en primer plano. El componente muestra un marcador animado de demostración. `expo-location` se usa para geocodificar direcciones; mostrar la ubicación del dispositivo que consulta el mapa no equivale a ubicar al chofer remoto. |
 | Mapa | `MapaSeguimiento.tsx`; la ruta por calles se obtiene de `/api/recorridos`, con `GOOGLE_DIRECTIONS_KEY` solo en servidor. El movimiento del marcador es simulado y la configuración de Google Maps iOS está pendiente. |
 | Push | Dispositivo, permisos, credenciales FCM/APNs, registro de token y entrega por Expo. |
-| Sesión | Persistencia local y renovación con refresh; el uso de un almacén seguro nativo sigue pendiente. |
+| Sesión | Token y refresh token en `expo-secure-store` (Keychain/Keystore), con migración automática desde AsyncStorage; requiere un build que incluya el módulo, y uno viejo sigue usando AsyncStorage. |
 | Preferencias | Tema y modo silencioso locales; el modo silencioso no está aplicado globalmente al sonido push. |
 | Identidad oficial | RENAPER real no está implementado aunque existan nombres de variables para configurarlo. |
 
