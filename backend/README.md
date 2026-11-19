@@ -320,6 +320,7 @@ garantía de entrega en tres segundos.
 | `envio.asignado` | El chofer toma el envío | Aviso al cliente |
 | `envio.entregado` | Confirmación con PIN y foto | Aviso al cliente con acceso al detalle |
 | `envio.valorado` | El cliente califica un envío entregado | Aviso al chofer con las estrellas y si hay comentario |
+| `envio.mensaje` | Un mensaje en el chat del envío | Aviso a la otra parte con el inicio del mensaje; uno solo por envío en la bandeja mientras no lo lea, push con cada mensaje |
 | `usuario.datos_editados` | Un admin edita los datos de otra cuenta | Aviso al usuario con los datos que cambiaron |
 
 Los payloads llevan ids, códigos y montos, nunca nombres ni direcciones. Las
@@ -547,6 +548,8 @@ un control equivalente en el frontend.
 | GET | `/api/envios` | Lista según acceso y `estado`; hasta 200 registros, sin paginación general. |
 | GET | `/api/envios/metricas` | Totales por estado según alcance del usuario. |
 | GET | `/api/envios/:codigo` | Detalle, eventos, datos de entrega, calificación del envío y promedio del chofer; controla acceso al envío. |
+| GET | `/api/envios/:codigo/mensajes` | Chat del envío: estado (abierto o motivo), contraparte y últimos 200 mensajes; marca como leídos los de la otra parte. Cliente, chofer del envío o personal. |
+| POST | `/api/envios/:codigo/mensajes` | Mensaje de 1 a 1000 caracteres; solo cliente o chofer del envío, mientras está asignado o en viaje (si no, 409 `chat_cerrado`); 30 por minuto. |
 | GET | `/api/envios/:codigo/comprobante` | Comprobante en PDF; con `Accept: application/json`, en base64. Dueño del envío o personal; 409 `sin_pago` si no hay pago aprobado. |
 | POST | `/api/envios/:codigo/eventos` | Avances permitidos del chofer asignado o admin; no cierra entregas ni cancela. |
 | POST | `/api/envios/:codigo/cancelar` | Cancelación por el cliente dueño, mientras el envío está pendiente y sin chofer. Devuelve el importe si estaba pago o anula los intentos de pago pendientes; con un pago en curso en la pasarela responde 409. |
@@ -815,6 +818,24 @@ El bucket hay que crearlo antes del primer uso. Si estas variables quedan vacía
 las imágenes caen al disco local, lo cual alcanza para desarrollo. En entornos desplegados (`staging` o `produccion`, según
 `src/config/entorno.js`) no se escriben fotos de documentos en disco: sin Storage, el alta puede continuar sin fotos de verificación y se registra
 el problema. La entrega con foto tiene sus propios requisitos de almacenamiento.
+
+## Chat del envío (RF13)
+
+El cliente y el chofer de un envío conversan en `envio_mensajes`
+(`src/rutas/chatEnvios.js`, montado en `/api/envios`). El chat se abre cuando un
+chofer toma el envío y se cierra al entregarlo, cancelarlo o archivarlo; antes
+y después responde 409 `chat_cerrado` con el motivo, y la conversación queda
+para leer. El estado del envío se vuelve a mirar con `FOR UPDATE` al guardar el
+mensaje, así no entra uno después de la entrega. El personal con
+`envios.ver_todos` lee la conversación (por ejemplo, ante un reclamo) pero no
+escribe, y su lectura no marca los mensajes como leídos. Al abrir el chat se
+marcan leídos los mensajes de la otra parte; `GET /api/envios/:codigo` suma
+`chat: { abierto, mensajes, noLeidos }`. Cada mensaje registra `envio.mensaje`
+en el outbox: la otra parte recibe un push con el inicio del texto y, en la
+bandeja, un solo aviso por envío mientras no lo lea. Por Realtime, la política
+`envio_mensajes_lectura` deja leer los mensajes a quien puede ver el envío. La
+exportación de datos incluye los chats, y al eliminar la cuenta del cliente se
+borran los de sus envíos (y lo que haya escrito como chofer en otros).
 
 ## Comprobante del envío (RF14)
 

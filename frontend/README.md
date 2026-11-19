@@ -78,12 +78,13 @@ No debe confundirse este motor con las propuestas de predicción logística del 
 | `Home` | Inicio de cliente o panel operativo para cuentas con permiso de consultar todos los envíos. |
 | `SolicitudEnvio` | Conversación con Boxy y confirmación de cotización. |
 | `Pago` | Checkout de Mercado Pago y formulario de tarjeta simulada. |
-| `Seguimiento`, `DetalleEnvio` | Mapa, estado, eventos, datos del chofer con su promedio de calificaciones, comprobante de entrega, la calificación del envío y la descarga del comprobante en PDF. |
+| `Seguimiento`, `DetalleEnvio` | Mapa, estado, eventos, datos del chofer con su promedio de calificaciones, comprobante de entrega, la calificación del envío, la descarga del comprobante en PDF y el acceso al chat con los mensajes sin leer. |
+| `ChatEnvio` | Chat del envío entre el cliente y el chofer: mensajes por día, "Enviado"/"Leído" en el último propio y el motivo cuando está cerrado. Se abre desde el detalle, la tarjeta del viaje del chofer o el aviso. |
 | `Historial` | Consulta de los envíos disponibles para la cuenta. |
 | `Perfil` | Datos, cambio de contraseña, preferencias, descarga de los datos de la cuenta, cierre de sesión y eliminación de cuenta según restricciones. |
 | `Cuponera` | Cupones acreditados con su vencimiento ("Vence en 3 días", "Venció el…"), resaltado en la última semana, y cómo usarlos. El aviso de cupón por vencer abre esta pantalla. |
 | `TrabajaConNosotros` | Formulario de postulación por pasos, vehículo, DNI y selfie. |
-| `Chofer` | Ofertas filtradas por peso y bultos del vehículo, asignación, avances, cierre de viaje y la tarjeta "Tu calificación" con su promedio y los últimos comentarios. |
+| `Chofer` | Ofertas filtradas por peso y bultos del vehículo, asignación, avances, chat con el cliente, cierre de viaje y la tarjeta "Tu calificación" con su promedio y los últimos comentarios. |
 | `Estadisticas` | Estadísticas disponibles para el flujo del chofer. |
 | `TodosPedidos` | Consulta operativa de pedidos con filtros y búsqueda. |
 | `UsuariosAdmin` | Usuarios con filtros, paginación, edición de datos y cambio de roles según permisos. |
@@ -110,6 +111,7 @@ Con el permiso `usuarios.editar` (solo admin), cada fila de Usuarios abre `compo
 - En la consola del chofer, `useCompartirUbicacion` comparte la posición mientras hay un viaje en curso y la app está abierta: cuando se movió 15 m, como mucho cada 8 s, y al menos cada 45 s. Muestra si la está compartiendo o por qué no (sin permiso, GPS apagado), con un botón para reintentar. En la web usa `navigator.geolocation` directamente (`services/gps.ts`): el seguimiento web de `expo-location` no entrega las posiciones cuando el id del navegador no coincide con el suyo.
 - El chofer confirma la entrega con el PIN informado por el receptor y una foto, mediante el servicio de asignaciones. El PIN y su bloqueo los controla el backend.
 - Con el envío entregado, el detalle le muestra al cliente la tarjeta "¿Cómo fue la entrega?" (`components/envio/TarjetaValoracion.tsx`): elige de 1 a 5 estrellas, cada una con su nombre (Mala a Excelente) y accesible como grupo de opciones, y puede dejar un comentario de hasta 500 caracteres. Se califica una sola vez; después queda a la vista como "Tu calificación". El chofer ve su promedio y la distribución en `components/chofer/TarjetaReputacion.tsx`, que se recarga al cerrar cada entrega. Los textos y el formato del promedio están en `helpers/valoraciones.ts`.
+- `ChatEnvioScreen` escucha `envio_mensajes` por Realtime (mensajes nuevos y leídos) y, sin Realtime, consulta cada 5 segundos. Los helpers de `helpers/chat.ts` arman los separadores por día, el estado de lectura y la validación del texto (hasta 1000 caracteres). Por ahora el chat es solo de texto.
 - Desde que el envío está pago, la tarjeta de pagos del detalle tiene "Descargar comprobante (PDF)" (para el cliente y el personal). `obtenerComprobante` lo recibe en base64 y `guardarPdf` (`services/descargas.ts`) lo descarga en la web, lo guarda en la carpeta que se elija en Android o abre la hoja de compartir en iOS.
 - Soporte combina Realtime con consultas periódicas. La bandeja de notificaciones y el push son mecanismos distintos.
 - La Web App dispone de la bandeja de notificaciones, pero `pushService.ts` omite el registro push en web. La configuración de notificaciones nativas está en la guía mobile.

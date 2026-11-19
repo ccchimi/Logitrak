@@ -25,7 +25,7 @@ y verificado se saca de acá; el historial queda en los commits.
    `EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_KEY` como variable de EAS.
 5. Más tests del backend. Todas las rutas tienen pruebas de integración con
    `supertest` contra PostgreSQL, y la CI exige cobertura mínima (85 % de
-   líneas; hoy hay 90,6 %). Lo que sigue más flojo es `pagos.js` con Mercado
+   líneas; hoy hay 90,9 %). Lo que sigue más flojo es `pagos.js` con Mercado
    Pago y MODO reales (hoy se prueba el camino sandbox) y los adjuntos de
    soporte con Storage.
 6. Verificar la firma del webhook con notificaciones reales de Mercado Pago.
@@ -91,3 +91,8 @@ y verificado se saca de acá; el historial queda en los commits.
     confirmar en producción que la política de Realtime de
     `ubicaciones_chofer` entrega las posiciones al cliente (localmente se
     probó con la consulta de respaldo).
+19. Chat del envío: hoy es solo de texto. Faltaría poder mandar una foto (por
+    ejemplo, de la puerta o del paquete) reutilizando los adjuntos del chat de
+    soporte, y confirmar en producción que la política de Realtime de
+    `envio_mensajes` entrega los mensajes (localmente se probó con la consulta
+    de respaldo).
