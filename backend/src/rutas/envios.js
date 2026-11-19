@@ -262,7 +262,8 @@ rutasEnvios.get('/', autenticar, validarRequest({ query: consultaListado }), asy
     if (armado.error) return res.status(400).json({ exito: false, error: armado.error });
 
     const { rows } = await consultar(
-        `${SELECT_ENVIO} WHERE ${armado.where} ORDER BY e.creado_en DESC, e.id DESC LIMIT ${armado.tamano + 1}`,
+        `${SELECT_ENVIO.replace('SELECT e.*,', 'SELECT e.*, e.creado_en::text AS cursor_creado,')}
+         WHERE ${armado.where} ORDER BY e.creado_en DESC, e.id DESC LIMIT ${armado.tamano + 1}`,
         armado.params
     );
     const { pagina, siguiente } = cortarPagina(rows, armado.tamano);

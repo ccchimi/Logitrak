@@ -20,17 +20,31 @@ export const consultaListado = z.object({
     q: z.string().trim().max(80, 'La búsqueda puede tener hasta 80 caracteres.').optional(),
 });
 
+// La fecha va en el cursor tal como la guarda PostgreSQL, con microsegundos
+// (`cursor_creado`, que la consulta pide como texto). Con la precisión de
+// milisegundos de JavaScript, dos envíos del mismo milisegundo se cortaban
+// mal entre páginas y uno quedaba afuera.
+const FECHA_PG = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[+-]\d{2}(:?\d{2})?)$/;
+
 export function crearCursor(fila) {
-    return Buffer.from(`${new Date(fila.creado_en).toISOString()}|${fila.id}`).toString('base64url');
+    const fecha = fila.cursor_creado ?? new Date(fila.creado_en).toISOString();
+    return Buffer.from(`${fecha}|${fila.id}`).toString('base64url');
 }
 
 export function leerCursor(cursor) {
     if (!cursor) return null;
     const [fecha, id] = Buffer.from(cursor, 'base64url').toString('utf8').split('|');
-    const instante = Date.parse(fecha);
     const numero = Number(id);
-    if (!Number.isFinite(instante) || !Number.isInteger(numero) || numero < 1) return { error: true };
-    return { fecha: new Date(instante).toISOString(), id: numero };
+    // Para validar con JavaScript: "2026-11-19 15:00:00.123456+00" pasa a
+    // "2026-11-19T15:00:00.123+00:00" (Date.parse no entiende el formato de PostgreSQL).
+    const paraJs = (fecha ?? '')
+        .replace(' ', 'T')
+        .replace(/(\.\d{3})\d+/, '$1')
+        .replace(/([+-]\d{2})$/, '$1:00');
+    if (!FECHA_PG.test(fecha ?? '') || !Number.isFinite(Date.parse(paraJs)) || !Number.isInteger(numero) || numero < 1) {
+        return { error: true };
+    }
+    return { fecha, id: numero };
 }
 
 const escaparLike = (texto) => texto.replace(/[\\%_]/g, (c) => `\\${c}`);

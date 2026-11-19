@@ -27,7 +27,14 @@ describe('/api/perfil y /api/vehiculos (integración)', { skip: SALTEAR }, () =>
             const cli = await e.cuenta('per.ed.cli');
             const r = await e.http('get', '/api/perfil/editable', { token: cli.token });
             assert.equal(r.status, 200);
-            assert.deepEqual(r.body.perfil, { usuario: cli.usuario, rol: 'cliente', nombreCompleto: 'Cuenta de Prueba', chofer: null });
+            assert.deepEqual(r.body.perfil, {
+                usuario: cli.usuario,
+                rol: 'cliente',
+                nombreCompleto: 'Cuenta de Prueba',
+                email: null,
+                telefono: null,
+                chofer: null,
+            });
 
             const ch = await chofer('per.ed.ch');
             const rc = await e.http('get', '/api/perfil/editable', { token: ch.token });

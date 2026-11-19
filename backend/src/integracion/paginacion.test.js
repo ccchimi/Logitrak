@@ -10,6 +10,9 @@ describe('cursor del listado', () => {
         assert.equal(leerCursor(null), null);
         assert.deepEqual(leerCursor('no-es-un-cursor'), { error: true });
         assert.deepEqual(leerCursor(Buffer.from('2026-11-19|abc').toString('base64url')), { error: true });
+        const conMicros = crearCursor({ cursor_creado: '2026-11-19 15:00:00.123456+00', creado_en: new Date(), id: 7 });
+        assert.deepEqual(leerCursor(conMicros), { fecha: '2026-11-19 15:00:00.123456+00', id: 7 }, 'conserva los microsegundos');
+        assert.deepEqual(leerCursor(Buffer.from("2026-11-19'; DROP TABLE envios;--|1").toString('base64url')), { error: true });
     });
 });
 
@@ -27,18 +30,37 @@ describe('historial paginado (integración)', { skip: SALTEAR }, () => {
             const minutos = i === 3 ? 4 * 10 : i * 10;
             await e.pool.query(`UPDATE envios SET creado_en = now() - make_interval(mins => $2) WHERE codigo = $1`, [codigos[i], 1000 - minutos]);
         }
+        // Tres envíos en el mismo milisegundo, distintos solo en microsegundos:
+        // el caso que antes se cortaba mal entre páginas.
+        const base = (await e.pool.query(`SELECT date_trunc('milliseconds', now()) - interval '2000 minutes' AS t`)).rows[0].t;
+        for (const [i, micros] of [[4, 900], [5, 500], [6, 100]]) {
+            await e.pool.query(`UPDATE envios SET creado_en = $2::timestamptz + make_interval(secs => $3::float8 / 1000000) WHERE codigo = $1`, [codigos[i], base, micros]);
+        }
     });
     after(() => e?.cerrar());
 
     const listar = (qs, token = s.token) => e.http('get', `/api/envios${qs}`, { token });
 
     test('recorre todas las páginas sin repetir ni saltear, del más nuevo al más viejo', async () => {
+        for (const limite of [1, 2, 3]) {
+            const vistos = [];
+            let cursor = null;
+            let paginas = 0;
+            do {
+                const r = await listar(`?limite=${limite}${cursor ? `&cursor=${cursor}` : ''}`);
+                assert.equal(r.status, 200, JSON.stringify(r.body));
+                vistos.push(...r.body.envios.map((x) => x.codigo));
+                cursor = r.body.siguiente;
+                paginas++;
+            } while (cursor && paginas < 20);
+            assert.deepEqual([...vistos].sort(), [...codigos].sort(), `de a ${limite}: sin saltear ni repetir`);
+        }
+
         const vistos = [];
         let cursor = null;
         let paginas = 0;
         do {
             const r = await listar(`?limite=3${cursor ? `&cursor=${cursor}` : ''}`);
-            assert.equal(r.status, 200, JSON.stringify(r.body));
             assert.ok(r.body.envios.length <= 3);
             vistos.push(...r.body.envios.map((x) => x.codigo));
             cursor = r.body.siguiente;
