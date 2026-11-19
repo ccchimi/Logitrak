@@ -1,5 +1,5 @@
 import { NativeModules, Platform } from 'react-native';
-import { borrar, guardar, guardarJson, leer, leerJson } from './almacenamiento';
+import { borrar, borrarSecreto, guardarJson, guardarSecreto, leerJson, leerSecreto } from './almacenamiento';
 import { identificarUsuario, registrarFallaApi } from './monitoreo';
 export type RolUsuario = 'admin' | 'cliente' | 'chofer' | 'soporte';
 export interface UsuarioSesion {
@@ -50,11 +50,11 @@ export function guardarSesion(token: string, usuario: UsuarioSesion, refreshToke
     tokenActual = token;
     usuarioActual = usuario;
     identificarUsuario(usuario);
-    void guardar(CLAVE_TOKEN, token);
+    void guardarSecreto(CLAVE_TOKEN, token);
     void guardarJson(CLAVE_USUARIO, usuario);
     if (refreshToken) {
         refreshActual = refreshToken;
-        void guardar(CLAVE_REFRESH, refreshToken);
+        void guardarSecreto(CLAVE_REFRESH, refreshToken);
     }
 }
 
@@ -71,14 +71,14 @@ export function cerrarSesion() {
     refreshActual = null;
     usuarioActual = null;
     identificarUsuario(null);
-    void borrar(CLAVE_TOKEN);
-    void borrar(CLAVE_REFRESH);
+    void borrarSecreto(CLAVE_TOKEN);
+    void borrarSecreto(CLAVE_REFRESH);
     void borrar(CLAVE_USUARIO);
     void borrar(CLAVE_NAVEGACION);
 }
 
 export async function cerrarSesionRemota(): Promise<void> {
-    const refreshToken = refreshActual ?? (await leer(CLAVE_REFRESH));
+    const refreshToken = refreshActual ?? (await leerSecreto(CLAVE_REFRESH));
     cerrarSesion();
     if (!refreshToken) return;
     try {
@@ -106,7 +106,7 @@ function renovarSesion(signal: AbortSignal): Promise<ResultadoRenovacion> {
 }
 
 async function intentarRenovacion(signal: AbortSignal): Promise<ResultadoRenovacion> {
-    const usado = refreshActual ?? (await leer(CLAVE_REFRESH));
+    const usado = refreshActual ?? (await leerSecreto(CLAVE_REFRESH));
     if (!usado) return 'vencida';
 
     let respuesta: Response;
@@ -130,8 +130,8 @@ async function intentarRenovacion(signal: AbortSignal): Promise<ResultadoRenovac
 
     if (respuesta.status === 409) {
         for (let intento = 0; intento < 3; intento++) {
-            const guardado = await leer(CLAVE_REFRESH);
-            const acceso = await leer(CLAVE_TOKEN);
+            const guardado = await leerSecreto(CLAVE_REFRESH);
+            const acceso = await leerSecreto(CLAVE_TOKEN);
             if (refreshActual !== usado) return 'vencida';
             if (guardado && guardado !== usado && acceso) {
                 refreshActual = guardado;
@@ -148,12 +148,12 @@ async function intentarRenovacion(signal: AbortSignal): Promise<ResultadoRenovac
 }
 
 export async function restaurarSesion(): Promise<UsuarioSesion | null> {
-    const token = await leer(CLAVE_TOKEN);
+    const token = await leerSecreto(CLAVE_TOKEN);
     const usuario = await leerJson<UsuarioSesion>(CLAVE_USUARIO);
     if (!token || !usuario) return null;
 
     tokenActual = token;
-    refreshActual = await leer(CLAVE_REFRESH);
+    refreshActual = await leerSecreto(CLAVE_REFRESH);
     usuarioActual = usuario;
     identificarUsuario(usuario);
 

@@ -1,5 +1,5 @@
 import { cerrarSesion, guardarSesion, hayToken, llamarApi, obtenerUsuarioSesion } from '../api';
-import { borrar } from '../almacenamiento';
+import { borrar, borrarSecreto } from '../almacenamiento';
 
 jest.mock('react-native', () => ({
     NativeModules: {},
@@ -12,6 +12,9 @@ jest.mock('../almacenamiento', () => ({
     guardarJson: jest.fn(),
     leer: jest.fn(),
     leerJson: jest.fn(),
+    borrarSecreto: jest.fn(),
+    guardarSecreto: jest.fn(),
+    leerSecreto: jest.fn(),
 }));
 
 jest.mock('../monitoreo', () => ({
@@ -75,7 +78,8 @@ test('cerrar sesión limpia autenticación y navegación persistida', () => {
     cerrarSesion();
     expect(hayToken()).toBe(false);
     expect(obtenerUsuarioSesion()).toBeNull();
-    for (const clave of ['logitrak.token', 'logitrak.refresh', 'logitrak.usuario', 'logitrak.navegacion']) expect(borrar).toHaveBeenCalledWith(clave);
+    for (const clave of ['logitrak.token', 'logitrak.refresh']) expect(borrarSecreto).toHaveBeenCalledWith(clave);
+    for (const clave of ['logitrak.usuario', 'logitrak.navegacion']) expect(borrar).toHaveBeenCalledWith(clave);
 });
 
 const usuario = { id: 1, usuario: 'prueba', rol: 'cliente' as const, nombreCompleto: 'Prueba', chofer: null };
