@@ -4,7 +4,7 @@ import { enviosConOfertaVencida, expirarOferta } from '../servicios/envios/expir
 import { enviosConSlaParaRevisar, revisarSla } from '../servicios/envios/sla.js';
 import { alRegistrarEvento, despachar, purgarProcesados } from '../outbox/index.js';
 import { eliminarImpago, enviosImpagosVencidos } from '../servicios/envios/impagos.js';
-import { vencerCupones } from '../servicios/pagos/cupones.js';
+import { avisarCuponesPorVencer, vencerCupones } from '../servicios/pagos/cupones.js';
 
 export const COLAS = {
     barrerOfertas: 'barrer-ofertas-vencidas',
@@ -15,6 +15,7 @@ export const COLAS = {
     barrerImpagos: 'barrer-impagos',
     eliminarImpago: 'eliminar-impago',
     vencerCupones: 'vencer-cupones',
+    avisarCupones: 'avisar-cupones-por-vencer',
 };
 
 let ultimaPurga = 0;
@@ -102,12 +103,14 @@ async function iniciarColas(boss) {
     await boss.createQueue(COLAS.eliminarImpago, { policy: 'exclusive', ...REINTENTOS });
     await boss.createQueue(COLAS.despacharOutbox, { policy: 'exclusive', retryLimit: 2 });
     await boss.createQueue(COLAS.vencerCupones, { policy: 'exclusive', retryLimit: 2 });
+    await boss.createQueue(COLAS.avisarCupones, { policy: 'exclusive', retryLimit: 2 });
 
     await boss.schedule(COLAS.barrerOfertas, '* * * * *');
     await boss.schedule(COLAS.barrerSla, '* * * * *');
     await boss.schedule(COLAS.despacharOutbox, '* * * * *');
     await boss.schedule(COLAS.barrerImpagos, '* * * * *');
     await boss.schedule(COLAS.vencerCupones, '7 * * * *');
+    await boss.schedule(COLAS.avisarCupones, '37 * * * *');
 
     const sondeo = { pollingIntervalSeconds: 5 };
     await boss.work(COLAS.barrerOfertas, sondeo, conRegistro(COLAS.barrerOfertas, 2, () =>
@@ -123,6 +126,7 @@ async function iniciarColas(boss) {
     ));
     await boss.work(COLAS.eliminarImpago, sondeo, conRegistro(COLAS.eliminarImpago, REINTENTOS.retryLimit, (t) => eliminarImpago(t.data.envioId)));
     await boss.work(COLAS.vencerCupones, sondeo, conRegistro(COLAS.vencerCupones, 2, () => vencerCupones(poolDeTrabajos)));
+    await boss.work(COLAS.avisarCupones, sondeo, conRegistro(COLAS.avisarCupones, 2, () => avisarCuponesPorVencer(poolDeTrabajos)));
     await boss.work(COLAS.despacharOutbox, { pollingIntervalSeconds: 2 }, conRegistro(COLAS.despacharOutbox, 2, () => despacharOutbox()));
 
     alRegistrarEvento(() => {
@@ -134,4 +138,5 @@ async function iniciarColas(boss) {
     await boss.send(COLAS.despacharOutbox);
     await boss.send(COLAS.barrerImpagos);
     await boss.send(COLAS.vencerCupones);
+    await boss.send(COLAS.avisarCupones);
 }

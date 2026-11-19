@@ -76,6 +76,7 @@ export function destinoDeNotificacion(
 ): { ruta: string; params?: Record<string, unknown> } {
     if (datos?.tipo === 'oferta.disponible' || (rol === 'chofer' && !datos?.envioCodigo)) return { ruta: 'Chofer' };
     if (datos?.tipo === 'envio.eliminado_sin_pago') return { ruta: 'Notificaciones' };
+    if (datos?.tipo === 'cupon.por_vencer') return { ruta: 'Cuponera' };
     if (datos?.envioCodigo) return { ruta: 'DetalleEnvio', params: { codigo: datos.envioCodigo } };
     return { ruta: 'Notificaciones' };
 }

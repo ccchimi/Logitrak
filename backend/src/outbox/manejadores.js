@@ -2,6 +2,17 @@ import { listaDeCampos } from '../servicios/perfilesAdmin.js';
 const pesos = (monto, moneda = 'ARS') =>
     `${moneda === 'ARS' ? '$' : `${moneda} `}${Number(monto).toLocaleString('es-AR', { maximumFractionDigits: 2 })}`;
 
+const ZONA = 'America/Argentina/Buenos_Aires';
+const diaLocal = (fecha) => new Date(fecha).toLocaleDateString('en-CA', { timeZone: ZONA });
+
+export function cuandoVence(venceEn, ahora = new Date()) {
+    const dias = Math.round((Date.parse(diaLocal(venceEn)) - Date.parse(diaLocal(ahora))) / 86_400_000);
+    if (dias <= 0) return 'hoy';
+    if (dias === 1) return 'mañana';
+    const fecha = new Date(venceEn).toLocaleDateString('es-AR', { timeZone: ZONA, day: '2-digit', month: '2-digit' });
+    return `en ${dias} días (el ${fecha})`;
+}
+
 export async function notificar(cliente, { usuarioId, eventoId, tipo, titulo, cuerpo, datos = null }, ctx = null) {
     const { rowCount } = await cliente.query(
         `INSERT INTO notificaciones (usuario_id, evento_id, tipo, titulo, cuerpo, datos)
@@ -187,6 +198,24 @@ export const MANEJADORES = {
             titulo: 'Te acreditamos un cupón',
             cuerpo: `El envío ${p.envioCodigo} superó el plazo comprometido. Tenés un cupón del ${p.descuentoPct} % en tu perfil.`,
             datos: { envioCodigo: p.envioCodigo, cuponCodigo: p.cuponCodigo },
+        }, ctx);
+    },
+
+    async 'cupon.por_vencer'(cliente, evento, ctx) {
+        const p = evento.payload;
+        const { rows } = await cliente.query(
+            `SELECT 1 FROM cupones c JOIN usuarios u ON u.id = c.cliente_id
+             WHERE c.codigo = $1 AND c.estado = 'activo' AND c.vence_en > now() AND u.eliminado_en IS NULL`,
+            [p.cuponCodigo]
+        );
+        if (!rows[0]) return;
+        await notificar(cliente, {
+            usuarioId: p.clienteId,
+            eventoId: evento.id,
+            tipo: evento.event_type,
+            titulo: 'Tu cupón está por vencer',
+            cuerpo: `El cupón ${p.cuponCodigo} del ${p.descuentoPct} % vence ${cuandoVence(p.venceEn)}. Usalo en tu próximo envío.`,
+            datos: { cuponCodigo: p.cuponCodigo },
         }, ctx);
     },
 };

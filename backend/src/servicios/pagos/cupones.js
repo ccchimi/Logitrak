@@ -1,5 +1,6 @@
 import { log } from '../../observabilidad/logger.js';
 import { MINUTOS_VIGENCIA_CHECKOUT } from './intentos.js';
+import { registrarEvento } from '../../outbox/index.js';
 
 const centavos = (valor) => Math.round(Number(valor) * 100);
 
@@ -9,6 +10,53 @@ export function diasDeVigencia(env = process.env) {
 }
 
 export const DIAS_VIGENCIA_CUPON = diasDeVigencia();
+
+export function diasDeAviso(env = process.env) {
+    const n = Number(env.CUPONES_DIAS_AVISO);
+    return Number.isInteger(n) && n >= 0 && n <= 60 ? n : 7;
+}
+
+export const DIAS_AVISO_CUPON = diasDeAviso();
+
+// Una sola vez por cupón: aviso_vencimiento_en marca que ya se avisó, y el
+// UPDATE ... RETURNING lo reclama dentro de la misma transacción que registra
+// el evento, así dos instancias del trabajo no avisan dos veces. Con 0 días
+// el aviso queda apagado.
+export async function avisarCuponesPorVencer(pool, dias = DIAS_AVISO_CUPON) {
+    if (dias <= 0) return 0;
+    const cliente = await pool.connect();
+    try {
+        await cliente.query('BEGIN');
+        const { rows } = await cliente.query(
+            `UPDATE cupones SET aviso_vencimiento_en = now()
+             WHERE estado = 'activo' AND aviso_vencimiento_en IS NULL
+               AND vence_en > now() AND vence_en <= now() + make_interval(days => $1::int)
+             RETURNING codigo, cliente_id, descuento_pct, vence_en`,
+            [dias]
+        );
+        for (const c of rows) {
+            await registrarEvento(cliente, {
+                tipoAgregado: 'cupon',
+                idAgregado: c.codigo,
+                tipo: 'cupon.por_vencer',
+                datos: {
+                    clienteId: c.cliente_id,
+                    cuponCodigo: c.codigo,
+                    descuentoPct: c.descuento_pct,
+                    venceEn: new Date(c.vence_en).toISOString(),
+                },
+            });
+        }
+        await cliente.query('COMMIT');
+        if (rows.length) log().info({ cantidad: rows.length }, 'Avisos de cupones por vencer');
+        return rows.length;
+    } catch (e) {
+        await cliente.query('ROLLBACK').catch(() => {});
+        throw e;
+    } finally {
+        cliente.release();
+    }
+}
 
 export async function vencerCupones(db) {
     const { rows } = await db.query(
