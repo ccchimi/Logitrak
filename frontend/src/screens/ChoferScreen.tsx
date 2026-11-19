@@ -34,6 +34,13 @@ import { agregarEvento } from "../services/enviosService";
 import EntregaModal from "../components/EntregaModal";
 import TarjetaReputacion from "../components/chofer/TarjetaReputacion";
 import { TEXTO_ESTADO_UBICACION, useCompartirUbicacion } from "../hooks/useCompartirUbicacion";
+import Interruptor from "../components/Interruptor";
+import {
+  detenerSegundoPlano,
+  iniciarSegundoPlano,
+  segundoPlanoActivo,
+  segundoPlanoSoportado,
+} from "../services/gpsSegundoPlano";
 
 const ETIQUETA_PRIORIDAD: Record<PrioridadOferta, string> = {
   alta: "PRIORIDAD ALTA",
@@ -141,6 +148,30 @@ export default function ChoferScreen({ navigation, route }: any) {
   const [cargandoHistorial, setCargandoHistorial] = useState(true);
   const [versionReputacion, setVersionReputacion] = useState(0);
   const ubicacion = useCompartirUbicacion(Boolean(viajeActivo?.envioCodigo));
+  const [enSegundoPlano, setEnSegundoPlano] = useState(false);
+  const [avisoSegundoPlano, setAvisoSegundoPlano] = useState("");
+  // Al terminar el viaje (o si no hay), el GPS en segundo plano se apaga.
+  useEffect(() => {
+    if (!segundoPlanoSoportado) return;
+    if (!viajeActivo?.envioCodigo) {
+      void detenerSegundoPlano().then(() => setEnSegundoPlano(false));
+      return;
+    }
+    void segundoPlanoActivo().then(setEnSegundoPlano);
+  }, [viajeActivo?.envioCodigo]);
+  const cambiarSegundoPlano = async (activar: boolean) => {
+    setAvisoSegundoPlano("");
+    if (!activar) {
+      await detenerSegundoPlano();
+      setEnSegundoPlano(false);
+      return;
+    }
+    const r = await iniciarSegundoPlano();
+    setEnSegundoPlano(r === "activo");
+    if (r === "sin_permiso")
+      setAvisoSegundoPlano("Para seguir con la app minimizada, permití la ubicación \"todo el tiempo\" en los ajustes del teléfono.");
+    else if (r !== "activo") setAvisoSegundoPlano("No se pudo activar en este teléfono. La ubicación se comparte con la app abierta.");
+  };
 
   const cargarHistorial = useCallback(async () => {
     const datos = await listarAsignaciones();
@@ -542,6 +573,20 @@ export default function ChoferScreen({ navigation, route }: any) {
                 <Text style={tema.estilo([styles.itemTexto, { flex: 1, marginTop: 0 }])}>
                   {TEXTO_ESTADO_UBICACION[ubicacion.estado]}
                 </Text>
+                {segundoPlanoSoportado && ubicacion.estado === "compartiendo" && (
+                  <View style={tema.estilo({ width: "100%", marginTop: 6, gap: 4 })}>
+                    <Interruptor
+                      etiqueta="Seguir compartiendo con la app minimizada"
+                      value={enSegundoPlano}
+                      onValueChange={(v) => void cambiarSegundoPlano(v)}
+                    />
+                    {avisoSegundoPlano ? (
+                      <Text accessibilityRole="alert" style={tema.estilo([styles.itemTexto, { marginTop: 0 }])}>
+                        {avisoSegundoPlano}
+                      </Text>
+                    ) : null}
+                  </View>
+                )}
                 {["sin_permiso", "sin_gps", "error"].includes(ubicacion.estado) && (
                   <TouchableOpacity onPress={ubicacion.reintentar} accessibilityRole="button" style={tema.estilo({ minHeight: 44, justifyContent: "center" })}>
                     <Text style={tema.estilo(styles.enlaceDetalle)}>Reintentar</Text>

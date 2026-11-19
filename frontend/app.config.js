@@ -33,6 +33,12 @@ export default ({ config }) => ({
           'Permitir a logitrak acceder a tu ubicación para el seguimiento de envíos en tiempo real.',
         locationWhenInUsePermission:
           'Mientras llevás un envío, logitrak comparte tu ubicación con el cliente para que vea dónde está su paquete.',
+        locationAlwaysPermission:
+          'Si lo activás, logitrak sigue compartiendo tu ubicación con el cliente con la app minimizada, solo mientras dure el viaje.',
+        // GPS del chofer con la app minimizada (servicio en primer plano en Android).
+        isAndroidBackgroundLocationEnabled: true,
+        isAndroidForegroundServiceEnabled: true,
+        isIosBackgroundLocationEnabled: true,
       },
     ],
     [
