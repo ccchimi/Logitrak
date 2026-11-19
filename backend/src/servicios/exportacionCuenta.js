@@ -17,6 +17,8 @@ function cuenta(u) {
     return {
         usuario: u.usuario,
         nombreCompleto: u.nombre_completo,
+        email: u.email,
+        telefono: u.telefono,
         rol: u.rol,
         creadaEn: fecha(u.creado_en),
     };

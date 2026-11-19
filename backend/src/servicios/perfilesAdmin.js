@@ -65,6 +65,13 @@ export async function aplicarCambios(db, perfil, cambios) {
         }
     }
     if (sets.length) await db.query(`UPDATE choferes SET ${sets.join(', ')} WHERE usuario_id = $1`, params);
+    // La cuenta guarda el mismo email y teléfono que la ficha del chofer.
+    if (cambios.email !== undefined || cambios.telefono !== undefined) {
+        await db.query(
+            `UPDATE usuarios SET email = COALESCE($2, email), telefono = COALESCE($3, telefono) WHERE id = $1`,
+            [perfil.id, cambios.email ?? null, cambios.telefono ?? null]
+        );
+    }
 }
 
 export function listaDeCampos(campos) {

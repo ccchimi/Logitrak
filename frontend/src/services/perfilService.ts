@@ -15,11 +15,13 @@ export type CampoPerfil =
   | "vehiculoId"
   | "contrasena";
 
+const CAMPOS_CON_CONTRASENA: CampoPerfil[] = ["contrasena", "nombreCompleto", "email", "telefono"];
+
 export function limitacionEdicion(campo: CampoPerfil): string | null {
-  if (campo === "contrasena") return null;
+  if (CAMPOS_CON_CONTRASENA.includes(campo)) return null;
   if (campo === "usuario")
-    return "El servidor todavía no permite modificar el nombre de usuario.";
-  return "La edición de este dato requiere que el servidor valide una autorización de contraseña para ese cambio. Esta verificación todavía no está disponible.";
+    return "El nombre de usuario no se puede cambiar: es con el que ingresás y el que figura en tus envíos.";
+  return "Este dato de tu ficha de chofer lo cambia el equipo de Logitrak. Escribinos desde el Centro de ayuda.";
 }
 
 export async function verificarContrasenaPerfil(
@@ -58,6 +60,8 @@ export async function actualizarCampoPerfil(
   if (limitacion) return { exito: false, error: limitacion };
   if (!contrasena)
     return { exito: false, error: "Ingresá tu contraseña actual." };
+  if (campo === "nombreCompleto" || campo === "email" || campo === "telefono")
+    return actualizarDatosPerfil({ [campo]: valor }, contrasena);
   if (valor.length < 8)
     return { exito: false, error: "Usá al menos 8 caracteres." };
   return actualizarPerfil({
@@ -79,6 +83,8 @@ export interface PerfilEditable {
   usuario: string;
   rol: "admin" | "cliente" | "chofer";
   nombreCompleto: string;
+  email: string | null;
+  telefono: string | null;
   chofer: ChoferEditable | null;
 }
 
@@ -158,4 +164,22 @@ export async function exportarDatosCuenta(
     conAuth: true,
   });
   return r.exito ? { exito: true, archivo: r.archivo, datos: r.datos } : { exito: false, error: r.error };
+}
+
+/**
+ * Nombre, email y teléfono: el servidor vuelve a comprobar la contraseña en
+ * cada cambio. Un texto vacío borra el email o el teléfono.
+ */
+export async function actualizarDatosPerfil(
+  cambios: { nombreCompleto?: string; email?: string; telefono?: string },
+  contrasenaActual: string,
+): Promise<{ exito: boolean; error?: string }> {
+  const r = await llamarApi<{ exito: true; token: string; usuario: UsuarioSesion }>("/api/perfil/datos", {
+    metodo: "PUT",
+    cuerpo: { contrasenaActual, ...cambios },
+    conAuth: true,
+  });
+  if (!r.exito) return { exito: false, error: (r as any).error ?? "No se pudo guardar." };
+  guardarSesion(r.token, r.usuario);
+  return { exito: true };
 }

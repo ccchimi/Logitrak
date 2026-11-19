@@ -100,7 +100,6 @@ export default function PerfilScreen({ navigation }: any) {
     requestAnimationFrame(() => ultimoControl.current?.focus?.());
   };
   const abrirEditor = (seleccion: CampoPerfil, evento: any) => {
-    if (seleccion === "email" || seleccion === "telefono") return;
     ultimoControl.current = evento.currentTarget;
     setExito("");
     setCampo(seleccion);
@@ -121,10 +120,6 @@ export default function PerfilScreen({ navigation }: any) {
       key={seleccion}
       accessibilityRole="button"
       accessibilityLabel={`${seleccion === "email" || seleccion === "telefono" ? (valor ? "Cambiar" : "Agregar") : "Editar"} ${etiqueta}`}
-      disabled={seleccion === "email" || seleccion === "telefono"}
-      accessibilityState={{
-        disabled: seleccion === "email" || seleccion === "telefono",
-      }}
       onPress={(evento) => abrirEditor(seleccion, evento)}
       style={({ pressed }) => [tema.estilo(s.row), pressed && { opacity: 0.7 }]}
     >
@@ -134,9 +129,6 @@ export default function PerfilScreen({ navigation }: any) {
       <View style={s.rowText}>
         <Text style={tema.estilo(s.label)}>{etiqueta}</Text>
         <Text style={tema.estilo(s.value)}>{valor || "Sin registrar"}</Text>
-        {(seleccion === "email" || seleccion === "telefono") && (
-          <Text style={tema.estilo(s.label)}>Próximamente</Text>
-        )}
       </View>
       {seleccion === "email" || seleccion === "telefono" ? (
         <Text style={tema.estilo(s.label)}>
@@ -240,13 +232,13 @@ export default function PerfilScreen({ navigation }: any) {
                   "email",
                   "mail",
                   "Correo electrónico",
-                  perfil?.chofer?.email ?? "",
+                  perfil?.email ?? perfil?.chofer?.email ?? "",
                 )}
                 {dato(
                   "telefono",
                   "phone",
                   "Número de teléfono",
-                  perfil?.chofer?.telefono ?? "",
+                  perfil?.telefono ?? perfil?.chofer?.telefono ?? "",
                 )}
                 {perfil?.chofer && (
                   <>
@@ -416,8 +408,18 @@ export default function PerfilScreen({ navigation }: any) {
           key={campo}
           campo={campo}
           onClose={cerrarEditor}
-          onSaved={() => {
-            setExito("Tu contraseña se actualizó correctamente.");
+          valorActual={
+            campo === "nombreCompleto"
+              ? nombre
+              : campo === "email"
+                ? perfil?.email ?? perfil?.chofer?.email ?? ""
+                : campo === "telefono"
+                  ? perfil?.telefono ?? perfil?.chofer?.telefono ?? ""
+                  : ""
+          }
+          esChofer={Boolean(perfil?.chofer)}
+          onSaved={(mensaje) => {
+            setExito(mensaje);
             void cargar();
           }}
         />

@@ -112,9 +112,9 @@ rutasChoferes.post('/postulacion', autenticar, exigirRol('cliente'), validarRequ
         );
 
         const actualizado = await cliente.query(
-            `UPDATE usuarios SET rol = 'chofer', nombre_completo = $1
+            `UPDATE usuarios SET rol = 'chofer', nombre_completo = $1, email = lower($3), telefono = $4
              WHERE id = $2 RETURNING *`,
-            [nombreCompleto, req.usuario.id]
+            [nombreCompleto, req.usuario.id, email, telefono]
         );
 
         await cliente.query('COMMIT');

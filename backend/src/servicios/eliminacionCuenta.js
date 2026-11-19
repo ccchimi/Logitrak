@@ -58,7 +58,8 @@ export async function anonimizarCuenta(db, usuario) {
     const hashInutilizable = await bcrypt.hash(randomBytes(32).toString('hex'), 10);
     await db.query(
         `UPDATE usuarios
-         SET usuario = $2, nombre_completo = 'Cuenta eliminada', contrasena_hash = $3, eliminado_en = now()
+         SET usuario = $2, nombre_completo = 'Cuenta eliminada', contrasena_hash = $3, eliminado_en = now(),
+             email = NULL, telefono = NULL
          WHERE id = $1`,
         [id, alias, hashInutilizable]
     );

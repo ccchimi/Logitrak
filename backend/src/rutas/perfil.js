@@ -5,7 +5,7 @@ import { autenticar } from '../middleware/auth.js';
 import { emitirAccessToken } from '../servicios/sesiones.js';
 import { limiteExportacion, limiteLogin } from '../middleware/limites.js';
 import { validarRequest } from '../middleware/validar.js';
-import { eliminarCuenta, exportarDatos } from '../esquemas/perfil.js';
+import { actualizarDatos, eliminarCuenta, exportarDatos } from '../esquemas/perfil.js';
 import { exportarCuenta, nombreDelArchivo } from '../servicios/exportacionCuenta.js';
 import { anonimizarCuenta, impedimentoParaEliminar } from '../servicios/eliminacionCuenta.js';
 import { anotarParaBorrar, borrarAhora } from '../servicios/archivosPorBorrar.js';
@@ -17,7 +17,7 @@ const ES_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 rutasPerfil.get('/editable', autenticar, async (req, res) => {
     const { rows } = await consultar(
-        'SELECT id, usuario, rol, nombre_completo FROM usuarios WHERE id = $1',
+        'SELECT id, usuario, rol, nombre_completo, email, telefono FROM usuarios WHERE id = $1',
         [req.usuario.id]
     );
     const u = rows[0];
@@ -46,8 +46,93 @@ rutasPerfil.get('/editable', autenticar, async (req, res) => {
 
     return res.json({
         exito: true,
-        perfil: { usuario: u.usuario, rol: u.rol, nombreCompleto: u.nombre_completo, chofer },
+        perfil: {
+            usuario: u.usuario,
+            rol: u.rol,
+            nombreCompleto: u.nombre_completo,
+            email: u.email ?? chofer?.email ?? null,
+            telefono: u.telefono ?? chofer?.telefono ?? null,
+            chofer,
+        },
     });
+});
+
+// Nombre, email y teléfono desde Mi Perfil. Cada cambio vuelve a pedir la
+// contraseña y el servidor la comprueba antes de guardar: no alcanza con tener
+// la sesión abierta. Para un chofer, la ficha queda sincronizada con la cuenta.
+rutasPerfil.put('/datos', limiteLogin, autenticar, validarRequest({ body: actualizarDatos }), async (req, res) => {
+    const { contrasenaActual, nombreCompleto, email, telefono } = req.body;
+    const cliente = await pool.connect();
+    try {
+        await cliente.query('BEGIN');
+        const usuario = (await cliente.query('SELECT * FROM usuarios WHERE id = $1 AND eliminado_en IS NULL FOR UPDATE', [req.usuario.id])).rows[0];
+        if (!usuario) {
+            await cliente.query('ROLLBACK');
+            return res.status(404).json({ exito: false, error: 'La cuenta ya no existe.' });
+        }
+        if (!(await bcrypt.compare(contrasenaActual, usuario.contrasena_hash))) {
+            await cliente.query('ROLLBACK');
+            return res.status(401).json({ exito: false, codigo: 'contrasena_incorrecta', error: 'La contraseña actual no es correcta.' });
+        }
+        const chofer = (await cliente.query('SELECT id FROM choferes WHERE usuario_id = $1', [usuario.id])).rows[0];
+        if (chofer && (email === '' || telefono === '')) {
+            await cliente.query('ROLLBACK');
+            return res.status(400).json({ exito: false, error: 'Como chofer, necesitás un email y un teléfono para que te contacten.' });
+        }
+        if (email) {
+            const usado = await cliente.query(
+                `SELECT 1 FROM usuarios WHERE lower(email) = $1 AND id <> $2 AND eliminado_en IS NULL
+                 UNION ALL
+                 SELECT 1 FROM choferes WHERE lower(email) = $1 AND usuario_id <> $2
+                 LIMIT 1`,
+                [email, usuario.id]
+            );
+            if (usado.rowCount) {
+                await cliente.query('ROLLBACK');
+                return res.status(409).json({ exito: false, error: 'Ese email ya lo usa otra cuenta.' });
+            }
+        }
+
+        const valores = {
+            nombre_completo: nombreCompleto,
+            email: email === undefined ? undefined : email || null,
+            telefono: telefono === undefined ? undefined : telefono || null,
+        };
+        const sets = [];
+        const params = [usuario.id];
+        for (const [columna, valor] of Object.entries(valores)) {
+            if (valor === undefined) continue;
+            params.push(valor);
+            sets.push(`${columna} = $${params.length}`);
+        }
+        const fila = (await cliente.query(`UPDATE usuarios SET ${sets.join(', ')} WHERE id = $1 RETURNING *`, params)).rows[0];
+        if (chofer && sets.length) {
+            await cliente.query(`UPDATE choferes SET ${sets.join(', ')} WHERE usuario_id = $1`, params);
+        }
+        await cliente.query('COMMIT');
+
+        const cambiados = Object.keys(valores).filter((k) => valores[k] !== undefined);
+        log().info({ campos: cambiados }, 'Datos de la cuenta actualizados por su titular');
+        const codigoChofer = chofer ? (await consultar('SELECT codigo FROM choferes WHERE id = $1', [chofer.id])).rows[0]?.codigo : null;
+        return res.json({
+            exito: true,
+            token: emitirAccessToken(fila, req),
+            usuario: {
+                id: fila.id,
+                usuario: fila.usuario,
+                rol: fila.rol,
+                nombreCompleto: fila.nombre_completo,
+                chofer: codigoChofer ? { codigo: codigoChofer } : null,
+            },
+            perfil: { nombreCompleto: fila.nombre_completo, email: fila.email, telefono: fila.telefono },
+        });
+    } catch (e) {
+        await cliente.query('ROLLBACK').catch(() => {});
+        registrarError(e, 'No se pudieron actualizar los datos de la cuenta');
+        return res.status(500).json({ exito: false, error: 'No se pudieron guardar los datos. Probá de nuevo.' });
+    } finally {
+        cliente.release();
+    }
 });
 
 rutasPerfil.put('/', autenticar, async (req, res) => {

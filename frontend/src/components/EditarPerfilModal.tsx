@@ -25,6 +25,7 @@ import { DISENO as D } from "../theme/diseno";
 import { useTema } from "../hooks/useTema";
 import { useMovimientoReducido } from "../hooks/useMovimientoReducido";
 import type { RefTextInput, RefView } from "../types/refs";
+import { errorDelDato, mensajeGuardado, normalizarDato, type CampoDato } from "../helpers/perfil";
 
 const TITULOS: Record<CampoPerfil, string> = {
   nombreCompleto: "nombre completo",
@@ -36,14 +37,27 @@ const TITULOS: Record<CampoPerfil, string> = {
   contrasena: "contraseña",
 };
 
-type Props = { campo: CampoPerfil; onClose: () => void; onSaved: () => void };
-export default function EditarPerfilModal({ campo, onClose, onSaved }: Props) {
+type Props = {
+  campo: CampoPerfil;
+  /** Valor actual, para nombre, email y teléfono. */
+  valorActual?: string;
+  esChofer?: boolean;
+  onClose: () => void;
+  onSaved: (mensaje: string) => void;
+};
+
+const ES_DATO = (campo: CampoPerfil): campo is CampoDato =>
+  campo === "nombreCompleto" || campo === "email" || campo === "telefono";
+
+export default function EditarPerfilModal({ campo, valorActual = "", esChofer = false, onClose, onSaved }: Props) {
   const tema = useTema();
   const reducido = useMovimientoReducido();
   const { height } = useWindowDimensions();
   const [paso, setPaso] = useState<"verificar" | "editar">("verificar");
   const [actual, setActual] = useState("");
   const [nueva, setNueva] = useState("");
+  const [dato, setDato] = useState(valorActual);
+  const esDato = ES_DATO(campo);
   const [confirmacion, setConfirmacion] = useState("");
   const [mostrar, setMostrar] = useState(false);
   const [error, setError] = useState("");
@@ -95,11 +109,22 @@ export default function EditarPerfilModal({ campo, onClose, onSaved }: Props) {
       setError("Ingresá tu contraseña actual.");
       return;
     }
-    if (paso === "editar" && nueva.length < 8) {
+    if (paso === "editar" && esDato) {
+      const problema = errorDelDato(campo, dato, { esChofer });
+      if (problema) {
+        setError(problema);
+        return;
+      }
+      if (normalizarDato(campo, dato) === normalizarDato(campo, valorActual)) {
+        setError("Es el mismo dato que ya tenés.");
+        return;
+      }
+    }
+    if (paso === "editar" && !esDato && nueva.length < 8) {
       setError("Usá al menos 8 caracteres.");
       return;
     }
-    if (paso === "editar" && nueva !== confirmacion) {
+    if (paso === "editar" && !esDato && nueva !== confirmacion) {
       setErrorEn("confirmacion");
       setError("Las contraseñas nuevas no coinciden.");
       return;
@@ -110,7 +135,7 @@ export default function EditarPerfilModal({ campo, onClose, onSaved }: Props) {
       const respuesta =
         paso === "verificar"
           ? await verificarContrasenaPerfil(actual)
-          : await actualizarCampoPerfil(campo, nueva, actual);
+          : await actualizarCampoPerfil(campo, esDato ? normalizarDato(campo, dato) : nueva, actual);
       if (!vigente.current) return;
       if (!respuesta.exito) {
         setError(respuesta.error ?? "No pudimos completar la operación.");
@@ -123,7 +148,7 @@ export default function EditarPerfilModal({ campo, onClose, onSaved }: Props) {
         setActual("");
         setNueva("");
         setConfirmacion("");
-        onSaved();
+        onSaved(esDato ? mensajeGuardado(campo, dato) : "Tu contraseña se actualizó correctamente.");
         onClose();
       }
     } catch {
@@ -187,7 +212,13 @@ export default function EditarPerfilModal({ campo, onClose, onSaved }: Props) {
                 <Text style={tema.estilo(s.description)}>
                   {paso === "verificar"
                     ? "Confirmá tu identidad con tu contraseña actual para proteger tu cuenta."
-                    : "Identidad verificada. Elegí tu nueva contraseña. El servidor volverá a comprobar tu contraseña actual al guardar."}
+                    : esDato
+                      ? campo === "nombreCompleto"
+                        ? "Identidad verificada. Escribí tu nombre como querés que figure en tus envíos."
+                        : campo === "email"
+                          ? `Identidad verificada. Escribí tu email.${esChofer ? "" : " Si lo dejás vacío, lo borramos."}`
+                          : `Identidad verificada. Escribí tu teléfono con el código de área.${esChofer ? "" : " Si lo dejás vacío, lo borramos."}`
+                      : "Identidad verificada. Elegí tu nueva contraseña. El servidor volverá a comprobar tu contraseña actual al guardar."}
                 </Text>
                 {paso === "verificar" ? (
                   <>
@@ -216,6 +247,22 @@ export default function EditarPerfilModal({ campo, onClose, onSaved }: Props) {
                       </Text>
                     </Pressable>
                   </>
+                ) : esDato ? (
+                  <CampoFormulario
+                    ref={input}
+                    label={campo === "nombreCompleto" ? "Nombre completo" : campo === "email" ? "Email" : "Teléfono"}
+                    value={dato}
+                    onChangeText={setDato}
+                    autoCapitalize={campo === "nombreCompleto" ? "words" : "none"}
+                    autoCorrect={false}
+                    keyboardType={campo === "email" ? "email-address" : campo === "telefono" ? "phone-pad" : "default"}
+                    autoComplete={campo === "email" ? "email" : campo === "telefono" ? "tel" : "name"}
+                    maxLength={campo === "telefono" ? 30 : 120}
+                    error={error}
+                    editable={!ocupado}
+                    returnKeyType="go"
+                    onSubmitEditing={() => void enviar()}
+                  />
                 ) : (
                   <>
                     <CampoFormulario
@@ -259,7 +306,9 @@ export default function EditarPerfilModal({ campo, onClose, onSaved }: Props) {
                   texto={
                     paso === "verificar"
                       ? "Verificar contraseña"
-                      : "Guardar contraseña"
+                      : esDato
+                        ? "Guardar"
+                        : "Guardar contraseña"
                   }
                   ocupado={ocupado}
                   onPress={() => void enviar()}

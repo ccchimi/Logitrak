@@ -51,10 +51,7 @@ test("comprueba la identidad devuelta y no guarda el token de reautenticación",
 });
 
 test.each<CampoPerfil>([
-  "nombreCompleto",
   "usuario",
-  "email",
-  "telefono",
   "domicilio",
   "vehiculoId",
 ])("bloquea %s aunque se invoque directamente el servicio", async (campo) => {
@@ -94,4 +91,19 @@ test("no envía contraseñas vacías ni una nueva demasiado corta", async () => 
   await actualizarCampoPerfil("contrasena", "nueva-segura", "");
   await actualizarCampoPerfil("contrasena", "corta", "actual");
   expect(api).not.toHaveBeenCalled();
+});
+
+test.each<[CampoPerfil, string]>([
+  ["nombreCompleto", "Ana Pérez"],
+  ["email", "ana@mail.com"],
+  ["telefono", ""],
+])("%s se guarda con la contraseña en /api/perfil/datos y renueva la sesión", async (campo, valor) => {
+  api.mockResolvedValue({ exito: true, token: "nuevo", usuario });
+  expect((await actualizarCampoPerfil(campo, valor, "actual")).exito).toBe(true);
+  expect(api).toHaveBeenCalledWith("/api/perfil/datos", {
+    metodo: "PUT",
+    conAuth: true,
+    cuerpo: { contrasenaActual: "actual", [campo]: valor },
+  });
+  expect(guardarSesion).toHaveBeenCalledWith("nuevo", usuario);
 });
