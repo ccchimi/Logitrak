@@ -15,6 +15,7 @@ import { hayPagoEnCurso } from '../servicios/envios/vencimientoPago.js';
 import { registrarEvento } from '../outbox/index.js';
 import { publicarValoracion, reputacionDelChofer, valoracionDelEnvio } from '../servicios/envios/valoraciones.js';
 import { ubicacionDelEnvio } from '../servicios/envios/ubicacion.js';
+import { datosDelComprobante, generarComprobantePdf, nombreDelComprobante } from '../servicios/envios/comprobante.js';
 
 export const rutasEnvios = Router();
 
@@ -324,6 +325,42 @@ rutasEnvios.get('/:codigo', autenticar, async (req, res) => {
         reputacionChofer,
         ubicacionChofer,
     });
+});
+
+// RF14: comprobante en PDF. Lo descarga el dueño del envío o el personal. Por
+// defecto responde el PDF; con "Accept: application/json" lo manda en base64,
+// que es lo que usa la app para guardarlo o compartirlo.
+rutasEnvios.get('/:codigo/comprobante', autenticar, async (req, res) => {
+    const { rows } = await consultar('SELECT id, codigo, cliente_id FROM envios WHERE codigo = $1', [req.params.codigo]);
+    const envio = rows[0];
+    if (!envio) {
+        return res.status(404).json({ exito: false, error: 'Envío no encontrado.' });
+    }
+    if (envio.cliente_id !== req.usuario.id && !tienePermiso(req.usuario, 'envios.ver_todos')) {
+        return res.status(403).json({ exito: false, error: 'No tenés acceso a este envío.' });
+    }
+
+    const datos = await datosDelComprobante(pool, envio.id);
+    if (!datos) {
+        return res.status(409).json({ exito: false, codigo: 'sin_pago', error: 'El comprobante está disponible cuando el envío está pago.' });
+    }
+
+    let pdf;
+    try {
+        pdf = await generarComprobantePdf(datos);
+    } catch (e) {
+        registrarError(e, 'No se pudo generar el comprobante', { envio: envio.codigo });
+        return res.status(500).json({ exito: false, error: 'No se pudo generar el comprobante. Probá de nuevo.' });
+    }
+
+    const archivo = nombreDelComprobante(envio.codigo);
+    res.set('Cache-Control', 'no-store');
+    if (req.accepts(['application/pdf', 'application/json']) === 'application/json') {
+        return res.json({ exito: true, archivo, pdfBase64: pdf.toString('base64') });
+    }
+    res.set('Content-Type', 'application/pdf');
+    res.set('Content-Disposition', `attachment; filename="${archivo}"`);
+    return res.send(pdf);
 });
 
 rutasEnvios.post('/:codigo/eventos', autenticar, async (req, res) => {

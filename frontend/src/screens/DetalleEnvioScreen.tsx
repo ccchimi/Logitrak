@@ -13,6 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
   cancelarEnvio,
+  obtenerComprobante,
   obtenerEnvio,
   reembolsarEnvio,
   valorarEnvio,
@@ -20,6 +21,7 @@ import {
   type PagoDeEnvio,
 } from "../services/enviosService";
 import { obtenerUsuarioSesion } from "../services/authService";
+import { guardarPdf } from "../services/descargas";
 import { ToastStack, useToasts } from "../components/Toasts";
 import { puede } from "../services/permisos";
 import TarjetaValoracion from "../components/envio/TarjetaValoracion";
@@ -177,6 +179,7 @@ export default function DetalleEnvioScreen({ navigation, route }: any) {
   const [confirmacion, setConfirmacion] = useState<"devolver" | "cancelar" | null>(null);
   const [procesando, setProcesando] = useState(false);
   const [valorando, setValorando] = useState(false);
+  const [descargando, setDescargando] = useState(false);
 
   const esAdmin = puede("envios.ver_todos");
   const puedeReembolsar = puede("envios.reembolsar");
@@ -190,6 +193,17 @@ export default function DetalleEnvioScreen({ navigation, route }: any) {
   useEffect(() => {
     void cargar();
   }, [cargar]);
+
+  const descargarComprobante = async () => {
+    if (descargando) return;
+    setDescargando(true);
+    const r = await obtenerComprobante(codigo);
+    const guardado = r.exito ? await guardarPdf(r.archivo, r.pdfBase64) : null;
+    setDescargando(false);
+    if (!r.exito) mostrar("error", "No se pudo generar el comprobante", r.error);
+    else if (guardado && !guardado.exito && !guardado.cancelado) mostrar("error", "No se pudo guardar", guardado.error);
+    else if (guardado?.exito) mostrar("exito", "Comprobante listo", guardado.mensaje);
+  };
 
   const confirmarDevolucion = async () => {
     if (procesando) return;
@@ -420,6 +434,21 @@ export default function DetalleEnvioScreen({ navigation, route }: any) {
               </Text>
             ) : (
               pagos.map((p) => <TarjetaPago key={p.codigo} pago={p} />)
+            )}
+            {(esCliente || esAdmin) && pagos.some((p) => p.estado === "aprobado" || p.estado === "reembolsado") && (
+              <TouchableOpacity
+                style={tema.estilo([styles.boton, styles.botonNeutro, { marginTop: 14 }, descargando && styles.botonDeshabilitado])}
+                onPress={() => void descargarComprobante()}
+                disabled={descargando}
+                accessibilityRole="button"
+                accessibilityLabel={`Descargar el comprobante del envío ${envio.codigo} en PDF`}
+              >
+                {descargando ? (
+                  <ActivityIndicator color={tema.color(COLORS.accent)} />
+                ) : (
+                  <Text style={tema.estilo(styles.botonNeutroTexto)}>Descargar comprobante (PDF)</Text>
+                )}
+              </TouchableOpacity>
             )}
           </View>
 

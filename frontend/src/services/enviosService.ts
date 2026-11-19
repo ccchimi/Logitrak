@@ -241,3 +241,17 @@ export async function obtenerMetricas(): Promise<MetricasEnvios | null> {
     });
     return r.exito ? r.metricas : null;
 }
+
+export type ResultadoComprobante =
+    | { exito: true; archivo: string; pdfBase64: string }
+    | { exito: false; error: string };
+
+/** RF14: comprobante del envío en PDF (lo devuelve en base64 para guardarlo). */
+export async function obtenerComprobante(codigo: string): Promise<ResultadoComprobante> {
+    const r = (await llamarApi<{ exito: true; archivo: string; pdfBase64: string }>(
+        `/api/envios/${encodeURIComponent(codigo)}/comprobante`,
+        { conAuth: true, encabezados: { Accept: 'application/json' } }
+    )) as any;
+    if (r.exito) return { exito: true, archivo: r.archivo, pdfBase64: r.pdfBase64 };
+    return { exito: false, error: r.error || 'No se pudo generar el comprobante.' };
+}
