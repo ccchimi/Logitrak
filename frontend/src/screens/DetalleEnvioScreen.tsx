@@ -192,7 +192,9 @@ export default function DetalleEnvioScreen({ navigation, route }: any) {
 
   useEffect(() => {
     void cargar();
-  }, [cargar]);
+    // Al volver del chat se actualizan los mensajes sin leer.
+    return navigation.addListener("focus", () => void cargar());
+  }, [cargar, navigation]);
 
   const descargarComprobante = async () => {
     if (descargando) return;
@@ -270,7 +272,7 @@ export default function DetalleEnvioScreen({ navigation, route }: any) {
     );
   }
 
-  const { envio, eventos, pagos, entrega, valoracion = null, reputacionChofer = null } = datos;
+  const { envio, eventos, pagos, entrega, valoracion = null, reputacionChofer = null, chat = null } = datos;
   const esCliente = envio.clienteId === obtenerUsuarioSesion()?.id;
   const puedeCalificar = esCliente && envio.estado === "entregado" && Boolean(envio.choferId) && !envio.archivadoEn;
   const eventosVisibles = esAdmin
@@ -398,6 +400,37 @@ export default function DetalleEnvioScreen({ navigation, route }: any) {
               </Text>
             )}
           </View>
+
+          {chat ? (
+            <View style={tema.estilo(styles.tarjeta)}>
+              <Text style={tema.estilo(styles.tarjetaTitulo)}>
+                {esCliente ? "Chat con el chofer" : esAdmin ? "Chat del envío" : "Chat con el cliente"}
+              </Text>
+              <Text style={tema.estilo(styles.vacio)}>
+                {chat.abierto
+                  ? chat.noLeidos > 0
+                    ? `Tenés ${chat.noLeidos === 1 ? "1 mensaje nuevo" : `${chat.noLeidos} mensajes nuevos`}.`
+                    : esCliente
+                      ? "Coordiná la entrega con el chofer mientras dure el viaje."
+                      : "Coordiná el retiro y la entrega con el cliente mientras dure el viaje."
+                  : chat.mensajes > 0
+                    ? `La conversación quedó cerrada (${chat.mensajes === 1 ? "1 mensaje" : `${chat.mensajes} mensajes`}).`
+                    : "Este envío no tuvo mensajes."}
+              </Text>
+              {(chat.abierto || chat.mensajes > 0) && (
+                <TouchableOpacity
+                  style={tema.estilo([styles.boton, chat.abierto ? styles.botonPrimario : styles.botonNeutro, { marginTop: 12 }])}
+                  onPress={() => navigation.navigate("ChatEnvio", { codigo: envio.codigo })}
+                  accessibilityRole="button"
+                  accessibilityLabel={chat.noLeidos > 0 ? `Abrir el chat, ${chat.noLeidos} sin leer` : "Abrir el chat del envío"}
+                >
+                  <Text style={tema.estilo(chat.abierto ? styles.botonPrimarioTexto : styles.botonNeutroTexto)}>
+                    {chat.abierto ? (chat.noLeidos > 0 ? `Abrir chat (${chat.noLeidos})` : "Abrir chat") : "Ver conversación"}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          ) : null}
 
           {entrega?.conFoto ? (
             <View style={tema.estilo(styles.tarjeta)}>

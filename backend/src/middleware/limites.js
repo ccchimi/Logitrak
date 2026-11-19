@@ -46,6 +46,9 @@ export const crearLimiteExportacion = () =>
 export const crearLimiteUbicacion = () =>
     limite({ minutos: 1, maximo: 30, mensaje: `Demasiadas actualizaciones de ubicación. ${ESPERA}` });
 
+export const crearLimiteMensajes = () =>
+    limite({ minutos: 1, maximo: 30, mensaje: `Estás mandando mensajes muy seguido. ${ESPERA}` });
+
 export const limiteGeneral = crearLimiteGeneral();
 export const limiteLogin = crearLimiteLogin();
 export const limiteRegistro = crearLimiteRegistro();
@@ -56,3 +59,4 @@ export const limiteRecorridos = crearLimiteRecorridos();
 export const limiteEntregas = crearLimiteEntregas();
 export const limiteExportacion = crearLimiteExportacion();
 export const limiteUbicacion = crearLimiteUbicacion();
+export const limiteMensajes = crearLimiteMensajes();

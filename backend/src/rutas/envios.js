@@ -15,6 +15,7 @@ import { hayPagoEnCurso } from '../servicios/envios/vencimientoPago.js';
 import { registrarEvento } from '../outbox/index.js';
 import { publicarValoracion, reputacionDelChofer, valoracionDelEnvio } from '../servicios/envios/valoraciones.js';
 import { ubicacionDelEnvio } from '../servicios/envios/ubicacion.js';
+import { resumenDelChat, rolEnElChat } from '../servicios/envios/chat.js';
 import { datosDelComprobante, generarComprobantePdf, nombreDelComprobante } from '../servicios/envios/comprobante.js';
 
 export const rutasEnvios = Router();
@@ -309,10 +310,11 @@ rutasEnvios.get('/:codigo', autenticar, async (req, res) => {
         conFoto: Boolean(envio.foto_entrega_path),
     };
 
-    const [valoracion, reputacionChofer, ubicacionChofer] = await Promise.all([
+    const [valoracion, reputacionChofer, ubicacionChofer, chat] = await Promise.all([
         valoracionDelEnvio(pool, envio.id),
         envio.chofer_id ? reputacionDelChofer(pool, envio.chofer_id) : null,
         ubicacionDelEnvio(pool, envio),
+        resumenDelChat(pool, envio, rolEnElChat(envio, req.usuario, choferId)),
     ]);
 
     return res.json({
@@ -324,6 +326,7 @@ rutasEnvios.get('/:codigo', autenticar, async (req, res) => {
         valoracion,
         reputacionChofer,
         ubicacionChofer,
+        chat,
     });
 });
 

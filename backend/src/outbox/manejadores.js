@@ -79,6 +79,30 @@ export const MANEJADORES = {
         }
     },
 
+    // Un aviso por conversación: si el destinatario todavía no leyó el aviso
+    // anterior del mismo envío, se actualiza ese en lugar de sumar otro a la
+    // bandeja. El push sale igual con cada mensaje.
+    async 'envio.mensaje'(cliente, evento, ctx) {
+        const p = evento.payload;
+        const titulo = p.autorRol === 'cliente' ? 'Mensaje del cliente' : 'Mensaje de tu chofer';
+        const cuerpo = `${p.envioCodigo}: ${p.vista}`;
+        const datos = { envioCodigo: p.envioCodigo, chat: true };
+        const previo = await cliente.query(
+            `UPDATE notificaciones SET cuerpo = $3, creada_en = now(), evento_id = $4
+             WHERE id = (
+                 SELECT id FROM notificaciones
+                 WHERE usuario_id = $1 AND tipo = 'envio.mensaje' AND leida_en IS NULL AND datos->>'envioCodigo' = $2
+                 ORDER BY creada_en DESC LIMIT 1
+             )`,
+            [p.destinatarioId, p.envioCodigo, cuerpo, evento.id]
+        );
+        if (previo.rowCount) {
+            ctx?.push.push({ usuarioId: p.destinatarioId, titulo, cuerpo, datos: { tipo: evento.event_type, ...datos } });
+            return;
+        }
+        await notificar(cliente, { usuarioId: p.destinatarioId, eventoId: evento.id, tipo: evento.event_type, titulo, cuerpo, datos }, ctx);
+    },
+
     async 'pago.devuelto'(cliente, evento, ctx) {
         const p = evento.payload;
         await notificar(cliente, {

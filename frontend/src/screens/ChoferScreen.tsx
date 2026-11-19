@@ -515,6 +515,17 @@ export default function ChoferScreen({ navigation, route }: any) {
               km · Tu pago: {formatearARS(viajeActivo.pagoChofer)}
             </Text>
 
+            {viajeActivo.envioCodigo ? (
+              <TouchableOpacity
+                onPress={() => navigation.navigate("ChatEnvio", { codigo: viajeActivo.envioCodigo })}
+                accessibilityRole="button"
+                accessibilityLabel="Abrir el chat con el cliente"
+                style={tema.estilo({ minHeight: 44, justifyContent: "center", marginTop: 6 })}
+              >
+                <Text style={tema.estilo(styles.enlaceDetalle)}>💬 Chat con el cliente →</Text>
+              </TouchableOpacity>
+            ) : null}
+
             {ubicacion.estado !== "inactivo" && (
               <View
                 accessibilityLiveRegion="polite"

@@ -74,6 +74,7 @@ export function destinoDeNotificacion(
     datos: { tipo?: string; envioCodigo?: string } | null | undefined,
     rol: string | undefined
 ): { ruta: string; params?: Record<string, unknown> } {
+    if (datos?.tipo === 'envio.mensaje' && datos.envioCodigo) return { ruta: 'ChatEnvio', params: { codigo: datos.envioCodigo } };
     if (datos?.tipo === 'oferta.disponible' || (rol === 'chofer' && !datos?.envioCodigo)) return { ruta: 'Chofer' };
     if (datos?.tipo === 'envio.eliminado_sin_pago') return { ruta: 'Notificaciones' };
     if (datos?.tipo === 'cupon.por_vencer') return { ruta: 'Cuponera' };

@@ -146,6 +146,7 @@ export interface DetalleEnvio {
     valoracion?: Valoracion | null;
     reputacionChofer?: ReputacionChofer | null;
     ubicacionChofer?: UbicacionChofer | null;
+    chat?: { abierto: boolean; mensajes: number; noLeidos: number } | null;
 }
 
 export async function obtenerEnvio(codigo: string): Promise<DetalleEnvio | null> {
@@ -162,6 +163,7 @@ export async function obtenerEnvio(codigo: string): Promise<DetalleEnvio | null>
               valoracion: r.valoracion ?? null,
               reputacionChofer: r.reputacionChofer ?? null,
               ubicacionChofer: r.ubicacionChofer ?? null,
+              chat: r.chat ?? null,
           }
         : null;
 }

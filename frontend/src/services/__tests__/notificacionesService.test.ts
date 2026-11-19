@@ -21,5 +21,6 @@ describe('destinoDeNotificacion', () => {
     it('sin datos va a la bandeja', () => {
         expect(destinoDeNotificacion(null, 'cliente')).toEqual({ ruta: 'Notificaciones' });
         expect(destinoDeNotificacion({ tipo: 'cupon.por_vencer' }, 'cliente')).toEqual({ ruta: 'Cuponera' });
+        expect(destinoDeNotificacion({ tipo: 'envio.mensaje', envioCodigo: 'TRK-9' }, 'chofer')).toEqual({ ruta: 'ChatEnvio', params: { codigo: 'TRK-9' } });
     });
 });

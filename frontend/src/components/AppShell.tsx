@@ -49,6 +49,7 @@ const TITULOS: Record<string, string> = {
   Historial: "Envíos",
   TrabajaConNosotros: "Postulación",
   DetalleEnvio: "Detalle de envío",
+  ChatEnvio: "Chat del envío",
   Pago: "Método de pago",
   MetodosPago: "Método de pago",
   MetodoCobro: "Método de cobro",

@@ -25,6 +25,7 @@ import SolicitudEnvioScreen from "../screens/SolicitudEnvioScreen";
 import PagoScreen from "../screens/PagoScreen";
 import SeguimientoScreen from "../screens/SeguimientoScreen";
 import DetalleEnvioScreen from "../screens/DetalleEnvioScreen";
+import ChatEnvioScreen from "../screens/ChatEnvioScreen";
 import SoporteScreen from "../screens/SoporteScreen";
 import PerfilScreen from "../screens/PerfilScreen";
 import HistorialScreen from "../screens/HistorialScreen";
@@ -71,6 +72,7 @@ const PANTALLAS = {
   Pago: conMarco(PagoScreen),
   Seguimiento: conMarco(SeguimientoScreen),
   DetalleEnvio: conMarco(DetalleEnvioScreen),
+  ChatEnvio: conMarco(ChatEnvioScreen),
   Soporte: conMarco(SoporteScreen),
   Perfil: conMarco(PerfilScreen),
   Historial: conMarco(HistorialScreen),
@@ -271,6 +273,11 @@ export default function AppNavigator({
         <Stack.Screen
           name="Notificaciones"
           component={PANTALLAS.Notificaciones}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="ChatEnvio"
+          component={PANTALLAS.ChatEnvio}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>

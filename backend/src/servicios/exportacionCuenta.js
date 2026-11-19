@@ -231,7 +231,7 @@ async function datosDeCliente(db, usuarioId) {
 }
 
 async function datosComunes(db, usuario) {
-    const [tickets, mensajes, notificaciones, sesiones, dispositivos, accesos] = await Promise.all([
+    const [tickets, mensajes, notificaciones, sesiones, dispositivos, accesos, chats] = await Promise.all([
         filas(
             db,
             `SELECT t.id, t.codigo, t.asunto, t.categoria, t.estado, t.creado_en, t.resuelto_en, e.codigo AS envio_codigo
@@ -270,6 +270,16 @@ async function datosComunes(db, usuario) {
             `SELECT exito, motivo, ip, user_agent, fecha FROM auditoria_accesos
              WHERE usuario = $1 ORDER BY fecha DESC LIMIT ${MAX_ACCESOS}`,
             [usuario.usuario]
+        ),
+        filas(
+            db,
+            `SELECT e.codigo, m.autor_id, m.autor_rol, m.texto, m.creado_en
+             FROM envio_mensajes m
+             JOIN envios e ON e.id = m.envio_id
+             LEFT JOIN choferes c ON c.id = e.chofer_id
+             WHERE e.cliente_id = $1 OR c.usuario_id = $1 OR m.autor_id = $1
+             ORDER BY m.creado_en`,
+            [usuario.id]
         ),
     ]);
 
@@ -315,6 +325,12 @@ async function datosComunes(db, usuario) {
             plataforma: d.plataforma,
             registradoEn: fecha(d.creado_en),
             ultimaActualizacion: fecha(d.actualizado_en),
+        })),
+        chatsDeEnvios: chats.map((m) => ({
+            envio: m.codigo,
+            autor: m.autor_id === usuario.id ? 'vos' : m.autor_rol,
+            texto: m.texto,
+            fecha: fecha(m.creado_en),
         })),
         ingresos: accesos.map((a) => ({
             exito: a.exito,

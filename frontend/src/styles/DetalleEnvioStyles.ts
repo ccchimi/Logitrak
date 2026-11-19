@@ -230,6 +230,15 @@ export const styles = StyleSheet.create({
     fontSize: 13.5,
     fontFamily: FONTS.titleBold,
   },
+  botonPrimario: {
+    backgroundColor: COLORS.accent,
+    borderColor: COLORS.accent,
+  },
+  botonPrimarioTexto: {
+    color: COLORS.ink,
+    fontSize: 13.5,
+    fontFamily: FONTS.titleBold,
+  },
   botonPeligro: {
     backgroundColor: "rgba(239, 68, 68, 0.12)",
     borderColor: "rgba(239, 68, 68, 0.45)",
