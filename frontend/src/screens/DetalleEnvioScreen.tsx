@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   ScrollView,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -22,6 +23,7 @@ import {
 } from "../services/enviosService";
 import { obtenerUsuarioSesion } from "../services/authService";
 import { guardarPdf } from "../services/descargas";
+import { registrarDevolucionManual } from "../services/pagosService";
 import { ToastStack, useToasts } from "../components/Toasts";
 import { puede } from "../services/permisos";
 import TarjetaValoracion from "../components/envio/TarjetaValoracion";
@@ -112,7 +114,7 @@ function Dato({
   );
 }
 
-function TarjetaPago({ pago }: { pago: PagoDeEnvio }) {
+function TarjetaPago({ pago, onRegistrarDevolucion }: { pago: PagoDeEnvio; onRegistrarDevolucion?: () => void }) {
   const tema = useTema();
   const color = ESTADO_PAGO_COLOR[pago.estado] ?? COLORS.muted;
 
@@ -161,8 +163,18 @@ function TarjetaPago({ pago }: { pago: PagoDeEnvio }) {
         <View style={tema.estilo(styles.avisoReembolso)}>
           <Text style={tema.estilo(styles.avisoReembolsoTexto)}>
             La devolución no se pudo emitir: {pago.reembolsoPendiente}. Hay que
-            resolverla a mano desde el panel de Mercado Pago.
+            hacerla a mano desde el panel de la pasarela de pago.
           </Text>
+          {onRegistrarDevolucion && pago.estado === "aprobado" ? (
+            <TouchableOpacity
+              style={tema.estilo([styles.boton, styles.botonNeutro, { marginTop: 10 }])}
+              onPress={onRegistrarDevolucion}
+              accessibilityRole="button"
+              accessibilityLabel={`Registrar que la devolución del pago ${pago.codigo} se hizo a mano`}
+            >
+              <Text style={tema.estilo(styles.botonNeutroTexto)}>Registrar devolución hecha a mano</Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
       ) : null}
     </View>
@@ -180,6 +192,9 @@ export default function DetalleEnvioScreen({ navigation, route }: any) {
   const [procesando, setProcesando] = useState(false);
   const [valorando, setValorando] = useState(false);
   const [descargando, setDescargando] = useState(false);
+  const [devolucionManual, setDevolucionManual] = useState<PagoDeEnvio | null>(null);
+  const [referenciaDevolucion, setReferenciaDevolucion] = useState("");
+  const puedeGestionarPagos = puede("pagos.gestionar");
 
   const esAdmin = puede("envios.ver_todos");
   const puedeReembolsar = puede("envios.reembolsar");
@@ -195,6 +210,21 @@ export default function DetalleEnvioScreen({ navigation, route }: any) {
     // Al volver del chat se actualizan los mensajes sin leer.
     return navigation.addListener("focus", () => void cargar());
   }, [cargar, navigation]);
+
+  const confirmarDevolucionManual = async () => {
+    if (!devolucionManual || procesando) return;
+    setProcesando(true);
+    const r = await registrarDevolucionManual(devolucionManual.codigo, referenciaDevolucion);
+    setProcesando(false);
+    setDevolucionManual(null);
+    setReferenciaDevolucion("");
+    mostrar(
+      r.exito ? "exito" : "error",
+      r.exito ? "Devolución registrada" : "No se pudo registrar",
+      r.exito ? "El pago figura como devuelto y le avisamos al cliente." : r.error,
+    );
+    if (r.exito) void cargar();
+  };
 
   const descargarComprobante = async () => {
     if (descargando) return;
@@ -466,7 +496,13 @@ export default function DetalleEnvioScreen({ navigation, route }: any) {
                 Este envío todavía no registra pagos.
               </Text>
             ) : (
-              pagos.map((p) => <TarjetaPago key={p.codigo} pago={p} />)
+              pagos.map((p) => (
+                <TarjetaPago
+                  key={p.codigo}
+                  pago={p}
+                  onRegistrarDevolucion={puedeGestionarPagos ? () => setDevolucionManual(p) : undefined}
+                />
+              ))
             )}
             {(esCliente || esAdmin) && pagos.some((p) => p.estado === "aprobado" || p.estado === "reembolsado") && (
               <TouchableOpacity
@@ -555,6 +591,33 @@ export default function DetalleEnvioScreen({ navigation, route }: any) {
         </View>
       </ScrollView>
 
+      <Confirmacion
+        visible={!!devolucionManual}
+        ocupado={procesando}
+        titulo="¿Ya hiciste la devolución?"
+        textoConfirmar="Sí, ya la hice"
+        textoCancelar="Todavía no"
+        detalle={
+          devolucionManual
+            ? `Confirmá solo si ya devolviste ${pesos(devolucionManual.monto, devolucionManual.moneda)} desde el panel de la pasarela. El pago ${devolucionManual.codigo} va a figurar como devuelto y le avisamos al cliente.`
+            : ""
+        }
+        onCancelar={() => {
+          setDevolucionManual(null);
+          setReferenciaDevolucion("");
+        }}
+        onConfirmar={() => void confirmarDevolucionManual()}
+      >
+        <TextInput
+          style={tema.estilo(styles.campoReferencia)}
+          value={referenciaDevolucion}
+          onChangeText={setReferenciaDevolucion}
+          placeholder="Número de operación de la devolución (opcional)"
+          placeholderTextColor={tema.color(COLORS.muted)}
+          maxLength={120}
+          accessibilityLabel="Número de operación de la devolución"
+        />
+      </Confirmacion>
       <Confirmacion
         visible={confirmacion === "devolver"}
         ocupado={procesando}

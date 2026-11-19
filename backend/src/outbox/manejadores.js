@@ -112,7 +112,9 @@ export const MANEJADORES = {
             titulo: 'Te devolvimos un pago',
             cuerpo: p.duplicadoDe
                 ? `El envío ${p.envioCodigo} se cobró dos veces. Te devolvimos el segundo pago (${pesos(p.monto, p.moneda)}) al medio original.`
-                : `El pago de ${pesos(p.monto, p.moneda)} llegó cuando el envío ${p.envioCodigo} ya estaba cancelado. Te lo devolvimos al medio original.`,
+                : p.manual
+                    ? `Te devolvimos el pago de ${pesos(p.monto, p.moneda)} del envío ${p.envioCodigo} al medio original.`
+                    : `El pago de ${pesos(p.monto, p.moneda)} llegó cuando el envío ${p.envioCodigo} ya estaba cancelado. Te lo devolvimos al medio original.`,
             datos: { envioCodigo: p.envioCodigo, pagoCodigo: p.pagoCodigo },
         }, ctx);
     },

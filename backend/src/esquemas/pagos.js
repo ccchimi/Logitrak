@@ -25,3 +25,12 @@ export const tarjeta = z.object({
 export const codigoPago = z.object({
     codigo: textoRequerido(30, 'Falta el código del pago.', { mensajeLargo: 'El código del pago no es válido.' }),
 });
+
+export const devolucionManual = z.object({
+    referencia: z
+        .string()
+        .trim()
+        .max(120, 'La referencia puede tener hasta 120 caracteres.')
+        .optional()
+        .transform((r) => (r ? r : undefined)),
+});

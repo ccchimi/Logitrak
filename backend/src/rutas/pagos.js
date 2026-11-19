@@ -15,7 +15,8 @@ import { aplicarDescuento, consumirCupon, reservarCupon } from '../servicios/pag
 import { log, registrarError } from '../observabilidad/logger.js';
 import { registrarEvento } from '../outbox/index.js';
 import { pedidoVencido, RESPUESTA_VENCIDO } from '../servicios/envios/impagos.js';
-import { tienePermiso } from '../middleware/permisos.js';
+import { exigirPermiso, tienePermiso } from '../middleware/permisos.js';
+import { devolucionesPendientes, registrarDevolucionManual } from '../servicios/pagos/devolucionManual.js';
 
 export const rutasPagos = Router();
 
@@ -440,6 +441,35 @@ rutasPagos.get('/retorno', (_req, res) => {
          </body>`
     );
 });
+
+// Devoluciones que no pudo hacer la pasarela y hay que hacer a mano.
+rutasPagos.get('/devoluciones-pendientes', autenticar, exigirPermiso('pagos.gestionar'), async (_req, res) => {
+    return res.json({ exito: true, pagos: await devolucionesPendientes(pool) });
+});
+
+rutasPagos.post(
+    '/:codigo/devolucion-manual',
+    autenticar,
+    exigirPermiso('pagos.gestionar'),
+    validarRequest({ params: esquemas.codigoPago, body: esquemas.devolucionManual }),
+    async (req, res) => {
+        try {
+            const pago = await registrarDevolucionManual(pool, {
+                pagoCodigo: req.params.codigo,
+                usuario: req.usuario,
+                referencia: req.body.referencia,
+            });
+            if (!pago) {
+                return res.status(409).json({ exito: false, error: 'Ese pago no tiene una devolución pendiente.' });
+            }
+            log().info({ pago: pago.codigo }, 'Devolución hecha a mano registrada');
+            return res.json({ exito: true, pago: publicar(pago) });
+        } catch (e) {
+            registrarError(e, 'No se pudo registrar la devolución manual', { pago: req.params.codigo });
+            return res.status(500).json({ exito: false, error: 'No se pudo registrar la devolución. Probá de nuevo.' });
+        }
+    }
+);
 
 rutasPagos.get('/:codigo', autenticar, validarRequest({ params: esquemas.codigoPago }), async (req, res) => {
     const { rows } = await consultar('SELECT * FROM pagos WHERE codigo = $1', [req.params.codigo]);

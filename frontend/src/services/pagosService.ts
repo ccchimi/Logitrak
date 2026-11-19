@@ -112,3 +112,39 @@ export async function obtenerPago(codigo: string): Promise<Pago | null> {
     );
     return r.exito ? r.pago : null;
 }
+
+export interface DevolucionPendiente {
+    codigo: string;
+    envioCodigo: string;
+    envioEstado: string;
+    metodo: 'mercadopago' | 'modo' | 'tarjeta';
+    monto: number;
+    moneda: string;
+    real: boolean;
+    idEnLaPasarela: string | null;
+    motivo: string;
+    duplicado: boolean;
+    pagadoEn: string | null;
+    pendienteDesde: string;
+}
+
+/** Devoluciones que la pasarela no pudo hacer sola (solo admin). */
+export async function listarDevolucionesPendientes(): Promise<DevolucionPendiente[] | null> {
+    const r = (await llamarApi<{ exito: true; pagos: DevolucionPendiente[] }>('/api/pagos/devoluciones-pendientes', {
+        conAuth: true,
+    })) as any;
+    return r.exito ? r.pagos : null;
+}
+
+/** Registra que la devolución se hizo a mano desde el panel de la pasarela. */
+export async function registrarDevolucionManual(
+    pagoCodigo: string,
+    referencia: string
+): Promise<{ exito: true } | { exito: false; error: string }> {
+    const r = (await llamarApi(`/api/pagos/${encodeURIComponent(pagoCodigo)}/devolucion-manual`, {
+        metodo: 'POST',
+        cuerpo: referencia.trim() ? { referencia: referencia.trim() } : {},
+        conAuth: true,
+    })) as any;
+    return r.exito ? { exito: true } : { exito: false, error: r.error || 'No se pudo registrar la devolución.' };
+}

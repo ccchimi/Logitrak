@@ -13,6 +13,7 @@ export default function Confirmacion({
   textoCancelar = "Cancelar",
   onCancelar,
   onConfirmar,
+  children,
 }: {
   visible: boolean;
   titulo: string;
@@ -22,6 +23,8 @@ export default function Confirmacion({
   textoCancelar?: string;
   onCancelar: () => void;
   onConfirmar: () => void;
+  /** Contenido extra entre el detalle y los botones (por ejemplo, un campo). */
+  children?: React.ReactNode;
 }) {
   const tema = useTema();
   const reducido = useMovimientoReducido();
@@ -42,6 +45,7 @@ export default function Confirmacion({
               {titulo}
             </Text>
             <Text style={tema.estilo(s.detail)}>{detalle}</Text>
+            {children}
             <View style={tema.estilo({ gap: 12 })}>
               <Boton
                 texto={textoCancelar}

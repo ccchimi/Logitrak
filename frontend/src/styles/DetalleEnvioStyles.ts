@@ -249,6 +249,17 @@ export const styles = StyleSheet.create({
     fontFamily: FONTS.titleBold,
   },
   botonDeshabilitado: { opacity: 0.45 },
+  campoReferencia: {
+    backgroundColor: COLORS.cardDeep,
+    borderWidth: 1,
+    borderColor: COLORS.borderStrong,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: COLORS.white,
+    fontFamily: FONTS.text,
+    fontSize: 14,
+  },
 
   centrado: {
     flex: 1,

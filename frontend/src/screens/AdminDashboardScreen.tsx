@@ -31,6 +31,7 @@ import GraficosAdmin from "../components/admin/GraficosAdmin";
 import Boton from "../components/Boton";
 import CargaLista from "../components/CargaLista";
 import { puede } from "../services/permisos";
+import DevolucionesPendientes from "../components/admin/DevolucionesPendientes";
 
 export default function AdminDashboardScreen(props: any) {
   return puede("envios.ver_todos") ? (
@@ -133,6 +134,9 @@ function Dashboard({ navigation }: any) {
           : "Las estadísticas se consultan con tu sesión administrativa."}
       </TextoAdmin>
       <AlcanceAdmin datos={datos} />
+      {puede("pagos.gestionar") && (
+        <DevolucionesPendientes navigation={navigation} version={datos?.actualizado ?? 0} />
+      )}
       {error ? (
         <ErrorAdmin error={error} reintentar={cargar} />
       ) : cargando ? (
