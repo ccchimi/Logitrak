@@ -25,7 +25,7 @@ y verificado se saca de acá; el historial queda en los commits.
    `EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_KEY` como variable de EAS.
 5. Más tests del backend. Todas las rutas tienen pruebas de integración con
    `supertest` contra PostgreSQL, y la CI exige cobertura mínima (85 % de
-   líneas; hoy hay 90,4 %). Lo que sigue más flojo es `pagos.js` con Mercado
+   líneas; hoy hay 90,5 %). Lo que sigue más flojo es `pagos.js` con Mercado
    Pago y MODO reales (hoy se prueba el camino sandbox) y los adjuntos de
    soporte con Storage.
 6. Verificar la firma del webhook con notificaciones reales de Mercado Pago.
@@ -61,8 +61,10 @@ y verificado se saca de acá; el historial queda en los commits.
     SDK 54, y probar en el teléfono la cámara, el mapa y la prueba de vida con
     `@react-native-ml-kit/face-detection`, que no figura como probada con la New
     Architecture. Ese build también tiene que incluir `expo-secure-store` para
-    que la sesión pase al llavero del teléfono. Quedan 6 vulnerabilidades moderadas en herramientas de build
-    (`glob`, `minimatch`), ninguna en el código que llega al teléfono.
+    que la sesión pase al llavero del teléfono, y en él hay que probar que el
+    chofer comparte su GPS y el cliente lo ve moverse. Quedan 6
+    vulnerabilidades moderadas en herramientas de build (`glob`, `minimatch`),
+    ninguna en el código que llega al teléfono.
 14. Contraseñas de los admins de producción. El código ya no siembra admins
     con contraseña conocida: si la base no tiene ninguno, crea el primero con
     `ADMIN_INICIAL_USUARIO` y `ADMIN_INICIAL_CONTRASENA`. Las cuentas que ya
@@ -81,3 +83,10 @@ y verificado se saca de acá; el historial queda en los commits.
 17. Mails: para mandar las notificaciones también por mail haría falta guardar
     el email de los clientes, que hoy no se pide. La bandeja en la app y el
     push ya están.
+18. GPS del chofer en segundo plano. Hoy la ubicación se comparte solo con la
+    app abierta. Para seguir compartiéndola con la app minimizada hace falta
+    el permiso de ubicación en segundo plano, `expo-task-manager`, la
+    notificación persistente de Android y un build nuevo. También falta
+    confirmar en producción que la política de Realtime de
+    `ubicaciones_chofer` entrega las posiciones al cliente (localmente se
+    probó con la consulta de respaldo).

@@ -358,14 +358,25 @@ borra del Storage.
 
 ## Tiempo real y push
 
+**Ubicación del chofer (RF11).** Mientras lleva un envío, la app del chofer
+manda su posición a `POST /api/asignaciones/ubicacion` (latitud, longitud y,
+si el GPS los da, precisión, rumbo y velocidad en m/s), validada con Zod y con
+un límite de 30 por minuto. El servidor busca el envío asignado o en viaje de
+ese chofer (si no hay, responde 409 `sin_viaje`) y guarda una sola fila por
+envío en `ubicaciones_chofer`, que se pisa en cada posición: no queda historial
+del recorrido. Un trigger sobre `envios` borra esa fila cuando el envío se
+entrega, se cancela o cambia de chofer. `GET /api/envios/:codigo` devuelve
+`ubicacionChofer` (o `null`) a quien puede ver el envío, y por Realtime la
+política `ubicaciones_chofer_lectura` deja leer la posición solo si el envío es
+visible para el token y sigue en curso. La app recibe la fila en el aviso de
+Realtime, sin volver a pedir el envío entero.
+
 **Seguimiento en tiempo real.** La pantalla de seguimiento escucha por Supabase
 Realtime los cambios de su envío (`envios`) y sus eventos nuevos
 (`envio_eventos`), con el mismo token que el chat de soporte (lo firma el
 backend en `GET /api/soporte/realtime`). El cliente ignora el payload de los
 cambios recibidos y los usa como señal para volver a consultar la API; esto no
-significa que el transporte de Realtime carezca de datos de filas. El mapa
-muestra una ruta y un marcador animado de demostración, no la ubicación GPS
-real del chofer. Con Realtime conectado, la consulta queda como respaldo cada
+significa que el transporte de Realtime carezca de datos de filas. Con Realtime conectado, la consulta queda como respaldo cada
 60 segundos; sin Realtime, cada 10 (antes era cada 5). Las políticas de solo
 lectura dejan escuchar al cliente sus envíos, al chofer los que tiene asignados
 y al personal autorizado (soporte y admin) la operación. Realtime se activa
@@ -546,6 +557,7 @@ un control equivalente en el frontend.
 | GET | `/api/asignaciones/disponibles` | Ofertas vigentes compatibles; solo chofer. |
 | POST | `/api/asignaciones/:codigoEnvio/tomar` | Toma una oferta con control de concurrencia; solo chofer. |
 | GET | `/api/asignaciones/activa` | Asignación en curso del chofer. |
+| POST | `/api/asignaciones/ubicacion` | Última posición GPS del chofer para su envío en curso; solo chofer, 30 por minuto. |
 | GET | `/api/asignaciones/reputacion` | Promedio, cantidad, distribución por estrellas y últimas 5 calificaciones del chofer; solo chofer. |
 | POST | `/api/asignaciones/:codigo/completar` | PIN y foto para cerrar la asignación del chofer. |
 | GET | `/api/asignaciones` | Historial de asignaciones del chofer. |

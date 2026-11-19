@@ -24,7 +24,7 @@ La Mobile App se ejecuta con un build de desarrollo de Expo (`npm run android` e
 
 ## 1. Descripción técnica general del avance
 
-Logitrak pasó del diseño del Parcial 1 a un sistema que funciona de punta a punta y está desplegado. Un cliente puede registrarse, cotizar un envío conversando con Boxy, confirmarlo, pagarlo y seguir en tiempo real los estados y eventos del envío, con la ruta en el mapa, avisos dentro de la app y notificaciones push. Un chofer verificado ve los envíos compatibles con su vehículo, toma uno, marca los hitos del viaje y cierra la entrega con el PIN que le da quien recibe y una foto de comprobante. El equipo de soporte atiende consultas y supervisa la operación; el administrador además reembolsa, archiva envíos y asigna los roles de los usuarios.
+Logitrak pasó del diseño del Parcial 1 a un sistema que funciona de punta a punta y está desplegado. Un cliente puede registrarse, cotizar un envío conversando con Boxy, confirmarlo, pagarlo y seguir en tiempo real los estados y eventos del envío, con la ruta y la ubicación del chofer en el mapa, avisos dentro de la app y notificaciones push. Un chofer verificado ve los envíos compatibles con su vehículo, toma uno, marca los hitos del viaje y cierra la entrega con el PIN que le da quien recibe y una foto de comprobante. El equipo de soporte atiende consultas y supervisa la operación; el administrador además reembolsa, archiva envíos y asigna los roles de los usuarios.
 
 El repositorio está dividido en dos partes que se despliegan por separado:
 
@@ -40,7 +40,7 @@ Estado de los módulos:
 | Creación de envíos y código de seguimiento `TRK-AAAA-NNNNNN` | Implementado |
 | Pagos: Mercado Pago (checkout, QR, webhook), MODO y tarjeta | Implementado; sin claves corre en modo sandbox. Si un envío se cobra dos veces, el segundo pago se devuelve solo |
 | Asignación al primer chofer compatible que acepta, con vencimiento y reembolso automático | Implementado |
-| Seguimiento con mapa, ruta, línea de tiempo, chofer y vehículo | Implementado: estados y eventos en tiempo real con Supabase Realtime. El marcador del chofer en el mapa es una animación de demostración; falta publicar su ubicación GPS real |
+| Seguimiento con mapa, ruta, línea de tiempo, chofer y vehículo | Implementado: estados, eventos y ubicación GPS del chofer en tiempo real con Supabase Realtime |
 | Postulación de chofer y verificación de identidad (DNI, selfie, prueba de vida opcional) | Implementado |
 | Historial, perfil, descarga y eliminación de la cuenta, y cupones por SLA incumplido | Implementado; el SLA lo controla el servidor, los cupones vencen a los 90 días y se avisa una semana antes |
 | Notificaciones: bandeja en la app y push en el teléfono | Implementado en Android; iOS pendiente |
@@ -49,7 +49,7 @@ Estado de los módulos:
 | Soporte: tickets, chat en tiempo real y bot de soporte | Implementado (no estaba en el diseño) |
 | Panel de administración y rol soporte | Implementado: métricas, reembolso y archivo de envíos, listado de usuarios con filtros, cambio de rol y edición de los datos de otras cuentas |
 
-**Calidad.** Hay 557 pruebas automáticas: 243 de la app en Jest y 314 del backend con `node:test`, entre ellas pruebas de integración de todas las rutas con `supertest` contra un PostgreSQL real. Todas corren en **GitHub Actions** en cada push a `main`, junto con una auditoría de dependencias, y la CI falla si la cobertura del backend baja del 85 % de líneas (hoy está en 90,4 %). Un segundo workflow publica la Web App en GitHub Pages.
+**Calidad.** Hay 567 pruebas automáticas: 248 de la app en Jest y 319 del backend con `node:test`, entre ellas pruebas de integración de todas las rutas con `supertest` contra un PostgreSQL real. Todas corren en **GitHub Actions** en cada push a `main`, junto con una auditoría de dependencias, y la CI falla si la cobertura del backend baja del 85 % de líneas (hoy está en 90,5 %). Un segundo workflow publica la Web App en GitHub Pages.
 
 ## 2. Decisiones tecnológicas tomadas
 
@@ -81,7 +81,7 @@ Estado de los módulos:
 | RF04: Boxy como "IA" que recomienda el pedido | Motor de reglas con procesamiento de lenguaje: entiende direcciones, pesos con unidades y respuestas de sí/no, y clasifica la carga | Un precio no puede depender de un modelo que puede equivocarse o variar. Las reglas se pueden probar y explicar. |
 | RF10: asignación de chofer automática mediante IA | El envío pagado se ofrece a todos los choferes con vehículo compatible y lo toma el primero que acepta. Si nadie lo toma en 5 minutos, se cancela y se reembolsa. | Es el modelo de las apps de movilidad: más simple, justo y sin una decisión central opaca. La asignación inteligente queda como evolución (ver `docs/ROADMAP.md`). |
 | RF06: pagos con Mercado Pago | Mercado Pago, MODO, tarjeta y QR, con reembolsos | Más medios de pago y la necesidad de devolver el dinero cuando ningún chofer toma el envío. |
-| RF11: seguimiento en tiempo real | Los estados y eventos del envío se actualizan en tiempo real con Supabase Realtime (con una consulta de respaldo cada 60 s) y cada cambio llega como notificación push. El mapa muestra la ruta, pero el movimiento del chofer es una animación de demostración | Cumplido para estados y eventos: antes se consultaba la API cada pocos segundos. Falta publicar la ubicación GPS real del chofer en el mapa. |
+| RF11: seguimiento en tiempo real | Los estados y eventos del envío se actualizan en tiempo real con Supabase Realtime (con una consulta de respaldo cada 60 s) y cada cambio llega como notificación push. Mientras lleva el envío, la app del chofer comparte su ubicación GPS y el cliente lo ve moverse en el mapa, con la antigüedad de la última posición | Cumplido en esta etapa. Se guarda solo la última posición del viaje en curso y se borra al terminar. Por ahora se comparte con la app abierta; en segundo plano queda para la siguiente etapa. |
 | RF13: comunicación entre cliente y conductor | El cliente ve el nombre, el teléfono, el identificador y el vehículo del chofer. El chat es con soporte (bot + administrador), no directo con el chofer. | Se priorizó un canal de soporte supervisado. El chat directo queda pendiente. |
 | RF09: cancelar envíos desde la app | El cliente cancela desde el detalle del envío mientras ningún chofer lo tomó: si estaba pago, se le devuelve el importe; si no, se anulan los intentos de pago. Además, la cancelación es automática si nadie toma el envío, y el administrador puede reembolsar o archivar | Cumplido en esta etapa. Una vez asignado un chofer, la cancelación se pide a soporte. |
 | RF14: emails con comprobante | No implementado | Se priorizó el circuito principal (cotizar, pagar, asignar, seguir). Queda para la siguiente etapa. |

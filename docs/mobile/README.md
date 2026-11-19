@@ -184,8 +184,8 @@ Los perfiles actuales no declaran `ios.simulator: true`: ese comando no debe pre
 | Cámara y DNI | Permiso de cámara, lectura PDF417 y captura de frente/selfie en el dispositivo. |
 | Prueba de vida | ML Kit requiere código nativo y un build compatible; no asumir funcionamiento completo en Expo Go. |
 | Comparación facial | Depende del runtime y modelos del backend, además de las imágenes enviadas. |
-| Ubicación del chofer | La publicación de GPS real del conductor al mapa está pendiente, también en primer plano. El componente muestra un marcador animado de demostración. `expo-location` se usa para geocodificar direcciones; mostrar la ubicación del dispositivo que consulta el mapa no equivale a ubicar al chofer remoto. |
-| Mapa | `MapaSeguimiento.tsx`; la ruta por calles se obtiene de `/api/recorridos`, con `GOOGLE_DIRECTIONS_KEY` solo en servidor. El movimiento del marcador es simulado y la configuración de Google Maps iOS está pendiente. |
+| Ubicación del chofer | Con la app abierta y un viaje en curso, el chofer comparte su GPS (`expo-location`, permiso "mientras se usa la app") y el cliente lo ve en el mapa. Compartirla con la app en segundo plano está pendiente: necesita permiso de ubicación en segundo plano, `expo-task-manager` y un build nuevo. |
+| Mapa | `MapaSeguimiento.tsx`; la ruta por calles se obtiene de `/api/recorridos`, con `GOOGLE_DIRECTIONS_KEY` solo en servidor. El marcador del chofer muestra su posición real; solo la vista de demostración, sin envío, lo anima. La configuración de Google Maps iOS está pendiente. |
 | Push | Dispositivo, permisos, credenciales FCM/APNs, registro de token y entrega por Expo. |
 | Sesión | Token y refresh token en `expo-secure-store` (Keychain/Keystore), con migración automática desde AsyncStorage; requiere un build que incluya el módulo, y uno viejo sigue usando AsyncStorage. |
 | Preferencias | Tema y modo silencioso locales; el modo silencioso no está aplicado globalmente al sonido push. |
