@@ -5,6 +5,7 @@ import { enviosConSlaParaRevisar, revisarSla } from '../servicios/envios/sla.js'
 import { alRegistrarEvento, despachar, purgarProcesados } from '../outbox/index.js';
 import { eliminarImpago, enviosImpagosVencidos } from '../servicios/envios/impagos.js';
 import { avisarCuponesPorVencer, vencerCupones } from '../servicios/pagos/cupones.js';
+import { devolverPagoDeMas, pagosParaDevolver } from '../servicios/pagos/devolucionDuplicados.js';
 
 export const COLAS = {
     barrerOfertas: 'barrer-ofertas-vencidas',
@@ -16,6 +17,8 @@ export const COLAS = {
     eliminarImpago: 'eliminar-impago',
     vencerCupones: 'vencer-cupones',
     avisarCupones: 'avisar-cupones-por-vencer',
+    barrerPagosDeMas: 'barrer-pagos-de-mas',
+    devolverPagoDeMas: 'devolver-pago-de-mas',
 };
 
 let ultimaPurga = 0;
@@ -55,10 +58,16 @@ export function conRegistro(cola, limite, fn) {
     };
 }
 
-export async function encolarPendientes(boss, { buscar, cola, prefijo }) {
+export async function procesarDevolucion(pagoId) {
+    const r = await devolverPagoDeMas(pagoId);
+    if (r === 'reintentar') throw new Error(`Devolución del pago ${pagoId} pospuesta por la pasarela`);
+    return r;
+}
+
+export async function encolarPendientes(boss, { buscar, cola, prefijo, campo = 'envioId' }) {
     const ids = await buscar();
     for (const id of ids) {
-        await boss.send(cola, { envioId: id }, { singletonKey: `${prefijo}-${id}` });
+        await boss.send(cola, { [campo]: id }, { singletonKey: `${prefijo}-${id}` });
     }
     if (ids.length) log().info({ cola, cantidad: ids.length }, 'Barrido: trabajos encolados');
     return ids.length;
@@ -104,6 +113,8 @@ async function iniciarColas(boss) {
     await boss.createQueue(COLAS.despacharOutbox, { policy: 'exclusive', retryLimit: 2 });
     await boss.createQueue(COLAS.vencerCupones, { policy: 'exclusive', retryLimit: 2 });
     await boss.createQueue(COLAS.avisarCupones, { policy: 'exclusive', retryLimit: 2 });
+    await boss.createQueue(COLAS.barrerPagosDeMas, { policy: 'exclusive', retryLimit: 2 });
+    await boss.createQueue(COLAS.devolverPagoDeMas, { policy: 'exclusive', ...REINTENTOS });
 
     await boss.schedule(COLAS.barrerOfertas, '* * * * *');
     await boss.schedule(COLAS.barrerSla, '* * * * *');
@@ -111,6 +122,7 @@ async function iniciarColas(boss) {
     await boss.schedule(COLAS.barrerImpagos, '* * * * *');
     await boss.schedule(COLAS.vencerCupones, '7 * * * *');
     await boss.schedule(COLAS.avisarCupones, '37 * * * *');
+    await boss.schedule(COLAS.barrerPagosDeMas, '* * * * *');
 
     const sondeo = { pollingIntervalSeconds: 5 };
     await boss.work(COLAS.barrerOfertas, sondeo, conRegistro(COLAS.barrerOfertas, 2, () =>
@@ -127,6 +139,10 @@ async function iniciarColas(boss) {
     await boss.work(COLAS.eliminarImpago, sondeo, conRegistro(COLAS.eliminarImpago, REINTENTOS.retryLimit, (t) => eliminarImpago(t.data.envioId)));
     await boss.work(COLAS.vencerCupones, sondeo, conRegistro(COLAS.vencerCupones, 2, () => vencerCupones(poolDeTrabajos)));
     await boss.work(COLAS.avisarCupones, sondeo, conRegistro(COLAS.avisarCupones, 2, () => avisarCuponesPorVencer(poolDeTrabajos)));
+    await boss.work(COLAS.barrerPagosDeMas, sondeo, conRegistro(COLAS.barrerPagosDeMas, 2, () =>
+        encolarPendientes(boss, { buscar: pagosParaDevolver, cola: COLAS.devolverPagoDeMas, prefijo: 'pago-de-mas', campo: 'pagoId' })
+    ));
+    await boss.work(COLAS.devolverPagoDeMas, sondeo, conRegistro(COLAS.devolverPagoDeMas, REINTENTOS.retryLimit, (t) => procesarDevolucion(t.data.pagoId)));
     await boss.work(COLAS.despacharOutbox, { pollingIntervalSeconds: 2 }, conRegistro(COLAS.despacharOutbox, 2, () => despacharOutbox()));
 
     alRegistrarEvento(() => {
@@ -139,4 +155,5 @@ async function iniciarColas(boss) {
     await boss.send(COLAS.barrerImpagos);
     await boss.send(COLAS.vencerCupones);
     await boss.send(COLAS.avisarCupones);
+    await boss.send(COLAS.barrerPagosDeMas);
 }

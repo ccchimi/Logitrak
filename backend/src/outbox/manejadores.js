@@ -73,7 +73,35 @@ export const MANEJADORES = {
                 eventoId: evento.id,
                 tipo: evento.event_type,
                 titulo: 'Pago duplicado para devolver',
-                cuerpo: `El pago ${p.pagoCodigo} (${pesos(p.monto, p.moneda)}) se aprobó sobre el envío ${p.envioCodigo}, que ya estaba pago con ${p.duplicadoDe}. Hay que devolverlo.`,
+                cuerpo: `El pago ${p.pagoCodigo} (${pesos(p.monto, p.moneda)}) se aprobó sobre el envío ${p.envioCodigo}, que ya estaba pago con ${p.duplicadoDe}. Se devuelve automáticamente; si no se puede, te avisamos.`,
+                datos: { envioCodigo: p.envioCodigo, pagoCodigo: p.pagoCodigo },
+            }, ctx);
+        }
+    },
+
+    async 'pago.devuelto'(cliente, evento, ctx) {
+        const p = evento.payload;
+        await notificar(cliente, {
+            usuarioId: p.clienteId,
+            eventoId: evento.id,
+            tipo: evento.event_type,
+            titulo: 'Te devolvimos un pago',
+            cuerpo: p.duplicadoDe
+                ? `El envío ${p.envioCodigo} se cobró dos veces. Te devolvimos el segundo pago (${pesos(p.monto, p.moneda)}) al medio original.`
+                : `El pago de ${pesos(p.monto, p.moneda)} llegó cuando el envío ${p.envioCodigo} ya estaba cancelado. Te lo devolvimos al medio original.`,
+            datos: { envioCodigo: p.envioCodigo, pagoCodigo: p.pagoCodigo },
+        }, ctx);
+    },
+
+    async 'pago.devolucion_fallida'(cliente, evento, ctx) {
+        const p = evento.payload;
+        for (const adminId of await adminsActivos(cliente)) {
+            await notificar(cliente, {
+                usuarioId: adminId,
+                eventoId: evento.id,
+                tipo: evento.event_type,
+                titulo: 'Devolución para hacer a mano',
+                cuerpo: `No se pudo devolver solo el pago ${p.pagoCodigo} (${pesos(p.monto, p.moneda)}) del envío ${p.envioCodigo}: ${p.motivo}.`,
                 datos: { envioCodigo: p.envioCodigo, pagoCodigo: p.pagoCodigo },
             }, ctx);
         }
@@ -143,7 +171,7 @@ export const MANEJADORES = {
                 eventoId: evento.id,
                 tipo: evento.event_type,
                 titulo: 'Pago para devolver',
-                cuerpo: `El pago ${p.pagoCodigo} (${pesos(p.monto, p.moneda)}) se aprobó sobre el envío ${p.envioCodigo}, que ya estaba cancelado. Hay que devolverlo.`,
+                cuerpo: `El pago ${p.pagoCodigo} (${pesos(p.monto, p.moneda)}) se aprobó sobre el envío ${p.envioCodigo}, que ya estaba cancelado. Se devuelve automáticamente; si no se puede, te avisamos.`,
                 datos: { envioCodigo: p.envioCodigo, pagoCodigo: p.pagoCodigo },
             }, ctx);
         }

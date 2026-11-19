@@ -1,6 +1,16 @@
 import { reembolsarPagoMp } from './mercadoPago.js';
 import { devolverCupon } from './cupones.js';
 
+// Solo Mercado Pago permite devolver desde la API. Un cobro real por otro
+// medio no se marca como devuelto: queda pendiente para hacerlo a mano.
+function devolverEnLaPasarela(pago) {
+    if (pago.modo_proc !== 'real') {
+        return { ok: true, reintentable: false, motivo: 'pago sandbox, no hubo cobro real' };
+    }
+    if (pago.metodo === 'mercadopago') return reembolsarPagoMp(pago.pago_ext_id);
+    return { ok: false, reintentable: false, motivo: `la devolución de ${pago.metodo} se hace desde su panel` };
+}
+
 export async function reembolsarPagoDelEnvio(cliente, envioId) {
     const { rows } = await cliente.query(
         `SELECT * FROM pagos
@@ -12,11 +22,15 @@ export async function reembolsarPagoDelEnvio(cliente, envioId) {
     );
     const pago = rows[0];
     if (!pago) return { estado: 'sin_pago' };
+    return reembolsarPago(cliente, pago);
+}
 
-    const esReal = pago.modo_proc === 'real' && pago.metodo === 'mercadopago' && pago.pago_ext_id;
-    const r = esReal
-        ? await reembolsarPagoMp(pago.pago_ext_id)
-        : { ok: true, reintentable: false, motivo: 'pago sandbox, no hubo cobro real' };
+// Devuelve un pago aprobado al medio original. El pago tiene que venir
+// bloqueado (SELECT ... FOR UPDATE) dentro de la transacción de `cliente`.
+// Con devolverCupon: false no toca el cupón: un pago duplicado nunca lo
+// consumió, y el cupón puede ser el mismo que usó el pago que vale.
+export async function reembolsarPago(cliente, pago, { devolverCupon: conCupon = true } = {}) {
+    const r = await devolverEnLaPasarela(pago);
 
     if (r.ok) {
         await cliente.query(
@@ -25,7 +39,7 @@ export async function reembolsarPagoDelEnvio(cliente, envioId) {
              WHERE id = $1`,
             [pago.id, r.motivo]
         );
-        await devolverCupon(cliente, pago);
+        if (conCupon) await devolverCupon(cliente, pago);
         return { estado: 'reembolsado', pago, motivo: r.motivo };
     }
 
