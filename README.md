@@ -36,7 +36,7 @@ La aplicación también incluye una página pública de presentación, acceso y 
 2. **Pedido y pago.** Al confirmar se crea un envío pendiente, con vencimiento para el pago. El pago aprobado habilita la oferta para la flota.
 3. **Asignación.** El envío se ofrece a choferes cuyos vehículos admiten el peso y la cantidad de bultos.
 4. **Seguimiento.** El chofer registra hitos del viaje; el cliente consulta estados, datos del chofer, historial de eventos y una ruta en el mapa. Mientras lleva el envío, la app del chofer comparte su ubicación GPS (con la app abierta) y el cliente lo ve moverse en el mapa, con la antigüedad de la última posición. Solo se guarda la última posición del viaje en curso y se borra al terminar. Realtime complementa las consultas periódicas de estados, eventos y ubicación cuando está configurado.
-5. **Entrega.** Se confirma mediante el PIN del receptor y una foto de comprobante. Hay un límite de intentos y un mecanismo de desbloqueo para soporte y administración.
+5. **Entrega.** Se confirma mediante el PIN del receptor y una foto de comprobante. Hay un límite de intentos y un mecanismo de desbloqueo para soporte y administración. Desde que el envío está pago, el cliente descarga un comprobante en PDF con el envío, el pago y la entrega.
 6. **Eventos y avisos.** El servidor registra eventos en un outbox y los procesa para generar notificaciones y solicitar envíos push cuando corresponde.
 
 Los estados principales de los envíos son `pendiente`, `asignado`, `en_viaje`, `entregado` y `cancelado`. El estado del pago se registra por separado.
@@ -289,7 +289,7 @@ Además de las restricciones de Mi Perfil y pagos ya descritas:
 - Guardar tarjetas o cuentas de cobro desde las pantallas de métodos está pendiente; esas pantallas no persisten los datos ingresados.
 - El listado de envíos devuelve hasta 200 registros por consulta. El panel intenta ampliar por estado, pero esto no sustituye una API con paginación e históricos completos.
 - La compatibilidad y configuración de identidad, mapas y push deben validarse por plataforma. El despliegue iOS necesita sus credenciales específicas.
-- Las notificaciones por correo no están implementadas como canal general; el registro de clientes no pide email.
+- Las notificaciones por correo no están implementadas como canal general; el registro de clientes no pide email. Por eso el comprobante del envío se descarga desde la app y no se manda por mail.
 - La recuperación de contraseña requiere revisión de seguridad antes de un uso productivo. Las cuentas admin creadas antes de este cambio deben cambiar su contraseña desde Mi Perfil: al arrancar, el log avisa si alguna todavía es igual al usuario.
 - La inteligencia logística predictiva descrita en el roadmap es una evolución propuesta, no una capacidad ya implementada de Boxy.
 

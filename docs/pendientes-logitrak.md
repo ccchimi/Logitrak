@@ -25,7 +25,7 @@ y verificado se saca de acá; el historial queda en los commits.
    `EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_KEY` como variable de EAS.
 5. Más tests del backend. Todas las rutas tienen pruebas de integración con
    `supertest` contra PostgreSQL, y la CI exige cobertura mínima (85 % de
-   líneas; hoy hay 90,5 %). Lo que sigue más flojo es `pagos.js` con Mercado
+   líneas; hoy hay 90,6 %). Lo que sigue más flojo es `pagos.js` con Mercado
    Pago y MODO reales (hoy se prueba el camino sandbox) y los adjuntos de
    soporte con Storage.
 6. Verificar la firma del webhook con notificaciones reales de Mercado Pago.
@@ -80,9 +80,10 @@ y verificado se saca de acá; el historial queda en los commits.
 16. Configurar en Render el health check del servicio en `/api/salud/vivo`
     (Settings > Health Check Path) y, si se arma staging, crear un segundo
     servicio con `ENTORNO=staging` y su propia base y credenciales.
-17. Mails: para mandar las notificaciones también por mail haría falta guardar
-    el email de los clientes, que hoy no se pide. La bandeja en la app y el
-    push ya están.
+17. Mails: para mandar las notificaciones y el comprobante del envío también
+    por mail haría falta guardar el email de los clientes, que hoy no se pide,
+    y un proveedor de correo (por ejemplo, Resend). La bandeja en la app, el
+    push y el comprobante en PDF descargable ya están.
 18. GPS del chofer en segundo plano. Hoy la ubicación se comparte solo con la
     app abierta. Para seguir compartiéndola con la app minimizada hace falta
     el permiso de ubicación en segundo plano, `expo-task-manager`, la

@@ -547,6 +547,7 @@ un control equivalente en el frontend.
 | GET | `/api/envios` | Lista según acceso y `estado`; hasta 200 registros, sin paginación general. |
 | GET | `/api/envios/metricas` | Totales por estado según alcance del usuario. |
 | GET | `/api/envios/:codigo` | Detalle, eventos, datos de entrega, calificación del envío y promedio del chofer; controla acceso al envío. |
+| GET | `/api/envios/:codigo/comprobante` | Comprobante en PDF; con `Accept: application/json`, en base64. Dueño del envío o personal; 409 `sin_pago` si no hay pago aprobado. |
 | POST | `/api/envios/:codigo/eventos` | Avances permitidos del chofer asignado o admin; no cierra entregas ni cancela. |
 | POST | `/api/envios/:codigo/cancelar` | Cancelación por el cliente dueño, mientras el envío está pendiente y sin chofer. Devuelve el importe si estaba pago o anula los intentos de pago pendientes; con un pago en curso en la pasarela responde 409. |
 | POST | `/api/envios/:codigo/valoracion` | Calificación del chofer por el cliente dueño: `puntaje` entero de 1 a 5 y `comentario` opcional de hasta 500 caracteres. Solo con el envío entregado (409 si no) y una sola vez (409 si se repite). |
@@ -814,6 +815,21 @@ El bucket hay que crearlo antes del primer uso. Si estas variables quedan vacía
 las imágenes caen al disco local, lo cual alcanza para desarrollo. En entornos desplegados (`staging` o `produccion`, según
 `src/config/entorno.js`) no se escriben fotos de documentos en disco: sin Storage, el alta puede continuar sin fotos de verificación y se registra
 el problema. La entrega con foto tiene sus propios requisitos de almacenamiento.
+
+## Comprobante del envío (RF14)
+
+`GET /api/envios/:codigo/comprobante` arma un PDF con `pdfkit`
+(`src/servicios/envios/comprobante.js`): cliente, envío (direcciones, carga,
+peso, vehículo, distancia y fechas), chofer, cómo se confirmó la entrega y el
+pago que cubrió el envío, con el medio de pago, el comprobante `COMP-…`, el
+cupón y el descuento si los hubo, y el total. Las fechas van en hora de
+Argentina. Toma el pago aprobado o, si se devolvió, el último devuelto (y lo
+indica); los cobros duplicados no aparecen. El pie aclara que no es una factura
+ni un comprobante fiscal. Lo descargan el dueño del envío y el personal con
+`envios.ver_todos`; responde `Cache-Control: no-store`. Por defecto devuelve el
+PDF como adjunto; la app pide `Accept: application/json` y lo recibe en base64,
+para usar el mismo cliente HTTP con renovación de sesión. El envío por mail
+queda pendiente: el modelo no guarda el email de los clientes.
 
 ## Pagos
 
