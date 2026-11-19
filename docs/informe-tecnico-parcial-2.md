@@ -35,7 +35,7 @@ Estado de los módulos:
 
 | Módulo | Estado |
 |---|---|
-| Registro, login, recuperación de contraseña y roles (cliente, chofer, soporte, admin) | Implementado; sesiones con refresh token revocable |
+| Registro, login, recuperación de contraseña y roles (cliente, chofer, soporte, admin) | Implementado; sesiones con refresh token revocable y verificación en dos pasos (TOTP) para el equipo |
 | Cotización con Boxy (direcciones, tipo de carga, vehículo y precio desglosado) | Implementado; el precio lo valida el servidor |
 | Creación de envíos y código de seguimiento `TRK-AAAA-NNNNNN` | Implementado |
 | Pagos: Mercado Pago (checkout, QR, webhook), MODO y tarjeta | Implementado; sin claves corre en modo sandbox. Si un envío se cobra dos veces, el segundo pago se devuelve solo |
@@ -51,7 +51,7 @@ Estado de los módulos:
 | Soporte: tickets, chat en tiempo real y bot de soporte | Implementado (no estaba en el diseño) |
 | Panel de administración y rol soporte | Implementado: métricas calculadas en el servidor, consulta de pedidos con filtros y páginas, reembolso y archivo de envíos, registro de devoluciones hechas a mano, listado de usuarios con filtros, cambio de rol y edición de los datos de otras cuentas |
 
-**Calidad.** Hay 620 pruebas automáticas: 251 de la app en Jest y 369 del backend con `node:test`, entre ellas pruebas de integración de todas las rutas con `supertest` contra un PostgreSQL real. Todas corren en **GitHub Actions** en cada push a `main`, junto con una auditoría de dependencias, y la CI falla si la cobertura del backend baja del 85 % de líneas (hoy está en 93,8 %). Un segundo workflow publica la Web App en GitHub Pages.
+**Calidad.** Hay 633 pruebas automáticas: 254 de la app en Jest y 379 del backend con `node:test`, entre ellas pruebas de integración de todas las rutas con `supertest` contra un PostgreSQL real. Todas corren en **GitHub Actions** en cada push a `main`, junto con una auditoría de dependencias, y la CI falla si la cobertura del backend baja del 85 % de líneas (hoy está en 93,9 %). Un segundo workflow publica la Web App en GitHub Pages.
 
 ## 2. Decisiones tecnológicas tomadas
 
@@ -69,6 +69,7 @@ Estado de los módulos:
 | **pino + Sentry** y chequeo de salud (`/api/salud`) | console.log | Logs estructurados por pedido y un chequeo que prueba la conectividad real con la base y los servicios externos. |
 | **Límites de tiempo** en la conexión a PostgreSQL | Esperar sin límite, que es lo que hace `pg` por defecto | Una consulta trabada o una caída de Supabase devuelve un error a los 15 s en lugar de dejar el pedido colgado y ocupar el pool. Las transacciones inactivas se cierran a los 30 s y conectar tiene un tope de 10 s. Las migraciones corren sin límite. |
 | **Token de acceso corto + refresh token revocable**, bcrypt y rate limiting | Sesiones en servidor, Supabase Auth | API sin estado y fácil de consumir desde web y mobile; el refresh token permite cerrar sesiones, por ejemplo al cambiar el rol de una cuenta. |
+| **Verificación en dos pasos con TOTP** (app autenticadora) para admin y soporte | Código por SMS o por mail | Las cuentas del equipo pueden reembolsar, cambiar roles y ver datos personales: con una contraseña filtrada no alcanza. TOTP es un estándar abierto, no necesita un proveedor pago de SMS o correo y funciona sin señal. El secreto se guarda cifrado y hay códigos de respaldo de un solo uso. |
 | **Llavero del teléfono** (`expo-secure-store`) para guardar la sesión | AsyncStorage, que guarda en claro | En Android e iOS el token y el refresh token quedan cifrados por el sistema (Keystore y Keychain) y fuera de los respaldos; las sesiones viejas se migran solas. En la web quedan en el navegador. |
 | **Boxy como motor de reglas** que corre en el dispositivo | Un modelo de lenguaje (LLM) externo | El precio tiene que ser explicable y reproducible: ante la misma entrada da siempre lo mismo y no puede inventar una tarifa. Además responde al instante y no manda domicilios a terceros. |
 | **El servidor recalcula el precio** con el mismo código de Boxy (empaquetado con esbuild) | Confiar en el precio que manda la app | Evita que un cliente modifique el pedido y pague menos (defecto DEF-02, corregido en esta etapa). |
@@ -100,6 +101,7 @@ Estado de los módulos:
 | — | Descarga de los datos de la cuenta en un archivo, con la contraseña | Derecho de acceso (Ley 25.326, art. 14): el usuario ve todo lo que Logitrak guarda de él, sin contraseñas ni tokens. |
 | — | Los cobros de más se devuelven solos | Un segundo cobro sobre el mismo envío, o uno que llega con el envío cancelado, antes solo se avisaba al admin. Si la pasarela no permite devolverlo, queda en revisión. |
 | — | El titular cambia su nombre, email y teléfono con la contraseña | Cada cambio sensible se reautentica en el servidor, no alcanza con tener la sesión abierta. |
+| — | Verificación en dos pasos para las cuentas del equipo | Protege las cuentas con más permisos: además de la contraseña, el ingreso pide un código de la app autenticadora o uno de respaldo. |
 
 ## 4. Diagrama actualizado de arquitectura
 

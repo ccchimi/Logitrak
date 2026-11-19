@@ -177,6 +177,7 @@ Los ejemplos completos están en [`backend/.env.example`](backend/.env.example) 
 | Variable o grupo | Uso |
 |---|---|
 | `DATABASE_URL`, `JWT_SECRET` | Obligatorios para iniciar: conexión a PostgreSQL y firma de sesiones. |
+| `DOBLE_FACTOR_CLAVE` | Opcional: clave para cifrar los secretos de la verificación en dos pasos. Si falta, se deriva de `JWT_SECRET`; cambiarla obliga a restablecer el 2FA del equipo. |
 | `ADMIN_INICIAL_USUARIO`, `ADMIN_INICIAL_CONTRASENA` | Crean el primer administrador si la base no tiene ninguno. La contraseña necesita al menos 12 caracteres y no puede contener el usuario. Una vez creado, conviene vaciarlas. |
 | `PORT`, `PUBLIC_API_URL` | Puerto local y URL pública usada para callbacks. Render asigna `PORT`. |
 | `ENTORNO` | `desarrollo`, `staging` o `produccion`. Por defecto se selecciona producción en Render o con `NODE_ENV=production`, y desarrollo en los demás casos. |
@@ -239,6 +240,7 @@ En Mi Perfil:
 - El frontend puede comprobar credenciales usando login con el encabezado de verificación, sin abrir una sesión nueva. Esa comprobación no emite una autorización reutilizable para editar otros campos.
 - El nombre, el email y el teléfono se cambian desde Mi Perfil y el servidor vuelve a pedir la contraseña en cada cambio. El email no se repite entre cuentas. El nombre de usuario no se cambia, y el domicilio y el vehículo de un chofer los cambia el equipo. Un email nuevo todavía no se confirma con un código.
 - "Descargar mis datos" entrega, con la contraseña, un archivo JSON con todo lo que Logitrak guarda de la cuenta (derecho de acceso de la Ley 25.326): datos personales, cotizaciones, envíos, pagos, cupones, soporte, notificaciones, sesiones e ingresos; a los choferes les suma verificación, viajes y calificaciones. No incluye contraseñas, tokens ni las fotos.
+- Admin y soporte pueden activar la verificación en dos pasos: escanean un QR con una app autenticadora, confirman el primer código y reciben 10 códigos de respaldo de un solo uso. Desde ahí, el login pide el código después de la contraseña. Desactivarla o generar códigos nuevos pide contraseña y código, y un admin puede restablecérsela a quien perdió el teléfono.
 - La eliminación de cuenta solicita contraseña y está sujeta a restricciones por rol y operaciones activas. El backend anonimiza datos y conserva los comprobantes previstos por su implementación.
 - El tema claro/oscuro y el modo silencioso se conservan localmente. No son preferencias sincronizadas con el servidor. El modo silencioso no está integrado de forma global con el sonido de las notificaciones push.
 

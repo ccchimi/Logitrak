@@ -518,12 +518,13 @@ un control equivalente en el frontend.
 | GET | `/` | Identificación del servicio; público. |
 | GET | `/api/salud/vivo` | Vida del proceso; público, sin consulta a la base. |
 | GET | `/api/salud` | Preparación y salud de componentes; público. |
-| POST | `/api/auth/login` | Valida credenciales; sesión normal o comprobación con encabezado `verificar`. |
+| POST | `/api/auth/login` | Valida credenciales; sesión normal o comprobación con encabezado `verificar`. Si la cuenta tiene verificación en dos pasos, responde `requiereSegundoFactor` y un `desafio` en lugar de la sesión. |
+| POST | `/api/auth/login/segundo-factor` | Segundo paso del ingreso: `desafio` y el código de la app o uno de respaldo; devuelve la sesión. 401 con `codigo` `desafio_vencido` o `codigo_incorrecto`. |
 | POST | `/api/auth/refresh` | Rota el refresh token y emite acceso; requiere refresh válido. |
 | POST | `/api/auth/logout` | Revoca el refresh token indicado; no requiere JWT de acceso. |
 | POST | `/api/auth/registro` | Crea cliente mediante registro público. |
 | GET | `/api/auth/existe/:usuario` | Consulta pública de disponibilidad de nombre de usuario. |
-| POST | `/api/auth/recuperar` | Restablecimiento público para cuentas que no son del equipo; ver limitación de identidad. |
+| POST | `/api/auth/recuperar` | Restablecimiento público para cuentas que no son del equipo ni tienen verificación en dos pasos; ver limitación de identidad. |
 | GET | `/api/auth/perfil` | Identidad del usuario autenticado. |
 
 ### Perfil, choferes y flota
@@ -535,6 +536,11 @@ un control equivalente en el frontend.
 | GET | `/api/perfil/resumen` | Resumen de la propia cuenta. |
 | PUT | `/api/perfil/datos` | Nombre, email y teléfono de la propia cuenta; pide `contrasenaActual` en cada cambio (mismo límite que el login). Un email o teléfono vacío lo borra, salvo para un chofer. |
 | POST | `/api/perfil/exportar` | Copia en JSON de los datos de la propia cuenta; pide la contraseña, 5 por hora. |
+| GET | `/api/perfil/doble-factor` | Estado de la verificación en dos pasos: si está disponible (solo equipo), activada y cuántos códigos de respaldo quedan. |
+| POST | `/api/perfil/doble-factor/iniciar` | Con la contraseña, genera el secreto y el QR (todavía no activa); solo admin y soporte. |
+| POST | `/api/perfil/doble-factor/activar` | Con el primer código de la app, la activa y devuelve 10 códigos de respaldo. |
+| POST | `/api/perfil/doble-factor/desactivar` | Con contraseña y código (de la app o de respaldo), la desactiva. |
+| POST | `/api/perfil/doble-factor/codigos` | Con contraseña y código, genera 10 códigos de respaldo nuevos y anula los anteriores. |
 | POST | `/api/perfil/eliminar-cuenta` | Anonimización con contraseña y restricciones operativas/por rol. |
 | POST | `/api/choferes/postulacion` | Alta verificada de chofer; solo cliente autenticado. |
 | GET | `/api/choferes/:codigo/documentos` | URLs firmadas de documentos; permiso `choferes.ver_documentos`. |
@@ -597,6 +603,7 @@ un control equivalente en el frontend.
 | GET | `/api/admin/usuarios/:id` | Datos editables de una cuenta y, si es chofer, su ficha; permiso `usuarios.editar`. |
 | PUT | `/api/admin/usuarios/:id` | Edita el nombre y, en choferes, email, teléfono, domicilio y vehículo; permiso `usuarios.editar`. |
 | PUT | `/api/admin/usuarios/:id/rol` | Cambia rol entre cliente, soporte y admin; permiso `usuarios.cambiar_rol` y restricciones de integridad. |
+| POST | `/api/admin/usuarios/:id/doble-factor/restablecer` | Quita la verificación en dos pasos de otra cuenta (quien perdió el teléfono y los códigos); permiso `usuarios.editar`, no sobre la propia. |
 | POST | `/api/admin/reset` | Reinicio destructivo de información; permiso `sistema.reiniciar`. No usar como diagnóstico. |
 | GET | `/api/soporte/realtime` | Credencial de lectura Realtime para la sesión. |
 | GET | `/api/soporte/tickets` | Lista tickets propios o del equipo, según permiso. |
@@ -645,6 +652,38 @@ confirma con un código.
 `POST /api/auth/login` con `X-Logitrak-Sesion: verificar` comprueba la
 contraseña sin crear una sesión: la app lo usa para el primer paso del editor,
 y el servidor la vuelve a comprobar al guardar.
+
+## Verificación en dos pasos del equipo
+
+Las cuentas de admin y soporte pueden sumar un segundo factor TOTP (RFC 6238:
+HMAC-SHA1, códigos de 6 dígitos cada 30 segundos), compatible con Google
+Authenticator, Microsoft Authenticator, Authy y similares. Está implementado
+con `node:crypto`, sin dependencias nuevas (`src/servicios/dobleFactor.js`), y
+se prueba contra los vectores del RFC.
+
+- **Activación** (`src/rutas/dobleFactor.js`): con la contraseña se genera un
+  secreto de 20 bytes, que queda pendiente 15 minutos, y se devuelve la URI
+  `otpauth://` con su QR. Se activa recién cuando la persona confirma el primer
+  código, así nadie queda afuera por escanear mal. Al activarla recibe 10
+  códigos de respaldo (`xxxx-xxxx`, de un solo uso) que no se vuelven a mostrar.
+- **Guardado**: el secreto se cifra con AES-256-GCM, con una clave derivada por
+  HKDF de `DOBLE_FACTOR_CLAVE` (o, si no está, de `JWT_SECRET`); los códigos de
+  respaldo se guardan como SHA-256 en `codigos_respaldo`. Rotar el secreto del
+  que sale la clave obliga a restablecer el 2FA de quienes lo tengan.
+- **Ingreso**: si la contraseña es correcta y la cuenta tiene 2FA, el login no
+  entrega tokens: devuelve un `desafio` (un JWT de 5 minutos firmado con otra
+  clave, que `autenticar` rechaza como sesión). `POST /api/auth/login/segundo-factor`
+  lo canjea con el código. Se acepta el paso actual y uno de diferencia para
+  tolerar relojes corridos, y `totp_ultimo_paso` impide reutilizar un código
+  ya aceptado. Los dos pasos tienen el límite del login y quedan en
+  `auditoria_accesos` ("falta el segundo factor", "segundo factor incorrecto",
+  "segundo factor").
+- **Desactivar o regenerar códigos** pide la contraseña y un código; un admin
+  puede restablecerlo a otra persona del equipo. Cada cambio genera el evento
+  `usuario.doble_factor`, que le avisa a la cuenta por notificación.
+- Una cuenta con 2FA no usa `/api/auth/recuperar`, porque el restablecimiento
+  público saltearía el segundo factor. La exportación de datos indica si está
+  activa, sin el secreto ni los códigos.
 
 ## Consulta administrativa e integración con el frontend
 

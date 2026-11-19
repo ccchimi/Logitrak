@@ -74,14 +74,14 @@ No debe confundirse este motor con las propuestas de predicción logística del 
 
 | Ruta | Pantalla y alcance |
 |---|---|
-| `Login`, `Registro`, `Recuperar` | Inicio de sesión, alta de clientes y recuperación de contraseña. |
+| `Login`, `Registro`, `Recuperar` | Inicio de sesión (con el paso del código si la cuenta tiene verificación en dos pasos), alta de clientes y recuperación de contraseña. |
 | `Home` | Inicio de cliente o panel operativo para cuentas con permiso de consultar todos los envíos. |
 | `SolicitudEnvio` | Conversación con Boxy y confirmación de cotización. |
 | `Pago` | Checkout de Mercado Pago y formulario de tarjeta simulada. |
 | `Seguimiento`, `DetalleEnvio` | Mapa, estado, eventos, datos del chofer con su promedio de calificaciones, comprobante de entrega, la calificación del envío, la descarga del comprobante en PDF y el acceso al chat con los mensajes sin leer. |
 | `ChatEnvio` | Chat del envío entre el cliente y el chofer, con texto y fotos (se tocan para ampliarlas): mensajes por día, "Enviado"/"Leído" en el último propio y el motivo cuando está cerrado. Se abre desde el detalle, la tarjeta del viaje del chofer o el aviso. |
 | `Historial` | Envíos entregados, de a 20, con "Cargar más" (o al llegar al final) y búsqueda por código o dirección. El resumen (cantidad, total pagado y cumplimiento del SLA) viene del servidor, y cada envío dice si el retiro se demoró. |
-| `Perfil` | Datos, cambio de contraseña, preferencias, descarga de los datos de la cuenta, cierre de sesión y eliminación de cuenta según restricciones. |
+| `Perfil` | Datos, cambio de contraseña, verificación en dos pasos (equipo), preferencias, descarga de los datos de la cuenta, cierre de sesión y eliminación de cuenta según restricciones. |
 | `Cuponera` | Cupones acreditados con su vencimiento ("Vence en 3 días", "Venció el…"), resaltado en la última semana, y cómo usarlos. El aviso de cupón por vencer abre esta pantalla. |
 | `TrabajaConNosotros` | Formulario de postulación por pasos, vehículo, DNI y selfie. |
 | `Chofer` | Ofertas filtradas por peso y bultos del vehículo, asignación, avances, chat con el cliente, cierre de viaje y la tarjeta "Tu calificación" con su promedio y los últimos comentarios. |
@@ -102,7 +102,7 @@ El chofer inicia en su consola. El acceso operativo se decide por capacidades de
 
 `DevolucionesPendientes` muestra en el panel del admin los pagos que la pasarela no pudo devolver; cada fila lleva al detalle del envío, donde "Registrar devolución hecha a mano" pide confirmar y, opcionalmente, el número de operación.
 
-Con el permiso `usuarios.editar` (solo admin), cada fila de Usuarios abre `components/admin/EditarUsuarioModal.tsx`: el nombre de cualquier cuenta y, en los choferes, el email, el teléfono, el domicilio y el vehículo. El código de chofer y el DNI se muestran pero no se editan, y desde el mismo modal se pasa al cambio de rol. `helpers/perfilesAdmin.ts` arma solo los campos que cambiaron y los valida igual que el servidor. Soporte ve la lista pero no edita. El permiso llega con el inicio de sesión: un admin con la sesión abierta desde antes de esta versión tiene que volver a entrar para ver la opción.
+Con el permiso `usuarios.editar` (solo admin), cada fila de Usuarios abre `components/admin/EditarUsuarioModal.tsx`: el nombre de cualquier cuenta y, en los choferes, el email, el teléfono, el domicilio y el vehículo. El código de chofer y el DNI se muestran pero no se editan, y desde el mismo modal se pasa al cambio de rol. `helpers/perfilesAdmin.ts` arma solo los campos que cambiaron y los valida igual que el servidor. Soporte ve la lista pero no edita. En una cuenta del equipo, el modal muestra si tiene la verificación en dos pasos y el admin puede restablecerla (dos toques para confirmar), salvo la propia. El permiso llega con el inicio de sesión: un admin con la sesión abierta desde antes de esta versión tiene que volver a entrar para ver la opción.
 
 ### Seguimiento, entrega y avisos
 
@@ -128,6 +128,7 @@ La aplicación guarda la sesión y utiliza refresh tokens para renovar el acceso
 | Comprobación previa de contraseña | Usa login con `X-Logitrak-Sesion: verificar`; comprueba que la identidad devuelta coincide con la cuenta local y no reemplaza la sesión. |
 | Nombre, email y teléfono | `EditarPerfilModal` verifica la contraseña, muestra el valor actual y valida con las mismas reglas que el servidor (`helpers/perfil.ts`); `actualizarDatosPerfil` guarda con la contraseña en `/api/perfil/datos` y renueva la sesión. Vaciar el email o el teléfono los borra, salvo para un chofer. |
 | Usuario, domicilio y vehículo | No se editan desde acá: el usuario es fijo y los datos de la ficha del chofer los cambia el equipo. |
+| Verificación en dos pasos | Solo admin y soporte. `DobleFactorModal` guía la activación: contraseña, QR (o la clave en grupos de 4 para cargarla a mano), primer código y los 10 códigos de respaldo, que se pueden descargar en un `.txt`. Con la verificación activa, la tarjeta muestra cuántos códigos quedan (avisa con 3 o menos) y permite generar nuevos o desactivarla con contraseña y código (`services/dobleFactorService.ts`, `helpers/dobleFactor.ts`). En el login, `iniciarSesion` devuelve el desafío y `completarSegundoFactor` termina el ingreso; el campo acepta el código pegado con espacios y los de respaldo con o sin guion. |
 | Descargar mis datos | `ExportarDatosModal` pide la contraseña y guarda un JSON con todo lo de la cuenta: en la web se descarga, en Android se elige la carpeta y en iOS se abre la hoja de compartir (`services/descargas.ts`). |
 | Eliminación de cuenta | Conectada al endpoint correspondiente, con contraseña y restricciones por rol y operaciones activas. |
 | Tema claro/oscuro y modo silencioso | Guardados localmente por `preferenciasService.ts`; no se sincronizan con el servidor. |
