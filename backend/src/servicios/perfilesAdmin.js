@@ -12,7 +12,7 @@ const COLUMNA_CHOFER = { email: 'email', telefono: 'telefono', domicilio: 'domic
 
 export async function perfilParaAdmin(db, id, { bloquear = false } = {}) {
     const { rows } = await db.query(
-        `SELECT u.id, u.usuario, u.rol, u.nombre_completo, u.creado_en,
+        `SELECT u.id, u.usuario, u.rol, u.nombre_completo, u.creado_en, u.totp_activado_en,
                 c.codigo, c.email, c.telefono, c.domicilio, c.dni, c.vehiculo_id
          FROM usuarios u LEFT JOIN choferes c ON c.usuario_id = u.id
          WHERE u.id = $1 AND u.eliminado_en IS NULL
@@ -27,6 +27,7 @@ export async function perfilParaAdmin(db, id, { bloquear = false } = {}) {
         rol: f.rol,
         nombreCompleto: f.nombre_completo,
         creadoEn: f.creado_en,
+        dobleFactor: Boolean(f.totp_activado_en),
         chofer: f.codigo
             ? {
                   codigo: f.codigo,

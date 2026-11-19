@@ -8,6 +8,7 @@ import { validarRequest } from '../middleware/validar.js';
 import { exigirPermiso } from '../middleware/permisos.js';
 import { registrarEvento } from '../outbox/index.js';
 import { aplicarCambios, CAMPOS_CHOFER, cambiosPedidos, perfilParaAdmin } from '../servicios/perfilesAdmin.js';
+import { desactivarDobleFactor } from '../servicios/dobleFactor.js';
 
 export const rutasAdmin = Router();
 
@@ -183,6 +184,53 @@ rutasAdmin.put(
             await cliente.query('ROLLBACK').catch(() => {});
             registrarError(e, 'No se pudieron editar los datos del usuario');
             return res.status(500).json({ exito: false, error: 'No se pudieron guardar los cambios.' });
+        } finally {
+            cliente.release();
+        }
+    }
+);
+
+// Si alguien del equipo pierde el teléfono y los códigos de respaldo, un admin
+// le restablece la verificación en dos pasos. No sobre la propia cuenta.
+rutasAdmin.post(
+    '/usuarios/:id/doble-factor/restablecer',
+    autenticar,
+    exigirPermiso('usuarios.editar'),
+    validarRequest({ params: paramsUsuario }),
+    async (req, res) => {
+        const id = Number(req.params.id);
+        if (id === req.usuario.id) {
+            return res.status(409).json({ exito: false, error: 'No podés restablecer tu propia verificación: desactivala desde Mi Perfil.' });
+        }
+        const cliente = await pool.connect();
+        try {
+            await cliente.query('BEGIN');
+            const { rows } = await cliente.query(
+                'SELECT id, totp_activado_en FROM usuarios WHERE id = $1 AND eliminado_en IS NULL FOR UPDATE',
+                [id]
+            );
+            if (!rows[0]) {
+                await cliente.query('ROLLBACK');
+                return res.status(404).json({ exito: false, error: 'No encontramos esa cuenta.' });
+            }
+            if (!rows[0].totp_activado_en) {
+                await cliente.query('ROLLBACK');
+                return res.status(409).json({ exito: false, error: 'Esa cuenta no tiene activada la verificación en dos pasos.' });
+            }
+            await desactivarDobleFactor(cliente, id);
+            await registrarEvento(cliente, {
+                tipoAgregado: 'usuario',
+                idAgregado: String(id),
+                tipo: 'usuario.doble_factor',
+                datos: { usuarioId: id, accion: 'restablecido' },
+            });
+            await cliente.query('COMMIT');
+            log().info({ usuarioId: id }, 'Verificación en dos pasos restablecida por un admin');
+            return res.json({ exito: true, mensaje: 'Listo: la cuenta ya no pide el código. Le avisamos al usuario.' });
+        } catch (e) {
+            await cliente.query('ROLLBACK').catch(() => {});
+            registrarError(e, 'No se pudo restablecer la verificación en dos pasos');
+            return res.status(500).json({ exito: false, error: 'No se pudo restablecer. Probá de nuevo.' });
         } finally {
             cliente.release();
         }

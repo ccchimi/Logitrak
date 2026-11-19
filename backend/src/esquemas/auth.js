@@ -51,3 +51,12 @@ const refreshToken = z
 
 export const renovar = z.object({ refreshToken });
 export const salir = z.object({ refreshToken });
+
+export const segundoFactor = z.object({
+    desafio: z.string({ error: 'Falta el desafío del ingreso.' }).min(10).max(2000),
+    codigo: z
+        .string({ error: 'Ingresá el código.' })
+        .trim()
+        .min(6, 'Ingresá el código de 6 dígitos o un código de respaldo.')
+        .max(20, 'El código es demasiado largo.'),
+});

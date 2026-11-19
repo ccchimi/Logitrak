@@ -15,7 +15,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import { COLORS, styles, tamanosAuth } from "../styles/LoginStyles";
 import { useRootFlow } from "../navigation/RootFlowContext";
 import AuthFrame from "../components/AuthFrame";
-import { iniciarSesion } from "../services/authService";
+import { completarSegundoFactor, iniciarSesion, type UsuarioSesion } from "../services/authService";
+import { codigoCompleto, normalizarCodigo } from "../helpers/dobleFactor";
 import type { RefTextInput } from "../types/refs";
 
 export default function LoginScreens({ navigation }: any) {
@@ -29,27 +30,16 @@ export default function LoginScreens({ navigation }: any) {
 
   const [error, setError] = useState("");
   const [cargando, setCargando] = useState(false);
+  // Segundo paso, si la cuenta tiene verificación en dos pasos.
+  const [desafio, setDesafio] = useState<{ token: string; nombre: string } | null>(null);
+  const [codigo, setCodigo] = useState("");
 
   const { volverAlInicio, puedeVolver } = useRootFlow();
 
-  const manejarIngreso = async () => {
-    if (cargando) return;
-    setCargando(true);
-
-    const resultado = await iniciarSesion(
-      usuarioRef.current,
-      contrasenaRef.current,
-    );
-    setCargando(false);
-
-    if (!resultado.exito) {
-      setError(resultado.error);
-      return;
-    }
-
+  const entrar = (usuario: UsuarioSesion) => {
     setError("");
-
-    const { usuario } = resultado;
+    setDesafio(null);
+    setCodigo("");
     if (usuario.rol === "chofer") {
       navigation.navigate("Chofer", {
         nombre: usuario.nombreCompleto,
@@ -63,6 +53,43 @@ export default function LoginScreens({ navigation }: any) {
         rol: usuario.rol,
       });
     }
+  };
+
+  const manejarIngreso = async () => {
+    if (cargando) return;
+    setCargando(true);
+    const resultado = await iniciarSesion(usuarioRef.current, contrasenaRef.current);
+    setCargando(false);
+    if (!resultado.exito) {
+      setError(resultado.error);
+      return;
+    }
+    if (resultado.requiereSegundoFactor) {
+      setError("");
+      setDesafio({ token: resultado.desafio, nombre: resultado.nombre });
+      return;
+    }
+    entrar(resultado.usuario);
+  };
+
+  const verificarCodigo = async () => {
+    if (cargando || !desafio) return;
+    if (!codigoCompleto(codigo)) {
+      setError("Ingresá los 6 dígitos de tu app o un código de respaldo.");
+      return;
+    }
+    setCargando(true);
+    const r = await completarSegundoFactor(desafio.token, normalizarCodigo(codigo));
+    setCargando(false);
+    if (!r.exito) {
+      setError(r.error);
+      if (r.codigo === "desafio_vencido") {
+        setDesafio(null);
+        setCodigo("");
+      }
+      return;
+    }
+    if (!r.requiereSegundoFactor) entrar(r.usuario);
   };
 
   const contenido = (
@@ -136,6 +163,65 @@ export default function LoginScreens({ navigation }: any) {
             </Text>
           ) : null}
 
+          {desafio ? (
+            <View style={tema.estilo({ gap: 18 })}>
+              <Text accessibilityRole="header" style={tema.estilo([styles.hintText, { color: "#FFFFFF", fontSize: 18 }])}>
+                Verificación en dos pasos
+              </Text>
+              <Text style={tema.estilo([styles.hintText, { color: "#B9C4BD" }])}>
+                {desafio.nombre}, abrí tu app autenticadora (Google Authenticator, Authy…) y escribí el código de 6
+                dígitos de Logitrak. Si no tenés el teléfono, usá un código de respaldo.
+              </Text>
+              <View style={tema.estilo([styles.inputContainer, { height: width >= 900 ? 86 : 58 }])}>
+                <TextInput
+                  style={tema.estilo([styles.input, { fontSize: 22, letterSpacing: 6, textAlign: "center" }])}
+                  accessibilityLabel="Código de verificación"
+                  placeholder="000000"
+                  placeholderTextColor={tema.color("#6E7A73")}
+                  value={codigo}
+                  onChangeText={setCodigo}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  autoComplete="one-time-code"
+                  textContentType="oneTimeCode"
+                  autoFocus
+                  maxLength={12}
+                  returnKeyType="go"
+                  onSubmitEditing={() => void verificarCodigo()}
+                />
+              </View>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                style={tema.estilo([styles.buttonShadow, cargando && { opacity: 0.6 }])}
+                disabled={cargando}
+                accessibilityState={{ busy: cargando }}
+                onPress={() => void verificarCodigo()}
+              >
+                <LinearGradient
+                  colors={tema.degradado([COLORS.accent, COLORS.accent])}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={tema.estilo([styles.loginButton, { minHeight: width >= 900 ? 86 : 58 }])}
+                >
+                  <Text style={tema.estilo([styles.loginButtonText, { color: COLORS.black, fontFamily: "Poppins_500Medium" }])}>
+                    {cargando ? "Verificando…" : "Verificar e ingresar"}
+                  </Text>
+                </LinearGradient>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={tema.estilo({ alignItems: "center", minHeight: 44, justifyContent: "center" })}
+                onPress={() => {
+                  setDesafio(null);
+                  setCodigo("");
+                  setError("");
+                }}
+                accessibilityRole="button"
+              >
+                <Text style={tema.estilo(styles.linkOlvido)}>Volver a ingresar la contraseña</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+          <>
           <View style={tema.estilo(styles.formGroup)}>
             <View
               style={tema.estilo([
@@ -243,6 +329,8 @@ export default function LoginScreens({ navigation }: any) {
               ¿Te olvidaste la contraseña?
             </Text>
           </TouchableOpacity>
+          </>
+          )}
         </View>
       </ScrollView>
     </AuthFrame>

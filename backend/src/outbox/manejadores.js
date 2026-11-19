@@ -178,6 +178,19 @@ export const MANEJADORES = {
         }, ctx);
     },
 
+    // Cambios en la verificación en dos pasos: siempre se avisa, por si no lo
+    // hizo el titular.
+    async 'usuario.doble_factor'(cliente, evento, ctx) {
+        const p = evento.payload;
+        const textos = {
+            activado: ['Activaste la verificación en dos pasos', 'Desde ahora, para ingresar te vamos a pedir el código de tu app autenticadora. Guardá los códigos de respaldo en un lugar seguro.'],
+            desactivado: ['Desactivaste la verificación en dos pasos', 'Para ingresar ya no te vamos a pedir el código. Si no fuiste vos, cambiá tu contraseña y avisá al administrador.'],
+            restablecido: ['Un administrador restableció tu verificación en dos pasos', 'Ya no te vamos a pedir el código al ingresar. Volvé a activarla desde Mi Perfil. Si no lo pediste, avisá al administrador.'],
+        };
+        const [titulo, cuerpo] = textos[p.accion] ?? textos.desactivado;
+        await notificar(cliente, { usuarioId: p.usuarioId, eventoId: evento.id, tipo: evento.event_type, titulo, cuerpo }, ctx);
+    },
+
     async 'usuario.datos_editados'(cliente, evento, ctx) {
         const p = evento.payload;
         await notificar(cliente, {

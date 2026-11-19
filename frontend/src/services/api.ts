@@ -9,6 +9,8 @@ export interface UsuarioSesion {
     nombreCompleto: string;
     chofer: { codigo: string } | null;
     permisos?: string[];
+    /** Si la cuenta tiene activada la verificación en dos pasos. */
+    dobleFactor?: boolean;
 }
 
 const PUERTO_API = 4000;

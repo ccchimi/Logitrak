@@ -14,8 +14,9 @@ export type { RolUsuario, UsuarioSesion };
 export { obtenerUsuarioSesion, restaurarSesion, hayToken };
 
 export type ResultadoSesion =
-    | { exito: true; usuario: UsuarioSesion }
-    | { exito: false; error: string };
+    | { exito: true; usuario: UsuarioSesion; requiereSegundoFactor?: false }
+    | { exito: true; requiereSegundoFactor: true; desafio: string; nombre: string }
+    | { exito: false; error: string; codigo?: string };
 
 export type ResultadoOperacion =
     | { exito: true; mensaje: string }
@@ -26,13 +27,29 @@ export async function iniciarSesion(usuario: string, contrasena: string): Promis
         return { exito: false, error: 'Por favor, completá todos los campos.' };
     }
 
-    const r = await llamarApi<{ exito: true; token: string; refreshToken?: string; usuario: UsuarioSesion }>(
+    const r = (await llamarApi<{ exito: true; token: string; refreshToken?: string; usuario: UsuarioSesion }>(
         '/api/auth/login',
         { metodo: 'POST', cuerpo: { usuario, contrasena } }
-    );
+    )) as any;
 
-    if (!r.exito) return { exito: false, error: (r as any).error ?? 'No se pudo iniciar sesión.' };
+    if (!r.exito) return { exito: false, error: r.error ?? 'No se pudo iniciar sesión.' };
+    // Con la verificación en dos pasos, falta el código: todavía no hay sesión.
+    if (r.requiereSegundoFactor) {
+        return { exito: true, requiereSegundoFactor: true, desafio: r.desafio, nombre: r.usuario?.nombreCompleto ?? usuario };
+    }
 
+    guardarSesion(r.token, r.usuario, r.refreshToken);
+    void registrarTelefono();
+    return { exito: true, usuario: r.usuario };
+}
+
+/** Segundo paso del ingreso: el código de la app autenticadora o uno de respaldo. */
+export async function completarSegundoFactor(desafio: string, codigo: string): Promise<ResultadoSesion> {
+    const r = (await llamarApi<{ exito: true; token: string; refreshToken?: string; usuario: UsuarioSesion }>(
+        '/api/auth/login/segundo-factor',
+        { metodo: 'POST', cuerpo: { desafio, codigo } }
+    )) as any;
+    if (!r.exito) return { exito: false, error: r.error ?? 'No se pudo verificar el código.', codigo: r.codigo };
     guardarSesion(r.token, r.usuario, r.refreshToken);
     void registrarTelefono();
     return { exito: true, usuario: r.usuario };

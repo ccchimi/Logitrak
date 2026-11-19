@@ -14,6 +14,8 @@ export interface PerfilAdmin {
   nombreCompleto: string;
   creadoEn: string;
   chofer: FichaChoferAdmin | null;
+  /** Si la cuenta tiene la verificación en dos pasos activada (solo equipo). */
+  dobleFactor?: boolean;
 }
 
 export interface FormularioPerfilAdmin {

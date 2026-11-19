@@ -30,6 +30,8 @@ import Icono, { NombreIcono } from "../components/Icono";
 import EditarPerfilModal from "../components/EditarPerfilModal";
 import EliminarCuentaModal from "../components/EliminarCuentaModal";
 import ExportarDatosModal from "../components/ExportarDatosModal";
+import DobleFactorModal, { type AccionDobleFactor } from "../components/DobleFactorModal";
+import { obtenerDobleFactor, type EstadoDobleFactor } from "../services/dobleFactorService";
 import Confirmacion from "../components/Confirmacion";
 import Transicion from "../components/Transicion";
 import { esPersonal, NOMBRE_ROL, puede } from "../services/permisos";
@@ -53,6 +55,8 @@ export default function PerfilScreen({ navigation }: any) {
   const [exito, setExito] = useState("");
   const [mostrarEliminar, setMostrarEliminar] = useState(false);
   const [mostrarExportar, setMostrarExportar] = useState(false);
+  const [dobleFactor, setDobleFactor] = useState<EstadoDobleFactor | null>(null);
+  const [accion2fa, setAccion2fa] = useState<AccionDobleFactor | null>(null);
   const [confirmarReset, setConfirmarReset] = useState(false);
   const [reseteando, setReseteando] = useState(false);
   const bloqueoReset = useRef(false);
@@ -81,6 +85,11 @@ export default function PerfilScreen({ navigation }: any) {
       if (!vigente.current) return;
       setPerfil(p);
       setResumen(r);
+      // La verificación en dos pasos es solo para el equipo.
+      if (esPersonal(p?.rol ?? sesion?.rol)) {
+        const df = await obtenerDobleFactor();
+        if (vigente.current && df.exito) setDobleFactor(df.dobleFactor);
+      }
       if (!p || !r)
         setErrorCarga(
           "No pudimos cargar todos tus datos. Podés volver a intentar.",
@@ -91,7 +100,7 @@ export default function PerfilScreen({ navigation }: any) {
     } finally {
       if (vigente.current) setCargando(false);
     }
-  }, []);
+  }, [sesion?.rol]);
   useEffect(() => {
     void cargar();
   }, [cargar]);
@@ -320,6 +329,35 @@ export default function PerfilScreen({ navigation }: any) {
                 "Contraseña",
                 "Cambiar mi contraseña",
               )}
+              {dobleFactor?.disponible && (
+                <View style={tema.estilo(s.row)}>
+                  <View style={tema.estilo(s.icon)}>
+                    <Icono nombre="lock" size={22} />
+                  </View>
+                  <View style={s.rowText}>
+                    <Text style={tema.estilo(s.value)}>Verificación en dos pasos</Text>
+                    <Text style={tema.estilo(s.label)}>
+                      {dobleFactor.activado
+                        ? `Activada · te quedan ${dobleFactor.codigosRestantes} códigos de respaldo`
+                        : "Desactivada · recomendada para el equipo"}
+                    </Text>
+                    {dobleFactor.activado && dobleFactor.codigosRestantes <= 3 && (
+                      <Text accessibilityRole="alert" style={tema.estilo([s.label, { color: "#FBBF24" }])}>
+                        Te quedan pocos códigos de respaldo: generá nuevos.
+                      </Text>
+                    )}
+                  </View>
+                  {!dobleFactor.activado && (
+                    <Boton texto="Activar" secundario onPress={() => { setExito(""); setAccion2fa("activar"); }} />
+                  )}
+                </View>
+              )}
+              {dobleFactor?.activado && (
+                <View style={s.links}>
+                  <Boton texto="Nuevos códigos de respaldo" secundario onPress={() => { setExito(""); setAccion2fa("codigos"); }} />
+                  <Boton texto="Desactivar" secundario onPress={() => { setExito(""); setAccion2fa("desactivar"); }} />
+                </View>
+              )}
               <View style={s.accountActions}>
                 <Boton
                   texto="Cerrar sesión"
@@ -395,6 +433,15 @@ export default function PerfilScreen({ navigation }: any) {
         onClose={() => setMostrarExportar(false)}
         onDescargado={(mensaje) => {
           setMostrarExportar(false);
+          setExito(mensaje);
+        }}
+      />
+      <DobleFactorModal
+        accion={accion2fa}
+        usuario={perfil?.usuario ?? sesion?.usuario ?? ""}
+        onClose={() => setAccion2fa(null)}
+        onCambio={(estado, mensaje) => {
+          setDobleFactor(estado);
           setExito(mensaje);
         }}
       />

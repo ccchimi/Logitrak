@@ -19,6 +19,7 @@ function cuenta(u) {
         nombreCompleto: u.nombre_completo,
         email: u.email,
         telefono: u.telefono,
+        verificacionEnDosPasos: Boolean(u.totp_activado_en),
         rol: u.rol,
         creadaEn: fecha(u.creado_en),
     };

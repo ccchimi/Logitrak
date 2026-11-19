@@ -16,6 +16,7 @@ import { validarRequest } from '../middleware/validar.js';
 import * as esquemas from '../esquemas/auth.js';
 import { registrarError } from '../observabilidad/logger.js';
 import { esPersonal, permisosDe } from '../middleware/permisos.js';
+import { consumirCodigo, firmarDesafio, leerDesafio } from '../servicios/dobleFactor.js';
 
 export const rutasAuth = Router();
 
@@ -27,7 +28,20 @@ function publicar(fila, chofer) {
         permisos: permisosDe(fila.rol),
         nombreCompleto: fila.nombre_completo,
         chofer: chofer ? { codigo: chofer.codigo } : null,
+        dobleFactor: Boolean(fila.totp_activado_en),
     };
+}
+
+async function choferDeFila(fila) {
+    if (fila.rol !== 'chofer') return null;
+    return (await consultar('SELECT codigo FROM choferes WHERE usuario_id = $1', [fila.id])).rows[0] ?? null;
+}
+
+async function abrirSesion(req, res, fila) {
+    const chofer = await choferDeFila(fila);
+    const respuesta = { exito: true, token: emitirAccessToken(fila, req), usuario: publicar(fila, chofer) };
+    if (clienteUsaRefresh(req)) respuesta.refreshToken = await crearSesion(pool, fila.id, req);
+    return res.json(respuesta);
 }
 
 async function auditar(usuario, exito, motivo, req) {
@@ -54,21 +68,55 @@ rutasAuth.post('/login', limiteLogin, validarRequest({ body: esquemas.login }), 
         return res.status(401).json({ exito: false, error: 'Usuario o contraseña incorrectos.' });
     }
 
-    let chofer = null;
-    if (fila.rol === 'chofer') {
-        const r = await consultar('SELECT codigo FROM choferes WHERE usuario_id = $1', [fila.id]);
-        chofer = r.rows[0] ?? null;
+    // Solo comprobar la contraseña (Mi Perfil antes de un cambio): no abre sesión.
+    if (req.get('X-Logitrak-Sesion') === 'verificar') {
+        await auditar(usuario, true, 'verificación de contraseña', req);
+        return res.json({ exito: true, usuario: publicar(fila, await choferDeFila(fila)) });
+    }
+
+    // Con la verificación en dos pasos, la contraseña sola no alcanza: se
+    // devuelve un desafío de 5 minutos para mandar con el código.
+    if (fila.totp_activado_en) {
+        await auditar(usuario, true, 'falta el segundo factor', req);
+        return res.json({
+            exito: true,
+            requiereSegundoFactor: true,
+            desafio: firmarDesafio(fila.id),
+            usuario: { usuario: fila.usuario, nombreCompleto: fila.nombre_completo },
+        });
     }
 
     await auditar(usuario, true, null, req);
+    return abrirSesion(req, res, fila);
+});
 
-    if (req.get('X-Logitrak-Sesion') === 'verificar') {
-        return res.json({ exito: true, usuario: publicar(fila, chofer) });
+rutasAuth.post('/login/segundo-factor', limiteLogin, validarRequest({ body: esquemas.segundoFactor }), async (req, res) => {
+    const usuarioId = leerDesafio(req.body.desafio);
+    if (!usuarioId) {
+        return res.status(401).json({ exito: false, codigo: 'desafio_vencido', error: 'Pasaron más de 5 minutos. Volvé a ingresar tu contraseña.' });
     }
-
-    const respuesta = { exito: true, token: emitirAccessToken(fila, req), usuario: publicar(fila, chofer) };
-    if (clienteUsaRefresh(req)) respuesta.refreshToken = await crearSesion(pool, fila.id, req);
-    return res.json(respuesta);
+    const cliente = await pool.connect();
+    let fila = null;
+    let tipo = null;
+    try {
+        await cliente.query('BEGIN');
+        fila = (await cliente.query('SELECT * FROM usuarios WHERE id = $1 AND eliminado_en IS NULL', [usuarioId])).rows[0] ?? null;
+        tipo = fila?.totp_activado_en ? await consumirCodigo(cliente, usuarioId, req.body.codigo) : null;
+        await cliente.query('COMMIT');
+    } catch (e) {
+        await cliente.query('ROLLBACK').catch(() => {});
+        registrarError(e, 'No se pudo verificar el segundo factor');
+        return res.status(500).json({ exito: false, error: 'No se pudo verificar el código. Probá de nuevo.' });
+    } finally {
+        cliente.release();
+    }
+    if (!fila) return res.status(401).json({ exito: false, codigo: 'desafio_vencido', error: 'Volvé a ingresar tu contraseña.' });
+    if (!tipo) {
+        await auditar(fila.usuario, false, 'segundo factor incorrecto', req);
+        return res.status(401).json({ exito: false, codigo: 'codigo_incorrecto', error: 'El código no es correcto o ya se usó.' });
+    }
+    await auditar(fila.usuario, true, tipo === 'respaldo' ? 'segundo factor (código de respaldo)' : 'segundo factor', req);
+    return abrirSesion(req, res, fila);
 });
 
 const SESION_VENCIDA = { exito: false, codigo: 'sesion_vencida', error: 'Tu sesión venció. Volvé a ingresar.' };
@@ -146,13 +194,13 @@ rutasAuth.get('/existe/:usuario', limiteLogin, validarRequest({ params: esquemas
 rutasAuth.post('/recuperar', limiteLogin, validarRequest({ body: esquemas.recuperar }), async (req, res) => {
     const { usuario, nueva } = req.body;
 
-    const { rows } = await consultar('SELECT id, rol FROM usuarios WHERE usuario = $1', [usuario]);
+    const { rows } = await consultar('SELECT id, rol, totp_activado_en FROM usuarios WHERE usuario = $1', [usuario]);
     const fila = rows[0];
 
     if (!fila) {
         return res.status(404).json({ exito: false, error: 'No encontramos una cuenta con ese usuario.' });
     }
-    if (esPersonal(fila.rol)) {
+    if (esPersonal(fila.rol) || fila.totp_activado_en) {
         return res.status(403).json({ exito: false, error: 'Las cuentas del equipo no se pueden restablecer desde acá.' });
     }
     const hash = await bcrypt.hash(nueva, 10);

@@ -2,7 +2,9 @@ import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useTema } from "../../hooks/useTema";
 import { DISENO as D } from "../../theme/diseno";
-import { NOMBRE_ROL } from "../../services/permisos";
+import { NOMBRE_ROL, puede } from "../../services/permisos";
+import { obtenerUsuarioSesion } from "../../services/authService";
+import { restablecerDobleFactor } from "../../services/dobleFactorService";
 import { editarPerfilUsuario, obtenerPerfilUsuario, type UsuarioAdmin } from "../../services/usuariosAdminService";
 import { listarVehiculos, type VehiculoFlota } from "../../services/vehiculosService";
 import {
@@ -63,9 +65,13 @@ export default function EditarUsuarioModal({ usuario, puedeCambiarRol, onCerrar,
   const [vehiculos, setVehiculos] = useState<VehiculoFlota[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
+  // Restablecer el 2FA de alguien del equipo: un toque para confirmar y otro para hacerlo.
+  const [confirmar2fa, setConfirmar2fa] = useState(false);
+  const [restableciendo, setRestableciendo] = useState(false);
 
   useEffect(() => {
     if (!usuario) return;
+    setConfirmar2fa(false);
     setPerfil(null);
     setForm(null);
     setError(null);
@@ -107,6 +113,25 @@ export default function EditarUsuarioModal({ usuario, puedeCambiarRol, onCerrar,
     setGuardando(false);
     if (r.exito) onGuardado(r.sinCambios ? "No había nada para cambiar." : `Guardamos los datos de ${r.perfil.nombreCompleto}. Le avisamos por notificación.`);
     else setError(r.error);
+  };
+
+  const puedeRestablecer2fa =
+    !!perfil?.dobleFactor && puede("usuarios.editar") && perfil.id !== obtenerUsuarioSesion()?.id;
+  const restablecer2fa = async () => {
+    if (!perfil || restableciendo) return;
+    if (!confirmar2fa) {
+      setConfirmar2fa(true);
+      return;
+    }
+    setRestableciendo(true);
+    setError(null);
+    const r = await restablecerDobleFactor(perfil.id);
+    setRestableciendo(false);
+    setConfirmar2fa(false);
+    if (r.exito) {
+      setPerfil({ ...perfil, dobleFactor: false });
+      onGuardado(`Restablecimos la verificación en dos pasos de ${perfil.nombreCompleto}. Puede ingresar solo con la contraseña y volver a activarla.`);
+    } else setError(r.error);
   };
 
   return (
@@ -191,6 +216,29 @@ export default function EditarUsuarioModal({ usuario, puedeCambiarRol, onCerrar,
                 {error ? <Text style={tema.estilo(s.error)}>{error}</Text> : null}
               </>
             )}
+
+            {perfil && (perfil.rol === "admin" || perfil.rol === "soporte") ? (
+              <Text style={tema.estilo(s.texto)}>
+                Verificación en dos pasos: {perfil.dobleFactor ? "activada" : "desactivada"}.
+              </Text>
+            ) : null}
+            {puedeRestablecer2fa ? (
+              <Pressable
+                onPress={() => void restablecer2fa()}
+                disabled={restableciendo}
+                accessibilityRole="button"
+                accessibilityHint="Para quien perdió el teléfono y los códigos de respaldo"
+                style={tema.estilo(s.enlace)}
+              >
+                <Text style={tema.estilo([s.enlaceTexto, confirmar2fa && { color: "#FF6B6B" }])}>
+                  {restableciendo
+                    ? "Restableciendo…"
+                    : confirmar2fa
+                      ? "Tocá de nuevo para confirmar: va a poder entrar solo con la contraseña"
+                      : "Restablecer la verificación en dos pasos"}
+                </Text>
+              </Pressable>
+            ) : null}
 
             {usuario && puedeCambiarRol ? (
               <Pressable
