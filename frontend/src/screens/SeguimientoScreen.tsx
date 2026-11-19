@@ -5,7 +5,6 @@ import {
   ActivityIndicator,
   Animated,
   Easing,
-  PanResponder,
   Platform,
   ScrollView,
   StyleSheet,
@@ -14,10 +13,9 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { DISENO as D } from "../theme/diseno";
 import Icono from "../components/Icono";
-import { styles, COLORS } from "../styles/SeguimientoStyles";
+import { styles } from "../styles/SeguimientoStyles";
 import { formatearARS } from "../helpers/formato";
 import MapaSeguimiento from "../components/MapaSeguimiento";
 import { ToastStack, useToasts } from "../components/Toasts";
@@ -80,7 +78,6 @@ async function resolverPuntoNativo(texto: string): Promise<PuntoRuta | null> {
 
 export default function SeguimientoScreen({ navigation, route }: any) {
   const tema = useTema();
-  const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const esDesktop = width >= 1000;
   const { toasts, mostrar, cerrar } = useToasts();
@@ -121,21 +118,6 @@ export default function SeguimientoScreen({ navigation, route }: any) {
     envioCodigo ? null : undefined,
   );
   const [viajeEnCurso, setViajeEnCurso] = useState(false);
-  const [panelMinimizado, setPanelMinimizado] = useState(() => width < 1000);
-  const esWeb = Platform.OS === "web";
-
-  const gestoPanel = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_evt, gesto) =>
-        Math.abs(gesto.dy) > 12 &&
-        Math.abs(gesto.dy) > Math.abs(gesto.dx) * 1.5,
-      onPanResponderRelease: (_evt, gesto) => {
-        if (gesto.dy > 16) setPanelMinimizado(true);
-        if (gesto.dy < -16) setPanelMinimizado(false);
-      },
-    }),
-  ).current;
-
   const [origenPunto, setOrigenPunto] = useState<PuntoRuta | null>(null);
   const [destinoPunto, setDestinoPunto] = useState<PuntoRuta | null>(null);
   const [buscando, setBuscando] = useState(true);

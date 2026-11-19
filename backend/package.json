@@ -12,7 +12,8 @@
     "test": "node --test",
     "migrar": "node scripts/migrar.js",
     "migrar:crear": "node-pg-migrate create --migrations-dir migrations --migration-file-language js",
-    "test:cobertura": "node --test --experimental-test-coverage --test-coverage-include=src/**/*.js --test-coverage-exclude=src/**/*.test.js --test-coverage-exclude=src/servicios/cotizador/cotizador.generado.js --test-coverage-lines=85 --test-coverage-branches=75 --test-coverage-functions=80"
+    "test:cobertura": "node --test --experimental-test-coverage --test-coverage-include=src/**/*.js --test-coverage-exclude=src/**/*.test.js --test-coverage-exclude=src/servicios/cotizador/cotizador.generado.js --test-coverage-lines=85 --test-coverage-branches=75 --test-coverage-functions=80",
+    "lint": "eslint ."
   },
   "dependencies": {
     "@sentry/node": "^10.78.0",
@@ -38,13 +39,20 @@
   },
   "private": true,
   "devDependencies": {
+    "@eslint/js": "10.0.1",
     "esbuild": "0.25.11",
+    "eslint": "10.15.0",
+    "eslint-plugin-sonarjs": "4.2.2",
+    "globals": "17.14.0",
     "pino-pretty": "^13.2.0",
     "supertest": "^7.3.1"
   },
   "overrides": {
     "node-pg-migrate": {
       "glob": "^14.0.6"
+    },
+    "eslint-plugin-sonarjs": {
+      "minimatch": "^11.0.9"
     }
   },
   "engines": {

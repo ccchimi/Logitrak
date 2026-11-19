@@ -312,7 +312,7 @@ rutasPerfil.post('/exportar', limiteExportacion, autenticar, validarRequest({ bo
 
 rutasPerfil.post('/eliminar-cuenta', limiteLogin, autenticar, validarRequest({ body: eliminarCuenta }), async (req, res) => {
     const cliente = await pool.connect();
-    let archivos = [];
+    let archivos;
     try {
         await cliente.query('BEGIN');
         const usuario = (await cliente.query('SELECT * FROM usuarios WHERE id = $1 FOR UPDATE', [req.usuario.id])).rows[0];

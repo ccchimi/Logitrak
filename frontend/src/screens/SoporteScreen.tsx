@@ -28,7 +28,6 @@ import {
     type TicketSoporte,
 } from '../services/soporteService';
 import { escucharMensajes, type SuscripcionSoporte } from '../services/realtimeSoporte';
-import { obtenerUsuarioSesion } from '../services/authService';
 import {
     extraerCodigoEnvio,
     PRESETS,
@@ -147,7 +146,6 @@ function Burbuja({ mensaje, propio }: { mensaje: MensajeSoporte; propio: boolean
 export default function SoporteScreen({ navigation }: any) {
   const tema = useTema();
     const { toasts, mostrar, cerrar } = useToasts();
-    const sesion = obtenerUsuarioSesion();
     const esAdmin = puede('soporte.atender');
 
     const [tickets, setTickets] = useState<TicketSoporte[]>([]);

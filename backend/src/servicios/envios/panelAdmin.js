@@ -39,19 +39,39 @@ export async function resumenDelPanel(db, { dias }) {
              FROM envios WHERE archivado_en IS NULL`,
             [dias, ZONA]
         ),
+        // Serie por día: se cuenta una sola vez y se agrupa, filtrando por un rango
+        // de fechas que usa los índices. Antes había una subconsulta por día que
+        // recorría toda la tabla (90 días = 180 recorridos; ver TP4, hallazgo E-1).
         db.query(
-            `WITH dias AS (
+            `WITH desde AS (
+                 SELECT (date_trunc('day', now() AT TIME ZONE $2) - make_interval(days => $1 - 1)) AT TIME ZONE $2 AS inicio
+             ),
+             dias AS (
                  SELECT generate_series(
                      (date_trunc('day', now() AT TIME ZONE $2) - make_interval(days => $1 - 1))::date,
                      (now() AT TIME ZONE $2)::date,
                      interval '1 day'
                  )::date AS dia
+             ),
+             creados AS (
+                 SELECT (e.creado_en AT TIME ZONE $2)::date AS dia, COUNT(*) AS n
+                 FROM envios e, desde
+                 WHERE e.archivado_en IS NULL AND e.creado_en >= desde.inicio
+                 GROUP BY 1
+             ),
+             entregados AS (
+                 SELECT (e.entregado_en AT TIME ZONE $2)::date AS dia, COUNT(*) AS n
+                 FROM envios e, desde
+                 WHERE e.archivado_en IS NULL AND e.estado = 'entregado' AND e.entregado_en >= desde.inicio
+                 GROUP BY 1
              )
              SELECT to_char(d.dia, 'YYYY-MM-DD') AS fecha,
-                    (SELECT COUNT(*) FROM envios e WHERE e.archivado_en IS NULL AND (e.creado_en AT TIME ZONE $2)::date = d.dia)::int AS creados,
-                    (SELECT COUNT(*) FROM envios e WHERE e.archivado_en IS NULL AND e.estado = 'entregado'
-                         AND (e.entregado_en AT TIME ZONE $2)::date = d.dia)::int AS entregados
-             FROM dias d ORDER BY d.dia`,
+                    COALESCE(c.n, 0)::int AS creados,
+                    COALESCE(t.n, 0)::int AS entregados
+             FROM dias d
+             LEFT JOIN creados c ON c.dia = d.dia
+             LEFT JOIN entregados t ON t.dia = d.dia
+             ORDER BY d.dia`,
             [dias, ZONA]
         ),
         db.query(

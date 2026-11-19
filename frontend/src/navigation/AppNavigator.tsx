@@ -31,7 +31,7 @@ import PerfilScreen from "../screens/PerfilScreen";
 import HistorialScreen from "../screens/HistorialScreen";
 import ChoferScreen from "../screens/ChoferScreen";
 import TrabajaConNosotrosScreen from "../screens/TrabajaConNosotrosScreen";
-import { CLAVE_NAVEGACION, obtenerUsuarioSesion } from "../services/api";
+import { CLAVE_NAVEGACION } from "../services/api";
 import { guardarJson, leerJson } from "../services/almacenamiento";
 
 import Transicion from "../components/Transicion";

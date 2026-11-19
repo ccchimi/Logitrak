@@ -1,5 +1,5 @@
 import { RefObject, useEffect } from "react";
-import { Keyboard, Platform, ScrollView } from "react-native";
+import { Keyboard, Platform } from "react-native";
 import type { RefScrollView } from "../types/refs";
 
 export function useScrollAlMostrarTeclado(scroll: RefObject<RefScrollView | null>) {

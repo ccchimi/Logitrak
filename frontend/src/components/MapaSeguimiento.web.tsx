@@ -102,7 +102,7 @@ async function resolverPunto(geocoder: any, punto: PuntoRuta): Promise<PuntoResu
             const loc = resultado.geometry.location;
             return { lat: loc.lat(), lng: loc.lng(), etiqueta: punto.direccion, aproximado: false };
         }
-    } catch (_e) {
+    } catch {
     }
 
     const analisis = analizarDireccion(punto.direccion);
@@ -212,7 +212,7 @@ export default function MapaSeguimiento({ origen, destino, chofer, onEvento, com
             let maps: any;
             try {
                 maps = await cargarGoogleMaps(WEB_MAPS_KEY);
-            } catch (_e) {
+            } catch {
                 fallar('No se pudo descargar Google Maps. Revisá la conexión a internet.');
                 return;
             }
@@ -304,7 +304,7 @@ export default function MapaSeguimiento({ origen, destino, chofer, onEvento, com
                 });
                 const camino = resultado?.routes?.[0]?.overview_path ?? [];
                 ruta = camino.map((p: any) => ({ latitude: p.lat(), longitude: p.lng() }));
-            } catch (_e) {
+            } catch {
                 ruta = [];
             }
             if (!activo) return;

@@ -96,8 +96,8 @@ rutasAuth.post('/login/segundo-factor', limiteLogin, validarRequest({ body: esqu
         return res.status(401).json({ exito: false, codigo: 'desafio_vencido', error: 'Pasaron más de 5 minutos. Volvé a ingresar tu contraseña.' });
     }
     const cliente = await pool.connect();
-    let fila = null;
-    let tipo = null;
+    let fila;
+    let tipo;
     try {
         await cliente.query('BEGIN');
         fila = (await cliente.query('SELECT * FROM usuarios WHERE id = $1 AND eliminado_en IS NULL', [usuarioId])).rows[0] ?? null;

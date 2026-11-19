@@ -4,7 +4,6 @@ import { rm } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { levantarApi, SALTEAR } from './entorno.js';
 
-const TARJETA_OK = { numero: '4509953566233704', titular: 'APRO', vencimiento: '11/30', cvv: '123', cuotas: 1 };
 const FOTO = `data:image/jpeg;base64,${Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(300)]).toString('base64')}`;
 
 describe('chat entre cliente y chofer (integración)', { skip: SALTEAR }, () => {

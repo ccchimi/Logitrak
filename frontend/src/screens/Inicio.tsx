@@ -201,7 +201,7 @@ export default function Inicio({ onGoLogin }: InicioProps) {
       >
         <View style={tema.estilo([styles.hero, { minHeight: height - navH }])}>
           <Image
-            source={require("../../assets/hero-warehouse.jpg")}
+            source={require("../../assets/hero-warehouse.webp")}
             resizeMode="cover"
             style={styles.heroImagen}
             accessible={false}

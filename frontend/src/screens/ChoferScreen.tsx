@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { styles, COLORS } from "../styles/ChoferStyles";
 import { formatearARS } from "../helpers/formato";
-import { cerrarSesion, obtenerUsuarioSesion } from "../services/authService";
+import { obtenerUsuarioSesion } from "../services/authService";
 import {
   listarOfertas,
   tomarEnvio,
@@ -113,8 +113,6 @@ export default function ChoferScreen({ navigation, route }: any) {
   const sesion = obtenerUsuarioSesion();
   const nombre: string =
     sesion?.nombreCompleto ?? route?.params?.nombre ?? "Chofer logitrak.";
-  const codigo: string | null =
-    sesion?.chofer?.codigo ?? route?.params?.codigo ?? null;
   const primerNombre = nombre.split(" ")[0];
 
   const { width } = useWindowDimensions();
@@ -122,11 +120,6 @@ export default function ChoferScreen({ navigation, route }: any) {
   const [online, setOnline] = useState(true);
   const [busqueda, setBusqueda] = useState("");
   const [reciente, setReciente] = useState(true);
-
-  const salir = () => {
-    cerrarSesion();
-    navigation.navigate("Login");
-  };
 
   const [ofertas, setOfertas] = useState<OfertaEnvio[]>([]);
   const [vehiculo, setVehiculo] = useState<{
@@ -285,15 +278,6 @@ export default function ChoferScreen({ navigation, route }: any) {
       : prioridad === "media"
         ? styles.prioridadMedia
         : styles.prioridadBaja;
-
-  const estadoOperativo = viajeActivo
-    ? { texto: "En servicio", color: COLORS.accent }
-    : ofertas.length > 0
-      ? {
-          texto: `${ofertas.length} envío(s) disponible(s)`,
-          color: COLORS.amber,
-        }
-      : { texto: "Disponible", color: COLORS.green };
 
   const renderRuta = (origen: string, destino: string) => (
     <View style={tema.estilo(styles.rutaBox)}>

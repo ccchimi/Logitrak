@@ -6,7 +6,6 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
-import { obtenerUsuarioSesion } from "../services/api";
 import { useTema } from "../hooks/useTema";
 import {
   consultarPedidos,

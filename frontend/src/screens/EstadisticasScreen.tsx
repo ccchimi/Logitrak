@@ -9,7 +9,6 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import {
   AsignacionRegistro,
@@ -21,7 +20,6 @@ import { DISENO as D } from "../theme/diseno";
 
 export default function EstadisticasScreen({ navigation }: any) {
   const tema = useTema();
-  const insets = useSafeAreaInsets();
   const width = useWindowDimensions().width;
   const desktop = width >= 1200;
   const [historial, setHistorial] = useState<AsignacionRegistro[]>([]);
