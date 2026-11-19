@@ -545,7 +545,8 @@ un control equivalente en el frontend.
 | POST | `/api/cotizaciones` | Recalcula y guarda la cotización; cliente, chofer o admin. |
 | GET | `/api/cotizaciones` | Cotizaciones propias; el personal con permiso puede consultar todas. |
 | POST | `/api/envios` | Crea pedido desde cotización y comprueba titularidad. |
-| GET | `/api/envios` | Lista según acceso y `estado`; hasta 200 registros, sin paginación general. |
+| GET | `/api/envios` | Lista según acceso, del más nuevo al más viejo; filtros `estado` y `q` (código o dirección). Con `limite` (1 a 100) pagina por cursor: devuelve `siguiente` para pedir la próxima página con `cursor`. Sin `limite`, hasta 200 (versiones viejas de la app). |
+| GET | `/api/envios/resumen` | Totales del historial según alcance y `estado`: cantidad, total pagado (sin cobros duplicados) y cumplimiento del SLA de retiro. |
 | GET | `/api/envios/metricas` | Totales por estado según alcance del usuario. |
 | GET | `/api/envios/:codigo` | Detalle, eventos, datos de entrega, calificación del envío y promedio del chofer; controla acceso al envío. |
 | GET | `/api/envios/:codigo/mensajes` | Chat del envío: estado (abierto o motivo), contraparte y últimos 200 mensajes; marca como leídos los de la otra parte. Cliente, chofer del envío o personal. |
@@ -648,9 +649,18 @@ paginación; `consultaUsuariosAdmin` valida la consulta. Soporte puede consultar
 pero cambiar roles está reservado al admin. No hay un endpoint general para que
 el administrador edite todos los datos del perfil de otra cuenta.
 
-`GET /api/envios` admite filtro por estado y limita el resultado a 200 registros.
-No proporciona paginación completa ni todos los filtros de búsqueda y fechas
-que muestra el frontend. `GET /api/envios/metricas` devuelve totales por estado;
+`GET /api/envios` pagina por cursor (`src/servicios/envios/listado.js`): ordena
+por `(creado_en, id)` descendente, pide una fila más que el límite para saber si
+hay otra página sin contar todo, y el cursor (opaco, en base64url) marca la
+última fila devuelta, así las páginas no repiten ni saltean envíos aunque
+entren nuevos mientras se recorren. Admite `estado` y una búsqueda `q` en el
+código, el origen y el destino (los comodines de `LIKE` se buscan literal).
+Cada envío trae `slaExcedido`, que dice si el retiro superó el plazo. Sin
+`limite` devuelve hasta 200, como antes, para no romper las versiones
+instaladas de la app. `GET /api/envios/resumen` da los totales del historial
+calculados sobre todos los envíos: cantidad, total pagado (el pago aprobado de
+cada envío, sin cobros duplicados) y, de los que tenían plazo de retiro y ya
+se retiraron, cuántos lo cumplieron. `GET /api/envios/metricas` devuelve totales por estado;
 los indicadores de últimas 24 horas del panel se calculan en la app sobre lo
 recuperado, no mediante un endpoint exclusivo de analítica histórica.
 
@@ -1109,8 +1119,9 @@ forma automática por un rollback de PostgreSQL.
   de la bandeja, pero tampoco garantiza una nueva entrega push.
 - El borrado de archivos externos después de anonimizar puede fallar; se
   registra, y hace falta un mecanismo de recuperación periódica.
-- Faltan paginación de envíos, filtros de servidor e históricos adecuados para
-  un panel administrativo de mayor volumen.
+- El panel administrativo trae los pedidos a la app (hasta 5000) y filtra ahí;
+  para un volumen mayor harían falta filtros por fecha y métricas calculadas
+  en el servidor.
 - Disponibilidad, restricciones de claves y credenciales de servicios externos
   deben revisarse en sus paneles; no se verifican leyendo el repositorio.
 

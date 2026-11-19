@@ -42,7 +42,7 @@ Estado de los módulos:
 | Asignación al primer chofer compatible que acepta, con vencimiento y reembolso automático | Implementado |
 | Seguimiento con mapa, ruta, línea de tiempo, chofer y vehículo | Implementado: estados, eventos y ubicación GPS del chofer en tiempo real con Supabase Realtime |
 | Postulación de chofer y verificación de identidad (DNI, selfie, prueba de vida opcional) | Implementado |
-| Historial, perfil, descarga y eliminación de la cuenta, y cupones por SLA incumplido | Implementado; el SLA lo controla el servidor, los cupones vencen a los 90 días y se avisa una semana antes |
+| Historial paginado con búsqueda, perfil, descarga y eliminación de la cuenta, y cupones por SLA incumplido | Implementado; el SLA lo controla el servidor, los cupones vencen a los 90 días y se avisa una semana antes |
 | Notificaciones: bandeja en la app y push en el teléfono | Implementado en Android; iOS pendiente |
 | Entrega con PIN del receptor y foto de comprobante | Implementado (nuevo en esta etapa) |
 | Comprobante del envío en PDF | Implementado (nuevo en esta etapa): se descarga desde el detalle del envío |
@@ -51,7 +51,7 @@ Estado de los módulos:
 | Soporte: tickets, chat en tiempo real y bot de soporte | Implementado (no estaba en el diseño) |
 | Panel de administración y rol soporte | Implementado: métricas, reembolso y archivo de envíos, listado de usuarios con filtros, cambio de rol y edición de los datos de otras cuentas |
 
-**Calidad.** Hay 586 pruebas automáticas: 254 de la app en Jest y 332 del backend con `node:test`, entre ellas pruebas de integración de todas las rutas con `supertest` contra un PostgreSQL real. Todas corren en **GitHub Actions** en cada push a `main`, junto con una auditoría de dependencias, y la CI falla si la cobertura del backend baja del 85 % de líneas (hoy está en 90,9 %). Un segundo workflow publica la Web App en GitHub Pages.
+**Calidad.** Hay 593 pruebas automáticas: 254 de la app en Jest y 339 del backend con `node:test`, entre ellas pruebas de integración de todas las rutas con `supertest` contra un PostgreSQL real. Todas corren en **GitHub Actions** en cada push a `main`, junto con una auditoría de dependencias, y la CI falla si la cobertura del backend baja del 85 % de líneas (hoy está en 90,9 %). Un segundo workflow publica la Web App en GitHub Pages.
 
 ## 2. Decisiones tecnológicas tomadas
 

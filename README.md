@@ -287,7 +287,7 @@ El repositorio documenta el uso de Render Free. Cuando el servicio está detenid
 Además de las restricciones de Mi Perfil y pagos ya descritas:
 
 - Guardar tarjetas o cuentas de cobro desde las pantallas de métodos está pendiente; esas pantallas no persisten los datos ingresados.
-- El listado de envíos devuelve hasta 200 registros por consulta. El panel intenta ampliar por estado, pero esto no sustituye una API con paginación e históricos completos.
+- El listado de envíos se pagina por cursor y el historial carga de a 20. El panel del equipo recorre hasta 5000 pedidos; con más, muestra los más recientes y lo avisa. Los indicadores de las últimas 24 horas se calculan en la app sobre lo recuperado.
 - La compatibilidad y configuración de identidad, mapas y push deben validarse por plataforma. El despliegue iOS necesita sus credenciales específicas.
 - Las notificaciones por correo no están implementadas como canal general; el registro de clientes no pide email. Por eso el comprobante del envío se descarga desde la app y no se manda por mail.
 - La recuperación de contraseña requiere revisión de seguridad antes de un uso productivo. Las cuentas admin creadas antes de este cambio deben cambiar su contraseña desde Mi Perfil: al arrancar, el log avisa si alguna todavía es igual al usuario.

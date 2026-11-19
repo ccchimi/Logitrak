@@ -80,7 +80,7 @@ No debe confundirse este motor con las propuestas de predicción logística del 
 | `Pago` | Checkout de Mercado Pago y formulario de tarjeta simulada. |
 | `Seguimiento`, `DetalleEnvio` | Mapa, estado, eventos, datos del chofer con su promedio de calificaciones, comprobante de entrega, la calificación del envío, la descarga del comprobante en PDF y el acceso al chat con los mensajes sin leer. |
 | `ChatEnvio` | Chat del envío entre el cliente y el chofer, con texto y fotos (se tocan para ampliarlas): mensajes por día, "Enviado"/"Leído" en el último propio y el motivo cuando está cerrado. Se abre desde el detalle, la tarjeta del viaje del chofer o el aviso. |
-| `Historial` | Consulta de los envíos disponibles para la cuenta. |
+| `Historial` | Envíos entregados, de a 20, con "Cargar más" (o al llegar al final) y búsqueda por código o dirección. El resumen (cantidad, total pagado y cumplimiento del SLA) viene del servidor, y cada envío dice si el retiro se demoró. |
 | `Perfil` | Datos, cambio de contraseña, preferencias, descarga de los datos de la cuenta, cierre de sesión y eliminación de cuenta según restricciones. |
 | `Cuponera` | Cupones acreditados con su vencimiento ("Vence en 3 días", "Venció el…"), resaltado en la última semana, y cómo usarlos. El aviso de cupón por vencer abre esta pantalla. |
 | `TrabajaConNosotros` | Formulario de postulación por pasos, vehículo, DNI y selfie. |
@@ -100,7 +100,7 @@ El chofer inicia en su consola. El acceso operativo se decide por capacidades de
 
 `AdminDashboardScreen`, `TodosPedidosScreen`, `UsuariosAdminScreen`, `usePanelAdmin` y los servicios de administración consumen datos de la API. El resumen de envíos viene de `/api/envios/metricas`; los indicadores por período y parte de los filtros se calculan sobre los registros recuperados.
 
-`GET /api/envios` devuelve hasta 200 registros. El frontend intenta ampliar por estados y comparar con las métricas; eso no sustituye una API con paginación completa. El listado de usuarios sí recibe búsqueda, rol, fechas, orden y paginación desde el servidor.
+`obtenerPanelAdmin` recorre `GET /api/envios` de a 100 con el cursor `siguiente`, hasta 5000 pedidos, y compara con el total de `/api/envios/metricas`: si no coinciden, el panel avisa que no muestra todo. El listado de usuarios sí recibe búsqueda, rol, fechas, orden y paginación desde el servidor.
 
 Con el permiso `usuarios.editar` (solo admin), cada fila de Usuarios abre `components/admin/EditarUsuarioModal.tsx`: el nombre de cualquier cuenta y, en los choferes, el email, el teléfono, el domicilio y el vehículo. El código de chofer y el DNI se muestran pero no se editan, y desde el mismo modal se pasa al cambio de rol. `helpers/perfilesAdmin.ts` arma solo los campos que cambiaron y los valida igual que el servidor. Soporte ve la lista pero no edita. El permiso llega con el inicio de sesión: un admin con la sesión abierta desde antes de esta versión tiene que volver a entrar para ver la opción.
 
