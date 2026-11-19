@@ -4,7 +4,6 @@ import { useTema } from "../../hooks/useTema";
 import { DISENO as D } from "../../theme/diseno";
 import { NOMBRE_ESTADO_ADMIN, PedidoAdmin } from "../../helpers/panelAdmin";
 import type { EstadoEnvio } from "../../services/enviosService";
-import type { DatosPanelAdmin } from "../../services/panelAdminService";
 import Icono, { NombreIcono } from "../Icono";
 import Boton from "../Boton";
 
@@ -113,19 +112,6 @@ export function MetricaAdmin({
       <TextoAdmin tipo="number">{valor}</TextoAdmin>
       <TextoAdmin tipo="muted">{nota}</TextoAdmin>
     </Pressable>
-  );
-}
-export function AlcanceAdmin({ datos }: { datos: DatosPanelAdmin | null }) {
-  if (!datos) return null;
-  return (
-    <PanelAdmin style={{ padding: 16 }}>
-      <TextoAdmin tipo="muted">
-        {datos.completa
-          ? `${datos.pedidos.length} pedidos consultados.`
-          : `Vista parcial: ${datos.pedidos.length} de ${datos.metricas.total} pedidos. Los filtros y las opciones se limitan a los registros consultados.`}
-        {datos.aviso ? ` ${datos.aviso}` : ""}
-      </TextoAdmin>
-    </PanelAdmin>
   );
 }
 export function ErrorAdmin({

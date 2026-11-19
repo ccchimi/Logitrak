@@ -16,6 +16,7 @@ import { registrarEvento } from '../outbox/index.js';
 import { publicarValoracion, reputacionDelChofer, valoracionDelEnvio } from '../servicios/envios/valoraciones.js';
 import { ubicacionDelEnvio } from '../servicios/envios/ubicacion.js';
 import { alcance, condicionesDelListado, consultaListado, cortarPagina } from '../servicios/envios/listado.js';
+import { condicionesDePedidos, consultaPanel, consultaPedidos, resumenDelPanel } from '../servicios/envios/panelAdmin.js';
 import { resumenDelChat, rolEnElChat } from '../servicios/envios/chat.js';
 import { datosDelComprobante, generarComprobantePdf, nombreDelComprobante } from '../servicios/envios/comprobante.js';
 
@@ -268,6 +269,33 @@ rutasEnvios.get('/', autenticar, validarRequest({ query: consultaListado }), asy
     );
     const { pagina, siguiente } = cortarPagina(rows, armado.tamano);
     return res.json({ exito: true, envios: pagina.map(publicar), siguiente });
+});
+
+// Panel del equipo: indicadores, serie por día, alertas y opciones de filtro,
+// calculados en la base.
+rutasEnvios.get('/panel', autenticar, exigirPermiso('envios.ver_todos'), validarRequest({ query: consultaPanel }), async (req, res) => {
+    return res.json({ exito: true, panel: await resumenDelPanel(pool, req.query) });
+});
+
+// Consulta de pedidos del equipo, con filtros, orden y páginas numeradas.
+rutasEnvios.get('/consulta', autenticar, exigirPermiso('envios.ver_todos'), validarRequest({ query: consultaPedidos }), async (req, res) => {
+    const c = req.query;
+    const { where, params, orden } = condicionesDePedidos(c);
+    const [total, filas] = await Promise.all([
+        consultar(`SELECT COUNT(*)::int AS n FROM envios e WHERE ${where}`, params),
+        consultar(
+            `${SELECT_ENVIO} WHERE ${where} ORDER BY ${orden} LIMIT ${c.limite} OFFSET ${(c.pagina - 1) * c.limite}`,
+            params
+        ),
+    ]);
+    const n = total.rows[0].n;
+    return res.json({
+        exito: true,
+        envios: filas.rows.map(publicar),
+        total: n,
+        pagina: c.pagina,
+        paginas: Math.max(1, Math.ceil(n / c.limite)),
+    });
 });
 
 // Totales para el historial, calculados sobre todos los envíos y no sobre la

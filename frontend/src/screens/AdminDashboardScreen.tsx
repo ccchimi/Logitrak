@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import {
   ScrollView,
   StyleSheet,
@@ -7,18 +7,8 @@ import {
 } from "react-native";
 import { usePanelAdmin } from "../hooks/usePanelAdmin";
 import { useTema } from "../hooks/useTema";
-import { obtenerUsuarioSesion } from "../services/api";
+import { fechaHoraAdmin } from "../helpers/panelAdmin";
 import {
-  alertasPedidos,
-  entregasVerificables,
-  fechaHoraAdmin,
-  inicioPeriodo,
-  instante,
-  ultimas24,
-  ventanaCubierta,
-} from "../helpers/panelAdmin";
-import {
-  AlcanceAdmin,
   ChipAdmin,
   ErrorAdmin,
   EstadoAdmin,
@@ -43,47 +33,16 @@ export default function AdminDashboardScreen(props: any) {
 function Dashboard({ navigation }: any) {
   const tema = useTema(),
     { width } = useWindowDimensions();
-  const { datos, cargando, error, cargar } = usePanelAdmin(navigation);
   const [dias, setDias] = useState(7);
-  const ahora = datos?.actualizado ?? Date.now();
-  const pedidos = datos?.pedidos ?? [];
-  const resumen = useMemo(
-    () => ultimas24(pedidos, !!datos?.completa, ahora, datos?.creacionesDesde),
-    [datos],
-  );
-  const alertas = useMemo(() => alertasPedidos(pedidos, ahora), [datos]);
-  const cobertura = ventanaCubierta(
-    pedidos,
-    !!datos?.completa,
-    inicioPeriodo(dias, ahora),
-    datos?.creacionesDesde,
-  );
-  const recientes = [...pedidos]
-    .sort((a, b) => instante(b.creadoEn) - instante(a.creadoEn))
-    .slice(0, 5);
+  const { panel, recientes, cargando, error, cargar } = usePanelAdmin(navigation, dias);
   const ir = (estado = "todos", extra = {}) =>
     navigation.navigate("TodosPedidos", { estado, ...extra });
-  const comparacion =
-    resumen.cambio === null
-      ? "Comparación no disponible: cobertura insuficiente"
-      : resumen.cambio === 0
-        ? "→ Sin cambios frente a las 24 h anteriores"
-        : `${resumen.cambio > 0 ? "↑ +" : "↓ "}${resumen.cambio} pedidos${resumen.porcentaje !== null ? ` (${resumen.porcentaje > 0 ? "+" : ""}${resumen.porcentaje}%)` : " · sin base porcentual"} vs. las 24 h anteriores`;
-  const entregados =
-    datos?.completa && entregasVerificables(pedidos)
-      ? pedidos.filter(
-          (p) =>
-            instante(p.entregadoEn) >= inicioPeriodo(dias, ahora) &&
-            instante(p.entregadoEn) <= ahora,
-        ).length
-      : null;
-  const pendientes = datos?.completa
-    ? pedidos.filter((p) => p.estado === "pendiente").length
-    : null;
-  const activos = datos?.completa
-    ? pedidos.filter((p) => p.estado === "asignado" || p.estado === "en_viaje")
-        .length
-    : null;
+  const resumen = panel?.ultimas24;
+  const comparacion = !resumen
+    ? ""
+    : resumen.cambio === 0
+      ? "→ Sin cambios frente a las 24 h anteriores"
+      : `${resumen.cambio > 0 ? "↑ +" : "↓ "}${resumen.cambio} pedidos${resumen.porcentaje !== null ? ` (${resumen.porcentaje > 0 ? "+" : ""}${resumen.porcentaje}%)` : " · sin base porcentual"} vs. las 24 h anteriores`;
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: tema.colores.fondo }}
@@ -129,60 +88,47 @@ function Dashboard({ navigation }: any) {
         />
       </View>
       <TextoAdmin tipo="muted">
-        {datos
-          ? `Última actualización: ${fechaHoraAdmin(new Date(datos.actualizado).toISOString())}`
+        {panel
+          ? `Última actualización: ${fechaHoraAdmin(panel.generadoEn)} · calculado sobre todos los pedidos`
           : "Las estadísticas se consultan con tu sesión administrativa."}
       </TextoAdmin>
-      <AlcanceAdmin datos={datos} />
       {puede("pagos.gestionar") && (
-        <DevolucionesPendientes navigation={navigation} version={datos?.actualizado ?? 0} />
+        <DevolucionesPendientes navigation={navigation} version={panel ? Date.parse(panel.generadoEn) : 0} />
       )}
       {error ? (
         <ErrorAdmin error={error} reintentar={cargar} />
-      ) : cargando ? (
+      ) : cargando && !panel ? (
         <CargaLista />
       ) : (
-        datos && (
+        panel && (
           <>
             <View style={s.metrics}>
               <MetricaAdmin
                 destacado
                 titulo="Pedidos · últimas 24 h"
-                valor={resumen.actual ?? "—"}
-                nota={`${resumen.actual === null ? "No hay cobertura suficiente. " : ""}${comparacion}. Ventana móvil; no es el día calendario.`}
+                valor={panel.ultimas24.actual}
+                nota={`${comparacion}. Ventana móvil; no es el día calendario.`}
                 icono="box"
                 onPress={() => ir()}
               />
               <MetricaAdmin
                 titulo="Pedidos activos"
-                valor={activos ?? "—"}
-                nota={
-                  activos === null
-                    ? `Cobertura parcial. ${datos.metricas.enViaje} en viaje en total.`
-                    : "Asignados y en viaje · total actual"
-                }
+                valor={panel.totales.activos}
+                nota="Asignados y en viaje · total actual"
                 icono="truck"
                 onPress={() => ir("activos")}
               />
               <MetricaAdmin
                 titulo="Pedidos pendientes"
-                valor={pendientes ?? "—"}
-                nota={
-                  pendientes === null
-                    ? `Cobertura parcial. ${datos.metricas.pendientes} pendientes o asignados en total.`
-                    : "Pendientes de asignación o pago · total actual"
-                }
+                valor={panel.totales.pendientes}
+                nota="Pendientes de asignación o pago · total actual"
                 icono="notifications"
                 onPress={() => ir("pendiente")}
               />
               <MetricaAdmin
                 titulo={`Entregados · ${dias} días`}
-                valor={entregados ?? "—"}
-                nota={
-                  entregados === null
-                    ? "No hay pedidos o fechas de entrega suficientes para verificar el período."
-                    : "Según la fecha real de entrega"
-                }
+                valor={panel.totales.entregadosPeriodo}
+                nota="Según la fecha real de entrega, en hora de Argentina"
                 icono="check"
                 onPress={() => ir("entregado")}
               />
@@ -203,30 +149,24 @@ function Dashboard({ navigation }: any) {
                   ))}
                 </View>
                 <GraficosAdmin
-                  pedidos={pedidos}
+                  serie={panel.serie}
+                  distribucion={panel.distribucion}
                   dias={dias}
-                  ahora={ahora}
-                  completa={datos.completa}
-                  cobertura={cobertura}
                 />
               </View>
               <View style={{ flex: 1, minWidth: 0, gap: 20 }}>
                 <PanelAdmin>
                   <TextoAdmin tipo="eyebrow">OPERACIONES</TextoAdmin>
                   <TextoAdmin tipo="heading">Requieren atención</TextoAdmin>
-                  <TextoAdmin tipo="muted">
-                    {datos.completa
-                      ? "Según los pedidos consultados."
-                      : "Solo sobre los pedidos consultados; puede haber más casos."}
+                  <TextoAdmin tipo="muted">Sobre todos los pedidos.</TextoAdmin>
+                  <TextoAdmin>
+                    {panel.alertas.sinChofer} pedidos pagos sin chofer
                   </TextoAdmin>
                   <TextoAdmin>
-                    {alertas.sinAsignar.length} pedidos pagos sin chofer
+                    {panel.alertas.slaVencido} envíos activos con SLA vencido
                   </TextoAdmin>
                   <TextoAdmin>
-                    {alertas.sla.length} envíos activos con SLA vencido
-                  </TextoAdmin>
-                  <TextoAdmin>
-                    {alertas.ofertas.length} ofertas con vencimiento superado
+                    {panel.alertas.ofertasVencidas} ofertas con vencimiento superado
                   </TextoAdmin>
                   <TextoAdmin tipo="muted">
                     Se usan el pago aprobado, la asignación y los vencimientos
@@ -282,7 +222,7 @@ function Dashboard({ navigation }: any) {
                 <PanelAdmin>
                   <TextoAdmin tipo="heading">Cancelados</TextoAdmin>
                   <TextoAdmin tipo="number">
-                    {datos.metricas.cancelados}
+                    {panel.totales.cancelados}
                   </TextoAdmin>
                   <TextoAdmin tipo="muted">
                     Total actual. La API no devuelve la fecha de

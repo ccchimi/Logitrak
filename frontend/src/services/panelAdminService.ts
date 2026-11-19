@@ -1,96 +1,98 @@
 import { llamarApi, obtenerUsuarioSesion } from "./api";
-import type { Envio, MetricasEnvios } from "./enviosService";
-import { instante, PedidoAdmin } from "../helpers/panelAdmin";
+import type { Envio, EstadoEnvio } from "./enviosService";
+import type { FiltrosAdmin, PedidoAdmin } from "../helpers/panelAdmin";
 
-export interface DatosPanelAdmin {
-  pedidos: PedidoAdmin[];
-  metricas: MetricasEnvios;
-  completa: boolean;
-  actualizado: number;
-  aviso: string;
-  creacionesDesde: number | null;
+// El panel del equipo se calcula en el servidor: la app pide los indicadores
+// y una página de pedidos con filtros, en lugar de bajar todos los pedidos.
+
+export interface DiaPanel {
+  fecha: string;
+  creados: number;
+  entregados: number;
 }
-const TAMANO_PAGINA = 100;
-const MAX_PAGINAS = 50;
 
-export async function obtenerPanelAdmin(): Promise<DatosPanelAdmin> {
-  const esEquipo = (rol?: string) => rol === "admin" || rol === "soporte";
-  if (!esEquipo(obtenerUsuarioSesion()?.rol))
-    throw new Error("Esta sección es del equipo de Logitrak (soporte o administración).");
-  const identidad = await llamarApi<{ exito: true; usuario: { rol: string } }>(
-    "/api/auth/perfil",
-    { conAuth: true },
-  );
-  if (!identidad.exito) throw new Error(identidad.error);
-  if (!esEquipo(identidad.usuario?.rol))
-    throw new Error("El servidor no reconoce esta sesión como del equipo de Logitrak.");
-  // Recorre el listado paginado del servidor (de a 100, del más nuevo al más
-  // viejo) hasta el final o hasta MAX_PAGINAS, y lo compara con el total.
-  const resumen = await llamarApi<{ exito: true; metricas: MetricasEnvios }>(
-    "/api/envios/metricas",
-    { conAuth: true },
-  );
-  if (!resumen.exito) throw new Error(resumen.error);
-  if (!resumen.metricas || !Number.isInteger(resumen.metricas.total))
-    throw new Error(
-      "La respuesta del servidor no permite verificar el alcance de los pedidos.",
-    );
-  const envios: Envio[] = [];
-  let cursor: string | null = null;
-  let aviso = "";
-  for (let pagina = 0; ; pagina++) {
-    if (pagina === MAX_PAGINAS) {
-      aviso = `Se muestran los ${envios.length} pedidos más recientes.`;
-      break;
-    }
-    type Pagina = { exito: true; envios: Envio[]; siguiente: string | null };
-    const r: Pagina | { exito: false; error: string } = await llamarApi<Pagina>(
-      `/api/envios?limite=${TAMANO_PAGINA}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`,
-      { conAuth: true },
-    );
-    if (!r.exito) throw new Error(r.error);
-    if (!Array.isArray(r.envios))
-      throw new Error(
-        "La respuesta del servidor no permite verificar el alcance de los pedidos.",
-      );
-    envios.push(...r.envios);
-    cursor = r.siguiente ?? null;
-    if (!cursor) break;
-  }
-  const pedidos = [...new Map(envios.map((e) => [e.id, e])).values()].map(
-    (e): PedidoAdmin => ({
-      id: e.id,
-      codigo: e.codigo,
-      clienteId: e.clienteId,
-      choferId: e.choferId,
-      choferNombre: e.choferNombre,
-      choferCodigo: e.choferCodigo,
-      origen: e.origen,
-      destino: e.destino,
-      estado: e.estado,
-      estadoPago: e.estadoPago,
-      precio: e.precio,
-      moneda: e.moneda,
-      creadoEn: e.creadoEn,
-      actualizadoEn: e.actualizadoEn,
-      entregadoEn: e.entregadoEn,
-      slaVenceEn: e.slaVenceEn,
-      ofertaVenceEn: e.ofertaVenceEn,
-    }),
-  );
-  const completa = !aviso && pedidos.length === resumen.metricas.total;
-  const fechas = envios.map((e) => instante(e.creadoEn));
-  const creacionesDesde = completa
-    ? 0
-    : fechas.length && fechas.every(Number.isFinite)
-      ? Math.min(...fechas)
-      : null;
-  return {
-    pedidos,
-    metricas: resumen.metricas,
-    completa,
-    actualizado: Date.now(),
-    aviso,
-    creacionesDesde,
+export interface PanelServidor {
+  generadoEn: string;
+  zonaHoraria: string;
+  dias: number;
+  ultimas24: { actual: number; anterior: number; cambio: number; porcentaje: number | null };
+  totales: { total: number; activos: number; pendientes: number; cancelados: number; entregadosPeriodo: number };
+  serie: DiaPanel[];
+  distribucion: Record<EstadoEnvio, number>;
+  alertas: { sinChofer: number; slaVencido: number; ofertasVencidas: number };
+  opciones: {
+    clientes: { id: number; nombre: string }[];
+    choferes: { id: number; nombre: string; codigo: string }[];
   };
+}
+
+export type AtencionAdmin = "todos" | "revision" | "pendientes";
+
+export interface PaginaPedidos {
+  pedidos: PedidoAdmin[];
+  total: number;
+  pagina: number;
+  paginas: number;
+}
+
+function exigirEquipo() {
+  const rol = obtenerUsuarioSesion()?.rol;
+  if (rol !== "admin" && rol !== "soporte")
+    throw new Error("Esta sección es del equipo de Logitrak (soporte o administración).");
+}
+
+export async function obtenerPanel(dias: number): Promise<PanelServidor> {
+  exigirEquipo();
+  const r = await llamarApi<{ exito: true; panel: PanelServidor }>(`/api/envios/panel?dias=${dias}`, { conAuth: true });
+  if (!r.exito) throw new Error(r.error);
+  return r.panel;
+}
+
+/** Arma la consulta del servidor a partir de los filtros de la pantalla. */
+export function parametrosDeConsulta(
+  f: FiltrosAdmin,
+  { atencion = "todos", pagina = 1, limite = 10 }: { atencion?: AtencionAdmin; pagina?: number; limite?: number } = {},
+): string {
+  const p = new URLSearchParams({ pagina: String(pagina), limite: String(limite), orden: f.orden, estado: f.estado });
+  if (f.busqueda.trim()) p.set("q", f.busqueda.trim());
+  if (f.cliente) p.set("cliente", f.cliente);
+  if (f.chofer) p.set("chofer", f.chofer);
+  if (f.desde) p.set("desde", f.desde);
+  if (f.hasta) p.set("hasta", f.hasta);
+  if (atencion !== "todos") p.set("atencion", atencion);
+  return p.toString();
+}
+
+const minimizar = (e: Envio): PedidoAdmin => ({
+  id: e.id,
+  codigo: e.codigo,
+  clienteId: e.clienteId,
+  choferId: e.choferId,
+  choferNombre: e.choferNombre,
+  choferCodigo: e.choferCodigo,
+  origen: e.origen,
+  destino: e.destino,
+  estado: e.estado,
+  estadoPago: e.estadoPago,
+  precio: e.precio,
+  moneda: e.moneda,
+  creadoEn: e.creadoEn,
+  actualizadoEn: e.actualizadoEn,
+  entregadoEn: e.entregadoEn,
+  slaVenceEn: e.slaVenceEn,
+  ofertaVenceEn: e.ofertaVenceEn,
+});
+
+export async function consultarPedidos(
+  f: FiltrosAdmin,
+  opciones: { atencion?: AtencionAdmin; pagina?: number; limite?: number } = {},
+): Promise<PaginaPedidos> {
+  exigirEquipo();
+  const r = await llamarApi<{ exito: true; envios: Envio[]; total: number; pagina: number; paginas: number }>(
+    `/api/envios/consulta?${parametrosDeConsulta(f, opciones)}`,
+    { conAuth: true },
+  );
+  if (!r.exito) throw new Error(r.error);
+  if (!Array.isArray(r.envios)) throw new Error("La respuesta del servidor no trae los pedidos.");
+  return { pedidos: r.envios.map(minimizar), total: r.total, pagina: r.pagina, paginas: r.paginas };
 }

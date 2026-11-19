@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ScrollView,
   StyleSheet,
@@ -8,22 +8,25 @@ import {
 } from "react-native";
 import { obtenerUsuarioSesion } from "../services/api";
 import { useTema } from "../hooks/useTema";
-import { usePanelAdmin } from "../hooks/usePanelAdmin";
 import {
-  alertasPedidos,
+  consultarPedidos,
+  obtenerPanel,
+  type AtencionAdmin,
+  type PaginaPedidos,
+  type PanelServidor,
+} from "../services/panelAdminService";
+import {
   errorFechas,
   ESTADOS_ADMIN,
   fechaHoraAdmin,
   fechaLocalAdmin,
   FILTROS_INICIALES,
-  filtrarPedidos,
   FiltrosAdmin,
   NOMBRE_ESTADO_ADMIN,
   PedidoAdmin,
   inicioPeriodo,
 } from "../helpers/panelAdmin";
 import {
-  AlcanceAdmin,
   ChipAdmin,
   ErrorAdmin,
   EstadoAdmin,
@@ -48,12 +51,17 @@ export default function TodosPedidosScreen(props: any) {
 function Pedidos({ navigation, route }: any) {
   const tema = useTema(),
     { width } = useWindowDimensions();
-  const { datos, cargando, error, cargar } = usePanelAdmin(navigation);
   const [filtros, setFiltros] = useState<FiltrosAdmin>(FILTROS_INICIALES);
-  const [atencion, setAtencion] = useState("todos");
+  const [atencion, setAtencion] = useState<AtencionAdmin>("todos");
   const [avanzados, setAvanzados] = useState(width >= 900);
   const [pagina, setPagina] = useState(1),
     [cantidad, setCantidad] = useState("10");
+  const [busquedaAplicada, setBusquedaAplicada] = useState("");
+  const [datos, setDatos] = useState<(PaginaPedidos & { actualizado: number }) | null>(null);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState("");
+  const [opciones, setOpciones] = useState<PanelServidor["opciones"]>({ clientes: [], choferes: [] });
+  const solicitud = useRef(0);
   useEffect(() => {
     const estado = route.params?.estado;
     setFiltros({
@@ -69,53 +77,52 @@ function Pedidos({ navigation, route }: any) {
     );
     setPagina(1);
   }, [route.params]);
+  useEffect(() => {
+    void obtenerPanel(7)
+      .then((p) => setOpciones(p.opciones))
+      .catch(() => {});
+  }, []);
+  // La búsqueda se manda cuando se deja de escribir.
+  useEffect(() => {
+    const id = setTimeout(() => setBusquedaAplicada(filtros.busqueda), 350);
+    return () => clearTimeout(id);
+  }, [filtros.busqueda]);
+  const fechaError = errorFechas(filtros);
+  const cargar = useCallback(async () => {
+    if (fechaError) return;
+    const id = ++solicitud.current;
+    setCargando(true);
+    setError("");
+    try {
+      const r = await consultarPedidos(
+        { ...filtros, busqueda: busquedaAplicada },
+        { atencion, pagina, limite: Number(cantidad) },
+      );
+      if (id === solicitud.current) setDatos({ ...r, actualizado: Date.now() });
+    } catch (e) {
+      if (id === solicitud.current) {
+        setDatos(null);
+        setError(e instanceof Error ? e.message : "No pudimos cargar los pedidos.");
+      }
+    } finally {
+      if (id === solicitud.current) setCargando(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtros.estado, filtros.cliente, filtros.chofer, filtros.desde, filtros.hasta, filtros.orden, busquedaAplicada, atencion, pagina, cantidad, fechaError]);
+  useEffect(() => {
+    void cargar();
+    return navigation.addListener("focus", () => void cargar());
+  }, [cargar, navigation]);
   const cambiar = (clave: keyof FiltrosAdmin, valor: string) => {
     setFiltros((f) => ({ ...f, [clave]: valor }));
     setPagina(1);
   };
-  const pedidos = datos?.pedidos ?? [];
-  const clientes = useMemo(
-    () =>
-      [...new Set(pedidos.map((p) => p.clienteId))]
-        .sort((a, b) => a - b)
-        .map((id) => ({ valor: String(id), texto: `Cliente #${id}` })),
-    [datos],
-  );
-  const choferes = useMemo(
-    () =>
-      [
-        ...new Map(
-          pedidos
-            .filter((p) => p.choferId !== null)
-            .map((p) => [
-              p.choferId,
-              {
-                valor: String(p.choferId),
-                texto:
-                  p.choferNombre || p.choferCodigo || `Chofer #${p.choferId}`,
-              },
-            ]),
-        ).values(),
-      ].sort((a, b) => a.texto.localeCompare(b.texto)),
-    [datos],
-  );
-  const resultados = useMemo(() => {
-    const base = filtrarPedidos(pedidos, filtros);
-    if (atencion === "pendientes")
-      return base.filter((p) => ["pendiente", "asignado"].includes(p.estado));
-    if (atencion !== "revision") return base;
-    const a = alertasPedidos(pedidos, datos?.actualizado ?? Date.now());
-    const ids = new Set(
-      [...a.sinAsignar, ...a.sla, ...a.ofertas].map((p) => p.id),
-    );
-    return base.filter((p) => ids.has(p.id));
-  }, [datos, filtros, atencion]);
-  const paginas = Math.max(1, Math.ceil(resultados.length / Number(cantidad))),
+  const clientes = opciones.clientes.map((c) => ({ valor: String(c.id), texto: `${c.nombre} (#${c.id})` }));
+  const choferes = opciones.choferes.map((c) => ({ valor: String(c.id), texto: `${c.nombre} · ${c.codigo}` }));
+  const visibles = datos?.pedidos ?? [];
+  const total = datos?.total ?? 0;
+  const paginas = datos?.paginas ?? 1,
     actual = Math.min(pagina, paginas);
-  const visibles = resultados.slice(
-    (actual - 1) * Number(cantidad),
-    actual * Number(cantidad),
-  );
   const reset = () => {
     setFiltros(FILTROS_INICIALES);
     setAtencion("todos");
@@ -123,7 +130,6 @@ function Pedidos({ navigation, route }: any) {
   };
   const detalle = (p: PedidoAdmin) =>
     navigation.navigate("DetalleEnvio", { codigo: p.codigo });
-  const fechaError = errorFechas(filtros);
   const input = (
     clave: "busqueda" | "desde" | "hasta",
     etiqueta: string,
@@ -177,7 +183,6 @@ function Pedidos({ navigation, route }: any) {
           onPress={() => navigation.navigate("SolicitudEnvio")}
         />
       </View>
-      <AlcanceAdmin datos={datos} />
       <PanelAdmin>
         <View style={s.row}>
           <TextoAdmin tipo="heading">Encontrá lo que buscás</TextoAdmin>
@@ -271,19 +276,16 @@ function Pedidos({ navigation, route }: any) {
                 { valor: "pendientes", texto: "Pendientes o asignados" },
               ]}
               onChange={(v) => {
-                setAtencion(v);
+                setAtencion(v as AtencionAdmin);
                 setPagina(1);
               }}
             />
           </View>
         </Desplegable>
         <TextoAdmin tipo="muted">
-          Los filtros se combinan antes de paginar. El cliente se identifica por
-          su número de usuario.{" "}
-          {datos && !datos.completa
-            ? "Las opciones y resultados se limitan a los pedidos consultados."
-            : ""}{" "}
-          Los importes se ordenan por su valor nominal, sin conversión entre
+          Los filtros se aplican en el servidor sobre todos los pedidos, antes
+          de paginar. Las fechas son días completos en hora de Argentina. Los
+          importes se ordenan por su valor nominal, sin conversión entre
           monedas.
         </TextoAdmin>
         {atencion !== "todos" && (
@@ -320,16 +322,14 @@ function Pedidos({ navigation, route }: any) {
       </PanelAdmin>
       {error ? (
         <ErrorAdmin error={error} reintentar={cargar} />
-      ) : cargando ? (
+      ) : cargando && !datos ? (
         <CargaLista />
       ) : (
         datos && (
           <>
             <View accessibilityLiveRegion="polite">
               <TextoAdmin tipo="heading">
-                {resultados.length}{" "}
-                {resultados.length === 1 ? "resultado" : "resultados"}
-                {!datos.completa ? " en la muestra consultada" : ""}
+                {total} {total === 1 ? "resultado" : "resultados"}
               </TextoAdmin>
               <TextoAdmin tipo="muted">
                 Actualizado:{" "}
@@ -339,12 +339,12 @@ function Pedidos({ navigation, route }: any) {
             {visibles.length === 0 ? (
               <PanelAdmin>
                 <TextoAdmin tipo="heading">
-                  {pedidos.length
+                  {opciones.clientes.length
                     ? "Sin coincidencias"
                     : "Todavía no hay pedidos"}
                 </TextoAdmin>
                 <TextoAdmin>
-                  {pedidos.length
+                  {opciones.clientes.length
                     ? "Probá con otros filtros o restablecé la búsqueda."
                     : "Los pedidos aparecerán acá cuando se registren en la plataforma."}
                 </TextoAdmin>
@@ -460,26 +460,25 @@ function Pedidos({ navigation, route }: any) {
               <View style={s.row}>
                 <TextoAdmin>
                   Página {actual} de {paginas} ·{" "}
-                  {resultados.length ? (actual - 1) * Number(cantidad) + 1 : 0}–
-                  {Math.min(actual * Number(cantidad), resultados.length)} de{" "}
-                  {resultados.length}
+                  {total ? (actual - 1) * Number(cantidad) + 1 : 0}–
+                  {Math.min(actual * Number(cantidad), total)} de {total}
                 </TextoAdmin>
                 <Boton
                   texto="Anterior"
                   secundario
-                  disabled={actual === 1}
+                  disabled={actual === 1 || cargando}
                   onPress={() => setPagina(actual - 1)}
                 />
                 <Boton
                   texto="Siguiente"
                   secundario
-                  disabled={actual === paginas}
+                  disabled={actual >= paginas || cargando}
                   onPress={() => setPagina(actual + 1)}
                 />
                 <SelectorAdmin
                   etiqueta="Resultados por página"
                   valor={cantidad}
-                  opciones={["10", "25", "50"].map((n) => ({
+                  opciones={["10", "25", "50", "100"].map((n) => ({
                     valor: n,
                     texto: n,
                   }))}

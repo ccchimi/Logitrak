@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  DatosPanelAdmin,
-  obtenerPanelAdmin,
-} from "../services/panelAdminService";
+import { FILTROS_INICIALES, type PedidoAdmin } from "../helpers/panelAdmin";
+import { consultarPedidos, obtenerPanel, type PanelServidor } from "../services/panelAdminService";
 
-export function usePanelAdmin(navigation: any) {
-  const [datos, setDatos] = useState<DatosPanelAdmin | null>(null);
+/** Indicadores del panel y los pedidos más recientes, calculados en el servidor. */
+export function usePanelAdmin(navigation: any, dias: number) {
+  const [panel, setPanel] = useState<PanelServidor | null>(null);
+  const [recientes, setRecientes] = useState<PedidoAdmin[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
   const montado = useRef(false),
@@ -15,19 +15,23 @@ export function usePanelAdmin(navigation: any) {
     setCargando(true);
     setError("");
     try {
-      const respuesta = await obtenerPanelAdmin();
-      if (montado.current && id === solicitud.current) setDatos(respuesta);
+      const [p, r] = await Promise.all([
+        obtenerPanel(dias),
+        consultarPedidos(FILTROS_INICIALES, { limite: 10 }),
+      ]);
+      if (montado.current && id === solicitud.current) {
+        setPanel(p);
+        setRecientes(r.pedidos.slice(0, 5));
+      }
     } catch (e) {
       if (montado.current && id === solicitud.current) {
-        setDatos(null);
-        setError(
-          e instanceof Error ? e.message : "No pudimos cargar los pedidos.",
-        );
+        setPanel(null);
+        setError(e instanceof Error ? e.message : "No pudimos cargar el panel.");
       }
     } finally {
       if (montado.current && id === solicitud.current) setCargando(false);
     }
-  }, []);
+  }, [dias]);
   useEffect(() => {
     montado.current = true;
     void cargar();
@@ -38,5 +42,5 @@ export function usePanelAdmin(navigation: any) {
       quitar();
     };
   }, [cargar, navigation]);
-  return { datos, cargando, error, cargar };
+  return { panel, recientes, cargando, error, cargar };
 }

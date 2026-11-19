@@ -1,59 +1,46 @@
 import React, { useMemo, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
-import {
-  PedidoAdmin,
-  entregasVerificables,
-  seriePedidos,
-  ESTADOS_ADMIN,
-  NOMBRE_ESTADO_ADMIN,
-  inicioPeriodo,
-  instante,
-} from "../../helpers/panelAdmin";
+import { ESTADOS_ADMIN, NOMBRE_ESTADO_ADMIN } from "../../helpers/panelAdmin";
+import type { DiaPanel } from "../../services/panelAdminService";
+import type { EstadoEnvio } from "../../services/enviosService";
 import { useTema } from "../../hooks/useTema";
 import Transicion from "../Transicion";
 import { COLORES_ESTADO, PanelAdmin, TextoAdmin } from "./ElementosAdmin";
 
+// Etiqueta corta de un día "AAAA-MM-DD" que manda el servidor (en hora de Argentina).
+function etiquetaDia(fecha: string): string {
+  const [a, m, d] = fecha.split("-").map(Number);
+  return new Date(a, m - 1, d).toLocaleDateString("es-AR", { day: "numeric", month: "short" });
+}
+
 export default function GraficosAdmin({
-  pedidos,
+  serie: serieServidor,
+  distribucion,
   dias,
-  ahora,
-  completa,
-  cobertura,
 }: {
-  pedidos: PedidoAdmin[];
+  serie: DiaPanel[];
+  distribucion: Record<EstadoEnvio, number>;
   dias: number;
-  ahora: number;
-  completa: boolean;
-  cobertura: boolean;
 }) {
   const tema = useTema();
-  const conEntregas = completa && entregasVerificables(pedidos);
+  const conEntregas = true;
   const [seleccion, setSeleccion] = useState<string | null>(null);
   const serie = useMemo(
-    () => seriePedidos(pedidos, dias, ahora),
-    [pedidos, dias, ahora],
+    () => serieServidor.map((d) => ({ ...d, etiqueta: etiquetaDia(d.fecha) })),
+    [serieServidor],
   );
-  const max = Math.max(1, ...serie.flatMap((d) => conEntregas ? [d.creados, d.entregados] : [d.creados]));
+  const max = Math.max(1, ...serie.flatMap((d) => [d.creados, d.entregados]));
   const elegida = serie.find((d) => d.fecha === seleccion);
-  const cohorte = pedidos.filter(
-    (p) =>
-      instante(p.creadoEn) >= inicioPeriodo(dias, ahora) &&
-      instante(p.creadoEn) <= ahora,
-  );
+  const totalPeriodo = ESTADOS_ADMIN.reduce((a, e) => a + (distribucion[e] ?? 0), 0);
   return (
     <View style={{ gap: 20 }}>
       <PanelAdmin>
         <TextoAdmin tipo="heading">El pulso de tus operaciones</TextoAdmin>
         <TextoAdmin tipo="muted">
           Pedidos creados{conEntregas ? " y entregas" : ""} por día · últimos{" "}
-          {dias} días · hora local del dispositivo
+          {dias} días · hora de Argentina
         </TextoAdmin>
-        {!cobertura ? (
-          <TextoAdmin>
-            Período incompleto. La API no permite verificar todas las creaciones
-            de estos días.
-          </TextoAdmin>
-        ) : (
+        {(
           <>
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 16 }}>
               <TextoAdmin style={{ color: tema.colores.acento }}>
@@ -65,12 +52,6 @@ export default function GraficosAdmin({
                 </TextoAdmin>
               )}
             </View>
-            {!conEntregas && (
-              <TextoAdmin tipo="muted">
-                Entregas no disponibles: faltan pedidos o fechas reales para
-                verificar el período.
-              </TextoAdmin>
-            )}
             <TextoAdmin tipo="muted">
               {elegida
                 ? `${elegida.etiqueta}: ${elegida.creados} creados${conEntregas ? ` · ${elegida.entregados} entregados` : ""}`
@@ -169,13 +150,11 @@ export default function GraficosAdmin({
           Estado actual de los pedidos creados en los últimos {dias} días. No
           representa cambios históricos de estado.
         </TextoAdmin>
-        {!cobertura ? (
-          <TextoAdmin>No se dispone del período completo.</TextoAdmin>
-        ) : cohorte.length === 0 ? (
+        {totalPeriodo === 0 ? (
           <TextoAdmin>Todavía no hay pedidos en este período.</TextoAdmin>
         ) : (
           ESTADOS_ADMIN.map((estado) => {
-            const n = cohorte.filter((p) => p.estado === estado).length;
+            const n = distribucion[estado] ?? 0;
             return (
               <View key={estado} style={{ gap: 7 }}>
                 <View
@@ -187,11 +166,11 @@ export default function GraficosAdmin({
                 >
                   <TextoAdmin>{NOMBRE_ESTADO_ADMIN[estado]}</TextoAdmin>
                   <TextoAdmin>
-                    {n} · {Math.round((n / cohorte.length) * 100)}%
+                    {n} · {Math.round((n / totalPeriodo) * 100)}%
                   </TextoAdmin>
                 </View>
                 <View
-                  accessibilityLabel={`${NOMBRE_ESTADO_ADMIN[estado]}: ${n} de ${cohorte.length}`}
+                  accessibilityLabel={`${NOMBRE_ESTADO_ADMIN[estado]}: ${n} de ${totalPeriodo}`}
                   style={{
                     height: 8,
                     borderRadius: 5,
@@ -202,7 +181,7 @@ export default function GraficosAdmin({
                   <View
                     style={{
                       height: "100%",
-                      width: `${(n / cohorte.length) * 100}%`,
+                      width: `${(n / totalPeriodo) * 100}%`,
                       backgroundColor: tema.color(COLORES_ESTADO[estado]),
                     }}
                   />
