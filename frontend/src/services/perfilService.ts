@@ -4,6 +4,7 @@ import {
   obtenerUsuarioSesion,
   UsuarioSesion,
 } from "./api";
+import type { ExportacionCuenta } from "../helpers/exportacion";
 
 export type CampoPerfil =
   | "nombreCompleto"
@@ -146,4 +147,15 @@ export async function eliminarCuenta(contrasena: string): Promise<{ exito: true;
         conAuth: true,
     });
     return r.exito ? { exito: true, mensaje: r.mensaje } : { exito: false, error: r.error };
+}
+
+export async function exportarDatosCuenta(
+  contrasena: string,
+): Promise<{ exito: true; archivo: string; datos: ExportacionCuenta } | { exito: false; error: string }> {
+  const r = await llamarApi<{ exito: true; archivo: string; datos: ExportacionCuenta }>("/api/perfil/exportar", {
+    metodo: "POST",
+    cuerpo: { contrasena },
+    conAuth: true,
+  });
+  return r.exito ? { exito: true, archivo: r.archivo, datos: r.datos } : { exito: false, error: r.error };
 }

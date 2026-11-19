@@ -39,6 +39,9 @@ export const crearLimiteRecorridos = () =>
 export const crearLimiteEntregas = () =>
     limite({ minutos: 10, maximo: 30, mensaje: `Demasiados intentos de cerrar entregas. ${ESPERA}` });
 
+export const crearLimiteExportacion = () =>
+    limite({ minutos: 60, maximo: 5, mensaje: `Ya pediste varias copias de tus datos. ${ESPERA}` });
+
 export const limiteGeneral = crearLimiteGeneral();
 export const limiteLogin = crearLimiteLogin();
 export const limiteRegistro = crearLimiteRegistro();
@@ -47,3 +50,4 @@ export const limiteCotizaciones = crearLimiteCotizaciones();
 export const limitePagos = crearLimitePagos();
 export const limiteRecorridos = crearLimiteRecorridos();
 export const limiteEntregas = crearLimiteEntregas();
+export const limiteExportacion = crearLimiteExportacion();

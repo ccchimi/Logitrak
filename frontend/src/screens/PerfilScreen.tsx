@@ -29,6 +29,7 @@ import Interruptor from "../components/Interruptor";
 import Icono, { NombreIcono } from "../components/Icono";
 import EditarPerfilModal from "../components/EditarPerfilModal";
 import EliminarCuentaModal from "../components/EliminarCuentaModal";
+import ExportarDatosModal from "../components/ExportarDatosModal";
 import Confirmacion from "../components/Confirmacion";
 import Transicion from "../components/Transicion";
 import { esPersonal, NOMBRE_ROL, puede } from "../services/permisos";
@@ -51,6 +52,7 @@ export default function PerfilScreen({ navigation }: any) {
   } | null>(null);
   const [exito, setExito] = useState("");
   const [mostrarEliminar, setMostrarEliminar] = useState(false);
+  const [mostrarExportar, setMostrarExportar] = useState(false);
   const [confirmarReset, setConfirmarReset] = useState(false);
   const [reseteando, setReseteando] = useState(false);
   const bloqueoReset = useRef(false);
@@ -367,6 +369,11 @@ export default function PerfilScreen({ navigation }: any) {
               secundario
               onPress={() => navigation.navigate("Soporte")}
             />
+            <Boton
+              texto="Descargar mis datos"
+              secundario
+              onPress={() => setMostrarExportar(true)}
+            />
             {rol === "cliente" && (
               <Boton
                 texto="Postularme como chofer"
@@ -391,6 +398,14 @@ export default function PerfilScreen({ navigation }: any) {
           </View>
         )}
       </ScrollView>
+      <ExportarDatosModal
+        visible={mostrarExportar}
+        onClose={() => setMostrarExportar(false)}
+        onDescargado={(mensaje) => {
+          setMostrarExportar(false);
+          setExito(mensaje);
+        }}
+      />
       <EliminarCuentaModal
         visible={mostrarEliminar}
         onClose={() => setMostrarEliminar(false)}

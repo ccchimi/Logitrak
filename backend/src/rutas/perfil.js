@@ -6,9 +6,10 @@ import { Router } from 'express';
 import { consultar, pool } from '../db/pool.js';
 import { autenticar } from '../middleware/auth.js';
 import { emitirAccessToken } from '../servicios/sesiones.js';
-import { limiteLogin } from '../middleware/limites.js';
+import { limiteExportacion, limiteLogin } from '../middleware/limites.js';
 import { validarRequest } from '../middleware/validar.js';
-import { eliminarCuenta } from '../esquemas/perfil.js';
+import { eliminarCuenta, exportarDatos } from '../esquemas/perfil.js';
+import { exportarCuenta, nombreDelArchivo } from '../servicios/exportacionCuenta.js';
 import { anonimizarCuenta, impedimentoParaEliminar } from '../servicios/eliminacionCuenta.js';
 import { borrarArchivos } from '../servicios/almacenamiento.js';
 import { log, registrarError } from '../observabilidad/logger.js';
@@ -203,6 +204,28 @@ rutasPerfil.get('/resumen', autenticar, async (req, res) => {
             clienteDesde: new Date(u.creado_en).getFullYear(),
         },
     });
+});
+
+rutasPerfil.post('/exportar', limiteExportacion, autenticar, validarRequest({ body: exportarDatos }), async (req, res) => {
+    const usuario = (
+        await consultar('SELECT usuario, contrasena_hash FROM usuarios WHERE id = $1 AND eliminado_en IS NULL', [req.usuario.id])
+    ).rows[0];
+    if (!usuario) {
+        return res.status(404).json({ exito: false, error: 'La cuenta ya no existe.' });
+    }
+    if (!(await bcrypt.compare(req.body.contrasena, usuario.contrasena_hash))) {
+        return res.status(401).json({ exito: false, error: 'La contraseña no es correcta.' });
+    }
+
+    const ahora = new Date();
+    const datos = await exportarCuenta(pool, req.usuario.id, ahora);
+    if (!datos) {
+        return res.status(404).json({ exito: false, error: 'La cuenta ya no existe.' });
+    }
+    log().info('Copia de los datos de la cuenta descargada por su titular');
+
+    res.set('Cache-Control', 'no-store');
+    return res.json({ exito: true, archivo: nombreDelArchivo(usuario.usuario, ahora), datos });
 });
 
 const RAIZ_BACKEND = fileURLToPath(new URL('../../', import.meta.url));
