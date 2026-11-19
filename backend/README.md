@@ -215,6 +215,7 @@ instancia).
 | `avisar-cupones-por-vencer` | Registra `cupon.por_vencer` para los cupones activos que vencen dentro de `CUPONES_DIAS_AVISO` (7) días, una sola vez por cupón | Cada hora (minuto 37) y al arrancar |
 | `barrer-pagos-de-mas` | Busca cobros duplicados o aprobados sobre un envío cancelado que todavía no se devolvieron y encola uno por pago | Cada minuto y al arrancar |
 | `devolver-pago-de-mas` | Devuelve el pago al medio original (sin tocar el cupón) o lo deja en revisión si la pasarela no lo permite | Por pago, con reintentos |
+| `borrar-archivos` | Reintenta borrar los archivos que quedaron sin borrar al eliminar una cuenta (`archivos_por_borrar`), hasta 10 veces | Cada hora (minuto 23) y al arrancar |
 
 **Pedidos sin pagar.** Cada envío nace con `pago_vence_en` (5 minutos). Pasado
 ese límite el checkout, la tarjeta y la confirmación sandbox responden 409 con
@@ -532,6 +533,7 @@ un control equivalente en el frontend.
 | GET | `/api/perfil/editable` | Datos editables de la cuenta autenticada. |
 | PUT | `/api/perfil` | Actualiza campos admitidos de la propia cuenta; el cambio de contraseña valida la actual. |
 | GET | `/api/perfil/resumen` | Resumen de la propia cuenta. |
+| PUT | `/api/perfil/datos` | Nombre, email y teléfono de la propia cuenta; pide `contrasenaActual` en cada cambio (mismo límite que el login). Un email o teléfono vacío lo borra, salvo para un chofer. |
 | POST | `/api/perfil/exportar` | Copia en JSON de los datos de la propia cuenta; pide la contraseña, 5 por hora. |
 | POST | `/api/perfil/eliminar-cuenta` | Anonimización con contraseña y restricciones operativas/por rol. |
 | POST | `/api/choferes/postulacion` | Alta verificada de chofer; solo cliente autenticado. |
@@ -546,6 +548,8 @@ un control equivalente en el frontend.
 | GET | `/api/cotizaciones` | Cotizaciones propias; el personal con permiso puede consultar todas. |
 | POST | `/api/envios` | Crea pedido desde cotización y comprueba titularidad. |
 | GET | `/api/envios` | Lista según acceso, del más nuevo al más viejo; filtros `estado` y `q` (código o dirección). Con `limite` (1 a 100) pagina por cursor: devuelve `siguiente` para pedir la próxima página con `cursor`. Sin `limite`, hasta 200 (versiones viejas de la app). |
+| GET | `/api/envios/panel` | Panel del equipo (`envios.ver_todos`): indicadores, serie por día de 7, 30 o 90 días en hora de Argentina, distribución por estado, alertas y opciones de filtro. |
+| GET | `/api/envios/consulta` | Pedidos para el equipo con filtros (`q`, `estado` o `activos`, `cliente`, `chofer` o `sin_asignar`, `desde`/`hasta` en días de Argentina, `atencion`), `orden` por fecha o importe y páginas numeradas (`pagina`, `limite` 10/25/50/100) con el total. |
 | GET | `/api/envios/resumen` | Totales del historial según alcance y `estado`: cantidad, total pagado (sin cobros duplicados) y cumplimiento del SLA de retiro. |
 | GET | `/api/envios/metricas` | Totales por estado según alcance del usuario. |
 | GET | `/api/envios/:codigo` | Detalle, eventos, datos de entrega, calificación del envío y promedio del chofer; controla acceso al envío. |
@@ -576,6 +580,8 @@ un control equivalente en el frontend.
 | POST | `/api/pagos/tarjeta` | Procesador simulado; sesión y acceso al envío, `Idempotency-Key` opcional. |
 | POST | `/api/pagos/:codigo/confirmar` | Confirma exclusivamente un pago sandbox autorizado. |
 | GET | `/api/pagos/retorno` | Página pública de retorno del proveedor. |
+| GET | `/api/pagos/devoluciones-pendientes` | Pagos cuya devolución no pudo hacer la pasarela; permiso `pagos.gestionar` (admin). |
+| POST | `/api/pagos/:codigo/devolucion-manual` | Registra una devolución hecha a mano desde el panel de la pasarela, con `referencia` opcional; deja el pago devuelto, devuelve el cupón y avisa al cliente. Solo admin. |
 | GET | `/api/pagos/:codigo` | Consulta de pago con control de acceso; puede conciliar con la pasarela. |
 | GET | `/api/pagos` | Lista según permisos; filtro `envioCodigo`, hasta 100 registros. |
 | POST | `/api/pagos/webhook/mercadopago` | Sin JWT de usuario; exige firma de Mercado Pago y consulta el pago al proveedor. |
@@ -619,35 +625,33 @@ el endpoint.
 
 ## Mi Perfil y reautenticación
 
-`GET /api/perfil/editable` devuelve `usuario`, `rol`, `nombreCompleto` y ficha
-`chofer` cuando corresponde. `PUT /api/perfil` admite nombre y cambio de
-contraseña; para un chofer admite además email, teléfono, domicilio y vehículo.
-No implementa cambio del nombre de usuario, ni campos separados de nombre y
-apellido para todos los roles.
+`GET /api/perfil/editable` devuelve `usuario`, `rol`, `nombreCompleto`,
+`email`, `telefono` y la ficha `chofer` cuando corresponde. El email y el
+teléfono están en la cuenta (`usuarios`) para todos los roles; los de los
+choferes que ya existían se copiaron de su ficha, que se mantiene sincronizada
+desde Mi Perfil, desde el panel del admin y en la postulación.
 
-La contraseña actual se compara con bcrypt contra el hash del usuario del JWT
-cuando el body pide cambiar la contraseña. No se exige esa misma comprobación
-para cada modificación de los otros campos.
+`PUT /api/perfil/datos` cambia el nombre, el email y el teléfono con la
+contraseña actual en el mismo pedido: el servidor la compara con bcrypt antes
+de guardar, así cada cambio queda reautenticado aunque la sesión esté abierta.
+Valida con Zod (`actualizarDatos`, un `strictObject`: no acepta otros campos),
+normaliza el email en minúsculas y responde 409 si otra cuenta ya lo usa. Un
+email o teléfono vacío lo borra, salvo para un chofer, que los necesita.
+Devuelve un token nuevo con el nombre actualizado. `PUT /api/perfil` sigue
+cambiando la contraseña (y, para versiones viejas de la app, los datos del
+chofer). El nombre de usuario no se cambia, y un email nuevo todavía no se
+confirma con un código.
 
-Existe una comprobación de credenciales en `POST /api/auth/login` con
-`X-Logitrak-Sesion: verificar`: devuelve la identidad sin crear una nueva sesión.
-No es un endpoint independiente de autorización de cambios ni emite un permiso
-breve vinculado al usuario y campo. El frontend compara la identidad devuelta,
-pero eso no convierte la operación posterior en una edición reautenticada por
-el servidor. Por ese motivo mantiene bloqueada la edición individual de varios
-datos. Email y teléfono no tienen un circuito de confirmación de nuevo contacto.
-
-Para habilitar ese comportamiento hace falta un contrato de backend que valide
-la contraseña y el cambio sensible en una operación, o un permiso de
-reautenticación acotado y verificable al guardar. Esta documentación no
-implementa ninguna de esas alternativas.
+`POST /api/auth/login` con `X-Logitrak-Sesion: verificar` comprueba la
+contraseña sin crear una sesión: la app lo usa para el primer paso del editor,
+y el servidor la vuelve a comprobar al guardar.
 
 ## Consulta administrativa e integración con el frontend
 
 El backend permite listar usuarios con búsqueda, rol, fechas, orden y
 paginación; `consultaUsuariosAdmin` valida la consulta. Soporte puede consultar,
-pero cambiar roles está reservado al admin. No hay un endpoint general para que
-el administrador edite todos los datos del perfil de otra cuenta.
+pero cambiar roles está reservado al admin, igual que editar los datos de otra
+cuenta con `PUT /api/admin/usuarios/:id` (ver "Perfil, choferes y flota").
 
 `GET /api/envios` pagina por cursor (`src/servicios/envios/listado.js`): ordena
 por `(creado_en, id)` descendente, pide una fila más que el límite para saber si
@@ -660,14 +664,19 @@ Cada envío trae `slaExcedido`, que dice si el retiro superó el plazo. Sin
 instaladas de la app. `GET /api/envios/resumen` da los totales del historial
 calculados sobre todos los envíos: cantidad, total pagado (el pago aprobado de
 cada envío, sin cobros duplicados) y, de los que tenían plazo de retiro y ya
-se retiraron, cuántos lo cumplieron. `GET /api/envios/metricas` devuelve totales por estado;
-los indicadores de últimas 24 horas del panel se calculan en la app sobre lo
-recuperado, no mediante un endpoint exclusivo de analítica histórica.
+se retiraron, cuántos lo cumplieron. `GET /api/envios/metricas` devuelve totales por estado.
 
-El cliente intenta ampliar por estado si la lista no coincide con las métricas,
-pero siguen existiendo límites. Consultar la operación y obtener un histórico
-completo son capacidades distintas. La consulta excluye registros con
-`archivado_en`, aunque la interfaz no exponga herramientas de archivo.
+El panel del equipo se calcula en la base (`src/servicios/envios/panelAdmin.js`)
+en lugar de traer los pedidos a la app. `GET /api/envios/panel?dias=7|30|90`
+devuelve los pedidos de las últimas 24 horas frente a las 24 anteriores, los
+activos, pendientes y cancelados, los entregados en el período, la serie de
+creados y entregados por día y la distribución por estado de lo creado en el
+período (los días son de Argentina), las alertas (pagos sin chofer, SLA
+vencidos y ofertas vencidas) y las opciones de cliente y chofer para filtrar.
+`GET /api/envios/consulta` aplica los filtros de "Todos los pedidos" en SQL y
+devuelve una página con el total; usa las mismas condiciones que las alertas,
+así el panel y la consulta coinciden. Las dos rutas excluyen los envíos
+archivados.
 
 ## Cómo se calcula el precio
 
@@ -1106,22 +1115,22 @@ forma automática por un rollback de PostgreSQL.
   avisa si alguna es igual al usuario; hay que cambiarla desde Mi Perfil.
 - Cambio de contraseña en perfil: falta unificar la revocación de sesiones con la
   recuperación y revisar el tratamiento de JWT ya emitidos.
-- Edición individual de perfil: falta reautenticación vinculada al cambio y
-  confirmación de nuevos contactos.
+- Mi Perfil: un email o teléfono nuevo no se confirma con un código (hace falta
+  un proveedor de correo o SMS).
 - Identidad: RENAPER real es una función pendiente y la obligatoriedad del match
   facial no bloquea todos los casos de verificación incompleta.
-- Pagos: tarjeta es simulada; MODO real, webhooks y reembolsos necesitan pruebas
-  específicas del proveedor/entorno. El webhook de MODO no aplica el mismo
-  middleware de firma que Mercado Pago.
+- Pagos: tarjeta es simulada. El circuito con Mercado Pago y MODO está probado
+  con las pasarelas simuladas (`src/integracion/pasarelaFalsa.js`: checkout,
+  webhook firmado, confirmación por consulta, intención de MODO y reembolsos),
+  pero falta probarlo con credenciales productivas. El webhook de MODO no aplica
+  el mismo middleware de firma que Mercado Pago.
 - Los cobros de más se devuelven solos solo por Mercado Pago; uno real de
-  MODO queda en revisión para devolverlo desde su panel.
+  MODO queda en revisión y el admin registra la devolución hecha a mano.
 - Push se intenta después de confirmar el evento. Un fallo no elimina el aviso
   de la bandeja, pero tampoco garantiza una nueva entrega push.
-- El borrado de archivos externos después de anonimizar puede fallar; se
-  registra, y hace falta un mecanismo de recuperación periódica.
-- El panel administrativo trae los pedidos a la app (hasta 5000) y filtra ahí;
-  para un volumen mayor harían falta filtros por fecha y métricas calculadas
-  en el servidor.
+- El borrado de archivos externos después de anonimizar puede fallar; queda
+  anotado en `archivos_por_borrar` y el trabajo `borrar-archivos` lo reintenta
+  hasta 10 veces. Después hay que revisarlo a mano.
 - Disponibilidad, restricciones de claves y credenciales de servicios externos
   deben revisarse en sus paneles; no se verifican leyendo el repositorio.
 

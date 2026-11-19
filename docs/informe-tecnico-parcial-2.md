@@ -49,9 +49,9 @@ Estado de los módulos:
 | Valoraciones del chofer: el cliente califica con 1 a 5 estrellas y un comentario | Implementado (nuevo en esta etapa) |
 | Chat entre el cliente y el chofer durante el viaje | Implementado (nuevo en esta etapa) |
 | Soporte: tickets, chat en tiempo real y bot de soporte | Implementado (no estaba en el diseño) |
-| Panel de administración y rol soporte | Implementado: métricas, reembolso y archivo de envíos, listado de usuarios con filtros, cambio de rol y edición de los datos de otras cuentas |
+| Panel de administración y rol soporte | Implementado: métricas calculadas en el servidor, consulta de pedidos con filtros y páginas, reembolso y archivo de envíos, registro de devoluciones hechas a mano, listado de usuarios con filtros, cambio de rol y edición de los datos de otras cuentas |
 
-**Calidad.** Hay 593 pruebas automáticas: 254 de la app en Jest y 339 del backend con `node:test`, entre ellas pruebas de integración de todas las rutas con `supertest` contra un PostgreSQL real. Todas corren en **GitHub Actions** en cada push a `main`, junto con una auditoría de dependencias, y la CI falla si la cobertura del backend baja del 85 % de líneas (hoy está en 90,9 %). Un segundo workflow publica la Web App en GitHub Pages.
+**Calidad.** Hay 620 pruebas automáticas: 251 de la app en Jest y 369 del backend con `node:test`, entre ellas pruebas de integración de todas las rutas con `supertest` contra un PostgreSQL real. Todas corren en **GitHub Actions** en cada push a `main`, junto con una auditoría de dependencias, y la CI falla si la cobertura del backend baja del 85 % de líneas (hoy está en 93,8 %). Un segundo workflow publica la Web App en GitHub Pages.
 
 ## 2. Decisiones tecnológicas tomadas
 
@@ -83,7 +83,7 @@ Estado de los módulos:
 | RF04: Boxy como "IA" que recomienda el pedido | Motor de reglas con procesamiento de lenguaje: entiende direcciones, pesos con unidades y respuestas de sí/no, y clasifica la carga | Un precio no puede depender de un modelo que puede equivocarse o variar. Las reglas se pueden probar y explicar. |
 | RF10: asignación de chofer automática mediante IA | El envío pagado se ofrece a todos los choferes con vehículo compatible y lo toma el primero que acepta. Si nadie lo toma en 5 minutos, se cancela y se reembolsa. | Es el modelo de las apps de movilidad: más simple, justo y sin una decisión central opaca. La asignación inteligente queda como evolución (ver `docs/ROADMAP.md`). |
 | RF06: pagos con Mercado Pago | Mercado Pago, MODO, tarjeta y QR, con reembolsos | Más medios de pago y la necesidad de devolver el dinero cuando ningún chofer toma el envío. |
-| RF11: seguimiento en tiempo real | Los estados y eventos del envío se actualizan en tiempo real con Supabase Realtime (con una consulta de respaldo cada 60 s) y cada cambio llega como notificación push. Mientras lleva el envío, la app del chofer comparte su ubicación GPS y el cliente lo ve moverse en el mapa, con la antigüedad de la última posición | Cumplido en esta etapa. Se guarda solo la última posición del viaje en curso y se borra al terminar. Por ahora se comparte con la app abierta; en segundo plano queda para la siguiente etapa. |
+| RF11: seguimiento en tiempo real | Los estados y eventos del envío se actualizan en tiempo real con Supabase Realtime (con una consulta de respaldo cada 60 s) y cada cambio llega como notificación push. Mientras lleva el envío, la app del chofer comparte su ubicación GPS y el cliente lo ve moverse en el mapa, con la antigüedad de la última posición | Cumplido en esta etapa. Se guarda solo la última posición del viaje en curso y se borra al terminar. Con la app minimizada se sigue compartiendo si el chofer lo activa (falta probarlo en el teléfono). |
 | RF13: comunicación entre cliente y conductor | El cliente ve el nombre, el teléfono, el identificador y el vehículo del chofer, y los dos conversan en el chat del envío mientras está asignado o en viaje, con texto y fotos, avisos y en tiempo real. Al terminar, la conversación queda para leer | Cumplido en esta etapa. El personal puede leer el chat ante un reclamo, pero no escribe en él. |
 | RF09: cancelar envíos desde la app | El cliente cancela desde el detalle del envío mientras ningún chofer lo tomó: si estaba pago, se le devuelve el importe; si no, se anulan los intentos de pago. Además, la cancelación es automática si nadie toma el envío, y el administrador puede reembolsar o archivar | Cumplido en esta etapa. Una vez asignado un chofer, la cancelación se pide a soporte. |
 | RF14: emails con comprobante | Desde que el envío está pago, el cliente descarga desde la app un comprobante en PDF con el envío, el chofer, la entrega y el pago (medio, comprobante, cupón y total) | Cumplido en parte en esta etapa: el comprobante se descarga, no llega por mail, porque el registro no pide el email del cliente. El envío por mail queda para la siguiente etapa. |
@@ -99,6 +99,7 @@ Estado de los módulos:
 | — | Eliminación de cuenta con anonimización y documentos de identidad en un bucket privado | Derecho de supresión (Ley 25.326) y protección de los datos personales. |
 | — | Descarga de los datos de la cuenta en un archivo, con la contraseña | Derecho de acceso (Ley 25.326, art. 14): el usuario ve todo lo que Logitrak guarda de él, sin contraseñas ni tokens. |
 | — | Los cobros de más se devuelven solos | Un segundo cobro sobre el mismo envío, o uno que llega con el envío cancelado, antes solo se avisaba al admin. Si la pasarela no permite devolverlo, queda en revisión. |
+| — | El titular cambia su nombre, email y teléfono con la contraseña | Cada cambio sensible se reautentica en el servidor, no alcanza con tener la sesión abierta. |
 
 ## 4. Diagrama actualizado de arquitectura
 
