@@ -549,7 +549,7 @@ un control equivalente en el frontend.
 | GET | `/api/envios/metricas` | Totales por estado según alcance del usuario. |
 | GET | `/api/envios/:codigo` | Detalle, eventos, datos de entrega, calificación del envío y promedio del chofer; controla acceso al envío. |
 | GET | `/api/envios/:codigo/mensajes` | Chat del envío: estado (abierto o motivo), contraparte y últimos 200 mensajes; marca como leídos los de la otra parte. Cliente, chofer del envío o personal. |
-| POST | `/api/envios/:codigo/mensajes` | Mensaje de 1 a 1000 caracteres; solo cliente o chofer del envío, mientras está asignado o en viaje (si no, 409 `chat_cerrado`); 30 por minuto. |
+| POST | `/api/envios/:codigo/mensajes` | Texto de hasta 1000 caracteres, una foto en base64 (JPG, PNG o WebP de hasta 8 MB) o ambos; solo cliente o chofer del envío, mientras está asignado o en viaje (si no, 409 `chat_cerrado`); 30 por minuto. |
 | GET | `/api/envios/:codigo/comprobante` | Comprobante en PDF; con `Accept: application/json`, en base64. Dueño del envío o personal; 409 `sin_pago` si no hay pago aprobado. |
 | POST | `/api/envios/:codigo/eventos` | Avances permitidos del chofer asignado o admin; no cierra entregas ni cancela. |
 | POST | `/api/envios/:codigo/cancelar` | Cancelación por el cliente dueño, mientras el envío está pendiente y sin chofer. Devuelve el importe si estaba pago o anula los intentos de pago pendientes; con un pago en curso en la pasarela responde 409. |
@@ -836,6 +836,16 @@ bandeja, un solo aviso por envío mientras no lo lea. Por Realtime, la política
 `envio_mensajes_lectura` deja leer los mensajes a quien puede ver el envío. La
 exportación de datos incluye los chats, y al eliminar la cuenta del cliente se
 borran los de sus envíos (y lo que haya escrito como chofer en otros).
+
+Un mensaje puede llevar texto, una foto o ambos. La foto se valida por su
+contenido real (JPG, PNG o WebP de hasta 8 MB, con `leerFoto`, la misma
+validación que la foto de entrega) y se guarda en el Storage privado en
+`chat/<envío>/`; en desarrollo sin Storage, en `backend/uploads/chat`. Se
+muestra con una URL firmada de 10 minutos (en desarrollo, embebida). Si la foto
+se sube pero el mensaje no llega a guardarse (por ejemplo, porque el envío se
+entregó en el medio), se borra. El aviso de un mensaje con foto dice "📷 Foto"
+o lleva el 📷 delante del texto. Al eliminar la cuenta se borran también las
+fotos de esos chats, y la exportación indica qué mensajes tenían foto.
 
 ## Comprobante del envío (RF14)
 

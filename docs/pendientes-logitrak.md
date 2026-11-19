@@ -91,8 +91,6 @@ y verificado se saca de acá; el historial queda en los commits.
     confirmar en producción que la política de Realtime de
     `ubicaciones_chofer` entrega las posiciones al cliente (localmente se
     probó con la consulta de respaldo).
-19. Chat del envío: hoy es solo de texto. Faltaría poder mandar una foto (por
-    ejemplo, de la puerta o del paquete) reutilizando los adjuntos del chat de
-    soporte, y confirmar en producción que la política de Realtime de
+19. Chat del envío: confirmar en producción que la política de Realtime de
     `envio_mensajes` entrega los mensajes (localmente se probó con la consulta
-    de respaldo).
+    de respaldo) y probar en el teléfono la cámara para mandar fotos.
