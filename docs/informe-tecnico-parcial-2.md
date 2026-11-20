@@ -53,6 +53,8 @@ Estado de los módulos:
 
 **Calidad.** Hay 633 pruebas automáticas: 254 de la app en Jest y 379 del backend con `node:test`, entre ellas pruebas de integración de todas las rutas con `supertest` contra un PostgreSQL real. Todas corren en **GitHub Actions** en cada push a `main`, junto con una auditoría de dependencias, y la CI falla si la cobertura del backend baja del 85 % de líneas (hoy está en 93,9 %). Un segundo workflow publica la Web App en GitHub Pages.
 
+**Medición de calidad.** Además de las pruebas, medimos el sistema real con cuatro herramientas (TP4 de Calidad de Software, ver `docs/qa/medicion-de-calidad.md`): **ESLint** con las reglas de SonarJS para el código, **Lighthouse** para la Web App, **npm audit** para las dependencias y **EXPLAIN ANALYZE** para las consultas, sobre una base local con 200.000 envíos. Encontramos 17 hallazgos y corregimos 7. El más importante: la serie por día del panel del equipo tardaba 7,5 s con 90 días y ahora tarda 0,18 s, gracias a una consulta agrupada y dos índices nuevos. La Web App pasó de 51 a 62 en rendimiento y de 91 a 100 en SEO al convertir la portada a WebP, y las dependencias de producción quedaron sin vulnerabilidades conocidas. Queda pendiente bajar el tiempo de carga en el celular (LCP de 10 s, por encima de los 3 s del RNF02) dividiendo el JavaScript de la app.
+
 ## 2. Decisiones tecnológicas tomadas
 
 | Decisión | Alternativas evaluadas | Por qué |
@@ -76,6 +78,7 @@ Estado de los módulos:
 | **Mercado Pago y MODO** con modo sandbox | Solo Mercado Pago | Son los medios de pago más usados en Argentina. El modo sandbox deja probar todo el circuito sin cobrar. |
 | **Render** (API), **GitHub Pages** (Web App) y **EAS Build** (Mobile App) | Un VPS propio | Despliegue automático desde GitHub y planes gratuitos suficientes para la etapa académica. |
 | **Jest, node:test + supertest y GitHub Actions** | Pruebas manuales | Pruebas de regresión y de integración en cada cambio, con cobertura mínima exigida por la CI (ver TP de Calidad de Software). |
+| **ESLint con las reglas de SonarJS** para el análisis estático | SonarQube Cloud | Corre en la consola y en el editor sin crear cuentas ni subir el código a un servicio externo, y usa las mismas reglas que SonarQube (complejidad, código muerto, expresiones regulares peligrosas). |
 
 ## 3. Cambios respecto al diseño inicial
 
