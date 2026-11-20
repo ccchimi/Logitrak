@@ -24,9 +24,38 @@ export const consultaPanel = z.object({
     dias: z.coerce.number().int().refine((n) => [7, 30, 90].includes(n), 'El período tiene que ser de 7, 30 o 90 días.').default(7),
 });
 
-export async function resumenDelPanel(db, { dias }) {
-    const [indicadores, serie, alertas, opciones, distribucion] = await Promise.all([
-        db.query(
+async function enOrden(tareas) {
+    const resultados = [];
+    for (const tarea of tareas) resultados.push(await tarea());
+    return resultados;
+}
+
+/**
+ * Todas las consultas del panel leen la misma foto de la base (una transacción de
+ * solo lectura en REPEATABLE READ). Si cada una tomara la suya, un envío creado o
+ * archivado entre medio haría que, por ejemplo, la serie por día y la distribución
+ * por estado no sumen lo mismo.
+ */
+export async function resumenDelPanel(pool, consulta) {
+    const cliente = await pool.connect();
+    try {
+        await cliente.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
+        const panel = await calcularPanel(cliente, consulta);
+        await cliente.query('COMMIT');
+        return panel;
+    } catch (e) {
+        await cliente.query('ROLLBACK').catch(() => {});
+        throw e;
+    } finally {
+        cliente.release();
+    }
+}
+
+// Las consultas van una detrás de otra: comparten la conexión de la transacción
+// (pg no admite varias consultas simultáneas sobre la misma conexión).
+async function calcularPanel(db, { dias }) {
+    const [indicadores, serie, alertas, opciones, distribucion] = await enOrden([
+        () => db.query(
             `SELECT
                  COUNT(*) FILTER (WHERE creado_en > now() - interval '24 hours')::int AS ultimas24,
                  COUNT(*) FILTER (WHERE creado_en > now() - interval '48 hours' AND creado_en <= now() - interval '24 hours')::int AS anteriores24,
@@ -42,7 +71,7 @@ export async function resumenDelPanel(db, { dias }) {
         // Serie por día: se cuenta una sola vez y se agrupa, filtrando por un rango
         // de fechas que usa los índices. Antes había una subconsulta por día que
         // recorría toda la tabla (90 días = 180 recorridos; ver TP4, hallazgo E-1).
-        db.query(
+        () => db.query(
             `WITH desde AS (
                  SELECT (date_trunc('day', now() AT TIME ZONE $2) - make_interval(days => $1 - 1)) AT TIME ZONE $2 AS inicio
              ),
@@ -74,16 +103,16 @@ export async function resumenDelPanel(db, { dias }) {
              ORDER BY d.dia`,
             [dias, ZONA]
         ),
-        db.query(
+        () => db.query(
             `SELECT
                  COUNT(*) FILTER (WHERE ${SIN_CHOFER})::int AS sin_chofer,
                  COUNT(*) FILTER (WHERE ${SLA_VENCIDO})::int AS sla_vencido,
                  COUNT(*) FILTER (WHERE ${OFERTA_VENCIDA})::int AS ofertas_vencidas
              FROM envios e WHERE e.archivado_en IS NULL`
         ),
-        opcionesDeFiltro(db),
+        () => opcionesDeFiltro(db),
         // Estado actual de los pedidos creados en el período.
-        db.query(
+        () => db.query(
             `SELECT estado, COUNT(*)::int AS n FROM envios
              WHERE archivado_en IS NULL
                AND creado_en >= (date_trunc('day', now() AT TIME ZONE $2) - make_interval(days => $1 - 1)) AT TIME ZONE $2
@@ -123,13 +152,13 @@ export async function resumenDelPanel(db, { dias }) {
 
 /** Clientes y choferes que tienen envíos, para los filtros de la consulta. */
 export async function opcionesDeFiltro(db) {
-    const [clientes, choferes] = await Promise.all([
-        db.query(
+    const [clientes, choferes] = await enOrden([
+        () => db.query(
             `SELECT u.id, u.nombre_completo AS nombre FROM usuarios u
              WHERE EXISTS (SELECT 1 FROM envios e WHERE e.cliente_id = u.id AND e.archivado_en IS NULL)
              ORDER BY u.nombre_completo, u.id LIMIT 500`
         ),
-        db.query(
+        () => db.query(
             `SELECT c.id, c.nombre_completo AS nombre, c.codigo FROM choferes c
              WHERE EXISTS (SELECT 1 FROM envios e WHERE e.chofer_id = c.id AND e.archivado_en IS NULL)
              ORDER BY c.nombre_completo, c.id LIMIT 500`
