@@ -24,9 +24,11 @@ Los RNF son los del diseño del Parcial 1 del Seminario Final (RNF01 a RNF06). E
 | Herramienta | Qué mide | Cómo se ejecutó |
 |---|---|---|
 | **ESLint 10.15.0** + typescript-eslint 8.73.0, eslint-plugin-sonarjs 4.2.2 y eslint-plugin-react-hooks 7.1.1 | Errores probables, código muerto, complejidad cognitiva, regex peligrosas y uso de hooks, sin ejecutar el código. | Dependencia de desarrollo en `frontend/` y `backend/`, con `eslint.config` en cada uno: `npm run lint` (`npx eslint .`), y `-f json` para contar por regla. |
-| **Lighthouse 13.6.0** (CLI) | Rendimiento, accesibilidad, buenas prácticas y SEO; FCP, LCP, TBT, CLS, Speed Index y peso. | `npx lighthouse@13.6.0 https://ccchimi.github.io/Logitrak/ --chrome-flags="--headless=new --incognito"`, Chrome 157, emulación mobile por defecto (Moto G Power, 4G lenta simulada). |
+| **Lighthouse 13.6.0** (CLI) | Rendimiento, accesibilidad, buenas prácticas y SEO; FCP, LCP, TBT, CLS, Speed Index y peso. | `npx lighthouse@13.6.0 https://ccchimi.github.io/Logitrak/ --chrome-flags="--headless=new --incognito"`, Chrome 157, emulación mobile por defecto (Moto G Power, 4G lenta simulada). El reporte se pasó a español (es-419) con la traducción de Lighthouse, sin volver a medir. |
 | **npm audit** (npm 12.0.2) | Dependencias con avisos de seguridad (GHSA), severidad y corrección disponible. | `npm audit` y `npm audit --omit=dev` en cada proyecto. |
 | **EXPLAIN (ANALYZE, BUFFERS)**, PostgreSQL 17 | Plan real de cada consulta: índices o recorrido completo, repeticiones, bloques y tiempo. | Base local en Docker con todas las migraciones y **200.132 envíos** de prueba (nunca producción). |
+
+ESLint, npm audit y PostgreSQL imprimen solo en inglés, así que sus capturas muestran la salida tal cual con un resumen en español debajo.
 
 Configuración de ESLint ajustada a la tecnología antes de medir: `require()` permitido (imágenes de React Native), globales de Node en los archivos de configuración y `cotizador.generado.js` excluido de la API (lo genera esbuild desde el código de la app).
 
@@ -38,7 +40,7 @@ Severidad: **Alta** si incumple un RNF o afecta directamente al usuario; **Media
 
 App: **420 problemas** (411 errores, 9 avisos) en 90 de 199 archivos. API: **62 problemas** en 37 de 153 archivos.
 
-![ESLint frontend antes](evidencias/tp4/01-eslint-frontend-antes-resumen.jpg)
+![ESLint frontend antes](evidencias/tp4/eslint-frontend-antes.png)
 
 | ID | Hallazgo | Dónde | Impacto | Sev. | Mejora | ¿Corregido? |
 |---|---|---|---|---|---|---|
@@ -53,7 +55,7 @@ App: **420 problemas** (411 errores, 9 avisos) en 90 de 199 archivos. API: **62 
 
 Rendimiento **51**, Accesibilidad 100, Buenas prácticas 96, SEO **91**. FCP 1,1 s, **LCP 13,1 s**, TBT 800 ms, CLS 0, Speed Index 5,9 s, **peso 2.394 KiB**.
 
-![Lighthouse antes](evidencias/tp4/07-lh-antes-general.jpg)
+![Lighthouse antes](evidencias/tp4/lh-antes-general.png)
 
 | ID | Hallazgo | Dónde | Impacto | Sev. | Mejora | ¿Corregido? |
 |---|---|---|---|---|---|---|
@@ -77,7 +79,7 @@ API: **2 moderadas** (385 dependencias). App: **25 moderadas** (997 dependencias
 
 La base tiene índices para todo lo que consulta un cliente o un chofer. Los problemas están en el **panel del equipo**, que recorre todos los envíos.
 
-![EXPLAIN antes](evidencias/tp4/21-explain-antes-e1-total.jpg)
+![EXPLAIN antes](evidencias/tp4/explain-antes-e1.png)
 
 | ID | Hallazgo | Dónde | Impacto | Sev. | Mejora | ¿Corregido? |
 |---|---|---|---|---|---|---|
@@ -96,8 +98,8 @@ Commit `b334098`. Antes de subirlo pasaron las 379 pruebas del backend, las 254 
 | H-12, H-13 | `overrides`: minimatch 11.0.9 y glob 14.0.6 | API 2; app 25 (6 en producción) | API 0; app 2 (0 en producción) |
 | H-02 | Código sin uso eliminado | App 420; API 62 | App 375; API 58 |
 
-![Lighthouse después](evidencias/tp4/12-lh-despues-general.jpg)
-![EXPLAIN después](evidencias/tp4/24-explain-despues-total.jpg)
+![Lighthouse después](evidencias/tp4/lh-despues-general.png)
+![EXPLAIN después](evidencias/tp4/explain-despues-e1.png)
 
 El LCP sigue lejos de los 3 s del RNF02: ahora lo frena el paquete de JavaScript (H-09). Lighthouse varía entre corridas, sobre todo en TBT y Speed Index; los cambios de peso, SEO e imágenes no dependen de esa variación. Los 2 `no-unused-vars` que quedan en la API son falsos positivos: el manejador de errores de Express necesita cuatro parámetros.
 
