@@ -33,7 +33,17 @@ jobs:
 
       # Falla si algún test falla o si la cobertura baja del coverageThreshold
       # de jest.config.js (80 % sentencias/funciones/líneas, 70 % ramas).
-      - run: npm run test:coverage -- --ci
+      # Ese umbral mide solo el cotizador, el módulo crítico.
+      - name: Cobertura del cotizador (exigida)
+        run: npm run test:coverage -- --ci
+
+      # Cobertura de toda la app, informativa: se publica en el resumen de la
+      # ejecución para no confundirla con la del cotizador.
+      - name: Cobertura de toda la app (informativa)
+        if: always()
+        run: |
+          npm run test:cobertura:app -- --ci --silent
+          node -e "const t=require('./coverage-app/coverage-summary.json').total; const f=(k)=>t[k].pct+' %'; console.log('| Medida | Toda la app |\n|---|---|\n| Sentencias | '+f('statements')+' |\n| Ramas | '+f('branches')+' |\n| Funciones | '+f('functions')+' |\n| Líneas | '+f('lines')+' |')" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Guardar reporte de cobertura
         if: always()

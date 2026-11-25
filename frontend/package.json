@@ -66,7 +66,8 @@
     "typecheck": "tsc --noEmit",
     "build:web": "expo export --platform web",
     "verify:backend": "node scripts/verificar-backend.mjs",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test:cobertura:app": "jest --config jest.cobertura-app.config.js --coverage"
   },
   "private": true
 }
