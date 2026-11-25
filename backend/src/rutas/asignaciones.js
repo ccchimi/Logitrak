@@ -9,6 +9,7 @@ import { completarEntrega, ubicacionChofer } from '../esquemas/entrega.js';
 import { publicarUbicacion } from '../servicios/envios/ubicacion.js';
 import { REPUTACION_VACIA, reputacionDelChofer } from '../servicios/envios/valoraciones.js';
 import { guardarFotoEntrega, leerFoto, MAX_INTENTOS_PIN, pinCorrecto } from '../servicios/envios/entrega.js';
+import { ERROR_VIAJE_EN_CURSO, puedeLlevar, tieneViajeEnCurso } from '../servicios/envios/compatibilidad.js';
 
 export const rutasAsignaciones = Router();
 
@@ -105,21 +106,33 @@ rutasAsignaciones.get('/disponibles', autenticar, exigirRol('chofer'), async (re
         });
     }
 
+    // Mientras tiene un viaje en curso no recibe ofertas: un chofer lleva un envío a la vez.
+    const ocupado = await consultar(`SELECT ${tieneViajeEnCurso('$1')} AS ocupado`, [chofer.id]);
+    if (ocupado.rows[0].ocupado) {
+        return res.json({
+            exito: true,
+            ofertas: [],
+            aviso: 'Tenés un viaje en curso: cuando lo termines vas a ver los envíos disponibles.',
+            vehiculo: { id: chofer.vehiculo_id, nombre: chofer.vehiculo_nombre },
+        });
+    }
+
+    // Solo los envíos que su vehículo puede llevar, con las mismas reglas del cotizador.
     const { rows } = await consultar(
         `SELECT e.codigo, e.origen, e.destino, e.distancia_km, e.descripcion_carga,
                 e.categoria_carga, e.peso_kg, e.bultos, e.vehiculo_nombre, e.precio,
                 e.sla_min, e.sla_vence_en, e.oferta_vence_en, e.creado_en
          FROM envios e
+         JOIN vehiculos v ON v.id = $1
          WHERE e.chofer_id IS NULL
            AND e.archivado_en IS NULL
            AND e.estado = 'pendiente'
            AND e.estado_pago = 'pagado'
            AND (e.oferta_vence_en IS NULL OR e.oferta_vence_en > now())
-           AND (e.peso_kg IS NULL OR e.peso_kg <= $1)
-           AND (e.bultos IS NULL OR e.bultos <= $2)
+           AND ${puedeLlevar('e', 'v')}
          ORDER BY e.creado_en ASC
          LIMIT 50`,
-        [chofer.max_kg, chofer.max_bultos]
+        [chofer.vehiculo_id]
     );
 
     return res.json({
@@ -128,6 +141,24 @@ rutasAsignaciones.get('/disponibles', autenticar, exigirRol('chofer'), async (re
         vehiculo: { id: chofer.vehiculo_id, nombre: chofer.vehiculo_nombre },
     });
 });
+
+/** Explica por qué no se pudo tomar un envío (la toma no dice qué condición falló). */
+async function porQueNoSePuedeTomar(codigoEnvio) {
+    const { rows } = await consultar(
+        `SELECT chofer_id, estado, estado_pago,
+                (oferta_vence_en IS NOT NULL AND oferta_vence_en <= now()) AS oferta_vencida
+         FROM envios WHERE codigo = $1`,
+        [codigoEnvio]
+    );
+    const e = rows[0];
+    if (!e) return { status: 404, error: 'Ese envío no existe.' };
+    if (e.chofer_id !== null) return { status: 409, error: 'Otro chofer tomó este envío hace instantes.' };
+    if (e.estado_pago !== 'pagado') return { status: 409, error: 'El envío todavía no está pagado.' };
+    if (e.oferta_vencida) return { status: 409, error: 'La oferta venció: el envío se canceló y se le devolvió el importe al cliente.' };
+    if (e.estado !== 'pendiente') return { status: 409, error: 'El envío ya no está disponible.' };
+    // Las demás condiciones se cumplen: lo que falla es la compatibilidad con el vehículo.
+    return { status: 409, error: 'Tu vehículo no puede transportar esta carga.' };
+}
 
 rutasAsignaciones.post('/:codigoEnvio/tomar', autenticar, exigirRol('chofer'), async (req, res) => {
     const chofer = await choferDe(req.usuario.id);
@@ -144,46 +175,35 @@ rutasAsignaciones.post('/:codigoEnvio/tomar', autenticar, exigirRol('chofer'), a
     try {
         await cliente.query('BEGIN');
 
+        // Se bloquea la ficha del chofer: si toca "tomar" en dos envíos a la vez,
+        // el segundo pedido espera al primero y ve que ya tiene un viaje en curso.
+        await cliente.query('SELECT id FROM choferes WHERE id = $1 FOR UPDATE', [chofer.id]);
+        const ocupado = await cliente.query(`SELECT ${tieneViajeEnCurso('$1')} AS ocupado`, [chofer.id]);
+        if (ocupado.rows[0].ocupado) {
+            await cliente.query('ROLLBACK');
+            return res.status(409).json({ exito: false, codigo: 'viaje_en_curso', error: ERROR_VIAJE_EN_CURSO });
+        }
+
         const tomado = await cliente.query(
-            `UPDATE envios
+            `UPDATE envios e
              SET chofer_id = $1, chofer_nombre = $2, estado = 'asignado', actualizado_en = now()
-             WHERE codigo = $3
-               AND archivado_en IS NULL
-               AND chofer_id IS NULL
-               AND estado = 'pendiente'
-               AND estado_pago = 'pagado'
-               AND (oferta_vence_en IS NULL OR oferta_vence_en > now())
-               AND (peso_kg IS NULL OR peso_kg <= $4)
-               AND (bultos IS NULL OR bultos <= $5)
-             RETURNING *`,
-            [chofer.id, chofer.nombre_completo, codigoEnvio, chofer.max_kg, chofer.max_bultos]
+             FROM vehiculos v
+             WHERE v.id = $4
+               AND e.codigo = $3
+               AND e.archivado_en IS NULL
+               AND e.chofer_id IS NULL
+               AND e.estado = 'pendiente'
+               AND e.estado_pago = 'pagado'
+               AND (e.oferta_vence_en IS NULL OR e.oferta_vence_en > now())
+               AND ${puedeLlevar('e', 'v')}
+             RETURNING e.*`,
+            [chofer.id, chofer.nombre_completo, codigoEnvio, chofer.vehiculo_id]
         );
 
         if (tomado.rowCount === 0) {
             await cliente.query('ROLLBACK');
-            const { rows } = await consultar(
-                `SELECT chofer_id, estado, estado_pago, peso_kg, bultos,
-                        (oferta_vence_en IS NOT NULL AND oferta_vence_en <= now()) AS oferta_vencida
-                 FROM envios WHERE codigo = $1`,
-                [codigoEnvio]
-            );
-            if (rows.length === 0) {
-                return res.status(404).json({ exito: false, error: 'Ese envío no existe.' });
-            }
-            const e = rows[0];
-            if (e.chofer_id !== null) {
-                return res.status(409).json({ exito: false, error: 'Otro chofer tomó este envío hace instantes.' });
-            }
-            if (e.estado_pago !== 'pagado') {
-                return res.status(409).json({ exito: false, error: 'El envío todavía no está pagado.' });
-            }
-            if (e.oferta_vencida) {
-                return res.status(409).json({ exito: false, error: 'La oferta venció: el envío se canceló y se le devolvió el importe al cliente.' });
-            }
-            if (e.estado !== 'pendiente') {
-                return res.status(409).json({ exito: false, error: 'El envío ya no está disponible.' });
-            }
-            return res.status(409).json({ exito: false, error: 'Tu vehículo no puede transportar esta carga.' });
+            const motivo = await porQueNoSePuedeTomar(codigoEnvio);
+            return res.status(motivo.status).json({ exito: false, error: motivo.error });
         }
 
         const envio = tomado.rows[0];
@@ -232,6 +252,10 @@ rutasAsignaciones.post('/:codigoEnvio/tomar', autenticar, exigirRol('chofer'), a
         });
     } catch (e) {
         await cliente.query('ROLLBACK');
+        // El índice único de la base es la última barrera ante una carrera.
+        if (e.code === '23505' && e.constraint === 'uq_envios_un_viaje_por_chofer') {
+            return res.status(409).json({ exito: false, codigo: 'viaje_en_curso', error: ERROR_VIAJE_EN_CURSO });
+        }
         registrarError(e, 'No se pudo tomar el envío');
         return res.status(500).json({ exito: false, error: 'No se pudo tomar el envío.' });
     } finally {

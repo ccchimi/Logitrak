@@ -149,6 +149,70 @@ describe('/api/choferes y /api/asignaciones (integración)', { skip: SALTEAR }, 
             assert.match(tomarImpago.body.error, /pagado/);
         });
 
+        test('las ofertas usan las mismas reglas que la cotización: volumen, peso facturable y capacidad especial', async () => {
+            const cli = await e.cuenta('cho.cap.cli');
+            const moto = await chofer('cho.cap.moto', 'moto');
+            const utilitario = await chofer('cho.cap.util', 'utilitario');
+            const camion = await chofer('cho.cap.cam', 'camion');
+            // Entran por peso y bultos en la moto o el utilitario, pero el cotizador pidió otro vehículo.
+            const frio = await e.crearEnvio(cli, { pesoKg: 3, descripcionCarga: 'helado congelado' });
+            const peligrosa = await e.crearEnvio(cli, { pesoKg: 20, descripcionCarga: 'solventes inflamables' });
+            const voluminosa = await e.crearEnvio(cli, { pesoKg: 30, descripcionCarga: 'cajas de ropa', medidasCm: [150, 150, 150] });
+
+            const filas = (await e.pool.query(
+                'SELECT codigo, vehiculo_id, peso_facturable_kg, volumen_dm3, capacidad_requerida FROM envios WHERE codigo = ANY($1)',
+                [[frio.codigo, peligrosa.codigo, voluminosa.codigo]]
+            )).rows;
+            const fila = (c) => filas.find((f) => f.codigo === c);
+            assert.equal(fila(frio.codigo).capacidad_requerida, 'cadena_frio', 'el envío guarda la capacidad que pidió la cotización');
+            assert.equal(fila(peligrosa.codigo).capacidad_requerida, 'mercancia_peligrosa');
+            assert.equal(Number(fila(voluminosa.codigo).volumen_dm3), 3375);
+            assert.equal(Number(fila(voluminosa.codigo).peso_facturable_kg), 675, 'peso volumétrico');
+
+            const ofertas = async (s) => (await e.http('get', '/api/asignaciones/disponibles', { token: s.token })).body.ofertas.map((o) => o.envioCodigo);
+            const deMoto = await ofertas(moto);
+            assert.equal(deMoto.includes(frio.codigo), false, 'la moto no tiene cadena de frío');
+            const deUtilitario = await ofertas(utilitario);
+            assert.ok(deUtilitario.includes(frio.codigo), 'el utilitario sí tiene cadena de frío');
+            assert.equal(deUtilitario.includes(peligrosa.codigo), false, 'mercancía peligrosa solo en camión');
+            assert.equal(deUtilitario.includes(voluminosa.codigo), false, '3.375 dm³ y 675 kg facturables no entran');
+            const deCamion = await ofertas(camion);
+            for (const envio of [frio, peligrosa, voluminosa]) assert.ok(deCamion.includes(envio.codigo), envio.codigo);
+
+            for (const [s, envio] of [[moto, frio], [utilitario, peligrosa], [utilitario, voluminosa]]) {
+                const r = await e.http('post', `/api/asignaciones/${envio.codigo}/tomar`, { token: s.token });
+                assert.equal(r.status, 409, `${envio.codigo}: ${JSON.stringify(r.body)}`);
+                assert.match(r.body.error, /vehículo/);
+            }
+            assert.equal((await e.http('post', `/api/asignaciones/${peligrosa.codigo}/tomar`, { token: camion.token })).status, 201);
+        });
+
+        test('un chofer lleva un envío a la vez: con un viaje en curso no ve ofertas ni puede tomar otro', async () => {
+            const cli = await e.cuenta('cho.uno.cli');
+            const c = await chofer('cho.uno');
+            const [primero, segundo, tercero] = [await e.crearEnvio(cli), await e.crearEnvio(cli), await e.crearEnvio(cli)];
+
+            assert.equal((await e.http('post', `/api/asignaciones/${primero.codigo}/tomar`, { token: c.token })).status, 201);
+            const disponibles = await e.http('get', '/api/asignaciones/disponibles', { token: c.token });
+            assert.deepEqual(disponibles.body.ofertas, []);
+            assert.match(disponibles.body.aviso, /viaje en curso/);
+            const otro = await e.http('post', `/api/asignaciones/${segundo.codigo}/tomar`, { token: c.token });
+            assert.equal(otro.status, 409);
+            assert.equal(otro.body.codigo, 'viaje_en_curso');
+            const sigueLibre = (await e.pool.query('SELECT chofer_id, estado FROM envios WHERE codigo = $1', [segundo.codigo])).rows[0];
+            assert.equal(sigueLibre.chofer_id, null, 'el segundo envío sigue disponible para otro chofer');
+
+            // Dos pedidos simultáneos con el chofer libre: queda uno solo.
+            await e.pool.query(`UPDATE envios SET estado = 'entregado', entregado_en = now() WHERE codigo = $1`, [primero.codigo]);
+            const intentos = await Promise.all([segundo, tercero].map((x) => e.http('post', `/api/asignaciones/${x.codigo}/tomar`, { token: c.token })));
+            assert.deepEqual(intentos.map((r) => r.status).sort(), [201, 409], JSON.stringify(intentos.map((r) => r.body)));
+            const enCurso = (await e.pool.query(
+                `SELECT count(*)::int AS n FROM envios e JOIN choferes ch ON ch.id = e.chofer_id
+                 WHERE ch.codigo = $1 AND e.estado IN ('asignado', 'en_viaje')`, [c.codigo]
+            )).rows[0].n;
+            assert.equal(enCurso, 1);
+        });
+
         test('tomar asigna el envío, deja el evento y avisa al cliente; después es su viaje activo', async () => {
             const cli = await e.cuenta('cho.tom.cli');
             const c = await chofer('cho.tom');

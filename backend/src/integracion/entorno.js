@@ -61,10 +61,12 @@ export async function levantarApi() {
     }
 
     let secuencia = 0;
-    async function crearEnvio(s, { pagar = true, pesoKg = 2 } = {}) {
+    async function crearEnvio(s, { pagar = true, pesoKg = 2, bultos = 1, descripcionCarga, medidasCm } = {}) {
         const codigo = `COT-PRUEBA-${Date.now()}-${++secuencia}-${randomBytes(2).toString('hex')}`;
+        const [largoCm, anchoCm, altoCm] = medidasCm ?? [];
         const cot = await http('post', '/api/cotizaciones', { token: s.token }).send({
-            codigo, origen: 'Cabildo 2000, Belgrano', destino: 'Rivadavia 5000, Caballito', pesoKg, bultos: 1,
+            codigo, origen: 'Cabildo 2000, Belgrano', destino: 'Rivadavia 5000, Caballito', pesoKg, bultos,
+            descripcionCarga, largoCm, anchoCm, altoCm,
         });
         if (cot.status !== 201) throw new Error(`cotización: ${JSON.stringify(cot.body)}`);
         const envio = await http('post', '/api/envios', { token: s.token }).send({ cotizacionCodigo: codigo });

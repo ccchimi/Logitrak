@@ -17,6 +17,7 @@ import { publicarValoracion, reputacionDelChofer, valoracionDelEnvio } from '../
 import { ubicacionDelEnvio } from '../servicios/envios/ubicacion.js';
 import { alcance, condicionesDelListado, consultaListado, cortarPagina } from '../servicios/envios/listado.js';
 import { condicionesDePedidos, consultaPanel, consultaPedidos, resumenDelPanel } from '../servicios/envios/panelAdmin.js';
+import { requisitosDeCarga } from '../servicios/envios/compatibilidad.js';
 import { resumenDelChat, rolEnElChat } from '../servicios/envios/chat.js';
 import { datosDelComprobante, generarComprobantePdf, nombreDelComprobante } from '../servicios/envios/comprobante.js';
 
@@ -173,15 +174,19 @@ rutasEnvios.post('/', autenticar, validarRequest({ body: crearEnvio }), async (r
         await cliente.query(`UPDATE cotizaciones SET estado = 'confirmada' WHERE id = $1`, [cotizacion.id]);
 
         const slaMin = plazoDeLaCotizacion(cotizacion);
+        // Peso facturable, volumen y capacidad especial: con estos datos el
+        // cotizador eligió el vehículo y con los mismos se decide qué chofer lo lleva.
+        const requisitos = requisitosDeCarga(cotizacion);
         const insercion = await cliente.query(
             `INSERT INTO envios
                  (cliente_id, cotizacion_id, origen, destino, origen_lat, origen_lng,
                   destino_lat, destino_lng, descripcion_carga, categoria_carga, peso_kg,
                   bultos, vehiculo_id, vehiculo_nombre, distancia_km, precio, moneda,
-                  sla_min, sla_vence_en, pago_vence_en, pin_entrega)
+                  sla_min, sla_vence_en, pago_vence_en, pin_entrega,
+                  peso_facturable_kg, volumen_dm3, capacidad_requerida)
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,COALESCE($17,'ARS'),$18,
                      CASE WHEN $18::int IS NULL THEN NULL ELSE now() + make_interval(mins => $18::int) END,
-                     now() + make_interval(mins => $19::int), $20)
+                     now() + make_interval(mins => $19::int), $20, $21, $22, $23)
              RETURNING *`,
             [
                 req.usuario.id, cotizacion.id, cotizacion.origen, cotizacion.destino,
@@ -189,6 +194,7 @@ rutasEnvios.post('/', autenticar, validarRequest({ body: crearEnvio }), async (r
                 cotizacion.descripcion_carga, cotizacion.categoria_carga, cotizacion.peso_kg, cotizacion.bultos,
                 cotizacion.vehiculo_id, cotizacion.vehiculo_nombre, cotizacion.distancia_km, cotizacion.precio,
                 cotizacion.moneda, slaMin, MINUTOS_PARA_PAGAR, generarPin(),
+                requisitos.pesoFacturableKg, requisitos.volumenDm3, requisitos.capacidadRequerida,
             ]
         );
         const envio = insercion.rows[0];

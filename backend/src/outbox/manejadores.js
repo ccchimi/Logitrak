@@ -1,4 +1,5 @@
 import { listaDeCampos } from '../servicios/perfilesAdmin.js';
+import { puedeLlevar, tieneViajeEnCurso } from '../servicios/envios/compatibilidad.js';
 const pesos = (monto, moneda = 'ARS') =>
     `${moneda === 'ARS' ? '$' : `${moneda} `}${Number(monto).toLocaleString('es-AR', { maximumFractionDigits: 2 })}`;
 
@@ -32,8 +33,8 @@ async function choferesParaEnvio(cliente, envioCodigo) {
          JOIN usuarios u ON u.id = c.usuario_id AND u.eliminado_en IS NULL AND u.rol = 'chofer'
          JOIN push_tokens t ON t.usuario_id = c.usuario_id
          WHERE e.codigo = $1
-           AND (e.peso_kg IS NULL OR e.peso_kg <= v.max_kg)
-           AND (e.bultos IS NULL OR e.bultos <= v.max_bultos)`,
+           AND ${puedeLlevar('e', 'v')}
+           AND NOT ${tieneViajeEnCurso('c.id')}`,
         [envioCodigo]
     );
     return rows.map((r) => r.usuario_id);
