@@ -7,6 +7,7 @@ import { eliminarImpago, enviosImpagosVencidos } from '../servicios/envios/impag
 import { avisarCuponesPorVencer, vencerCupones } from '../servicios/pagos/cupones.js';
 import { devolverPagoDeMas, pagosParaDevolver } from '../servicios/pagos/devolucionDuplicados.js';
 import { reintentarBorrados } from '../servicios/archivosPorBorrar.js';
+import { aplicarRetencion } from '../servicios/retencion.js';
 
 export const COLAS = {
     barrerOfertas: 'barrer-ofertas-vencidas',
@@ -21,6 +22,7 @@ export const COLAS = {
     barrerPagosDeMas: 'barrer-pagos-de-mas',
     devolverPagoDeMas: 'devolver-pago-de-mas',
     borrarArchivos: 'borrar-archivos',
+    aplicarRetencion: 'aplicar-retencion',
 };
 
 let ultimaPurga = 0;
@@ -118,6 +120,7 @@ async function iniciarColas(boss) {
     await boss.createQueue(COLAS.barrerPagosDeMas, { policy: 'exclusive', retryLimit: 2 });
     await boss.createQueue(COLAS.devolverPagoDeMas, { policy: 'exclusive', ...REINTENTOS });
     await boss.createQueue(COLAS.borrarArchivos, { policy: 'exclusive', retryLimit: 2 });
+    await boss.createQueue(COLAS.aplicarRetencion, { policy: 'exclusive', retryLimit: 2 });
 
     await boss.schedule(COLAS.barrerOfertas, '* * * * *');
     await boss.schedule(COLAS.barrerSla, '* * * * *');
@@ -127,6 +130,8 @@ async function iniciarColas(boss) {
     await boss.schedule(COLAS.avisarCupones, '37 * * * *');
     await boss.schedule(COLAS.barrerPagosDeMas, '* * * * *');
     await boss.schedule(COLAS.borrarArchivos, '23 * * * *');
+    // Plazos de conservación de fotos e IP: una vez por día, de madrugada (UTC).
+    await boss.schedule(COLAS.aplicarRetencion, '15 7 * * *');
 
     const sondeo = { pollingIntervalSeconds: 5 };
     await boss.work(COLAS.barrerOfertas, sondeo, conRegistro(COLAS.barrerOfertas, 2, () =>
@@ -147,6 +152,7 @@ async function iniciarColas(boss) {
         encolarPendientes(boss, { buscar: pagosParaDevolver, cola: COLAS.devolverPagoDeMas, prefijo: 'pago-de-mas', campo: 'pagoId' })
     ));
     await boss.work(COLAS.borrarArchivos, sondeo, conRegistro(COLAS.borrarArchivos, 2, () => reintentarBorrados(poolDeTrabajos)));
+    await boss.work(COLAS.aplicarRetencion, sondeo, conRegistro(COLAS.aplicarRetencion, 2, () => aplicarRetencion(poolDeTrabajos)));
     await boss.work(COLAS.devolverPagoDeMas, sondeo, conRegistro(COLAS.devolverPagoDeMas, REINTENTOS.retryLimit, (t) => procesarDevolucion(t.data.pagoId)));
     await boss.work(COLAS.despacharOutbox, { pollingIntervalSeconds: 2 }, conRegistro(COLAS.despacharOutbox, 2, () => despacharOutbox()));
 

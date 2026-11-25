@@ -216,6 +216,7 @@ instancia).
 | `barrer-pagos-de-mas` | Busca cobros duplicados o aprobados sobre un envío cancelado que todavía no se devolvieron y encola uno por pago | Cada minuto y al arrancar |
 | `devolver-pago-de-mas` | Devuelve el pago al medio original (sin tocar el cupón) o lo deja en revisión si la pasarela no lo permite | Por pago, con reintentos |
 | `borrar-archivos` | Reintenta borrar los archivos que quedaron sin borrar al eliminar una cuenta (`archivos_por_borrar`), hasta 10 veces | Cada hora (minuto 23) y al arrancar |
+| `aplicar-retencion` | Borra las fotos de entrega y del chat que cumplieron su plazo y anonimiza la IP de los ingresos viejos (`RETENCION_*`, ver `docs/politica-de-datos.md`) | Todos los días a las 7:15 UTC |
 
 **Pedidos sin pagar.** Cada envío nace con `pago_vence_en` (5 minutos). Pasado
 ese límite el checkout, la tarjeta y la confirmación sandbox responden 409 con

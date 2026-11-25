@@ -196,6 +196,7 @@ Los ejemplos completos están en [`backend/.env.example`](backend/.env.example) 
 | `GOOGLE_DIRECTIONS_KEY` | Clave de servidor para recorridos del móvil. |
 | `EXPO_ACCESS_TOKEN` | Opcional, según la seguridad configurada para Expo Push. |
 | `LOG_LEVEL`, `SENTRY_DSN` | Nivel de logs y reporte opcional de errores. |
+| `RETENCION_FOTOS_ENTREGA_DIAS`, `RETENCION_FOTOS_CHAT_DIAS`, `RETENCION_AUDITORIA_DIAS` | Plazos de conservación (por defecto 180, 90 y 365 días): el trabajo diario `aplicar-retencion` borra las fotos de entrega y del chat vencidas y anonimiza la IP de los ingresos. Ver la [política de datos](docs/politica-de-datos.md). |
 | `CORS_ORIGENES`, `CORS_RED_LOCAL`, `TRUST_PROXY` | Orígenes web permitidos y configuración de proxy. |
 
 Se cargan primero `.env.<entorno>` y después `.env`, sin reemplazar variables ya definidas. Los valores del entorno del proceso tienen prioridad. En Render, se administran desde la configuración del servicio.
@@ -307,6 +308,8 @@ Consultá los [pendientes técnicos](docs/pendientes-logitrak.md) y el [roadmap]
 - [Mobile App: instalación, configuración y builds Android/iOS](docs/mobile/README.md).
 - [Recursos gráficos y fuentes](frontend/assets/README.md).
 - [Informe técnico del Parcial 2](docs/informe-tecnico-parcial-2.md).
+- [Integraciones: qué es real, qué es simulado y qué falta configurar](docs/integraciones.md).
+- [Política de tratamiento, conservación y eliminación de datos personales](docs/politica-de-datos.md).
 - [Plan de pruebas](docs/qa/plan-de-pruebas-cotizador.md).
 - [Pruebas unitarias](docs/qa/pruebas-unitarias.md).
 - [Plan de mantenimiento](docs/qa/plan-de-mantenimiento.md).

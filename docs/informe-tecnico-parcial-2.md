@@ -20,6 +20,8 @@
 | API (backend) | https://logitrak.onrender.com/api/salud |
 | Integración continua | https://github.com/ccchimi/Logitrak/actions |
 
+Qué integraciones son reales, cuáles funcionan con credenciales de prueba y cuáles están simuladas o pendientes se detalla en `docs/integraciones.md`; el tratamiento de los datos personales, en `docs/politica-de-datos.md`.
+
 La Mobile App se ejecuta con un build de desarrollo de Expo (`npm run android` en `frontend/`) o con un build de EAS. Las instrucciones de instalación están en el `README.md` de la raíz, en `frontend/README.md` (Web App) y en `docs/mobile/README.md`, el README específico de la Mobile App para Android e iOS.
 
 ## 1. Descripción técnica general del avance
@@ -51,7 +53,7 @@ Estado de los módulos:
 | Soporte: tickets, chat en tiempo real y bot de soporte | Implementado (no estaba en el diseño) |
 | Panel de administración y rol soporte | Implementado: métricas calculadas en el servidor, consulta de pedidos con filtros y páginas, reembolso y archivo de envíos, registro de devoluciones hechas a mano, listado de usuarios con filtros, cambio de rol y edición de los datos de otras cuentas |
 
-**Calidad.** Hay 649 pruebas automáticas: 267 de la app en Jest (254 de lógica y 13 de pantallas renderizadas con Testing Library) y 382 del backend con `node:test`, entre ellas pruebas de integración de todas las rutas con `supertest` contra un PostgreSQL real y una del circuito completo de un envío, de la cotización al comprobante. La cobertura de la app se informa por separado: el cotizador, que es el módulo crítico, tiene 98,7 % de líneas y un mínimo exigido; la app completa, 23 %. Todas corren en **GitHub Actions** en cada push a `main`, junto con una auditoría de dependencias, y la CI falla si la cobertura del backend baja del 85 % de líneas (hoy está en 93,9 %). Un segundo workflow publica la Web App en GitHub Pages.
+**Calidad.** Hay 652 pruebas automáticas: 267 de la app en Jest (254 de lógica y 13 de pantallas renderizadas con Testing Library) y 385 del backend con `node:test`, entre ellas pruebas de integración de todas las rutas con `supertest` contra un PostgreSQL real y una del circuito completo de un envío, de la cotización al comprobante. La cobertura de la app se informa por separado: el cotizador, que es el módulo crítico, tiene 98,7 % de líneas y un mínimo exigido; la app completa, 23 %. Todas corren en **GitHub Actions** en cada push a `main`, junto con una auditoría de dependencias, y la CI falla si la cobertura del backend baja del 85 % de líneas (hoy está en 94 %). Un segundo workflow publica la Web App en GitHub Pages.
 
 **Medición de calidad.** Además de las pruebas, medimos el sistema real con cuatro herramientas (TP4 de Calidad de Software, ver `docs/qa/medicion-de-calidad.md`): **ESLint** con las reglas de SonarJS para el código, **Lighthouse** para la Web App, **npm audit** para las dependencias y **EXPLAIN ANALYZE** para las consultas, sobre una base local con 200.000 envíos. Encontramos 17 hallazgos y corregimos 7. El más importante: la serie por día del panel del equipo tardaba 7,5 s con 90 días y ahora tarda 0,18 s, gracias a una consulta agrupada y dos índices nuevos. La Web App pasó de 51 a 62 en rendimiento y de 91 a 100 en SEO al convertir la portada a WebP, y las dependencias de producción quedaron sin vulnerabilidades conocidas. Queda pendiente bajar el tiempo de carga en el celular (LCP de 10 s, por encima de los 3 s del RNF02) dividiendo el JavaScript de la app.
 
@@ -107,6 +109,7 @@ Estado de los módulos:
 | — | Los cobros de más se devuelven solos | Un segundo cobro sobre el mismo envío, o uno que llega con el envío cancelado, antes solo se avisaba al admin. Si la pasarela no permite devolverlo, queda en revisión. |
 | — | El titular cambia su nombre, email y teléfono con la contraseña | Cada cambio sensible se reautentica en el servidor, no alcanza con tener la sesión abierta. |
 | — | Verificación en dos pasos para las cuentas del equipo | Protege las cuentas con más permisos: además de la contraseña, el ingreso pide un código de la app autenticadora o uno de respaldo. |
+| — | Plazos de conservación: las fotos de entrega se borran a los 180 días, las del chat a los 90 días de terminado el envío y la IP de los ingresos se anonimiza al año | Observación del Parcial 2 sobre la conservación de datos personales. La política completa (qué dato, quién lo ve y cuánto se guarda) está en `docs/politica-de-datos.md`. |
 
 ## 4. Diagrama actualizado de arquitectura
 
