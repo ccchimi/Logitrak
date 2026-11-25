@@ -194,7 +194,8 @@ export default function LoginScreens({ navigation }: any) {
                 activeOpacity={0.85}
                 style={tema.estilo([styles.buttonShadow, cargando && { opacity: 0.6 }])}
                 disabled={cargando}
-                accessibilityState={{ busy: cargando }}
+                accessibilityRole="button"
+                accessibilityState={{ busy: cargando, disabled: cargando }}
                 onPress={() => void verificarCodigo()}
               >
                 <LinearGradient
@@ -289,7 +290,8 @@ export default function LoginScreens({ navigation }: any) {
             activeOpacity={0.85}
             style={tema.estilo([styles.buttonShadow, cargando && { opacity: 0.6 }])}
             disabled={cargando}
-            accessibilityState={{ busy: cargando }}
+            accessibilityRole="button"
+            accessibilityState={{ busy: cargando, disabled: cargando }}
             onPress={manejarIngreso}
           >
             <LinearGradient

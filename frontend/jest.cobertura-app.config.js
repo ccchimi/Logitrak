@@ -4,14 +4,22 @@
 // muestra cuánto de la app está realmente probado, no solo el módulo crítico.
 const base = require('./jest.config');
 
+// Cada archivo se mide en un solo grupo, para no contarlo dos veces: la lógica
+// (.ts) con ts-jest y las pantallas (.tsx) con jest-expo.
+const soloLogica = ['/node_modules/', '\\.tsx$'];
+const soloPantallas = ['/node_modules/', '\\.ts$'];
+
 module.exports = {
     ...base,
-    transform: {
-        '^.+\\.tsx?$': ['ts-jest', { tsconfig: { strict: true, esModuleInterop: true, jsx: 'react-jsx' } }],
-    },
+    projects: base.projects.map((p) =>
+        p.displayName === 'lógica'
+            ? { ...p, coveragePathIgnorePatterns: soloLogica }
+            : { ...p, coveragePathIgnorePatterns: soloPantallas }
+    ),
     collectCoverageFrom: [
         'src/**/*.{ts,tsx}',
         '!src/**/__tests__/**',
+        '!src/__pruebas__/**',
         '!src/**/*.d.ts',
         '!src/types/**',
     ],

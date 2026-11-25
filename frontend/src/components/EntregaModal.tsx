@@ -110,7 +110,7 @@ export default function EntregaModal({ visible, asignacionCodigo, onCerrar, onEn
             </View>
           ) : (
             <View style={tema.estilo({ gap: 8 })}>
-              <Pressable onPress={() => void sacarFoto()} accessibilityRole="button" style={tema.estilo(s.botonFoto)}>
+              <Pressable onPress={() => void sacarFoto()} accessibilityRole="button" accessibilityLabel="Sacar foto" style={tema.estilo(s.botonFoto)}>
                 <Icono nombre="camara" size={22} color={tema.color(D.amarillo)} />
                 <Text style={tema.estilo(s.botonFotoTexto)}>Sacar foto</Text>
               </Pressable>

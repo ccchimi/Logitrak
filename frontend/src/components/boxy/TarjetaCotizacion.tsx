@@ -97,6 +97,8 @@ export default function TarjetaCotizacion({ resultado, confirmando, onConfirmar 
         <TouchableOpacity
             style={tema.estilo(styles.botonConfirmar)}
             disabled={confirmando}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: confirmando, busy: confirmando }}
             onPress={() => onConfirmar(resultado)}
         >
             <Text style={tema.estilo(styles.botonConfirmarTexto)}>
