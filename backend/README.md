@@ -473,6 +473,11 @@ comparten los archivos de prueba, que corren en paralelo. Además hay
 pruebas de los trabajos de pg-boss, el outbox, la entrega con PIN, los roles y
 el RLS.
 
+`circuito-completo.test.js` recorre un envío de punta a punta: cotización
+calculada en el servidor (aunque la app mande otro precio), confirmación, pago,
+oferta solo al chofer con el vehículo adecuado, retiro, entrega con PIN y foto,
+avisos al cliente, calificación, SLA sin cupón, historial y comprobante en PDF.
+
 La CI corre `npm run test:cobertura` con una base de PostgreSQL limpia y falla
 si la cobertura baja de 85 % de líneas, 75 % de ramas u 80 % de funciones.
 
@@ -569,8 +574,8 @@ un control equivalente en el frontend.
 | POST | `/api/envios/:codigo/reembolsar` | Solicita devolución; permiso `envios.reembolsar`. |
 | POST | `/api/envios/:codigo/archivar` | Operación administrativa sobre envío, con opciones y validaciones de devolución; permiso `envios.archivar`. |
 | POST | `/api/envios/:codigo/desarchivar` | Restauración administrativa de visibilidad; permiso `envios.archivar`. |
-| GET | `/api/asignaciones/disponibles` | Ofertas vigentes compatibles; solo chofer. |
-| POST | `/api/asignaciones/:codigoEnvio/tomar` | Toma una oferta con control de concurrencia; solo chofer. |
+| GET | `/api/asignaciones/disponibles` | Ofertas vigentes que el vehículo del chofer puede llevar; vacío con un aviso si tiene un viaje en curso; solo chofer. |
+| POST | `/api/asignaciones/:codigoEnvio/tomar` | Toma una oferta con control de concurrencia; 409 `viaje_en_curso` si ya tiene un envío asignado o en viaje; solo chofer. |
 | GET | `/api/asignaciones/activa` | Asignación en curso del chofer. |
 | POST | `/api/asignaciones/ubicacion` | Última posición GPS del chofer para su envío en curso; solo chofer, 30 por minuto. |
 | GET | `/api/asignaciones/reputacion` | Promedio, cantidad, distribución por estrellas y últimas 5 calificaciones del chofer; solo chofer. |
@@ -746,10 +751,26 @@ que la flota lo tome.
 
 El recorrido arranca cuando el cliente paga. Recién ahí el envío queda con
 `estado_pago = 'pagado'` y sin chofer, que es la condición para que aparezca en
-`GET /api/asignaciones/disponibles`. Ese listado no es igual para todos: filtra
-por capacidad, comparando el peso y los bultos del envío contra el `max_kg` y el
-`max_bultos` del vehículo que el chofer declaró al postularse, de manera que una
-moto nunca ve una mudanza.
+`GET /api/asignaciones/disponibles`. Ese listado no es igual para todos: muestra
+solo lo que el vehículo del chofer puede llevar, con las mismas reglas con las que
+el cotizador eligió el vehículo (`src/servicios/envios/compatibilidad.js`):
+
+- el **peso facturable** (el mayor entre el real y el volumétrico) contra `max_kg`;
+- los **bultos** contra `max_bultos`;
+- el **volumen total** contra `max_volumen_dm3`;
+- la **capacidad especial** que pide la carga (`cadena_frio`, `carga_voluminosa`,
+  `mercancia_peligrosa`) dentro de `capacidades`.
+
+El envío guarda esos requisitos al crearse (`peso_facturable_kg`, `volumen_dm3`,
+`capacidad_requerida`, copiados de su cotización), y la misma condición se usa en
+la toma y en el aviso por push a los choferes. Así una moto no ve un helado (no
+tiene cadena de frío) ni un utilitario unos solventes (solo los lleva un camión).
+
+Un chofer lleva **un envío a la vez**: con uno asignado o en viaje, el listado
+viene vacío con un aviso y `tomar` responde `409` con `codigo: 'viaje_en_curso'`.
+Durante la toma se bloquea la fila de su ficha, así que dos pedidos simultáneos
+del mismo chofer se ordenan, y el índice único parcial
+`uq_envios_un_viaje_por_chofer` lo garantiza en la base.
 
 Cuando un chofer lo toma, el envío queda asociado a su ficha, pasa a `asignado` y
 se escribe el evento correspondiente en la línea de tiempo que ve el cliente. A

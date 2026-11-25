@@ -23,7 +23,7 @@ Las funciones que requieren sesión, datos, mapas, pagos o notificaciones depend
 | Sesión y preferencias | `expo-secure-store` para la sesión en el teléfono, AsyncStorage para preferencias (y la sesión en la web), cliente HTTP compartido y hooks de tema/preferencias |
 | Tiempo real | Supabase Realtime para seguimiento y soporte, con credenciales emitidas por el backend |
 | Errores | Integración opcional con Sentry |
-| Pruebas | Jest y `ts-jest`; comprobación de tipos con `tsc` |
+| Pruebas | Jest: `ts-jest` para la lógica y `jest-expo` con Testing Library para las pantallas; comprobación de tipos con `tsc` |
 
 El mapa web tiene su implementación en `MapaSeguimiento.web.tsx`. No se utiliza `react-native-maps-directions` ni una variable pública `EXPO_PUBLIC_GOOGLE_DIRECTIONS_KEY`. El contrato de rutas del móvil y su clave de servidor están explicados en la guía de Mobile App.
 
@@ -84,7 +84,7 @@ No debe confundirse este motor con las propuestas de predicción logística del 
 | `Perfil` | Datos, cambio de contraseña, verificación en dos pasos (equipo), preferencias, descarga de los datos de la cuenta, cierre de sesión y eliminación de cuenta según restricciones. |
 | `Cuponera` | Cupones acreditados con su vencimiento ("Vence en 3 días", "Venció el…"), resaltado en la última semana, y cómo usarlos. El aviso de cupón por vencer abre esta pantalla. |
 | `TrabajaConNosotros` | Formulario de postulación por pasos, vehículo, DNI y selfie. |
-| `Chofer` | Ofertas filtradas por peso y bultos del vehículo, asignación, avances, chat con el cliente, cierre de viaje y la tarjeta "Tu calificación" con su promedio y los últimos comentarios. |
+| `Chofer` | Ofertas que su vehículo puede llevar (un viaje a la vez), asignación, avances, chat con el cliente, cierre de viaje y la tarjeta "Tu calificación" con su promedio y los últimos comentarios. |
 | `Estadisticas` | Estadísticas disponibles para el flujo del chofer. |
 | `TodosPedidos` | Consulta operativa de pedidos con filtros y búsqueda. |
 | `UsuariosAdmin` | Usuarios con filtros, paginación, edición de datos y cambio de roles según permisos. |
@@ -92,7 +92,7 @@ No debe confundirse este motor con las propuestas de predicción logística del 
 | `Notificaciones` | Bandeja y lectura de avisos. |
 | `MetodosPago`, `MetodoCobro` | Formularios visuales de métodos; su guardado todavía no está implementado. |
 
-Las ofertas y su toma se validan por peso y bultos. Falta comprobar volumen y capacidades especiales del vehículo, como cadena de frío o transporte de mercancía peligrosa; la recomendación del cotizador no reemplaza esas validaciones.
+Las ofertas, su toma y el aviso a los choferes usan las mismas reglas con las que el cotizador eligió el vehículo: peso facturable (el mayor entre el real y el volumétrico), bultos, volumen y capacidad especial (cadena de frío, carga voluminosa o mercancía peligrosa). El backend las aplica (`servicios/envios/compatibilidad.js`). Un chofer con un envío asignado o en viaje no recibe ofertas ni puede tomar otro; la consola ya ocultaba las ofertas durante el viaje.
 
 El chofer inicia en su consola. El acceso operativo se decide por capacidades devueltas en la sesión y consultadas por `permisos.ts`. El backend vuelve a comprobar los permisos y el acceso a cada recurso; registrar una pantalla en el navegador no concede autorización.
 
@@ -183,13 +183,14 @@ Ejecutá los comandos desde `frontend/`:
 | `npm run web` | Inicia la aplicación web local. |
 | `npm run typecheck` | Comprueba tipos sin generar archivos de compilación. |
 | `npm test -- --runInBand` | Ejecuta las pruebas Jest. |
-| `npm run test:coverage -- --ci` | Ejecuta Jest con cobertura y umbrales. |
+| `npm run test:coverage -- --ci` | Ejecuta Jest con la cobertura del cotizador y su umbral. |
+| `npm run test:cobertura:app` | Mide la cobertura de toda la app, sin umbral (informativa). |
 | `npm run build:web` | Exporta la Web App a `dist/`. |
 | `npm run verify:backend` | Consulta `/api/salud` en la API configurada. No prueba login ni operaciones de negocio. |
 
 Para abrir la versión de desarrollo ejecutá `npm run web` y usá la dirección que informe Expo. Para comprobar la exportación, ejecutá `npm run build:web` y serví `dist/` con un servidor estático; abrir el archivo HTML directamente no equivale al despliegue web.
 
-Los tests cubren el cotizador, helpers y algunos servicios. El umbral de cobertura de `jest.config.js` se aplica a tarifas, cargas, direcciones y NLP; no mide la cobertura de toda la UI. La cantidad de casos y su resultado deben consultarse en la ejecución correspondiente.
+Jest corre dos grupos (`jest.config.js`): **lógica**, con `ts-jest`, para el cotizador, los helpers y los servicios (`*.test.ts`), y **pantallas**, con `jest-expo` y Testing Library (`*.test.tsx`, preparación en `src/__pruebas__/`), para componentes renderizados: la tarjeta de cotización con una cotización real de Boxy, la entrega con PIN y foto, y el login con verificación en dos pasos. El umbral de `jest.config.js` se aplica a la cobertura del cotizador (tarifas, cargas, direcciones y NLP); la de toda la app se mide aparte con `jest.cobertura-app.config.js`, que cuenta cada archivo una sola vez, y la CI la publica en el resumen sin frenar. La cantidad de casos y su resultado deben consultarse en la ejecución correspondiente.
 
 ### Publicación web
 

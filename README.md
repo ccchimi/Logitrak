@@ -22,7 +22,7 @@ El sistema tiene cuatro roles. Los permisos efectivos se comprueban en el backen
 | Rol | Acceso y funciones principales |
 |---|---|
 | `cliente` | Se registra en la aplicación. Cotiza con Boxy, crea y paga pedidos, consulta seguimiento, historial, cupones, notificaciones y soporte, y califica al chofer cuando recibe el envío. |
-| `chofer` | Se obtiene mediante la postulación y verificación de identidad. Consulta ofertas filtradas por peso y bultos de su vehículo, toma viajes, registra avances y confirma entregas. Ve su promedio de calificaciones y los comentarios de los clientes. |
+| `chofer` | Se obtiene mediante la postulación y verificación de identidad. Consulta las ofertas que su vehículo puede llevar (peso facturable, bultos, volumen y capacidad especial, con las mismas reglas que usó el cotizador), lleva un viaje a la vez, registra avances y confirma entregas. Ve su promedio de calificaciones y los comentarios de los clientes. |
 | `soporte` | Lo asigna un administrador. Accede al panel operativo, consulta envíos, usuarios, cotizaciones y pagos; atiende consultas y puede desbloquear un PIN de entrega. |
 | `admin` | Si la base no tiene ningún admin, el primero se crea al arrancar con `ADMIN_INICIAL_USUARIO` y `ADMIN_INICIAL_CONTRASENA`; los demás los nombra otro administrador desde Usuarios. Tiene las capacidades de soporte y permisos adicionales sobre reembolsos, roles, edición de los datos de otras cuentas, documentación y mantenimiento. |
 
@@ -100,7 +100,7 @@ La persistencia incluye usuarios, sesiones, choferes, vehículos, cotizaciones, 
 | Sesiones y validación | JWT, `bcryptjs`, Zod, Helmet y `express-rate-limit` |
 | Integraciones | Supabase, Mercado Pago, MODO y Expo Push |
 | Observabilidad | Pino y Sentry opcional |
-| Pruebas | Jest y `ts-jest` en frontend; `node:test` y Supertest en backend |
+| Pruebas | Jest en frontend: `ts-jest` para la lógica y `jest-expo` con Testing Library para las pantallas; `node:test` y Supertest en backend |
 
 ### Diferencias entre web y móvil
 
@@ -254,11 +254,12 @@ Desde `frontend/`:
 npm run typecheck
 npm test -- --runInBand
 npm run test:coverage -- --ci
+npm run test:cobertura:app
 npm run build:web
 npm run verify:backend
 ```
 
-`verify:backend` consulta la salud de la API configurada. No comprueba login, pagos ni el circuito completo de un envío. La cobertura de Jest se mide actualmente sobre los módulos de tarifas, cargas, direcciones y NLP definidos en `jest.config.js`, no sobre todas las pantallas.
+Jest corre dos grupos: **lógica** (servicios, helpers y el cotizador, `*.test.ts`) y **pantallas** (componentes renderizados con `jest-expo` y Testing Library, `*.test.tsx`: la tarjeta de cotización, la entrega con PIN y foto, y el login con verificación en dos pasos). La cobertura se informa por separado: `test:coverage` exige el umbral sobre el cotizador (tarifas, cargas, direcciones y NLP, hoy 98,7 % de líneas) y `test:cobertura:app` mide toda la app (hoy 23 % de líneas), que la CI publica en el resumen de cada ejecución sin frenar. `verify:backend` solo consulta la salud de la API configurada.
 
 Desde `backend/`, con dependencias instaladas:
 
@@ -266,6 +267,8 @@ Desde `backend/`, con dependencias instaladas:
 npm test
 npm run test:cobertura
 ```
+
+El backend tiene además una prueba del **circuito completo** de un envío (`src/integracion/circuito-completo.test.js`): cotización calculada en el servidor, pago, oferta solo al chofer con el vehículo adecuado, retiro, entrega con PIN y foto, avisos, calificación, comprobante e historial.
 
 Las pruebas que necesitan PostgreSQL deben usar `TEST_DATABASE_URL` con una base descartable. Sin esa configuración, parte de las pruebas de integración se omite. No se debe reutilizar la base operativa para ejecutar pruebas.
 
