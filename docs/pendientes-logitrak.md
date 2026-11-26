@@ -2,6 +2,21 @@
 Lista de tareas pendientes y limitaciones conocidas. Lo que ya está implementado
 y verificado se saca de acá; el historial queda en los commits.
 
+Otros documentos con pendientes de un tema puntual:
+
+- [Integraciones](integraciones.md): qué es real, qué está simulado y qué
+  configuración tiene que cargar el equipo en cada servicio.
+- [Política de datos](politica-de-datos.md#pendiente): datos personales.
+- [Conclusiones de QA](qa/conclusiones-qa.md#4-qué-haríamos-distinto) y
+  [plan de mantenimiento](qa/plan-de-mantenimiento.md#4-estado-de-implementación):
+  protección de la rama principal, análisis estático bloqueante en la CI,
+  pruebas de carga y tiempo de carga en el celular.
+- [Pruebas de usabilidad](qa/pruebas-de-usabilidad.md#4-backlog): los cuatro
+  tickets que salieron de las sesiones con usuarios.
+- Sección de limitaciones de cada README ([raíz](../README.md),
+  [backend](../backend/README.md), [frontend](../frontend/README.md)).
+- [Roadmap](ROADMAP.md): ideas a futuro, no pendientes.
+
 1. Reembolsos reales de Mercado Pago sin verificar. El pago de punta a punta ya
    funciona (probado desde mobile con el usuario comprador). El reembolso no se
    pudo probar: las cuentas de prueba no tienen permitido reembolsar y la API
@@ -23,7 +38,7 @@ y verificado se saca de acá; el historial queda en los commits.
    `EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_KEY` como variable de EAS.
 5. Más tests del backend. Todas las rutas tienen pruebas de integración con
    `supertest` contra PostgreSQL, y la CI exige cobertura mínima (85 % de
-   líneas; hoy hay 93,8 %). Mercado Pago y MODO se prueban con las pasarelas
+   líneas; hoy hay 94 %). Mercado Pago y MODO se prueban con las pasarelas
    simuladas; lo que sigue más flojo son los adjuntos de soporte con Storage.
 6. Verificar la firma del webhook con notificaciones reales de Mercado Pago.
    El backend ya exige la firma (`MP_WEBHOOK_SECRET`) y está probado con
@@ -89,3 +104,29 @@ y verificado se saca de acá; el historial queda en los commits.
 19. Chat del envío: confirmar en producción que la política de Realtime de
     `envio_mensajes` entrega los mensajes (localmente se probó con la consulta
     de respaldo) y probar en el teléfono la cámara para mandar fotos.
+20. Cargar `GOOGLE_DIRECTIONS_KEY` en Render. Sin esa clave, `/api/salud`
+    muestra `googleDirections: no_configurado` y las distancias de la
+    cotización y el recorrido se estiman en línea recta. Es la observación del
+    Parcial 2 sobre la precisión de las distancias. Después aplicarle las
+    restricciones del punto 8.
+21. Activar MODO: pedir las credenciales (`MODO_CLIENT_ID`,
+    `MODO_CLIENT_SECRET`, `MODO_STORE_ID`) y cargarlas en Render. Sin ellas
+    `/api/salud` muestra `modo: no_configurado` y la app no ofrece MODO.
+22. Tarjetas guardadas y cuenta de cobro del chofer: las pantallas
+    (`MetodosScreen`) existen pero avisan que no guardan datos. El pago al
+    chofer se calcula en cada oferta, pero la app no se lo transfiere; hace
+    falta definir cómo cobra (proveedor y cuenta) antes de operar en serio.
+23. Validación de identidad con RENAPER: no está implementada (`llamarApiReal`
+    lanza un error). Hoy se compara el PDF417 del DNI con el nombre ingresado y
+    la selfie; hace falta un convenio o proveedor para la validación oficial.
+24. Revisar si alguien usó la recuperación de contraseña vieja. Hasta el
+    26/11/2026, `POST /api/auth/recuperar` cambiaba la contraseña de cualquier
+    cliente o chofer con solo su usuario. Se puede ver en `auditoria_accesos`
+    de producción: los ingresos de una cuenta desde una IP nueva después de un
+    cambio así. Necesita acceso a la base de producción.
+25. Recuperación de contraseña por mail: hoy la resuelve soporte con una
+    contraseña temporal. Con un proveedor de correo (punto 17) y el email
+    confirmado (punto 2) puede pasar a un link de un solo uso.
+26. La app de Android instalada usa el formato viejo del pedido de
+    recuperación: al pedirla muestra "Dejanos un email o un teléfono…" y no
+    puede completarla. Se resuelve con el build nuevo del punto 13.
