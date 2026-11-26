@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1050" viewBox="0 0 1600 1050" font-family="sans-serif">
   <rect width="1600" height="1050" fill="#FFFFFF"/>
 
-  <text x="800" y="44" text-anchor="middle" font-size="30" font-weight="bold" fill="#1F3864">Logitrak · Arquitectura (actualizada al 15/11/2026)</text>
+  <text x="800" y="44" text-anchor="middle" font-size="30" font-weight="bold" fill="#1F3864">Logitrak · Arquitectura (actualizada al 26/11/2026)</text>
 
   <!-- Columna cliente -->
   <rect x="30" y="80" width="470" height="660" rx="16" fill="#F2F6FC" stroke="#2E5496" stroke-width="2"/>
@@ -17,7 +17,7 @@
 
   <rect x="60" y="250" width="410" height="80" rx="10" fill="#FFFFFF" stroke="#8EA9DB"/>
   <text x="265" y="282" text-anchor="middle" font-size="18" font-weight="bold" fill="#1F3864">screens/ · components/</text>
-  <text x="265" y="308" text-anchor="middle" font-size="14" fill="#44546A">21 pantallas · componentes por dominio (boxy/, admin/, inicio/)</text>
+  <text x="265" y="308" text-anchor="middle" font-size="14" fill="#44546A">22 pantallas · componentes por dominio (boxy/, admin/, inicio/)</text>
 
   <rect x="60" y="350" width="410" height="96" rx="10" fill="#FFF7E6" stroke="#C9A227"/>
   <text x="265" y="380" text-anchor="middle" font-size="18" font-weight="bold" fill="#7F6000">Boxy · services/botLogistica</text>
@@ -36,7 +36,7 @@
   <text x="370" y="620" text-anchor="middle" font-size="13" fill="#44546A">estilos por pantalla</text>
 
   <rect x="60" y="656" width="410" height="62" rx="10" fill="#FFFFFF" stroke="#8EA9DB"/>
-  <text x="265" y="684" text-anchor="middle" font-size="16" font-weight="bold" fill="#1F3864">Jest · 211 pruebas de la app</text>
+  <text x="265" y="684" text-anchor="middle" font-size="16" font-weight="bold" fill="#1F3864">Jest · 292 pruebas de la app</text>
   <text x="265" y="706" text-anchor="middle" font-size="13" fill="#44546A">cotizador, servicios, helpers y paneles</text>
 
   <!-- Columna backend -->
@@ -61,14 +61,14 @@
   <rect x="590" y="487" width="420" height="96" rx="10" fill="#FFFFFF" stroke="#A9D18E"/>
   <text x="800" y="517" text-anchor="middle" font-size="18" font-weight="bold" fill="#385723">servicios/</text>
   <text x="800" y="542" text-anchor="middle" font-size="14" fill="#44546A">pagos y reembolsos · entrega con PIN y foto</text>
-  <text x="800" y="565" text-anchor="middle" font-size="14" fill="#44546A">trabajos pg-boss (ofertas, impagos, SLA) · outbox</text>
+  <text x="800" y="565" text-anchor="middle" font-size="14" fill="#44546A">trabajos pg-boss (ofertas, SLA, retención) · outbox</text>
 
   <rect x="590" y="603" width="420" height="62" rx="10" fill="#FFFFFF" stroke="#A9D18E"/>
   <text x="800" y="631" text-anchor="middle" font-size="16" font-weight="bold" fill="#385723">db/ · SQL parametrizado (pg) · migraciones</text>
   <text x="800" y="653" text-anchor="middle" font-size="13" fill="#44546A">node-pg-migrate · RLS en todas las tablas</text>
 
   <rect x="590" y="680" width="420" height="44" rx="10" fill="#FFFFFF" stroke="#A9D18E"/>
-  <text x="800" y="708" text-anchor="middle" font-size="15" fill="#385723">node:test + supertest · 256 pruebas · cobertura 89 %</text>
+  <text x="800" y="708" text-anchor="middle" font-size="15" fill="#385723">node:test + supertest · 385 pruebas · cobertura 94 %</text>
 
   <!-- Columna externos -->
   <rect x="1100" y="80" width="470" height="660" rx="16" fill="#F7F3FA" stroke="#7030A0" stroke-width="2"/>
@@ -78,15 +78,15 @@
   <text x="1335" y="182" text-anchor="middle" font-size="18" font-weight="bold" fill="#4B1F6F">Supabase</text>
   <text x="1335" y="208" text-anchor="middle" font-size="14" fill="#44546A">PostgreSQL (datos del sistema)</text>
   <text x="1335" y="231" text-anchor="middle" font-size="14" fill="#44546A">Storage privado (identidad y fotos de entrega)</text>
-  <text x="1335" y="254" text-anchor="middle" font-size="14" fill="#44546A">Realtime (seguimiento y chat de soporte)</text>
+  <text x="1335" y="254" text-anchor="middle" font-size="14" fill="#44546A">Realtime (seguimiento, ubicación y chats)</text>
 
   <rect x="1130" y="290" width="410" height="80" rx="10" fill="#FFFFFF" stroke="#B4A0CC"/>
   <text x="1335" y="322" text-anchor="middle" font-size="18" font-weight="bold" fill="#4B1F6F">Mercado Pago · MODO</text>
   <text x="1335" y="348" text-anchor="middle" font-size="14" fill="#44546A">checkout, QR y webhooks (modo sandbox sin claves)</text>
 
   <rect x="1130" y="390" width="410" height="80" rx="10" fill="#FFFFFF" stroke="#B4A0CC"/>
-  <text x="1335" y="422" text-anchor="middle" font-size="18" font-weight="bold" fill="#4B1F6F">RENAPER (opcional)</text>
-  <text x="1335" y="448" text-anchor="middle" font-size="14" fill="#44546A">sin clave: lectura offline del PDF417 del DNI</text>
+  <text x="1335" y="422" text-anchor="middle" font-size="18" font-weight="bold" fill="#4B1F6F">RENAPER (no implementado)</text>
+  <text x="1335" y="448" text-anchor="middle" font-size="14" fill="#44546A">hoy: lectura del PDF417 del DNI en el teléfono</text>
 
   <rect x="1130" y="490" width="410" height="80" rx="10" fill="#FFFFFF" stroke="#B4A0CC"/>
   <text x="1335" y="522" text-anchor="middle" font-size="18" font-weight="bold" fill="#4B1F6F">Google Maps · Expo Push</text>

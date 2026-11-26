@@ -9,7 +9,7 @@
 
 **Integrantes:** Franco Martin Schimizzi, Claudio Kevin Oturakdjian, Melina Rocio Martins, Candela Analia Nuñez
 
-**Versión actualizada:** 15 de noviembre de 2026. La entrega original es del 2 de noviembre; esta versión refleja el estado actual del repositorio.
+**Versión actualizada:** 26 de noviembre de 2026. La entrega original es del 2 de noviembre; esta versión refleja el estado actual del repositorio.
 
 ## Enlaces de la entrega
 
@@ -30,8 +30,8 @@ Logitrak pasó del diseño del Parcial 1 a un sistema que funciona de punta a pu
 
 El repositorio está dividido en dos partes que se despliegan por separado:
 
-- **`frontend/`**: aplicación en **Expo + React Native con TypeScript**. Con un mismo código se compila la **Mobile App** (Android e iOS) y la **Web App** (con `react-native-web`). Tiene 21 pantallas organizadas por capas: `screens/`, `components/`, `services/`, `helpers/`, `constants/`, `styles/` y `navigation/`.
-- **`backend/`**: **API REST en Node.js + Express** sobre **PostgreSQL** (Supabase). Tiene 13 grupos de rutas (autenticación, cotizaciones, envíos, asignaciones, pagos, cupones, soporte, perfil, choferes, vehículos, notificaciones, recorridos y administración), autenticación con JWT y refresh token, permisos por capacidad para cuatro roles, migraciones versionadas y trabajos en segundo plano.
+- **`frontend/`**: aplicación en **Expo + React Native con TypeScript**. Con un mismo código se compila la **Mobile App** (Android e iOS) y la **Web App** (con `react-native-web`). Tiene 22 pantallas organizadas por capas: `screens/`, `components/`, `services/`, `helpers/`, `constants/`, `styles/` y `navigation/`.
+- **`backend/`**: **API REST en Node.js + Express** sobre **PostgreSQL** (Supabase). Tiene 15 grupos de rutas (autenticación, verificación en dos pasos, cotizaciones, envíos, chat del envío, asignaciones, pagos, cupones, soporte, perfil, choferes, vehículos, notificaciones, recorridos y administración) y un chequeo de salud, autenticación con JWT y refresh token, permisos por capacidad para cuatro roles, migraciones versionadas y trabajos en segundo plano.
 
 Estado de los módulos:
 
@@ -52,6 +52,8 @@ Estado de los módulos:
 | Chat entre el cliente y el chofer durante el viaje | Implementado (nuevo en esta etapa) |
 | Soporte: tickets, chat en tiempo real y bot de soporte | Implementado (no estaba en el diseño) |
 | Panel de administración y rol soporte | Implementado: métricas calculadas en el servidor, consulta de pedidos con filtros y páginas, reembolso y archivo de envíos, registro de devoluciones hechas a mano, listado de usuarios con filtros, cambio de rol y edición de los datos de otras cuentas |
+| Preferencias (modo claro y modo silencioso) y estadísticas del chofer | Implementado: las preferencias se guardan en el dispositivo; el chofer ve sus ganancias y entregas por día |
+| Tarjetas guardadas y cuenta de cobro del chofer | Pendiente: las pantallas existen pero avisan que no guardan datos. El pago al chofer se calcula en cada oferta, pero la app no lo transfiere |
 
 **Mantenibilidad.** Respondiendo a la observación del Parcial 2, se dividieron los archivos que concentraban más responsabilidades. En el backend, las rutas de envíos (824 líneas) y de pagos (604) pasaron a módulos por responsabilidad (alta, consultas, viaje, cliente y administración; checkout, tarjeta, consultas, devoluciones y webhooks), y la aprobación de un pago, que repetían cuatro rutas, quedó en un único servicio (`servicios/pagos/aprobacion.js`). En la app, las cinco pantallas más grandes (consola del chofer, detalle del envío, Mi Perfil, usuarios y pedidos del panel, de 529 a 717 líneas) quedaron entre 190 y 353: cada tarjeta o lista es un componente propio y los cálculos y textos pasaron a funciones con pruebas. Los listados del panel comparten el campo de filtro, el encabezado de tabla y la paginación.
 
@@ -71,7 +73,7 @@ Estado de los módulos:
 | **SQL parametrizado con `pg`**, sin ORM | Prisma, Sequelize | Control total de las consultas con bloqueo (`FOR UPDATE`) y nada de superficie para inyección SQL. |
 | **Zod** para validar las entradas en el servidor | Validación manual en cada ruta | Un esquema por ruta, con errores por campo: nada sin validar llega a la base. |
 | **Migraciones versionadas** con node-pg-migrate | Un único script SQL que se reaplica al arrancar | Cada cambio de esquema queda registrado, se aplica una sola vez y se puede revertir. |
-| **pg-boss** para trabajos en segundo plano | setInterval en la API, cron externo, Redis + BullMQ | Vence ofertas y pedidos impagos, revisa el SLA y despacha notificaciones usando la misma base PostgreSQL: no suma infraestructura, sobrevive a los reinicios y reintenta con espera creciente. |
+| **pg-boss** para trabajos en segundo plano | setInterval en la API, cron externo, Redis + BullMQ | Vence ofertas y pedidos impagos, revisa el SLA, vence y avisa los cupones, devuelve los cobros de más, reintenta borrar archivos, aplica los plazos de conservación de datos y despacha notificaciones usando la misma base PostgreSQL: no suma infraestructura, sobrevive a los reinicios y reintenta con espera creciente. |
 | **Patrón outbox** para avisos y push | Enviar el aviso dentro de la misma petición | El aviso se guarda en la misma transacción que el cambio: no se pierde si algo falla, ni se avisa algo que no ocurrió. |
 | **Supabase Realtime + RLS** para el seguimiento y **Expo Notifications + FCM** para push | WebSockets propios; consultar la API cada pocos segundos | Tiempo real sin un servidor extra; las políticas RLS hacen que cada usuario lea solo sus envíos. |
 | **pino + Sentry** y chequeo de salud (`/api/salud`) | console.log | Logs estructurados por pedido y un chequeo que prueba la conectividad real con la base y los servicios externos. |
@@ -99,7 +101,7 @@ Estado de los módulos:
 | RF14: emails con comprobante | Desde que el envío está pago, el cliente descarga desde la app un comprobante en PDF con el envío, el chofer, la entrega y el pago (medio, comprobante, cupón y total) | Cumplido en parte en esta etapa: el comprobante se descarga, no llega por mail, porque el registro no pide el email del cliente. El envío por mail queda para la siguiente etapa. |
 | RF16: valoraciones | Con el envío entregado, el cliente califica al chofer con 1 a 5 estrellas y un comentario opcional, una sola vez por envío. El chofer recibe un aviso y ve su promedio, la distribución y los últimos comentarios; el cliente ve el promedio del chofer en el detalle del envío. | Cumplido en esta etapa. Si el cliente elimina su cuenta, se borra el comentario y queda el puntaje. |
 | RF17: panel de administración | El personal ve todos los envíos y las métricas; el admin reembolsa, archiva, lista usuarios con filtros, cambia roles y edita los datos de otras cuentas: el nombre y, en los choferes, el email, el teléfono, el domicilio y el vehículo. Se sumó el rol soporte, que atiende consultas sin acceso a reembolsos, roles, edición de cuentas ni documentos de identidad | Cumplido en esta etapa. El usuario, la contraseña y el DNI no se editan desde el panel, y la cuenta afectada recibe un aviso con los datos que cambiaron. |
-| Panel del chofer con interruptor Online/Offline | La consola del chofer muestra si está disponible y las ofertas compatibles; no hay un interruptor manual | Se simplificó: el chofer recibe ofertas mientras tiene la consola abierta. |
+| Panel del chofer con interruptor Online/Offline | La consola tiene un interruptor que pausa la búsqueda de ofertas en la app. La disponibilidad no se guarda en el servidor: los avisos de envíos nuevos llegan igual | Se simplificó: no hace falta un estado de disponibilidad en el servidor porque el envío lo toma el primero que acepta. |
 | Postulación de chofer solo en mobile | También se puede iniciar desde la web; la prueba de vida y el escaneo funcionan mejor en el teléfono | Para no bloquear el alta desde una computadora. |
 | CU-14: compensación por SLA a cargo del sistema | Un trabajo del servidor revisa cada envío pago y acredita un cupón del 10 % si el chofer no llega al retiro en el plazo que prometió la cotización | Resuelto: antes el disparo estaba en la app y la regla no coincidía con lo prometido. |
 | — | Módulo de soporte con tickets, chat en tiempo real (Supabase Realtime) y bot | Surgió en el desarrollo para atender reclamos sin salir de la app. |
@@ -115,9 +117,9 @@ Estado de los módulos:
 
 ## 4. Diagrama actualizado de arquitectura
 
-![Figura 1: Arquitectura de Logitrak (actualizada al 15/11/2026)](img/arquitectura-parcial-2.png)
+![Figura 1: Arquitectura de Logitrak (actualizada al 26/11/2026)](img/arquitectura-parcial-2.png)
 
-La arquitectura es cliente-servidor en capas. La app (web y mobile) no accede a la base de datos para operar: todo pasa por la API REST con un token JWT. El backend es el único que escribe en PostgreSQL y el único que habla con las pasarelas de pago, RENAPER y el servicio de push. Dentro del backend, los trabajos en segundo plano (pg-boss) vencen ofertas y pedidos impagos, revisan el SLA y despachan las notificaciones registradas en el outbox. Las excepciones son de lectura: el mapa de Google Maps y Supabase Realtime, por el que la app escucha el seguimiento de su envío y el chat de soporte con un token de solo lectura firmado por el backend; las políticas RLS hacen que cada usuario vea solo lo suyo. Boxy existe en los dos lados con el mismo código: en la app para responder al instante y en el servidor para decidir el precio que se cobra y el plazo de retiro que se compensa.
+La arquitectura es cliente-servidor en capas. La app (web y mobile) no accede a la base de datos para operar: todo pasa por la API REST con un token JWT. El backend es el único que escribe en PostgreSQL y el único que habla con las pasarelas de pago, el Storage privado y el servicio de push (la validación con RENAPER está prevista, pero todavía no está implementada). Dentro del backend, los trabajos en segundo plano (pg-boss) vencen ofertas y pedidos impagos, revisan el SLA, aplican los plazos de conservación de datos y despachan las notificaciones registradas en el outbox. Las excepciones son de lectura: el mapa de Google Maps y Supabase Realtime, por el que la app escucha el seguimiento de su envío, la ubicación del chofer, el chat del envío y el chat de soporte con un token de solo lectura firmado por el backend; las políticas RLS hacen que cada usuario vea solo lo suyo. Boxy existe en los dos lados con el mismo código: en la app para responder al instante y en el servidor para decidir el precio que se cobra y el plazo de retiro que se compensa.
 
 ## 5. Responsabilidades individuales
 
