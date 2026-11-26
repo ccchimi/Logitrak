@@ -1,14 +1,6 @@
 import { useTema } from "../hooks/useTema";
 import React, { useCallback, useEffect, useState } from "react";
-import {
-  Image,
-  ActivityIndicator,
-  ScrollView,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { ActivityIndicator, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import Confirmacion from "../components/Confirmacion";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -27,159 +19,20 @@ import { registrarDevolucionManual } from "../services/pagosService";
 import { ToastStack, useToasts } from "../components/Toasts";
 import { puede } from "../services/permisos";
 import TarjetaValoracion from "../components/envio/TarjetaValoracion";
-import { textoPromedio, type Puntaje } from "../helpers/valoraciones";
+import TarjetaPago from "../components/envio/TarjetaPago";
+import { Badge, Tarjeta } from "../components/envio/Piezas";
 import {
-  COLORS,
-  ESTADO_ENVIO_COLOR,
-  ESTADO_PAGO_COLOR,
-  styles,
-} from "../styles/DetalleEnvioStyles";
-
-const NOMBRE_ESTADO: Record<string, string> = {
-  pendiente: "Buscando chofer",
-  asignado: "Chofer asignado",
-  en_viaje: "En viaje",
-  entregado: "Entregado",
-  cancelado: "Cancelado",
-};
-
-const NOMBRE_ESTADO_PAGO: Record<string, string> = {
-  pendiente: "Pago pendiente",
-  pagado: "Pagado",
-  rechazado: "Pago rechazado",
-  reembolsado: "Importe devuelto",
-};
-
-const NOMBRE_METODO: Record<string, string> = {
-  mercadopago: "Mercado Pago",
-  modo: "MODO",
-  tarjeta: "Tarjeta",
-};
-
-const NOMBRE_ESTADO_PAGO_DETALLE: Record<string, string> = {
-  pendiente: "Pendiente",
-  aprobado: "Aprobado",
-  rechazado: "Rechazado",
-  cancelado: "Cancelado",
-  expirado: "Expirado",
-  reembolsado: "Devuelto",
-};
-
-const pesos = (monto: number | null, moneda = "ARS") =>
-  monto === null
-    ? "—"
-    : `$${Math.round(monto).toLocaleString("es-AR")} ${moneda}`;
-
-const fechaLarga = (iso: string | null) => {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleString("es-AR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-};
-
-function Badge({ color, texto }: { color: string; texto: string }) {
-  const tema = useTema();
-  return (
-    <View style={tema.estilo([styles.badge, { backgroundColor: `${color}22` }])}>
-      <View style={tema.estilo([styles.badgePunto, { backgroundColor: color }])} />
-      <Text style={tema.estilo([styles.badgeTexto, { color }])}>{texto}</Text>
-    </View>
-  );
-}
-
-function Dato({
-  etiqueta,
-  valor,
-  primera,
-  largo,
-}: {
-  etiqueta: string;
-  valor: string | null;
-  primera?: boolean;
-  largo?: boolean;
-}) {
-  const tema = useTema();
-  if (!valor) return null;
-  return (
-    <View style={tema.estilo([styles.fila, primera && styles.filaPrimera])}>
-      <Text style={tema.estilo(styles.etiqueta)}>{etiqueta}</Text>
-      <Text style={tema.estilo([styles.valor, largo && styles.valorLargo])}>{valor}</Text>
-    </View>
-  );
-}
-
-function TarjetaPago({ pago, onRegistrarDevolucion }: { pago: PagoDeEnvio; onRegistrarDevolucion?: () => void }) {
-  const tema = useTema();
-  const color = ESTADO_PAGO_COLOR[pago.estado] ?? COLORS.muted;
-
-  return (
-    <View style={tema.estilo(styles.pagoCaja)}>
-      <View style={tema.estilo(styles.pagoTop)}>
-        <Text style={tema.estilo(styles.pagoMonto)}>{pesos(pago.monto, pago.moneda)}</Text>
-        <Badge
-          color={tema.color(color)}
-          texto={NOMBRE_ESTADO_PAGO_DETALLE[pago.estado] ?? pago.estado}
-        />
-      </View>
-
-      <Dato
-        etiqueta="Método"
-        valor={NOMBRE_METODO[pago.metodo] ?? pago.metodo}
-        primera
-      />
-      <Dato
-        etiqueta="Tarjeta"
-        valor={
-          pago.tarjetaUltimos
-            ? `${pago.tarjetaMarca ?? "Tarjeta"} ····${pago.tarjetaUltimos}${
-                pago.cuotas && pago.cuotas > 1 ? ` · ${pago.cuotas} cuotas` : ""
-              }`
-            : null
-        }
-      />
-      <Dato etiqueta="Comprobante" valor={pago.comprobante} />
-      <Dato etiqueta="Referencia" valor={pago.codigo} />
-      <Dato etiqueta="ID en la pasarela" valor={pago.pagoExtId} />
-      <Dato
-        etiqueta="Entorno"
-        valor={pago.modoProc === "real" ? "Pasarela real" : "Sandbox"}
-      />
-      <Dato
-        etiqueta="Pagado el"
-        valor={pago.pagadoEn ? fechaLarga(pago.pagadoEn) : null}
-      />
-      <Dato
-        etiqueta="Devuelto el"
-        valor={pago.reembolsadoEn ? fechaLarga(pago.reembolsadoEn) : null}
-      />
-
-      {pago.reembolsoPendiente ? (
-        <View style={tema.estilo(styles.avisoReembolso)}>
-          <Text style={tema.estilo(styles.avisoReembolsoTexto)}>
-            La devolución no se pudo emitir: {pago.reembolsoPendiente}. Hay que
-            hacerla a mano desde el panel de la pasarela de pago.
-          </Text>
-          {onRegistrarDevolucion && pago.estado === "aprobado" ? (
-            <TouchableOpacity
-              style={tema.estilo([styles.boton, styles.botonNeutro, { marginTop: 10 }])}
-              onPress={onRegistrarDevolucion}
-              accessibilityRole="button"
-              accessibilityLabel={`Registrar que la devolución del pago ${pago.codigo} se hizo a mano`}
-            >
-              <Text style={tema.estilo(styles.botonNeutroTexto)}>Registrar devolución hecha a mano</Text>
-            </TouchableOpacity>
-          ) : null}
-        </View>
-      ) : null}
-    </View>
-  );
-}
+  HistorialEnvio,
+  TarjetaCarga,
+  TarjetaChat,
+  TarjetaChofer,
+  TarjetaComprobanteEntrega,
+  TarjetaPin,
+  TarjetaRecorrido,
+} from "../components/envio/DatosDelEnvio";
+import type { Puntaje } from "../helpers/valoraciones";
+import { accionesDelEnvio, NOMBRE_ESTADO, NOMBRE_ESTADO_PAGO, pesos } from "../helpers/detalleEnvio";
+import { COLORS, ESTADO_ENVIO_COLOR, ESTADO_PAGO_COLOR, styles } from "../styles/DetalleEnvioStyles";
 
 export default function DetalleEnvioScreen({ navigation, route }: any) {
   const tema = useTema();
@@ -303,24 +156,12 @@ export default function DetalleEnvioScreen({ navigation, route }: any) {
   }
 
   const { envio, eventos, pagos, entrega, valoracion = null, reputacionChofer = null, chat = null } = datos;
-  const esCliente = envio.clienteId === obtenerUsuarioSesion()?.id;
-  const puedeCalificar = esCliente && envio.estado === "entregado" && Boolean(envio.choferId) && !envio.archivadoEn;
+  const { esCliente, puedeCalificar, puedeCancelar } = accionesDelEnvio(envio, obtenerUsuarioSesion()?.id);
   const eventosVisibles = esAdmin
     ? eventos.filter((ev) => ev.titulo !== "Envío archivado por un administrador")
     : eventos;
   const pagoAprobado = pagos.find((p) => p.estado === "aprobado") ?? null;
-  const puedeCancelar =
-    esCliente &&
-    envio.estado === "pendiente" &&
-    !envio.choferNombre &&
-    !envio.archivadoEn;
   const estaPago = envio.estadoPago === "pagado";
-  const dimensiones = [
-    envio.pesoKg ? `${envio.pesoKg} kg` : null,
-    envio.bultos ? `${envio.bultos} bultos` : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
 
   return (
     <SafeAreaView style={tema.estilo(styles.safeArea)}>
@@ -353,131 +194,19 @@ export default function DetalleEnvioScreen({ navigation, route }: any) {
             ) : null}
           </View>
 
-          {entrega?.pin ? (
-            <View style={tema.estilo([styles.tarjeta, { borderColor: "#FFDE00", borderWidth: 1 }])}>
-              <Text style={tema.estilo(styles.tarjetaTitulo)}>PIN de entrega</Text>
-              <Text
-                style={tema.estilo({ fontFamily: "Poppins_700Bold", fontSize: 36, letterSpacing: 12, color: "#FFDE00", marginVertical: 6 })}
-                accessibilityLabel={`PIN de entrega ${entrega.pin.split("").join(" ")}`}
-                selectable
-              >
-                {entrega.pin}
-              </Text>
-              <Text style={tema.estilo(styles.vacio)}>
-                Pasáselo solo a quien va a recibir el paquete: el chofer lo necesita para cerrar la entrega. Nadie de Logitrak te lo va a pedir.
-              </Text>
-              {entrega.pinBloqueado ? (
-                <Text style={tema.estilo([styles.vacio, { color: "#FF8A80", marginTop: 6 }])}>
-                  Se ingresó mal demasiadas veces y quedó bloqueado. Escribinos a soporte para desbloquearlo.
-                </Text>
-              ) : null}
-            </View>
-          ) : null}
-
-          <View style={tema.estilo(styles.tarjeta)}>
-            <Text style={tema.estilo(styles.tarjetaTitulo)}>Recorrido</Text>
-            <View style={tema.estilo(styles.rutaCaja)}>
-              <Text style={tema.estilo(styles.rutaEtiqueta)}>Retiro</Text>
-              <Text style={tema.estilo(styles.rutaValor)}>{envio.origen}</Text>
-              <Text style={tema.estilo(styles.rutaEtiqueta)}>Entrega</Text>
-              <Text style={tema.estilo([styles.rutaValor, { marginBottom: 0 }])}>
-                {envio.destino}
-              </Text>
-            </View>
-            <Dato
-              etiqueta="Distancia"
-              valor={envio.distanciaKm ? `${envio.distanciaKm} km` : null}
-            />
-            <Dato etiqueta="Creado el" valor={fechaLarga(envio.creadoEn)} />
-            <Dato etiqueta="Última actualización" valor={fechaLarga(envio.actualizadoEn)} />
-            {esAdmin && <Dato etiqueta="Cliente" valor={`Cliente #${envio.clienteId}`} />}
-            <Dato
-              etiqueta="Entregado el"
-              valor={envio.entregadoEn ? fechaLarga(envio.entregadoEn) : null}
-            />
-          </View>
-
-          <View style={tema.estilo(styles.tarjeta)}>
-            <Text style={tema.estilo(styles.tarjetaTitulo)}>Qué se envía</Text>
-            <Dato
-              etiqueta="Descripción"
-              valor={envio.descripcionCarga}
-              primera
-              largo
-            />
-            <Dato etiqueta="Categoría" valor={envio.categoriaCarga} />
-            <Dato etiqueta="Carga" valor={dimensiones || null} />
-            <Dato
-              etiqueta="Vehículo"
-              valor={envio.choferVehiculo ?? envio.vehiculoNombre}
-            />
-          </View>
-
-          <View style={tema.estilo(styles.tarjeta)}>
-            <Text style={tema.estilo(styles.tarjetaTitulo)}>Quién lo lleva</Text>
-            {envio.choferNombre ? (
-              <>
-                <Dato etiqueta="Chofer" valor={envio.choferNombre} primera />
-                <Dato etiqueta="Legajo" valor={envio.choferCodigo} />
-                <Dato etiqueta="Teléfono" valor={envio.choferTelefono} />
-                {reputacionChofer ? (
-                  <Dato etiqueta="Calificación" valor={textoPromedio(reputacionChofer)} />
-                ) : null}
-              </>
-            ) : (
-              <Text style={tema.estilo(styles.vacio)}>
-                Todavía no lo tomó ningún chofer.
-              </Text>
-            )}
-          </View>
-
+          {entrega ? <TarjetaPin entrega={entrega} /> : null}
+          <TarjetaRecorrido envio={envio} esEquipo={esAdmin} />
+          <TarjetaCarga envio={envio} />
+          <TarjetaChofer envio={envio} reputacion={reputacionChofer} />
           {chat ? (
-            <View style={tema.estilo(styles.tarjeta)}>
-              <Text style={tema.estilo(styles.tarjetaTitulo)}>
-                {esCliente ? "Chat con el chofer" : esAdmin ? "Chat del envío" : "Chat con el cliente"}
-              </Text>
-              <Text style={tema.estilo(styles.vacio)}>
-                {chat.abierto
-                  ? chat.noLeidos > 0
-                    ? `Tenés ${chat.noLeidos === 1 ? "1 mensaje nuevo" : `${chat.noLeidos} mensajes nuevos`}.`
-                    : esCliente
-                      ? "Coordiná la entrega con el chofer mientras dure el viaje."
-                      : "Coordiná el retiro y la entrega con el cliente mientras dure el viaje."
-                  : chat.mensajes > 0
-                    ? `La conversación quedó cerrada (${chat.mensajes === 1 ? "1 mensaje" : `${chat.mensajes} mensajes`}).`
-                    : "Este envío no tuvo mensajes."}
-              </Text>
-              {(chat.abierto || chat.mensajes > 0) && (
-                <TouchableOpacity
-                  style={tema.estilo([styles.boton, chat.abierto ? styles.botonPrimario : styles.botonNeutro, { marginTop: 12 }])}
-                  onPress={() => navigation.navigate("ChatEnvio", { codigo: envio.codigo })}
-                  accessibilityRole="button"
-                  accessibilityLabel={chat.noLeidos > 0 ? `Abrir el chat, ${chat.noLeidos} sin leer` : "Abrir el chat del envío"}
-                >
-                  <Text style={tema.estilo(chat.abierto ? styles.botonPrimarioTexto : styles.botonNeutroTexto)}>
-                    {chat.abierto ? (chat.noLeidos > 0 ? `Abrir chat (${chat.noLeidos})` : "Abrir chat") : "Ver conversación"}
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
+            <TarjetaChat
+              chat={chat}
+              esCliente={esCliente}
+              esEquipo={esAdmin}
+              onAbrir={() => navigation.navigate("ChatEnvio", { codigo: envio.codigo })}
+            />
           ) : null}
-
-          {entrega?.conFoto ? (
-            <View style={tema.estilo(styles.tarjeta)}>
-              <Text style={tema.estilo(styles.tarjetaTitulo)}>Comprobante de entrega</Text>
-              {entrega.fotoUrl ? (
-                <Image
-                  source={{ uri: entrega.fotoUrl }}
-                  style={{ width: "100%", height: 240, borderRadius: 12 }}
-                  resizeMode="cover"
-                  accessibilityLabel="Foto de comprobante de la entrega"
-                />
-              ) : (
-                <Text style={tema.estilo(styles.vacio)}>El chofer sacó la foto de comprobante al entregar.</Text>
-              )}
-              <Text style={tema.estilo([styles.vacio, { marginTop: 8 }])}>Entregado con el PIN del receptor.</Text>
-            </View>
-          ) : null}
+          {entrega ? <TarjetaComprobanteEntrega entrega={entrega} /> : null}
 
           <TarjetaValoracion
             valoracion={valoracion}
@@ -487,10 +216,7 @@ export default function DetalleEnvioScreen({ navigation, route }: any) {
             onEnviar={(p, c) => void enviarValoracion(p, c)}
           />
 
-          <View style={tema.estilo(styles.tarjeta)}>
-            <Text style={tema.estilo(styles.tarjetaTitulo)}>
-              {pagos.length === 1 ? "Cómo se pagó" : `Pagos (${pagos.length})`}
-            </Text>
+          <Tarjeta titulo={pagos.length === 1 ? "Cómo se pagó" : `Pagos (${pagos.length})`}>
             {pagos.length === 0 ? (
               <Text style={tema.estilo(styles.vacio)}>
                 Este envío todavía no registra pagos.
@@ -519,32 +245,9 @@ export default function DetalleEnvioScreen({ navigation, route }: any) {
                 )}
               </TouchableOpacity>
             )}
-          </View>
+          </Tarjeta>
 
-          {eventosVisibles.length > 0 && (
-            <View style={tema.estilo(styles.tarjeta)}>
-              <Text style={tema.estilo(styles.tarjetaTitulo)}>Historial</Text>
-              {eventosVisibles.map((ev, i) => (
-                <View key={ev.id} style={tema.estilo(styles.evento)}>
-                  <View style={tema.estilo(styles.eventoLinea)}>
-                    <View style={tema.estilo(styles.eventoPunto)} />
-                    {i < eventosVisibles.length - 1 ? (
-                      <View style={tema.estilo(styles.eventoBarra)} />
-                    ) : null}
-                  </View>
-                  <View style={tema.estilo(styles.eventoCuerpo)}>
-                    <Text style={tema.estilo(styles.eventoTitulo)}>{ev.titulo}</Text>
-                    {ev.detalle ? (
-                      <Text style={tema.estilo(styles.eventoDetalle)}>{ev.detalle}</Text>
-                    ) : null}
-                    <Text style={tema.estilo(styles.eventoFecha)}>
-                      {fechaLarga(ev.creadoEn)}
-                    </Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-          )}
+          <HistorialEnvio eventos={eventosVisibles} />
 
           {puedeCancelar && (
             <View style={tema.estilo(styles.tarjeta)}>

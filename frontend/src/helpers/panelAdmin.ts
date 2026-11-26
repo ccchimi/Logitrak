@@ -99,3 +99,24 @@ export function inicioPeriodo(dias: number, ahora: number): number {
   d.setDate(d.getDate() - dias + 1);
   return d.getTime();
 }
+
+/** Rango que se muestra en la paginación: "11–20" de un total. */
+export function rangoDePagina(pagina: number, porPagina: number, total: number): { desde: number; hasta: number } {
+  return {
+    desde: total ? (pagina - 1) * porPagina + 1 : 0,
+    hasta: Math.min(pagina * porPagina, total),
+  };
+}
+
+/** Qué puede hacer el usuario del panel con una cuenta de la lista. */
+export function accionesSobreUsuario(
+  u: { id: number; rol: string },
+  yo: number | undefined,
+  permisos: { cambiarRol: boolean; editar: boolean },
+) {
+  const esOtro = u.id !== yo;
+  // El rol de un chofer no se cambia desde el panel: depende de su ficha.
+  const cambiarRol = permisos.cambiarRol && u.rol !== "chofer" && esOtro;
+  const editarDatos = permisos.editar && esOtro;
+  return { cambiarRol, editarDatos, accionable: cambiarRol || editarDatos };
+}

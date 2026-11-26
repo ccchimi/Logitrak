@@ -37,3 +37,43 @@ export function mensajeGuardado(campo: CampoDato, valor: string): string {
   if (campo === "email") return v ? "Tu email se actualizó correctamente." : "Borramos tu email.";
   return v ? "Tu teléfono se actualizó correctamente." : "Borramos tu teléfono.";
 }
+
+// --- Pantalla Mi Perfil ---
+
+interface DatosDeContacto {
+  email: string | null;
+  telefono: string | null;
+  chofer: { email: string; telefono: string } | null;
+}
+
+/** Email y teléfono a mostrar: los de la cuenta o, si no hay, los de la ficha de chofer. */
+export function contactoDelPerfil(perfil: DatosDeContacto | null): { email: string; telefono: string } {
+  return {
+    email: perfil?.email ?? perfil?.chofer?.email ?? "",
+    telefono: perfil?.telefono ?? perfil?.chofer?.telefono ?? "",
+  };
+}
+
+/** Valor con el que arranca el editor de un campo (solo los que se escriben). */
+export function valorParaEditar(campo: string, perfil: DatosDeContacto | null, nombre: string): string {
+  if (campo === "nombreCompleto") return nombre;
+  if (campo === "email") return contactoDelPerfil(perfil).email;
+  if (campo === "telefono") return contactoDelPerfil(perfil).telefono;
+  return "";
+}
+
+/** Estado de la verificación en dos pasos y si conviene avisar que quedan pocos códigos. */
+export function textoDobleFactor(df: { activado: boolean; codigosRestantes: number }): { estado: string; pocosCodigos: boolean } {
+  return {
+    estado: df.activado
+      ? `Activada · te quedan ${df.codigosRestantes} códigos de respaldo`
+      : "Desactivada · recomendada para el equipo",
+    pocosCodigos: df.activado && df.codigosRestantes <= 3,
+  };
+}
+
+/** Resumen de la actividad de la cuenta. */
+export function textoActividad(resumen: { enviosTotales: number; enviosEntregados: number; cuponesActivos: number } | null): string {
+  if (!resumen) return "La actividad estará disponible al cargar tu perfil.";
+  return `${resumen.enviosTotales} envíos · ${resumen.enviosEntregados} entregados · ${resumen.cuponesActivos} cupones activos`;
+}
