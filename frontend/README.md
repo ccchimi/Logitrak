@@ -74,7 +74,7 @@ No debe confundirse este motor con las propuestas de predicción logística del 
 
 | Ruta | Pantalla y alcance |
 |---|---|
-| `Login`, `Registro`, `Recuperar` | Inicio de sesión (con el paso del código si la cuenta tiene verificación en dos pasos), alta de clientes y recuperación de contraseña. |
+| `Login`, `Registro`, `Recuperar` | Inicio de sesión (con el paso del código si la cuenta tiene verificación en dos pasos, y el de elegir una contraseña nueva si entró con una temporal), alta de clientes y pedido de recuperación a soporte. |
 | `Home` | Inicio de cliente o panel operativo para cuentas con permiso de consultar todos los envíos. |
 | `SolicitudEnvio` | Conversación con Boxy y confirmación de cotización. |
 | `Pago` | Checkout de Mercado Pago y formulario de tarjeta simulada. |
@@ -102,7 +102,7 @@ El chofer inicia en su consola. El acceso operativo se decide por capacidades de
 
 `DevolucionesPendientes` muestra en el panel del admin los pagos que la pasarela no pudo devolver; cada fila lleva al detalle del envío, donde "Registrar devolución hecha a mano" pide confirmar y, opcionalmente, el número de operación.
 
-Con el permiso `usuarios.editar` (solo admin), cada fila de Usuarios abre `components/admin/EditarUsuarioModal.tsx`: el nombre de cualquier cuenta y, en los choferes, el email, el teléfono, el domicilio y el vehículo. El código de chofer y el DNI se muestran pero no se editan, y desde el mismo modal se pasa al cambio de rol. `helpers/perfilesAdmin.ts` arma solo los campos que cambiaron y los valida igual que el servidor. Soporte ve la lista pero no edita. En una cuenta del equipo, el modal muestra si tiene la verificación en dos pasos y el admin puede restablecerla (dos toques para confirmar), salvo la propia. El permiso llega con el inicio de sesión: un admin con la sesión abierta desde antes de esta versión tiene que volver a entrar para ver la opción.
+Con el permiso `usuarios.editar` (solo admin), cada fila de Usuarios abre `components/admin/EditarUsuarioModal.tsx`: el nombre de cualquier cuenta y, en los choferes, el email, el teléfono, el domicilio y el vehículo. El código de chofer y el DNI se muestran pero no se editan, y desde el mismo modal se pasa al cambio de rol. `helpers/perfilesAdmin.ts` arma solo los campos que cambiaron y los valida igual que el servidor. Soporte ve la lista pero no edita. Con el permiso `usuarios.restablecer_contrasena` (soporte y admin), los clientes y choferes tienen el botón "Contraseña temporal" (`components/admin/ContrasenaTemporalModal.tsx`): pide confirmar que se verificó la identidad por el contacto del pedido y muestra la contraseña una sola vez, con su vencimiento. En una cuenta del equipo, el modal muestra si tiene la verificación en dos pasos y el admin puede restablecerla (dos toques para confirmar), salvo la propia. El permiso llega con el inicio de sesión: un admin con la sesión abierta desde antes de esta versión tiene que volver a entrar para ver la opción.
 
 ### Seguimiento, entrega y avisos
 
@@ -137,7 +137,7 @@ La comprobación previa de credenciales no entrega un permiso reutilizable para 
 
 El modo silencioso controla los sonidos que consultan el servicio de preferencias; no modifica las notificaciones externas del navegador. Los hooks y transiciones contemplan movimiento reducido en las partes que los utilizan; no constituyen una certificación de accesibilidad de todas las pantallas. La limitación del sonido push nativo se documenta en la guía mobile.
 
-La recuperación de contraseña está conectada a la API actual, pero su verificación de identidad debe reforzarse antes de considerarla apta para producción.
+La recuperación de contraseña la resuelve soporte. `RecuperarScreen` manda el usuario y un email o teléfono de contacto (`pedirRecuperacion`) y muestra siempre el mismo mensaje, exista o no la cuenta; no pide una contraseña nueva. Cuando alguien entra con la contraseña temporal que generó soporte, el login no abre la sesión: muestra `components/auth/CambioContrasenaTemporal.tsx` para elegir una nueva (`completarCambioDeContrasena`) y recién ahí entra. Una vez validada, la contraseña se borra del campo y de la memoria del login.
 
 ## Pagos e identidad: alcance actual
 

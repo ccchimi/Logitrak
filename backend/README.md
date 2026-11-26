@@ -455,7 +455,9 @@ TEST_DATABASE_URL=postgresql://postgres:prueba@localhost:55432/postgres PGSSL=fa
 ```
 
 Las rutas principales tienen su archivo: `rutas-auth.test.js` (registro, login,
-límite de intentos, sesiones, perfil y recuperación), `rutas-envios.test.js`
+límite de intentos, sesiones, perfil y pedido de recuperación),
+`recuperacion.test.js` (el pedido llega a soporte, la contraseña temporal
+obliga a elegir una nueva, vence a las 24 horas y solo la genera el equipo), `rutas-envios.test.js`
 (alta idempotente, listado por cliente, detalle, reembolso y archivo) y
 `rutas-pagos.test.js` (tarjeta aprobada y rechazada, checkout sandbox con
 `Idempotency-Key`, confirmación, permisos y webhooks firmados),
@@ -530,7 +532,8 @@ un control equivalente en el frontend.
 | POST | `/api/auth/logout` | Revoca el refresh token indicado; no requiere JWT de acceso. |
 | POST | `/api/auth/registro` | Crea cliente mediante registro público. |
 | GET | `/api/auth/existe/:usuario` | Consulta pública de disponibilidad de nombre de usuario. |
-| POST | `/api/auth/recuperar` | Restablecimiento público para cuentas que no son del equipo ni tienen verificación en dos pasos; ver limitación de identidad. |
+| POST | `/api/auth/recuperar` | Pedido de recuperación: `usuario`, `contacto` (email o teléfono) y `detalle` opcional. No cambia la contraseña: deja una consulta escalada a soporte con el contacto (si ya hay una de las últimas 24 horas, suma el mensaje ahí). Responde lo mismo exista o no la cuenta; con cuentas del equipo o con verificación en dos pasos no abre nada. |
+| POST | `/api/auth/login/cambiar-contrasena` | Primer ingreso con una contraseña temporal: `desafio` (10 minutos), `nueva` y `confirmacion`. Exige una distinta de la temporal, la borra, revoca las sesiones y devuelve la sesión. 401 con `codigo` `desafio_vencido`. |
 | GET | `/api/auth/perfil` | Identidad del usuario autenticado. |
 
 ### Perfil, choferes y flota
@@ -609,6 +612,7 @@ un control equivalente en el frontend.
 | GET | `/api/admin/usuarios/:id` | Datos editables de una cuenta y, si es chofer, su ficha; permiso `usuarios.editar`. |
 | PUT | `/api/admin/usuarios/:id` | Edita el nombre y, en choferes, email, teléfono, domicilio y vehículo; permiso `usuarios.editar`. |
 | PUT | `/api/admin/usuarios/:id/rol` | Cambia rol entre cliente, soporte y admin; permiso `usuarios.cambiar_rol` y restricciones de integridad. |
+| POST | `/api/admin/usuarios/:id/contrasena-temporal` | Genera una contraseña temporal para un cliente o chofer que pidió recuperar su cuenta, después de verificar su identidad; permiso `usuarios.restablecer_contrasena` (soporte y admin). Se devuelve una sola vez, vence a las 24 horas y revoca las sesiones. No sobre la propia cuenta, otra del equipo ni una con verificación en dos pasos (409). |
 | POST | `/api/admin/usuarios/:id/doble-factor/restablecer` | Quita la verificación en dos pasos de otra cuenta (quien perdió el teléfono y los códigos); permiso `usuarios.editar`, no sobre la propia. |
 | POST | `/api/admin/reset` | Reinicio destructivo de información; permiso `sistema.reiniciar`. No usar como diagnóstico. |
 | GET | `/api/soporte/realtime` | Credencial de lectura Realtime para la sesión. |
@@ -687,8 +691,8 @@ se prueba contra los vectores del RFC.
 - **Desactivar o regenerar códigos** pide la contraseña y un código; un admin
   puede restablecerlo a otra persona del equipo. Cada cambio genera el evento
   `usuario.doble_factor`, que le avisa a la cuenta por notificación.
-- Una cuenta con 2FA no usa `/api/auth/recuperar`, porque el restablecimiento
-  público saltearía el segundo factor. La exportación de datos indica si está
+- Una cuenta con 2FA no se recupera con una contraseña temporal, porque
+  saltearía el segundo factor: se la restablece un admin. La exportación de datos indica si está
   activa, sin el secreto ni los códigos.
 
 ## Consulta administrativa e integración con el frontend
@@ -810,6 +814,7 @@ escrito falla al cargar la ruta, no en un pedido.
 | `envios.ver_todos`, `cotizaciones.ver_todas`, `pagos.ver_todos` | ✔ | ✔ |
 | `soporte.atender` (responder y cerrar consultas de cualquier cliente) | ✔ | ✔ |
 | `cupones.emitir`, `envios.desbloquear_pin`, `usuarios.listar` | ✔ | ✔ |
+| `usuarios.restablecer_contrasena` (contraseña temporal de un cliente o chofer) | ✔ | ✔ |
 | `envios.reembolsar`, `envios.archivar`, `envios.registrar_avance`, `pagos.gestionar` | | ✔ |
 | `choferes.ver_documentos` (fotos de DNI y selfie) | | ✔ |
 | `usuarios.cambiar_rol`, `usuarios.editar`, `sistema.reiniciar` | | ✔ |
@@ -1017,9 +1022,10 @@ de acceso fresco, releyendo el usuario de la base. Si un refresh token ya usado
 vuelve a aparecer, se revoca toda su cadena, porque probablemente lo copiaron;
 si aparece dentro de los 30 segundos de rotado, se responde 409 sin revocar
 nada, porque suelen ser dos pestañas renovando a la vez. `POST /api/auth/logout`
-revoca el refresh token de la sesión del dispositivo. La recuperación por
-`/api/auth/recuperar` revoca los refresh tokens de la cuenta; el cambio por
-`PUT /api/perfil` no llama actualmente a esa revocación. Un JWT de acceso ya
+revoca el refresh token de la sesión del dispositivo. Generar una contraseña temporal
+(`POST /api/admin/usuarios/:id/contrasena-temporal`) y reemplazarla al entrar
+revocan los refresh tokens de la cuenta; el cambio por `PUT /api/perfil` no
+llama actualmente a esa revocación. Un JWT de acceso ya
 emitido no se invalida inmediatamente por revocar el refresh: `autenticar`
 comprueba firma y expiración, no consulta el estado de la sesión en la base. Un token de acceso vencido responde 401 con `codigo: 'token_vencido'`, y
 la app lo renueva sola y repite el pedido.
@@ -1063,7 +1069,7 @@ ruta.
 | Ruta | Límite |
 |---|---|
 | Toda la API (salvo los webhooks de pago) | 900 cada 15 minutos |
-| Login, recuperar contraseña, verificar usuario | 10 cada 15 minutos |
+| Login, cambio de la contraseña temporal, pedido de recuperación, verificar usuario | 10 cada 15 minutos |
 | Registro | 5 cada hora |
 | Guardar cotización | 30 cada 10 minutos |
 | Checkout, pago con tarjeta y confirmación | 20 cada 10 minutos |
@@ -1155,7 +1161,9 @@ circuito de compatibilidad. El login y la recuperación de contraseña tienen ra
 diez intentos por IP cada quince minutos, y los intentos que llegan a la función de auditoría se registran en
 `auditoria_accesos` con IP, user-agent y resultado.
 
-El registro público crea clientes y la recuperación excluye cuentas del equipo.
+El registro público crea clientes. La recuperación no cambia contraseñas desde
+un pedido público: la contraseña temporal la genera soporte o un admin, y excluye
+las cuentas del equipo y las que tienen verificación en dos pasos.
 Los permisos por rol no certifican por sí solos la seguridad de todos los flujos.
 Las consultas usan parámetros para valores y algunas construyen filtros o
 columnas con listas controladas; hay que mantener esa separación al agregar
@@ -1168,14 +1176,14 @@ forma automática por un rollback de PostgreSQL.
 
 ## Limitaciones y revisiones pendientes
 
-- Recuperación de contraseña: el contrato actual no acredita titularidad mediante
-  un token o código enviado a un contacto verificado. No debe presentarse como
-  recuperación segura para producción hasta corregir ese diseño.
+- Recuperación de contraseña: la titularidad la verifica una persona de soporte
+  por el contacto que dejó quien la pide. Con un proveedor de correo podría
+  pasar a un link de un solo uso a un email confirmado.
 - Cuentas admin anteriores: el código ya no siembra credenciales predecibles,
   pero las cuentas creadas antes conservan su contraseña. El log del arranque
   avisa si alguna es igual al usuario; hay que cambiarla desde Mi Perfil.
-- Cambio de contraseña en perfil: falta unificar la revocación de sesiones con la
-  recuperación y revisar el tratamiento de JWT ya emitidos.
+- Cambio de contraseña en perfil: falta revocar las otras sesiones, como ya hace
+  la contraseña temporal, y revisar el tratamiento de JWT ya emitidos.
 - Mi Perfil: un email o teléfono nuevo no se confirma con un código (hace falta
   un proveedor de correo o SMS).
 - Identidad: RENAPER real es una función pendiente y la obligatoriedad del match

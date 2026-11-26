@@ -245,7 +245,7 @@ En Mi Perfil:
 - La eliminación de cuenta solicita contraseña y está sujeta a restricciones por rol y operaciones activas. El backend anonimiza datos y conserva los comprobantes previstos por su implementación.
 - El tema claro/oscuro y el modo silencioso se conservan localmente. No son preferencias sincronizadas con el servidor. El modo silencioso no está integrado de forma global con el sonido de las notificaciones push.
 
-La recuperación de contraseña existe, pero su verificación de identidad necesita reforzarse antes de considerarla un mecanismo seguro para producción.
+La recuperación de contraseña la resuelve soporte, porque todavía no hay un proveedor de correo para mandar un link. La persona deja su usuario y un email o teléfono en "¿Te olvidaste la contraseña?", y el pedido llega como consulta a soporte; la respuesta es la misma exista o no la cuenta. Soporte verifica por ese contacto que la cuenta es de quien la pide y genera desde Usuarios una contraseña temporal, que se muestra una sola vez, vence a las 24 horas y cierra las sesiones abiertas. Al entrar con ella, la app pide elegir una contraseña nueva antes de abrir la sesión. Las cuentas del equipo y las que tienen verificación en dos pasos no se recuperan por este camino.
 
 ## Pruebas y calidad
 
@@ -296,7 +296,7 @@ Además de las restricciones de Mi Perfil y pagos ya descritas:
 - El listado de envíos se pagina por cursor y el historial carga de a 20. El panel del equipo calcula en el servidor sus indicadores, la serie por día (en hora de Argentina) y las alertas, y "Todos los pedidos" filtra, ordena y pagina en el servidor.
 - La compatibilidad y configuración de identidad, mapas y push deben validarse por plataforma. El despliegue iOS necesita sus credenciales específicas.
 - Las notificaciones por correo no están implementadas como canal general; el registro de clientes no pide email. Por eso el comprobante del envío se descarga desde la app y no se manda por mail.
-- La recuperación de contraseña requiere revisión de seguridad antes de un uso productivo. Las cuentas admin creadas antes de este cambio deben cambiar su contraseña desde Mi Perfil: al arrancar, el log avisa si alguna todavía es igual al usuario.
+- La recuperación de contraseña depende de que soporte verifique bien la identidad por el contacto del pedido. Con un proveedor de correo podría pasar a un link de un solo uso. Las cuentas admin creadas antes del cambio de seguridad deben cambiar su contraseña desde Mi Perfil: al arrancar, el log avisa si alguna todavía es igual al usuario.
 - La inteligencia logística predictiva descrita en el roadmap es una evolución propuesta, no una capacidad ya implementada de Boxy.
 
 Consultá los [pendientes técnicos](docs/pendientes-logitrak.md) y el [roadmap](docs/ROADMAP.md). Esos documentos pueden contener referencias históricas: ante diferencias, debe contrastarse cada punto con el código y la configuración desplegada.
