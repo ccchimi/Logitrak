@@ -2,7 +2,8 @@ import bcrypt from 'bcryptjs';
 import { Router } from 'express';
 import { consultar, pool } from '../db/pool.js';
 import { autenticar } from '../middleware/auth.js';
-import { emitirAccessToken } from '../servicios/sesiones.js';
+import { clienteUsaRefresh, crearSesion, emitirAccessToken, revocarSesionesDeUsuario } from '../servicios/sesiones.js';
+import { permisosDe } from '../middleware/permisos.js';
 import { limiteExportacion, limiteLogin } from '../middleware/limites.js';
 import { validarRequest } from '../middleware/validar.js';
 import { actualizarDatos, eliminarCuenta, exportarDatos } from '../esquemas/perfil.js';
@@ -171,6 +172,9 @@ rutasPerfil.put('/', autenticar, async (req, res) => {
         }
         if (nuevoHash) {
             await cliente.query('UPDATE usuarios SET contrasena_hash = $1, contrasena_temporal_vence_en = NULL WHERE id = $2', [nuevoHash, id]);
+            // Si alguien más conocía la contraseña, sus sesiones dejan de servir.
+            // Este dispositivo recibe una sesión nueva más abajo.
+            await revocarSesionesDeUsuario(cliente, id, 'cambio_clave');
         }
 
         if (rol === 'chofer') {
@@ -227,17 +231,23 @@ rutasPerfil.put('/', autenticar, async (req, res) => {
             chofer = r.rows[0] ?? null;
         }
 
-        return res.json({
+        const respuesta = {
             exito: true,
             token: emitirAccessToken(fila, req),
+            // Igual que al iniciar sesión: la app reemplaza el usuario guardado
+            // con esto, así que tiene que traer los permisos y el 2FA.
             usuario: {
                 id: fila.id,
                 usuario: fila.usuario,
                 rol: fila.rol,
+                permisos: permisosDe(fila.rol),
                 nombreCompleto: fila.nombre_completo,
                 chofer: chofer ? { codigo: chofer.codigo } : null,
+                dobleFactor: Boolean(fila.totp_activado_en),
             },
-        });
+        };
+        if (nuevoHash && clienteUsaRefresh(req)) respuesta.refreshToken = await crearSesion(pool, id, req);
+        return res.json(respuesta);
     } catch (e) {
         await cliente.query('ROLLBACK');
         if (e && e.status) {

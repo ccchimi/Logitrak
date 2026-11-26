@@ -1024,8 +1024,9 @@ si aparece dentro de los 30 segundos de rotado, se responde 409 sin revocar
 nada, porque suelen ser dos pestañas renovando a la vez. `POST /api/auth/logout`
 revoca el refresh token de la sesión del dispositivo. Generar una contraseña temporal
 (`POST /api/admin/usuarios/:id/contrasena-temporal`) y reemplazarla al entrar
-revocan los refresh tokens de la cuenta; el cambio por `PUT /api/perfil` no
-llama actualmente a esa revocación. Un JWT de acceso ya
+revocan los refresh tokens de la cuenta. Cambiar la contraseña desde Mi Perfil
+(`PUT /api/perfil`) también los revoca y le devuelve un `refreshToken` nuevo al
+dispositivo que hizo el cambio, para que siga adentro. Un JWT de acceso ya
 emitido no se invalida inmediatamente por revocar el refresh: `autenticar`
 comprueba firma y expiración, no consulta el estado de la sesión en la base. Un token de acceso vencido responde 401 con `codigo: 'token_vencido'`, y
 la app lo renueva sola y repite el pedido.
@@ -1182,8 +1183,9 @@ forma automática por un rollback de PostgreSQL.
 - Cuentas admin anteriores: el código ya no siembra credenciales predecibles,
   pero las cuentas creadas antes conservan su contraseña. El log del arranque
   avisa si alguna es igual al usuario; hay que cambiarla desde Mi Perfil.
-- Cambio de contraseña en perfil: falta revocar las otras sesiones, como ya hace
-  la contraseña temporal, y revisar el tratamiento de JWT ya emitidos.
+- JWT ya emitidos: al cambiar la contraseña se revocan las sesiones, pero un
+  token de acceso ya emitido sigue valiendo hasta que vence (15 minutos en la
+  app actual), porque `autenticar` no consulta la base.
 - Mi Perfil: un email o teléfono nuevo no se confirma con un código (hace falta
   un proveedor de correo o SMS).
 - Identidad: RENAPER real es una función pendiente y la obligatoriedad del match

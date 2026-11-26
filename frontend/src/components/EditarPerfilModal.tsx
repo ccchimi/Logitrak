@@ -147,7 +147,7 @@ export default function EditarPerfilModal({ campo, valorActual = "", esChofer = 
         setActual("");
         setNueva("");
         setConfirmacion("");
-        onSaved(esDato ? mensajeGuardado(campo, dato) : "Tu contraseña se actualizó correctamente.");
+        onSaved(esDato ? mensajeGuardado(campo, dato) : "Tu contraseña se actualizó. Cerramos la sesión en tus otros dispositivos.");
         onClose();
       }
     } catch {

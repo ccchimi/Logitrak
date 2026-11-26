@@ -115,6 +115,7 @@ export async function actualizarPerfil(
     exito: true;
     token: string;
     usuario: UsuarioSesion;
+    refreshToken?: string;
   }>("/api/perfil", {
     metodo: "PUT",
     cuerpo: cambios,
@@ -122,7 +123,9 @@ export async function actualizarPerfil(
   });
   if (!r.exito)
     return { exito: false, error: (r as any).error ?? "No se pudo guardar." };
-  guardarSesion(r.token, r.usuario);
+  // Al cambiar la contraseña, el servidor cierra todas las sesiones y le da
+  // una nueva a este dispositivo.
+  guardarSesion(r.token, r.usuario, r.refreshToken);
   return { exito: true };
 }
 

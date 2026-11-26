@@ -108,6 +108,35 @@ describe('sesiones con refresh token (integración)', { skip: SALTEAR }, () => {
         }
     });
 
+    test('cambiar la contraseña en Mi Perfil cierra las otras sesiones y deja adentro a este dispositivo', async () => {
+        const s = await cuenta('ses.perfil');
+        const otraSesion = (await api('/api/auth/login', { metodo: 'POST', cuerpo: { usuario: s.usuario, contrasena: clave } })).body;
+        const nueva = `${clave}-perfil`;
+
+        const r = await api('/api/perfil', { metodo: 'PUT', token: s.token, cuerpo: { contrasenaActual: clave, contrasenaNueva: nueva } });
+        assert.equal(r.status, 200);
+        assert.ok(r.body.refreshToken, 'el dispositivo que cambió recibe una sesión nueva');
+        assert.deepEqual(r.body.usuario.permisos, [], 'trae los permisos como el login (un cliente no tiene)');
+
+        for (const t of [s.refreshToken, otraSesion.refreshToken]) {
+            assert.equal((await api('/api/auth/refresh', { metodo: 'POST', cuerpo: { refreshToken: t } })).status, 401, 'las sesiones de antes se cierran');
+        }
+        assert.equal((await api('/api/auth/refresh', { metodo: 'POST', cuerpo: { refreshToken: r.body.refreshToken } })).status, 200);
+        assert.equal((await api('/api/auth/login', { metodo: 'POST', cuerpo: { usuario: s.usuario, contrasena: nueva } })).status, 200);
+    });
+
+    test('cambiar solo el nombre no cierra sesiones y conserva los permisos del equipo', async () => {
+        const s = await cuenta('ses.nombre');
+        await pool.query(`UPDATE usuarios SET rol = 'soporte' WHERE usuario = $1`, [s.usuario]);
+        const sop = (await api('/api/auth/login', { metodo: 'POST', cuerpo: { usuario: s.usuario, contrasena: clave } })).body;
+
+        const r = await api('/api/perfil', { metodo: 'PUT', token: sop.token, cuerpo: { nombreCompleto: 'Sofía de Soporte' } });
+        assert.equal(r.status, 200);
+        assert.equal(r.body.refreshToken, undefined);
+        assert.ok(r.body.usuario.permisos.includes('soporte.atender'), 'la app no pierde los permisos al guardar');
+        assert.equal((await api('/api/auth/refresh', { metodo: 'POST', cuerpo: { refreshToken: sop.refreshToken } })).status, 200);
+    });
+
     test('la renovación trae los datos actualizados (por ejemplo, el rol)', async () => {
         const s = await cuenta('ses.rol');
         await pool.query(`UPDATE usuarios SET rol = 'admin' WHERE usuario = $1`, [s.usuario]);

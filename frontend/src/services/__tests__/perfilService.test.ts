@@ -78,12 +78,13 @@ test("el guardado envía exclusivamente las dos contraseñas y respeta el rechaz
   expect(guardarSesion).not.toHaveBeenCalled();
 });
 
-test("actualiza la sesión únicamente después de guardar correctamente", async () => {
-  api.mockResolvedValue({ exito: true, token: "renovado", usuario });
+test("al cambiar la contraseña guarda la sesión nueva que devuelve el servidor", async () => {
+  api.mockResolvedValue({ exito: true, token: "renovado", usuario, refreshToken: "sesion-nueva" });
   expect(
     (await actualizarCampoPerfil("contrasena", "nueva-segura", "actual")).exito,
   ).toBe(true);
-  expect(guardarSesion).toHaveBeenCalledWith("renovado", usuario);
+  // El servidor cerró las demás sesiones: este dispositivo sigue con la nueva.
+  expect(guardarSesion).toHaveBeenCalledWith("renovado", usuario, "sesion-nueva");
 });
 
 test("no envía contraseñas vacías ni una nueva demasiado corta", async () => {
