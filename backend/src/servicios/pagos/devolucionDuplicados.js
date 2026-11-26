@@ -3,7 +3,7 @@ import { log, registrarError } from '../../observabilidad/logger.js';
 import { registrarEvento } from '../../outbox/index.js';
 import { reembolsarPago } from './reembolsos.js';
 
-// Pagos que se aprobaron de más (ver aprobarPago en rutas/pagos.js): un
+// Pagos que se aprobaron de más (ver aprobarPago en servicios/pagos/aprobacion.js): un
 // segundo cobro sobre un envío que ya estaba pago, o un cobro que llegó
 // cuando el envío ya se había cancelado. Se devuelven solos; si la pasarela
 // no lo permite, quedan "en revisión" y se avisa a los administradores.
