@@ -36,6 +36,13 @@ export default function LoginScreens({ navigation }: any) {
 
   const { volverAlInicio, puedeVolver } = useRootFlow();
 
+  // Al navegar, el login sigue montado (en la web, en el DOM): una vez validada,
+  // la contraseña no tiene que quedar ni en memoria ni escrita en el campo.
+  const olvidarContrasena = () => {
+    contrasenaRef.current = "";
+    campoContrasenaRef.current?.clear();
+  };
+
   const entrar = (usuario: UsuarioSesion) => {
     setError("");
     setDesafio(null);
@@ -64,6 +71,7 @@ export default function LoginScreens({ navigation }: any) {
       setError(resultado.error);
       return;
     }
+    olvidarContrasena();
     if (resultado.requiereSegundoFactor) {
       setError("");
       setDesafio({ token: resultado.desafio, nombre: resultado.nombre });

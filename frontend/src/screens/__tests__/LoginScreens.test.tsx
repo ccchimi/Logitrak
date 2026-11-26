@@ -31,6 +31,34 @@ describe('LoginScreens', () => {
         expect(navigation.navigate).toHaveBeenCalledWith('Home', expect.objectContaining({ rol: 'admin' }));
     });
 
+    test('una vez validada, la contraseña no queda guardada en el login', async () => {
+        iniciar.mockResolvedValue({ exito: true, usuario: { ...ADMIN, dobleFactor: false } });
+        await abrir();
+        await ingresar('ana.admin', 'Clave-segura-1');
+        // La pantalla sigue montada al navegar: si se vuelve a enviar, ya no tiene la contraseña.
+        await fireEvent.press(screen.getByRole('button', { name: 'Iniciar sesión' }));
+        expect(iniciar).toHaveBeenLastCalledWith('ana.admin', '');
+    });
+
+    test('al pasar al código de dos pasos también se olvida la contraseña', async () => {
+        iniciar.mockResolvedValue({ exito: true, requiereSegundoFactor: true, desafio: 'viejo', nombre: 'Ana Admin' });
+        segundo.mockResolvedValue({ exito: false, codigo: 'desafio_vencido', error: 'Pasaron más de 5 minutos. Volvé a ingresar tu contraseña.' });
+        await abrir();
+        await ingresar('ana.admin', 'Clave-segura-1');
+        await fireEvent.changeText(await screen.findByLabelText('Código de verificación'), '654321');
+        await fireEvent.press(screen.getByRole('button', { name: 'Verificar e ingresar' }));
+        await fireEvent.press(await screen.findByRole('button', { name: 'Iniciar sesión' }));
+        expect(iniciar).toHaveBeenLastCalledWith('ana.admin', '');
+    });
+
+    test('si la contraseña es incorrecta se conserva para corregirla', async () => {
+        iniciar.mockResolvedValue({ exito: false, error: 'Usuario o contraseña incorrectos.' });
+        await abrir();
+        await ingresar('ana.admin', 'casi-bien');
+        await fireEvent.press(screen.getByRole('button', { name: 'Iniciar sesión' }));
+        expect(iniciar).toHaveBeenLastCalledWith('ana.admin', 'casi-bien');
+    });
+
     test('si los datos no son correctos muestra el error y no entra', async () => {
         iniciar.mockResolvedValue({ exito: false, error: 'Usuario o contraseña incorrectos.' });
         const navigation = await abrir();
