@@ -4,10 +4,10 @@ Documentos de análisis, diseño y gestión de Logitrak pedidos en la planilla d
 
 | # | Entregable | Dónde está |
 |---|---|---|
-| 1 | Requerimientos funcionales | Parcial 1 (RF01 a RF17) |
-| 2 | Requerimientos no funcionales | Parcial 1 (RNF01 a RNF06) |
-| 3 | Diagrama de casos de uso | Parcial 1 |
-| 4 | Casos de uso | Parcial 1 (CU-01 a CU-15) |
+| 1 | Requerimientos funcionales | [01-requerimientos-funcionales.md](01-requerimientos-funcionales.md) |
+| 2 | Requerimientos no funcionales | [02-requerimientos-no-funcionales.md](02-requerimientos-no-funcionales.md) |
+| 3 | Diagrama de casos de uso | [03-diagrama-de-casos-de-uso.md](03-diagrama-de-casos-de-uso.md) |
+| 4 | Casos de uso | [04-casos-de-uso.md](04-casos-de-uso.md) |
 | 5 | Prototipo de interfaz web | Parcial 1 (Figma) |
 | 6 | Prototipo de interfaz mobile | Parcial 1 (Figma) |
 | 7 | Diagrama de clases de dominio | Parcial 1 |

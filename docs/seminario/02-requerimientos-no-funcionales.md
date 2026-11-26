@@ -1,0 +1,14 @@
+# 2. Requerimientos no funcionales
+
+Requerimientos no funcionales del Parcial 1, con el criterio con que se miden y el resultado obtenido. Los casos de prueba de cada uno están en el [documento 9](09-casos-de-prueba.md#requerimientos-no-funcionales).
+
+| Código | Descripción (Parcial 1) | Cómo se mide | Resultado | Estado |
+|---|---|---|---|---|
+| RNF01 | La plataforma deberá estar disponible las 24 horas del día, los 7 días de la semana, salvo tareas de mantenimiento programadas. | Chequeo de salud (`/api/salud`) y monitoreo de la API | La API se despliega sola en cada cambio y tiene chequeo de salud. En el plan gratuito de Render se duerme por inactividad y tarda en responder el primer pedido | Parcial: requiere un plan pago y el health check configurado (pendientes #7 y #16) |
+| RNF02 | El tiempo de respuesta del sistema no deberá superar los 3 segundos en operaciones habituales bajo condiciones normales de uso. | Mediciones con 200.000 envíos (`EXPLAIN ANALYZE`), Lighthouse y la prueba de rendimiento del cotizador | Las consultas de la API responden en milisegundos (la serie del panel bajó de 7,5 s a 0,18 s) y una cotización tarda menos de 5 ms. La Web App tarda 10 s en cargar en el celular | Parcial: falta dividir el código de la Web App ([medición de calidad](../qa/medicion-de-calidad.md)) |
+| RNF03 | La información de los usuarios y los datos asociados a los envíos deberán almacenarse de forma segura, utilizando mecanismos de autenticación y protección de datos. | Revisión de seguridad y pruebas de integración | Contraseñas con bcrypt, sesiones guardadas solo como hash, fotos en un bucket privado con links de 5 minutos, verificación en dos pasos del equipo, plazos de conservación y RLS en todas las tablas | Cumplido |
+| RNF04 | La interfaz deberá ser responsive y compatible con dispositivos móviles y navegadores web, adaptándose a diferentes tamaños de pantalla. | Revisión en computadora, tablet y teléfono; Lighthouse | Un solo código para web, Android e iOS; las listas pasan de tabla a tarjetas en pantallas angostas. Accesibilidad 100 en Lighthouse | Cumplido |
+| RNF05 | El sistema deberá utilizar autenticación de usuarios y restringir el acceso a las funcionalidades según el rol correspondiente. | Pruebas de permisos por rol en cada ruta | Cuatro roles (cliente, chofer, soporte, admin) con permisos por capacidad que la API verifica en cada pedido | Cumplido |
+| RNF06 | La plataforma deberá soportar múltiples usuarios conectados simultáneamente sin superar el tiempo de respuesta establecido en RNF02. | Pruebas de concurrencia y de carga | Las operaciones que compiten (dos choferes que toman el mismo envío, pagos repetidos) están protegidas con bloqueos e idempotencia y tienen pruebas. No se hicieron pruebas de carga | Parcial: faltan las pruebas de carga |
+
+**Resumen:** 3 cumplidos y 3 parciales, cada uno con su tarea en el [plan post cursada](16-plan-post-cursada.md).
