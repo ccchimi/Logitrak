@@ -182,7 +182,9 @@ describe('verificación en dos pasos para el equipo (integración)', { skip: SAL
         assert.equal((await e.http('get', '/api/perfil/doble-factor', { token: cli.token })).body.dobleFactor.disponible, false);
 
         await e.pool.query(`UPDATE usuarios SET totp_activado_en = now(), totp_secreto = 'v1.x.x.x' WHERE id = $1`, [cli.perfil.id]);
-        const r = await e.http('post', '/api/auth/recuperar').send({ usuario: cli.usuario, nueva: 'OtraClave-segura-1', confirmacion: 'OtraClave-segura-1' });
-        assert.equal(r.status, 403);
+        const r = await e.http('post', '/api/auth/recuperar').send({ usuario: cli.usuario, contacto: 'ana@mail.com' });
+        assert.equal(r.status, 200, 'la respuesta es la misma para no revelar nada');
+        const pedidos = await e.pool.query('SELECT 1 FROM soporte_tickets WHERE usuario_id = $1', [cli.perfil.id]);
+        assert.equal(pedidos.rowCount, 0, 'pero no se abre ningún pedido');
     });
 });

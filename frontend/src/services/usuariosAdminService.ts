@@ -93,6 +93,22 @@ export async function cambiarRolUsuario(
   return r.exito ? { exito: true } : { exito: false, error: (r as any).error ?? "No se pudo cambiar el rol." };
 }
 
+/**
+ * Contraseña temporal para un cliente o chofer que pidió recuperar su cuenta.
+ * La devuelve una sola vez: vence a las 24 horas y obliga a elegir una nueva.
+ */
+export async function generarContrasenaTemporal(
+  id: number
+): Promise<{ exito: true; contrasenaTemporal: string; venceEn: string; mensaje: string } | { exito: false; error: string }> {
+  const r = await llamarApi<{ exito: true; contrasenaTemporal: string; venceEn: string; mensaje: string }>(
+    `/api/admin/usuarios/${id}/contrasena-temporal`,
+    { metodo: "POST", conAuth: true }
+  );
+  return r.exito
+    ? { exito: true, contrasenaTemporal: r.contrasenaTemporal, venceEn: r.venceEn, mensaje: r.mensaje }
+    : { exito: false, error: (r as any).error ?? "No se pudo generar la contraseña temporal." };
+}
+
 export async function obtenerPerfilUsuario(
   id: number,
 ): Promise<{ exito: true; perfil: PerfilAdmin } | { exito: false; error: string }> {

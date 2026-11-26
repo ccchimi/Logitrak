@@ -17,6 +17,8 @@ export const PERMISOS = Object.freeze({
     'usuarios.listar': PERSONAL,
     'usuarios.cambiar_rol': SOLO_ADMIN,
     'usuarios.editar': SOLO_ADMIN,
+    // Contraseña temporal para un cliente o chofer que no puede entrar.
+    'usuarios.restablecer_contrasena': PERSONAL,
     'choferes.ver_documentos': SOLO_ADMIN,
     'sistema.reiniciar': SOLO_ADMIN,
 });

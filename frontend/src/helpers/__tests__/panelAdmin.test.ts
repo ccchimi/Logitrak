@@ -34,12 +34,26 @@ describe("Listados del panel", () => {
 
   test("nadie se edita a sí mismo ni cambia el rol de un chofer", () => {
     const todo = { cambiarRol: true, editar: true };
-    expect(accionesSobreUsuario({ id: 2, rol: "cliente" }, 1, todo)).toEqual({ cambiarRol: true, editarDatos: true, accionable: true });
-    expect(accionesSobreUsuario({ id: 1, rol: "admin" }, 1, todo)).toEqual({ cambiarRol: false, editarDatos: false, accionable: false });
-    expect(accionesSobreUsuario({ id: 3, rol: "chofer" }, 1, todo)).toEqual({ cambiarRol: false, editarDatos: true, accionable: true });
+    expect(accionesSobreUsuario({ id: 2, rol: "cliente" }, 1, todo)).toMatchObject({ cambiarRol: true, editarDatos: true, accionable: true });
+    expect(accionesSobreUsuario({ id: 1, rol: "admin" }, 1, todo)).toMatchObject({ cambiarRol: false, editarDatos: false, accionable: false });
+    expect(accionesSobreUsuario({ id: 3, rol: "chofer" }, 1, todo)).toMatchObject({ cambiarRol: false, editarDatos: true, accionable: true });
   });
 
-  test("soporte, sin permisos, solo mira", () => {
+  test("soporte, sin permisos de edición, solo mira", () => {
     expect(accionesSobreUsuario({ id: 2, rol: "cliente" }, 1, { cambiarRol: false, editar: false }).accionable).toBe(false);
+  });
+
+  test("la contraseña temporal es solo para clientes y choferes, y nunca la propia", () => {
+    const soporte = { cambiarRol: false, editar: false, restablecerContrasena: true };
+    expect(accionesSobreUsuario({ id: 2, rol: "cliente" }, 1, soporte)).toEqual({
+      cambiarRol: false,
+      editarDatos: false,
+      contrasenaTemporal: true,
+      accionable: true,
+    });
+    expect(accionesSobreUsuario({ id: 3, rol: "chofer" }, 1, soporte).contrasenaTemporal).toBe(true);
+    expect(accionesSobreUsuario({ id: 4, rol: "admin" }, 1, soporte).contrasenaTemporal).toBe(false);
+    expect(accionesSobreUsuario({ id: 5, rol: "soporte" }, 1, soporte).contrasenaTemporal).toBe(false);
+    expect(accionesSobreUsuario({ id: 1, rol: "cliente" }, 1, soporte).contrasenaTemporal).toBe(false);
   });
 });

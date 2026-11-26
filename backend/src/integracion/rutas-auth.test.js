@@ -119,20 +119,20 @@ describe('/api/auth (integración)', { skip: SALTEAR }, () => {
     });
 
     describe('POST /recuperar', () => {
-        test('cambia la contraseña de un cliente y la vieja deja de servir', async () => {
+        test('no cambia la contraseña: deja el pedido a soporte', async () => {
             const s = await e.cuenta('rec.ok');
-            const nueva = `${e.clave}-nueva`;
-            const r = await e.http('post', '/api/auth/recuperar').send({ usuario: s.usuario, nueva, confirmacion: nueva });
+            const r = await e.http('post', '/api/auth/recuperar').send({ usuario: s.usuario, contacto: 'ana@mail.com' });
             assert.equal(r.status, 200);
-            assert.equal((await e.http('post', '/api/auth/login').send({ usuario: s.usuario, contrasena: e.clave })).status, 401);
-            assert.equal((await e.http('post', '/api/auth/login').send({ usuario: s.usuario, contrasena: nueva })).status, 200);
+            assert.equal((await e.http('post', '/api/auth/login').send({ usuario: s.usuario, contrasena: e.clave })).status, 200, 'la contraseña sigue igual');
         });
 
-        test('usuario inexistente: 404; confirmación distinta: 400', async () => {
-            const nueva = `${e.clave}-x`;
-            assert.equal((await e.http('post', '/api/auth/recuperar').send({ usuario: nuevoUsuario('nadie'), nueva, confirmacion: nueva })).status, 404);
+        test('la respuesta no revela si el usuario existe; sin contacto: 400', async () => {
             const s = await e.cuenta('rec.mal');
-            assert.equal((await e.http('post', '/api/auth/recuperar').send({ usuario: s.usuario, nueva, confirmacion: 'otra' })).status, 400);
+            const existe = await e.http('post', '/api/auth/recuperar').send({ usuario: s.usuario, contacto: '11 5555 1234' });
+            const noExiste = await e.http('post', '/api/auth/recuperar').send({ usuario: nuevoUsuario('nadie'), contacto: '11 5555 1234' });
+            assert.deepEqual(noExiste.status, existe.status);
+            assert.deepEqual(noExiste.body, existe.body);
+            assert.equal((await e.http('post', '/api/auth/recuperar').send({ usuario: s.usuario })).status, 400);
         });
     });
 

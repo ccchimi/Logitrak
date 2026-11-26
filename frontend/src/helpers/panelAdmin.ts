@@ -112,11 +112,13 @@ export function rangoDePagina(pagina: number, porPagina: number, total: number):
 export function accionesSobreUsuario(
   u: { id: number; rol: string },
   yo: number | undefined,
-  permisos: { cambiarRol: boolean; editar: boolean },
+  permisos: { cambiarRol: boolean; editar: boolean; restablecerContrasena?: boolean },
 ) {
   const esOtro = u.id !== yo;
   // El rol de un chofer no se cambia desde el panel: depende de su ficha.
   const cambiarRol = permisos.cambiarRol && u.rol !== "chofer" && esOtro;
   const editarDatos = permisos.editar && esOtro;
-  return { cambiarRol, editarDatos, accionable: cambiarRol || editarDatos };
+  // La contraseña temporal es para clientes y choferes; el equipo la recupera con un admin.
+  const contrasenaTemporal = Boolean(permisos.restablecerContrasena) && esOtro && (u.rol === "cliente" || u.rol === "chofer");
+  return { cambiarRol, editarDatos, contrasenaTemporal, accionable: cambiarRol || editarDatos || contrasenaTemporal };
 }

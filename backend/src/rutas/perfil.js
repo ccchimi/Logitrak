@@ -170,7 +170,7 @@ rutasPerfil.put('/', autenticar, async (req, res) => {
             await cliente.query('UPDATE usuarios SET nombre_completo = $1 WHERE id = $2', [nombreCompleto, id]);
         }
         if (nuevoHash) {
-            await cliente.query('UPDATE usuarios SET contrasena_hash = $1 WHERE id = $2', [nuevoHash, id]);
+            await cliente.query('UPDATE usuarios SET contrasena_hash = $1, contrasena_temporal_vence_en = NULL WHERE id = $2', [nuevoHash, id]);
         }
 
         if (rol === 'chofer') {

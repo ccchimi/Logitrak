@@ -37,7 +37,7 @@ Estado de los módulos:
 
 | Módulo | Estado |
 |---|---|
-| Registro, login, recuperación de contraseña y roles (cliente, chofer, soporte, admin) | Implementado; sesiones con refresh token revocable y verificación en dos pasos (TOTP) para el equipo |
+| Registro, login, recuperación de contraseña y roles (cliente, chofer, soporte, admin) | Implementado; sesiones con refresh token revocable y verificación en dos pasos (TOTP) para el equipo. La recuperación la resuelve soporte: verifica la identidad por el contacto del pedido y genera una contraseña temporal que vence en 24 horas y obliga a elegir una nueva |
 | Cotización con Boxy (direcciones, tipo de carga, vehículo y precio desglosado) | Implementado; el precio lo valida el servidor |
 | Creación de envíos y código de seguimiento `TRK-AAAA-NNNNNN` | Implementado |
 | Pagos: Mercado Pago (checkout, QR, webhook), MODO y tarjeta | Implementado; sin claves corre en modo sandbox. Si un envío se cobra dos veces, el segundo pago se devuelve solo |
@@ -112,6 +112,7 @@ Estado de los módulos:
 | — | Descarga de los datos de la cuenta en un archivo, con la contraseña | Derecho de acceso (Ley 25.326, art. 14): el usuario ve todo lo que Logitrak guarda de él, sin contraseñas ni tokens. |
 | — | Los cobros de más se devuelven solos | Un segundo cobro sobre el mismo envío, o uno que llega con el envío cancelado, antes solo se avisaba al admin. Si la pasarela no permite devolverlo, queda en revisión. |
 | — | El titular cambia su nombre, email y teléfono con la contraseña | Cada cambio sensible se reautentica en el servidor, no alcanza con tener la sesión abierta. |
+| — | Recuperación de contraseña a cargo de soporte, con contraseña temporal | Sin un proveedor de correo, la app no puede comprobar quién pide el cambio. Antes alcanzaba con conocer el nombre de usuario para cambiar la contraseña de otra cuenta: se detectó al revisar el informe contra el repositorio y se corrigió. |
 | — | Verificación en dos pasos para las cuentas del equipo | Protege las cuentas con más permisos: además de la contraseña, el ingreso pide un código de la app autenticadora o uno de respaldo. |
 | — | Plazos de conservación: las fotos de entrega se borran a los 180 días, las del chat a los 90 días de terminado el envío y la IP de los ingresos se anonimiza al año | Observación del Parcial 2 sobre la conservación de datos personales. La política completa (qué dato, quién lo ve y cuánto se guarda) está en `docs/politica-de-datos.md`. |
 

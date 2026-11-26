@@ -14,6 +14,7 @@ export type Permiso =
     | 'usuarios.listar'
     | 'usuarios.cambiar_rol'
     | 'usuarios.editar'
+    | 'usuarios.restablecer_contrasena'
     | 'choferes.ver_documentos'
     | 'sistema.reiniciar';
 

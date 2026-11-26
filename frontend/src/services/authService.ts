@@ -14,8 +14,9 @@ export type { RolUsuario, UsuarioSesion };
 export { obtenerUsuarioSesion, restaurarSesion, hayToken };
 
 export type ResultadoSesion =
-    | { exito: true; usuario: UsuarioSesion; requiereSegundoFactor?: false }
-    | { exito: true; requiereSegundoFactor: true; desafio: string; nombre: string }
+    | { exito: true; usuario: UsuarioSesion; requiereSegundoFactor?: false; requiereCambioDeContrasena?: false }
+    | { exito: true; requiereSegundoFactor: true; desafio: string; nombre: string; requiereCambioDeContrasena?: false }
+    | { exito: true; requiereCambioDeContrasena: true; desafio: string; nombre: string; requiereSegundoFactor?: false }
     | { exito: false; error: string; codigo?: string };
 
 export type ResultadoOperacion =
@@ -37,6 +38,10 @@ export async function iniciarSesion(usuario: string, contrasena: string): Promis
     if (r.requiereSegundoFactor) {
         return { exito: true, requiereSegundoFactor: true, desafio: r.desafio, nombre: r.usuario?.nombreCompleto ?? usuario };
     }
+    // Entró con la contraseña temporal que le dio soporte: falta elegir una nueva.
+    if (r.requiereCambioDeContrasena) {
+        return { exito: true, requiereCambioDeContrasena: true, desafio: r.desafio, nombre: r.usuario?.nombreCompleto ?? usuario };
+    }
 
     guardarSesion(r.token, r.usuario, r.refreshToken);
     void registrarTelefono();
@@ -50,6 +55,18 @@ export async function completarSegundoFactor(desafio: string, codigo: string): P
         { metodo: 'POST', cuerpo: { desafio, codigo } }
     )) as any;
     if (!r.exito) return { exito: false, error: r.error ?? 'No se pudo verificar el código.', codigo: r.codigo };
+    guardarSesion(r.token, r.usuario, r.refreshToken);
+    void registrarTelefono();
+    return { exito: true, usuario: r.usuario };
+}
+
+/** Primer ingreso con una contraseña temporal: guarda la nueva y abre la sesión. */
+export async function completarCambioDeContrasena(desafio: string, nueva: string, confirmacion: string): Promise<ResultadoSesion> {
+    const r = (await llamarApi<{ exito: true; token: string; refreshToken?: string; usuario: UsuarioSesion }>(
+        '/api/auth/login/cambiar-contrasena',
+        { metodo: 'POST', cuerpo: { desafio, nueva, confirmacion } }
+    )) as any;
+    if (!r.exito) return { exito: false, error: r.error ?? 'No se pudo guardar la contraseña.', codigo: r.codigo };
     guardarSesion(r.token, r.usuario, r.refreshToken);
     void registrarTelefono();
     return { exito: true, usuario: r.usuario };
@@ -79,17 +96,18 @@ export async function registrarUsuario(datos: DatosRegistro): Promise<ResultadoO
     return { exito: true, mensaje: r.mensaje };
 }
 
-export async function restablecerContrasena(
-    usuario: string,
-    nueva: string,
-    confirmacion: string
-): Promise<ResultadoOperacion> {
+/**
+ * Pide ayuda a soporte para recuperar la cuenta. No cambia la contraseña: el
+ * equipo verifica por el contacto que la cuenta es de quien la pide y le da
+ * una contraseña temporal.
+ */
+export async function pedirRecuperacion(usuario: string, contacto: string, detalle?: string): Promise<ResultadoOperacion> {
     const r = await llamarApi<{ exito: true; mensaje: string }>('/api/auth/recuperar', {
         metodo: 'POST',
-        cuerpo: { usuario, nueva, confirmacion },
+        cuerpo: { usuario, contacto, ...(detalle?.trim() ? { detalle } : {}) },
     });
 
-    if (!r.exito) return { exito: false, error: (r as any).error ?? 'No se pudo restablecer la contraseña.' };
+    if (!r.exito) return { exito: false, error: (r as any).error ?? 'No se pudo enviar el pedido.' };
     return { exito: true, mensaje: r.mensaje };
 }
 

@@ -94,12 +94,14 @@ describe('sesiones con refresh token (integración)', { skip: SALTEAR }, () => {
         assert.equal((await api('/api/auth/refresh', { metodo: 'POST', cuerpo: { refreshToken: s.refreshToken } })).status, 401);
     });
 
-    test('cambiar la contraseña cierra todas las sesiones de la cuenta', async () => {
+    test('una contraseña temporal del equipo cierra todas las sesiones de la cuenta', async () => {
         const s = await cuenta('ses.clave');
         const otraSesion = (await api('/api/auth/login', { metodo: 'POST', cuerpo: { usuario: s.usuario, contrasena: clave } })).body;
-        const nueva = `${clave}-2`;
+        const sop = await cuenta('ses.sop');
+        await pool.query(`UPDATE usuarios SET rol = 'soporte' WHERE id = $1`, [sop.perfil.id]);
+        const tokenSoporte = (await api('/api/auth/login', { metodo: 'POST', cuerpo: { usuario: sop.usuario, contrasena: clave } })).body.token;
 
-        const r = await api('/api/auth/recuperar', { metodo: 'POST', cuerpo: { usuario: s.usuario, nueva, confirmacion: nueva } });
+        const r = await api(`/api/admin/usuarios/${s.perfil.id}/contrasena-temporal`, { metodo: 'POST', token: tokenSoporte });
         assert.equal(r.status, 200);
         for (const t of [s.refreshToken, otraSesion.refreshToken]) {
             assert.equal((await api('/api/auth/refresh', { metodo: 'POST', cuerpo: { refreshToken: t } })).status, 401);

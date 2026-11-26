@@ -15,7 +15,13 @@ import { LinearGradient } from "expo-linear-gradient";
 import { COLORS, styles, tamanosAuth } from "../styles/LoginStyles";
 import { useRootFlow } from "../navigation/RootFlowContext";
 import AuthFrame from "../components/AuthFrame";
-import { completarSegundoFactor, iniciarSesion, type UsuarioSesion } from "../services/authService";
+import {
+  completarCambioDeContrasena,
+  completarSegundoFactor,
+  iniciarSesion,
+  type UsuarioSesion,
+} from "../services/authService";
+import CambioContrasenaTemporal from "../components/auth/CambioContrasenaTemporal";
 import { codigoCompleto, normalizarCodigo } from "../helpers/dobleFactor";
 import type { RefTextInput } from "../types/refs";
 
@@ -33,6 +39,8 @@ export default function LoginScreens({ navigation }: any) {
   // Segundo paso, si la cuenta tiene verificación en dos pasos.
   const [desafio, setDesafio] = useState<{ token: string; nombre: string } | null>(null);
   const [codigo, setCodigo] = useState("");
+  // Ingreso con la contraseña temporal que dio soporte: falta elegir una nueva.
+  const [cambio, setCambio] = useState<{ token: string; nombre: string } | null>(null);
 
   const { volverAlInicio, puedeVolver } = useRootFlow();
 
@@ -72,6 +80,11 @@ export default function LoginScreens({ navigation }: any) {
       return;
     }
     olvidarContrasena();
+    if (resultado.requiereCambioDeContrasena) {
+      setError("");
+      setCambio({ token: resultado.desafio, nombre: resultado.nombre });
+      return;
+    }
     if (resultado.requiereSegundoFactor) {
       setError("");
       setDesafio({ token: resultado.desafio, nombre: resultado.nombre });
@@ -97,7 +110,21 @@ export default function LoginScreens({ navigation }: any) {
       }
       return;
     }
-    if (!r.requiereSegundoFactor) entrar(r.usuario);
+    if (!r.requiereSegundoFactor && !r.requiereCambioDeContrasena) entrar(r.usuario);
+  };
+
+  const guardarContrasenaNueva = async (nueva: string, confirmacion: string) => {
+    if (cargando || !cambio) return;
+    setCargando(true);
+    const r = await completarCambioDeContrasena(cambio.token, nueva, confirmacion);
+    setCargando(false);
+    if (!r.exito) {
+      setError(r.error);
+      if (r.codigo === "desafio_vencido") setCambio(null);
+      return;
+    }
+    setCambio(null);
+    if (!r.requiereSegundoFactor && !r.requiereCambioDeContrasena) entrar(r.usuario);
   };
 
   const contenido = (
@@ -171,7 +198,17 @@ export default function LoginScreens({ navigation }: any) {
             </Text>
           ) : null}
 
-          {desafio ? (
+          {cambio ? (
+            <CambioContrasenaTemporal
+              nombre={cambio.nombre}
+              ocupado={cargando}
+              onGuardar={(nueva, confirmacion) => void guardarContrasenaNueva(nueva, confirmacion)}
+              onVolver={() => {
+                setCambio(null);
+                setError("");
+              }}
+            />
+          ) : desafio ? (
             <View style={tema.estilo({ gap: 18 })}>
               <Text accessibilityRole="header" style={tema.estilo([styles.hintText, { color: "#FFFFFF", fontSize: 18 }])}>
                 Verificación en dos pasos

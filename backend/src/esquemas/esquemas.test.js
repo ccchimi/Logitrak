@@ -41,12 +41,19 @@ describe('auth', () => {
         assert.deepEqual(falla(auth.registro, { ...datos, confirmacion: 'otra-cosa' }), ['Las contraseñas no coinciden.']);
     });
 
-    test('recuperar valida la nueva contraseña y la confirmación', () => {
-        ok(auth.recuperar, { usuario: 'ana', nueva: '12345678', confirmacion: '12345678' });
-        assert.deepEqual(falla(auth.recuperar, { usuario: 'ana', nueva: '1234', confirmacion: '1234' }), [
-            'La nueva contraseña debe tener al menos 8 caracteres.',
+    test('recuperar pide un contacto y no acepta una contraseña nueva', () => {
+        const d = ok(auth.recuperar, { usuario: ' Ana ', contacto: ' ana@mail.com ', nueva: '12345678' });
+        assert.deepEqual(d, { usuario: 'ana', contacto: 'ana@mail.com' }, 'la contraseña nueva se descarta');
+        assert.deepEqual(falla(auth.recuperar, { usuario: 'ana' }), ['Dejanos un email o un teléfono para contactarte.']);
+        assert.deepEqual(falla(auth.recuperar, { usuario: 'ana', contacto: '123' }), ['Dejanos un email o un teléfono para contactarte.']);
+    });
+
+    test('el cambio de una contraseña temporal valida la nueva y la confirmación', () => {
+        ok(auth.cambioDeContrasenaTemporal, { desafio: 'x'.repeat(20), nueva: '12345678', confirmacion: '12345678' });
+        assert.deepEqual(falla(auth.cambioDeContrasenaTemporal, { desafio: 'x'.repeat(20), nueva: '1234', confirmacion: '1234' }), [
+            'La contraseña debe tener al menos 8 caracteres.',
         ]);
-        assert.deepEqual(falla(auth.recuperar, { usuario: 'ana', nueva: '12345678', confirmacion: '1234567x' }), [
+        assert.deepEqual(falla(auth.cambioDeContrasenaTemporal, { desafio: 'x'.repeat(20), nueva: '12345678', confirmacion: '1234567x' }), [
             'Las contraseñas no coinciden.',
         ]);
     });

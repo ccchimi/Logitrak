@@ -21,6 +21,7 @@ import Desplegable from "../components/Desplegable";
 import { puede } from "../services/permisos";
 import CambiarRolModal from "../components/admin/CambiarRolModal";
 import EditarUsuarioModal from "../components/admin/EditarUsuarioModal";
+import ContrasenaTemporalModal from "../components/admin/ContrasenaTemporalModal";
 import { ToastStack, useToasts } from "../components/Toasts";
 
 const METRICAS = [
@@ -60,13 +61,18 @@ function Usuarios() {
   const [datos, setDatos] = useState<ListaUsuariosAdmin | null>(null);
   const [editando, setEditando] = useState<UsuarioAdmin | null>(null);
   const [editandoDatos, setEditandoDatos] = useState<UsuarioAdmin | null>(null);
+  const [recuperando, setRecuperando] = useState<UsuarioAdmin | null>(null);
   const { toasts, mostrar, cerrar } = useToasts();
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
   const [actualizado, setActualizado] = useState("");
 
   const yo = obtenerUsuarioSesion()?.id;
-  const permisos = { cambiarRol: puede("usuarios.cambiar_rol"), editar: puede("usuarios.editar") };
+  const permisos = {
+    cambiarRol: puede("usuarios.cambiar_rol"),
+    editar: puede("usuarios.editar"),
+    restablecerContrasena: puede("usuarios.restablecer_contrasena"),
+  };
   const acciones = (u: UsuarioAdmin) => accionesSobreUsuario(u, yo, permisos);
 
   const fechaError = errorFechas(filtros);
@@ -169,6 +175,7 @@ function Usuarios() {
             acciones={acciones}
             onEditarDatos={setEditandoDatos}
             onCambiarRol={setEditando}
+            onContrasenaTemporal={setRecuperando}
           />
         )}
         <Paginacion
@@ -262,6 +269,7 @@ function Usuarios() {
           {!!fechaError && <TextoAdmin style={{ color: tema.colores.error }}>{fechaError}</TextoAdmin>}
         </PanelAdmin>
         {resultados()}
+        <ContrasenaTemporalModal usuario={recuperando} onCerrar={() => setRecuperando(null)} />
         <CambiarRolModal
           usuario={editando}
           onCerrar={() => setEditando(null)}

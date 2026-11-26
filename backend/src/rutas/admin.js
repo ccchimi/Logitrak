@@ -9,6 +9,9 @@ import { exigirPermiso } from '../middleware/permisos.js';
 import { registrarEvento } from '../outbox/index.js';
 import { aplicarCambios, CAMPOS_CHOFER, cambiosPedidos, perfilParaAdmin } from '../servicios/perfilesAdmin.js';
 import { desactivarDobleFactor } from '../servicios/dobleFactor.js';
+import bcrypt from 'bcryptjs';
+import { revocarSesionesDeUsuario } from '../servicios/sesiones.js';
+import { generarContrasenaTemporal, HORAS_CONTRASENA_TEMPORAL, sePuedeRecuperar } from '../servicios/recuperacion.js';
 
 export const rutasAdmin = Router();
 
@@ -184,6 +187,62 @@ rutasAdmin.put(
             await cliente.query('ROLLBACK').catch(() => {});
             registrarError(e, 'No se pudieron editar los datos del usuario');
             return res.status(500).json({ exito: false, error: 'No se pudieron guardar los cambios.' });
+        } finally {
+            cliente.release();
+        }
+    }
+);
+
+// Recuperación de contraseña: soporte o un admin, después de verificar por el
+// contacto del pedido que la cuenta es de quien la pide, genera una contraseña
+// temporal. Se muestra una sola vez, vence a las 24 horas y obliga a elegir una
+// nueva al entrar. Cierra las sesiones abiertas de la cuenta.
+rutasAdmin.post(
+    '/usuarios/:id/contrasena-temporal',
+    autenticar,
+    exigirPermiso('usuarios.restablecer_contrasena'),
+    validarRequest({ params: paramsUsuario }),
+    async (req, res) => {
+        const id = Number(req.params.id);
+        if (id === req.usuario.id) {
+            return res.status(409).json({ exito: false, error: 'Tu propia contraseña se cambia desde Mi Perfil.' });
+        }
+        const contrasenaTemporal = generarContrasenaTemporal();
+        const hash = await bcrypt.hash(contrasenaTemporal, 10);
+        const cliente = await pool.connect();
+        try {
+            await cliente.query('BEGIN');
+            const fila = (await cliente.query('SELECT * FROM usuarios WHERE id = $1 FOR UPDATE', [id])).rows[0];
+            if (!fila || fila.eliminado_en) {
+                await cliente.query('ROLLBACK');
+                return res.status(404).json({ exito: false, error: 'No encontramos esa cuenta.' });
+            }
+            if (!sePuedeRecuperar(fila)) {
+                await cliente.query('ROLLBACK');
+                return res.status(409).json({
+                    exito: false,
+                    error: 'Las cuentas del equipo y las que tienen verificación en dos pasos no se recuperan con una contraseña temporal.',
+                });
+            }
+            const { rows } = await cliente.query(
+                `UPDATE usuarios
+                 SET contrasena_hash = $2, contrasena_temporal_vence_en = now() + make_interval(hours => $3::int)
+                 WHERE id = $1 RETURNING contrasena_temporal_vence_en`,
+                [id, hash, HORAS_CONTRASENA_TEMPORAL]
+            );
+            await revocarSesionesDeUsuario(cliente, id, 'contrasena_temporal');
+            await cliente.query('COMMIT');
+            log().info({ usuarioId: id, por: req.usuario.id }, 'Contraseña temporal generada por el equipo');
+            return res.json({
+                exito: true,
+                contrasenaTemporal,
+                venceEn: rows[0].contrasena_temporal_vence_en,
+                mensaje: `Pasásela por el medio verificado. Vence en ${HORAS_CONTRASENA_TEMPORAL} horas y al entrar va a tener que elegir una nueva.`,
+            });
+        } catch (e) {
+            await cliente.query('ROLLBACK').catch(() => {});
+            registrarError(e, 'No se pudo generar la contraseña temporal');
+            return res.status(500).json({ exito: false, error: 'No se pudo generar la contraseña temporal. Probá de nuevo.' });
         } finally {
             cliente.release();
         }

@@ -23,7 +23,7 @@ Respuesta a la observación del Parcial 2: *"diferenciar claramente las integrac
 | **Prueba de vida (ML Kit)** | Detectar que la selfie es de una persona presente | Real solo en builds nativos | No funciona en web ni en Expo Go (pendiente #9). |
 | **Comparación facial** (`faceMatch.js`) | Comparar la selfie con la foto del DNI | **Pendiente** | Requiere `@tensorflow/tfjs-node`, que no está instalado en el servidor. Desactivada salvo `FACE_MATCH_REQUERIDO=true`. |
 | **Sentry** | Reporte de errores | **Pendiente** (`sentry: no_configurado`) | El código lo soporta; falta crear los proyectos (pendiente #15). |
-| **Correo electrónico** | Comprobante por mail, recuperación de contraseña, confirmar email | **No implementado** | No hay proveedor de correo. El comprobante se descarga desde la app (pendiente #17). |
+| **Correo electrónico** | Comprobante por mail, recuperación de contraseña por link, confirmar email | **No implementado** | No hay proveedor de correo. Mientras tanto, la recuperación de contraseña la resuelve soporte con una contraseña temporal. El comprobante se descarga desde la app (pendiente #17). |
 | **Render, GitHub Pages y EAS** | Despliegue de la API, la Web App y la app Android | Real | La versión desplegada se ve en `/api/salud` (`version`). |
 
 ## Claves y configuraciones que tiene que cargar el equipo

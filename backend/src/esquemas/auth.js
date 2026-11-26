@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { textoRequerido } from './comunes.js';
+import { textoOpcional, textoRequerido } from './comunes.js';
 
 const COMPLETAR = 'Por favor, completá todos los campos.';
 const USUARIO_INVALIDO = 'El usuario debe tener entre 3 y 20 caracteres (letras, números, punto, guión).';
@@ -28,13 +28,21 @@ export const registro = z
     })
     .refine(coincidir('contrasena'), { error: NO_COINCIDEN, path: ['confirmacion'] });
 
-export const recuperar = z
+// Pedido de recuperación: no cambia la contraseña, deja la consulta a soporte.
+export const recuperar = z.object({
+    usuario: textoRequerido(50, 'Ingresá tu usuario.').toLowerCase(),
+    contacto: textoRequerido(120, 'Dejanos un email o un teléfono para contactarte.', {
+        min: 6,
+        mensajeLargo: 'El contacto no puede superar los 120 caracteres.',
+    }),
+    detalle: textoOpcional(500, 'El comentario no puede superar los 500 caracteres.'),
+});
+
+// Primer ingreso con una contraseña temporal: hay que elegir una nueva.
+export const cambioDeContrasenaTemporal = z
     .object({
-        usuario: textoRequerido(50, 'Ingresá tu usuario.').toLowerCase(),
-        nueva: z
-            .string({ error: 'La nueva contraseña debe tener al menos 8 caracteres.' })
-            .min(8, 'La nueva contraseña debe tener al menos 8 caracteres.')
-            .max(128, CONTRASENA_LARGA),
+        desafio: z.string({ error: 'Falta el desafío del ingreso.' }).min(10).max(2000),
+        nueva: contrasenaNueva,
         confirmacion: z.string({ error: NO_COINCIDEN }),
     })
     .refine(coincidir('nueva'), { error: NO_COINCIDEN, path: ['confirmacion'] });

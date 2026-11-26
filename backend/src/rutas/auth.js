@@ -15,8 +15,15 @@ import {
 import { validarRequest } from '../middleware/validar.js';
 import * as esquemas from '../esquemas/auth.js';
 import { registrarError } from '../observabilidad/logger.js';
-import { esPersonal, permisosDe } from '../middleware/permisos.js';
+import { permisosDe } from '../middleware/permisos.js';
 import { consumirCodigo, firmarDesafio, leerDesafio } from '../servicios/dobleFactor.js';
+import {
+    contrasenaTemporalVencida,
+    firmarDesafioCambio,
+    leerDesafioCambio,
+    registrarPedidoDeRecuperacion,
+    sePuedeRecuperar,
+} from '../servicios/recuperacion.js';
 
 export const rutasAuth = Router();
 
@@ -66,6 +73,26 @@ rutasAuth.post('/login', limiteLogin, validarRequest({ body: esquemas.login }), 
     if (!coincide) {
         await auditar(usuario, false, 'credenciales inválidas', req);
         return res.status(401).json({ exito: false, error: 'Usuario o contraseña incorrectos.' });
+    }
+
+    // Contraseña temporal que generó soporte: vence a las 24 horas y no abre
+    // sesión. Devuelve un desafío de 10 minutos para elegir una contraseña nueva.
+    if (fila.contrasena_temporal_vence_en) {
+        if (contrasenaTemporalVencida(fila)) {
+            await auditar(usuario, false, 'contraseña temporal vencida', req);
+            return res.status(401).json({
+                exito: false,
+                codigo: 'temporal_vencida',
+                error: 'La contraseña temporal venció. Pedí otra desde "¿Te olvidaste la contraseña?".',
+            });
+        }
+        await auditar(usuario, true, 'contraseña temporal: falta elegir una nueva', req);
+        return res.json({
+            exito: true,
+            requiereCambioDeContrasena: true,
+            desafio: firmarDesafioCambio(fila.id),
+            usuario: { usuario: fila.usuario, nombreCompleto: fila.nombre_completo },
+        });
     }
 
     // Solo comprobar la contraseña (Mi Perfil antes de un cambio): no abre sesión.
@@ -118,6 +145,50 @@ rutasAuth.post('/login/segundo-factor', limiteLogin, validarRequest({ body: esqu
     await auditar(fila.usuario, true, tipo === 'respaldo' ? 'segundo factor (código de respaldo)' : 'segundo factor', req);
     return abrirSesion(req, res, fila);
 });
+
+rutasAuth.post(
+    '/login/cambiar-contrasena',
+    limiteLogin,
+    validarRequest({ body: esquemas.cambioDeContrasenaTemporal }),
+    async (req, res) => {
+        const usuarioId = leerDesafioCambio(req.body.desafio);
+        const vencido = { exito: false, codigo: 'desafio_vencido', error: 'Pasaron más de 10 minutos. Volvé a ingresar con la contraseña temporal.' };
+        if (!usuarioId) return res.status(401).json(vencido);
+
+        const cliente = await pool.connect();
+        let fila;
+        try {
+            await cliente.query('BEGIN');
+            fila = (await cliente.query(
+                'SELECT * FROM usuarios WHERE id = $1 AND eliminado_en IS NULL FOR UPDATE',
+                [usuarioId]
+            )).rows[0];
+            if (!fila?.contrasena_temporal_vence_en || contrasenaTemporalVencida(fila)) {
+                await cliente.query('ROLLBACK');
+                return res.status(401).json(vencido);
+            }
+            if (await bcrypt.compare(req.body.nueva, fila.contrasena_hash)) {
+                await cliente.query('ROLLBACK');
+                return res.status(400).json({ exito: false, error: 'Elegí una contraseña distinta de la temporal.' });
+            }
+            const hash = await bcrypt.hash(req.body.nueva, 10);
+            fila = (await cliente.query(
+                `UPDATE usuarios SET contrasena_hash = $2, contrasena_temporal_vence_en = NULL WHERE id = $1 RETURNING *`,
+                [usuarioId, hash]
+            )).rows[0];
+            await revocarSesionesDeUsuario(cliente, usuarioId, 'cambio_clave');
+            await cliente.query('COMMIT');
+        } catch (e) {
+            await cliente.query('ROLLBACK').catch(() => {});
+            registrarError(e, 'No se pudo cambiar la contraseña temporal');
+            return res.status(500).json({ exito: false, error: 'No se pudo guardar la contraseña. Probá de nuevo.' });
+        } finally {
+            cliente.release();
+        }
+        await auditar(fila.usuario, true, 'contraseña temporal reemplazada', req);
+        return abrirSesion(req, res, fila);
+    }
+);
 
 const SESION_VENCIDA = { exito: false, codigo: 'sesion_vencida', error: 'Tu sesión venció. Volvé a ingresar.' };
 
@@ -191,24 +262,31 @@ rutasAuth.get('/existe/:usuario', limiteLogin, validarRequest({ params: esquemas
     return res.json({ exito: true, existe: rows.length > 0 });
 });
 
+// Sin un proveedor de correo, la app no puede comprobar que quien pide la
+// recuperación es el dueño de la cuenta. Por eso no cambia la contraseña: deja
+// el pedido a soporte, que verifica la identidad por el contacto indicado y
+// genera una contraseña temporal (POST /api/admin/usuarios/:id/contrasena-temporal).
+// La respuesta es siempre la misma, exista o no la cuenta.
+const PEDIDO_RECIBIDO = {
+    exito: true,
+    mensaje: 'Recibimos tu pedido. Si el usuario existe, el equipo de soporte te va a contactar por ese medio para verificar que la cuenta es tuya y darte una contraseña temporal.',
+};
+
 rutasAuth.post('/recuperar', limiteLogin, validarRequest({ body: esquemas.recuperar }), async (req, res) => {
-    const { usuario, nueva } = req.body;
-
-    const { rows } = await consultar('SELECT id, rol, totp_activado_en FROM usuarios WHERE usuario = $1', [usuario]);
-    const fila = rows[0];
-
-    if (!fila) {
-        return res.status(404).json({ exito: false, error: 'No encontramos una cuenta con ese usuario.' });
+    const { usuario, contacto, detalle } = req.body;
+    try {
+        const fila = (await consultar('SELECT * FROM usuarios WHERE usuario = $1', [usuario])).rows[0];
+        if (sePuedeRecuperar(fila)) {
+            await registrarPedidoDeRecuperacion(pool, fila, { contacto, detalle });
+            await auditar(usuario, true, 'pedido de recuperación a soporte', req);
+        } else {
+            await auditar(usuario, false, 'pedido de recuperación no admitido', req);
+        }
+    } catch (e) {
+        registrarError(e, 'No se pudo registrar el pedido de recuperación');
+        return res.status(500).json({ exito: false, error: 'No pudimos registrar el pedido. Probá de nuevo en un rato.' });
     }
-    if (esPersonal(fila.rol) || fila.totp_activado_en) {
-        return res.status(403).json({ exito: false, error: 'Las cuentas del equipo no se pueden restablecer desde acá.' });
-    }
-    const hash = await bcrypt.hash(nueva, 10);
-    await consultar('UPDATE usuarios SET contrasena_hash = $1 WHERE id = $2', [hash, fila.id]);
-
-    await revocarSesionesDeUsuario(pool, fila.id, 'cambio_clave');
-
-    return res.json({ exito: true, mensaje: 'Contraseña actualizada. Ya podés iniciar sesión.' });
+    return res.json(PEDIDO_RECIBIDO);
 });
 
 rutasAuth.get('/perfil', autenticar, async (req, res) => {

@@ -115,9 +115,11 @@ describe('roles y permisos (integración)', { skip: SALTEAR }, () => {
 
     test('el personal no recupera la contraseña ni elimina la cuenta desde la app', async () => {
         const soporte = await conRol('rol.sop4', 'soporte');
-        const nueva = `${entorno.clave}-2`;
-        const r = await api('/api/auth/recuperar', { metodo: 'POST', cuerpo: { usuario: soporte.usuario, nueva, confirmacion: nueva } });
-        assert.equal(r.status, 403);
+        const r = await api('/api/auth/recuperar', { metodo: 'POST', cuerpo: { usuario: soporte.usuario, contacto: 'sop@mail.com' } });
+        assert.equal(r.status, 200);
+        const pedidos = await entorno.pool.query('SELECT 1 FROM soporte_tickets WHERE usuario_id = $1', [soporte.perfil.id]);
+        assert.equal(pedidos.rowCount, 0, 'una cuenta del equipo no se recupera por este camino');
+        assert.equal((await api('/api/auth/login', { metodo: 'POST', cuerpo: { usuario: soporte.usuario, contrasena: entorno.clave } })).status, 200);
         const baja = await api('/api/perfil/eliminar-cuenta', { metodo: 'POST', token: soporte.token, cuerpo: { contrasena: entorno.clave } });
         assert.equal(baja.status, 403);
     });

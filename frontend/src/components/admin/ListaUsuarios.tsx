@@ -15,13 +15,14 @@ export const NOMBRE_ROL_ADMIN: Record<RolUsuario, string> = {
   admin: "Administrador",
 };
 
-const TITULOS = ["ID", "Nombre completo", "Usuario", "Rol", "Código de chofer", "Email", "Fecha de alta"];
-const ANCHOS = [90, 230, 180, 155, 170, 230, 170];
+const TITULOS = ["ID", "Nombre completo", "Usuario", "Rol", "Código de chofer", "Email", "Fecha de alta", "Acceso"];
+const ANCHOS = [90, 230, 180, 155, 170, 230, 170, 200];
 const COLUMNA_EMAIL = 5;
 
 export interface AccionesUsuario {
   cambiarRol: boolean;
   editarDatos: boolean;
+  contrasenaTemporal: boolean;
   accionable: boolean;
 }
 
@@ -31,6 +32,7 @@ interface Props {
   acciones: (u: UsuarioAdmin) => AccionesUsuario;
   onEditarDatos: (u: UsuarioAdmin) => void;
   onCambiarRol: (u: UsuarioAdmin) => void;
+  onContrasenaTemporal: (u: UsuarioAdmin) => void;
 }
 
 function celdas(u: UsuarioAdmin) {
@@ -48,12 +50,20 @@ function celdas(u: UsuarioAdmin) {
 function etiquetaDeLaFila(u: UsuarioAdmin, a: AccionesUsuario) {
   if (a.editarDatos) return `Editar los datos de ${u.nombreCompleto}`;
   if (a.cambiarRol) return `Cambiar el rol de ${u.nombreCompleto}`;
+  if (a.contrasenaTemporal) return `Generar una contraseña temporal para ${u.nombreCompleto}`;
   return undefined;
 }
 
 // En pantallas anchas, una tabla donde cada fila abre la edición; en el
 // teléfono, una tarjeta por usuario con sus botones.
-export default function ListaUsuarios({ usuarios, ancho, acciones, onEditarDatos, onCambiarRol }: Props) {
+function abrirPrincipal(u: UsuarioAdmin, a: AccionesUsuario, p: Props) {
+  if (a.editarDatos) p.onEditarDatos(u);
+  else if (a.cambiarRol) p.onCambiarRol(u);
+  else if (a.contrasenaTemporal) p.onContrasenaTemporal(u);
+}
+
+export default function ListaUsuarios(props: Props) {
+  const { usuarios, ancho, acciones, onEditarDatos, onCambiarRol, onContrasenaTemporal } = props;
   const tema = useTema();
 
   if (ancho) {
@@ -68,7 +78,7 @@ export default function ListaUsuarios({ usuarios, ancho, acciones, onEditarDatos
                 <Pressable
                   key={u.id}
                   disabled={!a.accionable}
-                  onPress={() => (a.editarDatos ? onEditarDatos(u) : onCambiarRol(u))}
+                  onPress={() => abrirPrincipal(u, a, props)}
                   accessibilityRole={a.accionable ? "button" : undefined}
                   accessibilityLabel={etiquetaDeLaFila(u, a)}
                   style={[s.tableRow, { minHeight: 76, borderColor: tema.colores.borde }]}
@@ -79,6 +89,11 @@ export default function ListaUsuarios({ usuarios, ancho, acciones, onEditarDatos
                       {i === COLUMNA_EMAIL && !!u.telefono && <TextoAdmin tipo="muted">{u.telefono}</TextoAdmin>}
                     </View>
                   ))}
+                  <View style={{ width: ANCHOS[7] }}>
+                    {a.contrasenaTemporal && (a.editarDatos || a.cambiarRol) ? (
+                      <Boton texto="Contraseña temporal" secundario onPress={() => onContrasenaTemporal(u)} />
+                    ) : null}
+                  </View>
                 </Pressable>
               );
             })}
@@ -111,6 +126,9 @@ export default function ListaUsuarios({ usuarios, ancho, acciones, onEditarDatos
               <View style={s.row}>
                 {a.editarDatos && <Boton texto="Editar datos" secundario onPress={() => onEditarDatos(u)} />}
                 {a.cambiarRol && <Boton texto="Cambiar rol" secundario onPress={() => onCambiarRol(u)} />}
+                {a.contrasenaTemporal && (
+                  <Boton texto="Contraseña temporal" secundario onPress={() => onContrasenaTemporal(u)} />
+                )}
               </View>
             )}
           </PanelAdmin>
