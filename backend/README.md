@@ -730,6 +730,31 @@ precio, el vehículo y la distancia que mande el cliente. Si no coinciden, la
 respuesta trae `precioAjustado: true` y el cálculo del servidor, que es el que la
 app pasa a mostrar.
 
+**Distancia por calle.** La app estima la distancia entre localidades
+(`estimarDistancia`: línea recta por un factor de ruta, o un valor fijo dentro
+de la misma ciudad). El servidor, en cambio, la pide a Google Directions
+(`cotizarConDistanciaPorCalle` en `src/servicios/cotizador/index.js`):
+
+1. Cotiza primero con la estimación. Si los datos no sirven, rechaza sin
+   gastar una consulta a Google.
+2. Pide la distancia por calle entre las direcciones normalizadas, con
+   ", Argentina" al final (`obtenerDistanciaPorCalle` en
+   `src/servicios/recorridos.js`). Espera como máximo 3 segundos y guarda el
+   resultado 30 minutos en memoria.
+3. Controla que sea coherente con la estimación (`distanciaPorCallePlausible`,
+   en el cotizador compartido): en un tramo interurbano tiene que estar entre
+   la mitad y el doble de lo estimado, y en uno urbano no pasar de 100 km. Así,
+   si Google ubica "Av. Corrientes 1300" en la ciudad de Corrientes, no se
+   cobra un viaje de 900 km.
+4. Si pasa el control, vuelve a cotizar con esos km: cambian el recorrido, los
+   peajes, los tiempos y el plazo de retiro, y el desglose dice "por calle,
+   según Google Maps".
+
+Sin `GOOGLE_DIRECTIONS_KEY`, si Google no responde a tiempo o si la distancia
+no pasa el control, se cobra con la estimación y el motivo queda en el log. El
+cliente no puede mandar una distancia: `cotizarEnServidor` arma la solicitud
+campo por campo y la distancia por calle solo la agrega el servidor.
+
 Para que los dos lados den exactamente lo mismo, el backend no tiene una copia
 escrita a mano del cotizador: `npm run generar:cotizador` empaqueta con esbuild
 el de `frontend/src/services/botLogistica` en
@@ -1108,12 +1133,14 @@ No se puede eliminar una cuenta de soporte o admin, ni la de un cliente con un e
 todavía en curso, ni la de un chofer con un viaje asignado: primero tienen que
 terminar (responde 409 explicando el motivo).
 
-**Claves de Google**: la ruta por calles de la app móvil se pide a
-`GET /api/recorridos`, que llama a Google Directions con `GOOGLE_DIRECTIONS_KEY`.
-Esa clave nunca sale del servidor; las respuestas se guardan 30 minutos en
-memoria y el endpoint exige sesión y tiene un límite de 60 consultas cada 10
-minutos por IP, para acotar el consumo de cuota. Sin la clave responde 503
-y la app muestra solo los puntos de retiro y entrega.
+**Claves de Google**: `GOOGLE_DIRECTIONS_KEY` se usa en dos lugares, y nunca
+sale del servidor. `GET /api/recorridos` devuelve la ruta por calles del mapa
+del teléfono: exige sesión, tiene un límite de 60 consultas cada 10 minutos por
+IP y, sin la clave, responde 503 y la app muestra solo los puntos de retiro y
+entrega. `POST /api/cotizaciones` pide la distancia por calle para el precio
+(ver [Cómo se calcula el precio](#cómo-se-calcula-el-precio)), con el límite de
+30 cotizaciones cada 10 minutos. Las dos consultas guardan el resultado 30
+minutos en memoria para acotar el consumo de cuota.
 
 **Logs y errores** (`src/observabilidad/`): los logs salen con `pino`, en JSON,
 una línea por evento. Cada pedido HTTP deja una línea al terminar:

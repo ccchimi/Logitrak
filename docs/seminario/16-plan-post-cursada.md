@@ -13,7 +13,7 @@ Tareas que no necesitan programar, o muy poco, y que cierran riesgos o pedidos d
 | # | Tarea | Prioridad | Esfuerzo | Área sugerida | Depende de | Hecho cuando |
 |---|---|---|---|---|---|---|
 | #24 | Revisar en `auditoria_accesos` si alguien usó la recuperación de contraseña vieja | Alta | S | Backend | Acceso a la base de producción | Se revisaron los cambios previos al 26/11/2026 y, si hubo abuso, se avisó a las cuentas afectadas |
-| #20 | Cargar `GOOGLE_DIRECTIONS_KEY` en Render | Alta | S | Backend | Cuenta de Google Cloud | `/api/salud` muestra `googleDirections: ok` y el mapa del teléfono dibuja la ruta por calles |
+| #20 | Cargar `GOOGLE_DIRECTIONS_KEY` en Render | Alta | S | Backend | Cuenta de Google Cloud | `/api/salud` muestra `googleDirections: ok`, una cotización de CABA a Rosario sale con los km por calle y el mapa del teléfono dibuja la ruta |
 | #8 | Restringir las claves de Google y rotar la de Directions expuesta | Alta | S | Backend | #20 | Cada clave solo funciona desde su app, dominio o servidor |
 | #14 | Cambiar la contraseña de los admins creados antes del cambio de seguridad | Alta | S | Gestión | — | El log de arranque no avisa de contraseñas iguales al usuario |
 | #16 | Configurar el health check de Render en `/api/salud/vivo` | Media | S | Backend | — | Render reinicia la API si deja de responder |
@@ -30,7 +30,6 @@ Tareas que no necesitan programar, o muy poco, y que cierran riesgos o pedidos d
 | #9 | Probar la prueba de vida y la comparación facial en el build nativo | Media | M | Frontend + QA | #13 | Los casos CP-CU04-03 pasan en el teléfono |
 | #18 | GPS en segundo plano: probarlo y declararlo para Play Store | Media | M | Frontend | #13 | El chofer comparte la ubicación con la app minimizada |
 | QA | Pruebas de carga y concurrencia (RNF06) | Media | M | QA + Backend | — | Se conoce cuántos usuarios simultáneos soporta la API sin pasar los 3 s de RNF02 |
-| #27 | Distancia por calle en la cotización del servidor, con la estimación actual como respaldo | Alta | M | Backend | #20 | Una cotización de CABA a Rosario usa los km de Directions y las pruebas de caracterización quedan actualizadas |
 
 ## Etapa 3 · Cobros reales (semanas 4 a 8)
 
@@ -81,7 +80,7 @@ Ideas del [roadmap](../ROADMAP.md), que dependen de tener datos reales de uso:
 | Etapa | Tareas | Alta | Semanas (estimado) |
 |---|---|---|---|
 | 1. Configuración y seguridad | 7 | 4 | 1–2 |
-| 2. Dispositivos y producción | 7 | 4 | 2–4 |
+| 2. Dispositivos y producción | 6 | 3 | 2–4 |
 | 3. Cobros reales | 4 | 3 | 4–8 |
 | 4. Correo e identidad | 5 | 1 | 6–10 |
 | 5. Experiencia y calidad | 8 | 2 | En paralelo desde la 3 |

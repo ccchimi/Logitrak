@@ -826,6 +826,17 @@ function plazoRetiroMin(distanciaKm, etaRetiroMin) {
   const margen = distanciaKm > CONFIG_OPERATIVA.umbralInterurbanoKm ? MARGEN_RETIRO_INTERURBANO_MIN : MARGEN_RETIRO_URBANO_MIN;
   return Math.round(etaRetiroMin) + margen;
 }
+var MAX_DISTANCIA_POR_CALLE_KM = 5e3;
+function distanciaPorCalle(km) {
+  if (typeof km !== "number" || !Number.isFinite(km) || km <= 0 || km > MAX_DISTANCIA_POR_CALLE_KM) return null;
+  return { km: Math.round(km * 10) / 10, estimada: false, detalle: "por calle, seg\xFAn Google Maps" };
+}
+function distanciaPorCallePlausible(estimadaKm, calleKm) {
+  if (!Number.isFinite(estimadaKm) || !Number.isFinite(calleKm) || calleKm <= 0) return false;
+  const { umbralInterurbanoKm } = CONFIG_OPERATIVA;
+  if (estimadaKm > umbralInterurbanoKm) return calleKm >= estimadaKm * 0.5 && calleKm <= estimadaKm * 2;
+  return calleKm <= umbralInterurbanoKm * 2;
+}
 function redondear(monto) {
   const { redondeoARS } = CONFIG_OPERATIVA;
   return Math.round(monto / redondeoARS) * redondeoARS;
@@ -925,7 +936,7 @@ function cotizarSync(solicitud) {
   const pesoRealKg = solicitud.pesoKg;
   const pesoVolumetricoKg = volumenUnitarioCm3 * bultos / CONFIG_OPERATIVA.divisorVolumetrico;
   const pesoFacturableKg = Math.max(pesoRealKg, pesoVolumetricoKg);
-  const distancia = estimarDistancia(origen, destino);
+  const distancia = distanciaPorCalle(solicitud.distanciaPorCalleKm) ?? estimarDistancia(origen, destino);
   const factores = calcularFactoresContexto(fecha, origen, destino);
   const seleccion = seleccionarVehiculo(pesoFacturableKg, bultos, volumenTotalDm3, carga, distancia.km);
   if (!seleccion) {
@@ -1047,9 +1058,11 @@ export {
   BONIFICACION_SLA_PCT,
   MARGEN_RETIRO_INTERURBANO_MIN,
   MARGEN_RETIRO_URBANO_MIN,
+  MAX_DISTANCIA_POR_CALLE_KM,
   calcularFactoresContexto,
   cotizarEnvio,
   cotizarSync,
+  distanciaPorCallePlausible,
   estimarTiempos,
   plazoRetiroMin,
   seleccionarVehiculo

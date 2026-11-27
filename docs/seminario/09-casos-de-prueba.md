@@ -7,7 +7,7 @@ Casos de prueba de Logitrak para los casos de uso CU-01 a CU-15 y los requerimie
 - **Pantalla:** componente de la app renderizado con `jest-expo` y Testing Library (`*.test.tsx`).
 - **Manual:** se verifica a mano en la Web App o en el teléfono. Se indica si ya se hizo o si está pendiente.
 
-La columna **Evidencia** nombra el archivo y el título de la prueba que cubre el caso, para poder ubicarla y correrla. El estado de cada caso es el de la última ejecución completa (26/11/2026): **392 pruebas del backend y 300 de la app, todas en verde**, también en la CI de GitHub Actions.
+La columna **Evidencia** nombra el archivo y el título de la prueba que cubre el caso, para poder ubicarla y correrla. El estado de cada caso es el de la última ejecución completa (27/11/2026): **401 pruebas del backend y 319 de la app, todas en verde**, también en la CI de GitHub Actions.
 
 Los casos del cotizador (RF-01 a RF-12 del TP2 de Calidad de Software) están detallados en el [plan de pruebas del cotizador](../qa/plan-de-pruebas-cotizador.md); acá se resumen dentro del CU-06.
 

@@ -32,7 +32,7 @@ La aplicación también incluye una página pública de presentación, acceso y 
 
 ## Circuito de un envío
 
-1. **Cotización.** Boxy interpreta direcciones y carga en el dispositivo y propone vehículo y tarifa. El backend recalcula el importe con una versión empaquetada del mismo cotizador; el precio del cliente no se acepta como autoridad.
+1. **Cotización.** Boxy interpreta direcciones y carga en el dispositivo y propone vehículo y tarifa con una distancia estimada entre localidades. El backend recalcula el importe con una versión empaquetada del mismo cotizador y, si tiene la clave de Google Directions, con la distancia por calle; el precio que manda la app nunca se toma como válido.
 2. **Pedido y pago.** Al confirmar se crea un envío pendiente, con vencimiento para el pago. El pago aprobado habilita la oferta para la flota.
 3. **Asignación.** El envío se ofrece solo a los choferes cuyo vehículo admite el peso facturable, los bultos, el volumen y la capacidad especial que pide la carga (las mismas reglas del cotizador). Lo toma el primero que acepta, y cada chofer lleva un viaje a la vez.
 4. **Seguimiento.** El chofer registra hitos del viaje; el cliente consulta estados, datos del chofer, historial de eventos y una ruta en el mapa. Mientras lleva el envío, la app del chofer comparte su ubicación GPS (con la app abierta y, si el chofer lo activa, también minimizada) y el cliente lo ve moverse en el mapa, con la antigüedad de la última posición. Solo se guarda la última posición del viaje en curso y se borra al terminar. Mientras el envío está asignado o en viaje, cliente y chofer conversan en el chat del envío, con texto y fotos; al terminar, la conversación queda para leer. Realtime complementa las consultas periódicas de estados, eventos, ubicación y mensajes cuando está configurado.
@@ -193,7 +193,7 @@ Los ejemplos completos están en [`backend/.env.example`](backend/.env.example) 
 | `CUPONES_DIAS_VIGENCIA` | Días que dura un cupón desde que se emite (90 si no se configura). |
 | `CUPONES_DIAS_AVISO` | Días antes del vencimiento en que se avisa al cliente (7 si no se configura; 0 apaga el aviso). |
 | `TRABAJOS_DESHABILITADOS` | `true` desactiva los trabajos de `pg-boss`. |
-| `GOOGLE_DIRECTIONS_KEY` | Clave de servidor para recorridos del móvil. |
+| `GOOGLE_DIRECTIONS_KEY` | Clave de servidor de Google Directions: distancia por calle de la cotización y recorrido del mapa en el teléfono. Sin ella, la cotización usa la distancia estimada entre localidades. |
 | `EXPO_ACCESS_TOKEN` | Opcional, según la seguridad configurada para Expo Push. |
 | `LOG_LEVEL`, `SENTRY_DSN` | Nivel de logs y reporte opcional de errores. |
 | `RETENCION_FOTOS_ENTREGA_DIAS`, `RETENCION_FOTOS_CHAT_DIAS`, `RETENCION_AUDITORIA_DIAS` | Plazos de conservación (por defecto 180, 90 y 365 días): el trabajo diario `aplicar-retencion` borra las fotos de entrega y del chat vencidas y anonimiza la IP de los ingresos. Ver la [política de datos](docs/politica-de-datos.md). |
@@ -260,7 +260,7 @@ npm run build:web
 npm run verify:backend
 ```
 
-Jest corre dos grupos: **lógica** (servicios, helpers y el cotizador, `*.test.ts`) y **pantallas** (componentes renderizados con `jest-expo` y Testing Library, `*.test.tsx`: el botón, la tarjeta de cotización, la entrega con PIN y foto, el login con verificación en dos pasos y con contraseña temporal, y el pedido de recuperación). Hoy son 280 pruebas de lógica y 20 de pantallas. La cobertura se informa por separado: `test:coverage` exige el umbral sobre el cotizador (tarifas, cargas, direcciones y NLP, hoy 98,7 % de líneas) y `test:cobertura:app` mide toda la app (hoy 24 % de líneas), que la CI publica en el resumen de cada ejecución sin frenar. `verify:backend` solo consulta la salud de la API configurada.
+Jest corre dos grupos: **lógica** (servicios, helpers y el cotizador, `*.test.ts`) y **pantallas** (componentes renderizados con `jest-expo` y Testing Library, `*.test.tsx`: el botón, la tarjeta de cotización, la entrega con PIN y foto, el login con verificación en dos pasos y con contraseña temporal, y el pedido de recuperación). Hoy son 299 pruebas de lógica y 20 de pantallas. La cobertura se informa por separado: `test:coverage` exige el umbral sobre el cotizador (tarifas, cargas, direcciones y NLP, hoy 98,7 % de líneas) y `test:cobertura:app` mide toda la app (hoy 24 % de líneas), que la CI publica en el resumen de cada ejecución sin frenar. `verify:backend` solo consulta la salud de la API configurada.
 
 Desde `backend/`, con dependencias instaladas:
 
@@ -269,7 +269,7 @@ npm test
 npm run test:cobertura
 ```
 
-El backend suma 392 pruebas (cobertura de alrededor del 94 % de líneas), entre ellas una del **circuito completo** de un envío (`src/integracion/circuito-completo.test.js`): cotización calculada en el servidor, pago, oferta solo al chofer con el vehículo adecuado, retiro, entrega con PIN y foto, avisos, calificación, comprobante e historial.
+El backend suma 401 pruebas (cobertura de alrededor del 94 % de líneas), entre ellas una del **circuito completo** de un envío (`src/integracion/circuito-completo.test.js`): cotización calculada en el servidor, pago, oferta solo al chofer con el vehículo adecuado, retiro, entrega con PIN y foto, avisos, calificación, comprobante e historial.
 
 Las pruebas que necesitan PostgreSQL deben usar `TEST_DATABASE_URL` con una base descartable. Sin esa configuración, parte de las pruebas de integración se omite. No se debe reutilizar la base operativa para ejecutar pruebas.
 

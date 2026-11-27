@@ -110,10 +110,13 @@ Otros documentos con pendientes de un tema puntual:
     `envio_mensajes` entrega los mensajes (localmente se probó con la consulta
     de respaldo) y probar en el teléfono la cámara para mandar fotos.
 20. Cargar `GOOGLE_DIRECTIONS_KEY` en Render. Sin esa clave, `/api/salud`
-    muestra `googleDirections: no_configurado` y el mapa del seguimiento en el
-    teléfono muestra solo los puntos de retiro y entrega, sin la ruta por
-    calles. Después aplicarle las restricciones del punto 8. Cargar la clave no
-    cambia la distancia de la cotización: eso es el punto 27.
+    muestra `googleDirections: no_configurado`, el mapa del seguimiento en el
+    teléfono muestra solo los puntos de retiro y entrega, y la cotización usa
+    la distancia estimada entre localidades. Con la clave, el servidor cobra
+    con la distancia por calle (es la observación del Parcial 2 sobre la
+    precisión de las distancias; el código ya está, ver "Cómo se calcula el
+    precio" en el README del backend). Después aplicarle las restricciones del
+    punto 8.
 21. Activar MODO: pedir las credenciales (`MODO_CLIENT_ID`,
     `MODO_CLIENT_SECRET`, `MODO_STORE_ID`) y cargarlas en Render. Sin ellas
     `/api/salud` muestra `modo: no_configurado` y la app no ofrece MODO.
@@ -135,14 +138,3 @@ Otros documentos con pendientes de un tema puntual:
 26. La app de Android instalada usa el formato viejo del pedido de
     recuperación: al pedirla muestra "Dejanos un email o un teléfono…" y no
     puede completarla. Se resuelve con el build nuevo del punto 13.
-27. Distancia por calle en la cotización (observación del Parcial 2 sobre la
-    precisión de las distancias). Hoy `estimarDistancia` (`direcciones.ts`)
-    calcula la distancia en línea recta entre las localidades por un factor de
-    ruta, o usa un valor fijo para un tramo dentro de la misma localidad; no
-    consulta ningún servicio, ni en la app ni en el servidor. Google Directions
-    solo se usa para dibujar el recorrido (`GET /api/recorridos`). Falta que
-    `POST /api/cotizaciones` pida la distancia por calle a Directions (con la
-    clave del punto 20) y se la pase al cotizador, con la estimación actual como
-    respaldo si Directions falla. Es el adaptador de distancias propuesto en el
-    [plan de mantenimiento](qa/plan-de-mantenimiento.md#12-mantenimiento-adaptativo).
-    Como cambia precios, hay que actualizar las pruebas de caracterización.

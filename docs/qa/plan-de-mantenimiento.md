@@ -176,7 +176,7 @@ Un mantenimiento **no se despliega** si alguna de estas herramientas marca un pr
 | ESLint | Configurado (`frontend/eslint.config.mjs`, `npm run lint`) pero fuera de la CI y del *pre-commit*. SonarCloud, CodeQL y Dependabot siguen sin configurar. |
 | Branch protection en `main` | Pendiente. Render despliega cada push a `main` sin esperar a la CI. |
 | Clave de Google fuera de la app | **Hecha** para el recorrido del mapa: lo calcula el backend (`GET /api/recorridos`) con `GOOGLE_DIRECTIONS_KEY`. |
-| Adaptador de distancias (1.2) | Pendiente #27: la cotización sigue estimando la distancia entre localidades, también en el servidor. |
+| Adaptador de distancias (1.2) | **Hecho** en el servidor, con un diseño más simple que el planificado: en lugar de una interfaz `ProveedorDistancias`, `cotizarSync` acepta `distanciaPorCalleKm` y `cotizarConDistanciaPorCalle` (`backend/src/servicios/cotizador/index.js`) la obtiene de Google Directions. Sin clave, si Google tarda más de 3 s o si la distancia no es coherente con la estimada (`distanciaPorCallePlausible`), cobra con la estimación. Las pruebas usan un proveedor falso; las de caracterización no cambian porque la app sigue cotizando con la estimación. |
 | Demora simulada y alternativas de vehículo (1.3) | Sin cambios: `cotizarEnvio` mantiene la demora de 0,5 a 1 s. |
 | Refactorización de `cotizarSync` (1.4) | Sin cambios; la red de caracterización está lista para hacerla. |
 

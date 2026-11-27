@@ -100,3 +100,60 @@ export async function obtenerRecorrido(origen, destino, { clave = process.env.GO
     cache.set(k, { recorrido, vence: ahora + TTL_MS });
     return recorrido;
 }
+
+// Distancia por calle para la cotización (pendiente #27). A diferencia del
+// recorrido del mapa, acá no hay coordenadas: se le pasan a Google las
+// direcciones normalizadas por el cotizador. Nunca lanza: si no hay clave,
+// Google no responde a tiempo o no encuentra la ruta, devuelve null y la
+// cotización sigue con la distancia estimada.
+const ESPERA_COTIZACION_MS = 3000;
+const cacheDistancias = new Map();
+
+export function limpiarCacheDistancias() {
+    cacheDistancias.clear();
+}
+
+export async function obtenerDistanciaPorCalle(origen, destino, { clave = process.env.GOOGLE_DIRECTIONS_KEY, fetchImpl = fetch, ahora = Date.now() } = {}) {
+    if (!clave?.trim() || !origen?.trim() || !destino?.trim()) return null;
+
+    const direccion = (texto) => `${texto.trim()}, Argentina`;
+    const k = `${origen.trim().toLowerCase()}|${destino.trim().toLowerCase()}`;
+    const guardado = cacheDistancias.get(k);
+    if (guardado && guardado.vence > ahora) return guardado.distancia;
+
+    const url = new URL(URL_DIRECTIONS);
+    url.searchParams.set('origin', direccion(origen));
+    url.searchParams.set('destination', direccion(destino));
+    url.searchParams.set('mode', 'driving');
+    url.searchParams.set('language', 'es');
+    url.searchParams.set('region', 'ar');
+    url.searchParams.set('key', clave.trim());
+
+    let datos;
+    try {
+        const r = await fetchImpl(url, { signal: AbortSignal.timeout(ESPERA_COTIZACION_MS) });
+        datos = await r.json();
+    } catch (e) {
+        log().warn({ err: e }, 'Directions no respondió a tiempo: la cotización usa la distancia estimada');
+        return null;
+    }
+
+    if (datos.status !== 'OK' || !datos.routes?.length) {
+        if (datos.status !== 'ZERO_RESULTS' && datos.status !== 'NOT_FOUND') {
+            log().error({ googleStatus: datos.status, detalle: datos.error_message }, 'Directions rechazó la consulta de distancia (clave o cuota)');
+        }
+        return null;
+    }
+
+    const tramos = datos.routes[0].legs ?? [];
+    const metros = tramos.reduce((s, t) => s + (t.distance?.value ?? 0), 0);
+    if (!(metros > 0)) return null;
+    const distancia = {
+        km: metros / 1000,
+        duracionMin: Math.round(tramos.reduce((s, t) => s + (t.duration?.value ?? 0), 0) / 60),
+    };
+
+    if (cacheDistancias.size >= MAX_CACHE) cacheDistancias.delete(cacheDistancias.keys().next().value);
+    cacheDistancias.set(k, { distancia, vence: ahora + TTL_MS });
+    return distancia;
+}

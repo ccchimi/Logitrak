@@ -65,7 +65,7 @@ Boxy es un motor basado en reglas que se ejecuta en el cliente; no es un modelo 
 | `tarifas.ts` | Selección de vehículo y desglose del precio, capacidades, tiempos y condiciones. |
 | `conocimiento.ts`, `types.ts` | Datos y contratos compartidos por el motor. |
 
-La inferencia inicial es local, pero **las direcciones y los datos de carga sí se envían al backend** al guardar la cotización y crear el pedido. El backend recalcula con una versión empaquetada del mismo motor y su importe es la referencia para cobrar. Las franjas horarias, fechas y demás condiciones operativas también influyen en el resultado.
+La inferencia inicial es local, pero **las direcciones y los datos de carga sí se envían al backend** al guardar la cotización y crear el pedido. El backend recalcula con una versión empaquetada del mismo motor y su importe es la referencia para cobrar. En la app la distancia se estima entre localidades (`estimarDistancia`); el servidor, si tiene la clave de Google Directions, usa la distancia por calle, y Boxy lo avisa ("Ajusté el precio con la distancia por calle: 300,4 km"). Las franjas horarias, fechas y demás condiciones operativas también influyen en el resultado.
 
 La predicción logística del [roadmap](../docs/MODULO-IA-PREDICTIVA.md) es una evolución propuesta; hoy Boxy no aprende de los envíos anteriores.
 
@@ -191,7 +191,7 @@ Ejecutá los comandos desde `frontend/`:
 
 Para abrir la versión de desarrollo ejecutá `npm run web` y usá la dirección que informe Expo. Para comprobar la exportación, ejecutá `npm run build:web` y serví `dist/` con un servidor estático; abrir el archivo HTML directamente no equivale al despliegue web.
 
-Jest corre dos grupos (`jest.config.js`): **lógica**, con `ts-jest`, para el cotizador, los helpers y los servicios (`*.test.ts`), y **pantallas**, con `jest-expo` y Testing Library (`*.test.tsx`, preparación en `src/__pruebas__/`), para componentes renderizados: el botón, la tarjeta de cotización con una cotización real de Boxy, la entrega con PIN y foto, el login con verificación en dos pasos y con contraseña temporal, y el pedido de recuperación. Hoy son 280 pruebas de lógica y 20 de pantallas. El umbral de `jest.config.js` se aplica a la cobertura del cotizador (tarifas, cargas, direcciones y NLP, 98,7 % de líneas); la de toda la app (24 % de líneas) se mide aparte con `jest.cobertura-app.config.js`, que cuenta cada archivo una sola vez, y la CI la publica en el resumen sin frenar.
+Jest corre dos grupos (`jest.config.js`): **lógica**, con `ts-jest`, para el cotizador, los helpers y los servicios (`*.test.ts`), y **pantallas**, con `jest-expo` y Testing Library (`*.test.tsx`, preparación en `src/__pruebas__/`), para componentes renderizados: el botón, la tarjeta de cotización con una cotización real de Boxy, la entrega con PIN y foto, el login con verificación en dos pasos y con contraseña temporal, y el pedido de recuperación. Hoy son 299 pruebas de lógica y 20 de pantallas. El umbral de `jest.config.js` se aplica a la cobertura del cotizador (tarifas, cargas, direcciones y NLP, 98,7 % de líneas); la de toda la app (24 % de líneas) se mide aparte con `jest.cobertura-app.config.js`, que cuenta cada archivo una sola vez, y la CI la publica en el resumen sin frenar.
 
 ### Publicación web
 

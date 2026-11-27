@@ -50,6 +50,16 @@ describe("Cotización desde el chat de Boxy", () => {
     expect((await cotizarYGuardar(datos)).texto).toContain("Ajusté el precio con la tarifa vigente del servidor.");
   });
 
+  test("si el servidor cobró con la distancia por calle, dice cuántos km usó", async () => {
+    cotizar.mockResolvedValue({ exito: true, cotizacion: { ...cotizacion, distanciaKm: 347.9 } });
+    guardar.mockResolvedValue({ exito: true, cotizacion: { ...cotizacion, distanciaKm: 300.4, precio: 8000 }, precioAjustado: true });
+
+    const texto = (await cotizarYGuardar(datos)).texto;
+
+    expect(texto).toContain("Ajusté el precio con la distancia por calle: 300,4 km.");
+    expect(texto).not.toContain("tarifa vigente");
+  });
+
   test("si el cotizador rechaza los datos, lista cada problema con su sugerencia", async () => {
     cotizar.mockResolvedValue({
       exito: false,

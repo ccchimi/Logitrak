@@ -5,6 +5,7 @@ import {
     calcularFactoresContexto,
     cotizarEnvio,
     cotizarSync,
+    distanciaPorCallePlausible,
     estimarTiempos,
     plazoRetiroMin,
     seleccionarVehiculo,
@@ -319,5 +320,56 @@ describe('cotizarEnvio (asíncrono)', () => {
         const respuesta = await promesa;
 
         expect(cotizacionOk(respuesta).precio).toBe(3500);
+    });
+});
+
+describe('distancia por calle (pendiente #27)', () => {
+    it('sin distancia por calle usa la estimación entre localidades', () => {
+        const c = cotizacionOk(cotizarSync(solicitudBase));
+
+        expect(c.distanciaEstimada).toBe(true);
+        expect(c.desglose.find((l) => l.concepto.startsWith('Recorrido'))?.concepto).toContain('(estimado)');
+    });
+
+    it('con la distancia de Google cobra esos km, sin marcarla como estimada', () => {
+        const estimada = cotizacionOk(cotizarSync(solicitudBase));
+        const c = cotizacionOk(cotizarSync({ ...solicitudBase, distanciaPorCalleKm: 12.34 }));
+
+        expect(c.distanciaKm).toBeCloseTo(12.3, 5);
+        expect(c.distanciaEstimada).toBe(false);
+        const recorrido = c.desglose.find((l) => l.concepto.startsWith('Recorrido'));
+        expect(recorrido?.concepto).toBe('Recorrido 12.3 km');
+        expect(recorrido?.monto).toBe(Math.round(12.3 * FLOTA.find((v) => v.id === c.vehiculo.id)!.porKm));
+        expect(c.explicacion).toContain('por calle, según Google Maps');
+        expect(c.puntajeConfianza).toBeGreaterThan(estimada.puntajeConfianza);
+    });
+
+    it('la distancia por calle decide si el tramo es interurbano (peajes y margen del SLA)', () => {
+        const c = cotizacionOk(cotizarSync({ ...solicitudBase, distanciaPorCalleKm: 64 }));
+
+        expect(c.desglose.some((l) => l.concepto.startsWith('Peajes'))).toBe(true);
+        expect(c.sla).toContain(`menos de ${c.tiempos.etaRetiroMin + 10} min`);
+    });
+
+    it.each([0, -5, NaN, Infinity, 5001])('ignora una distancia inválida (%p) y vuelve a la estimación', (km) => {
+        const c = cotizacionOk(cotizarSync({ ...solicitudBase, distanciaPorCalleKm: km }));
+
+        expect(c.distanciaEstimada).toBe(true);
+        expect(c.distanciaKm).toBe(cotizacionOk(cotizarSync(solicitudBase)).distanciaKm);
+    });
+
+    it.each([
+        [300, 310, true],
+        [300, 150, true],
+        [300, 600, true],
+        [300, 149, false],
+        [300, 601, false],
+        [7.7, 1.2, true],
+        [7.7, 100, true],
+        [7.7, 101, false],
+        [7.7, 0, false],
+        [7.7, NaN, false],
+    ])('estimada %p km y por calle %p km: plausible = %p', (estimada, calle, esperado) => {
+        expect(distanciaPorCallePlausible(estimada, calle)).toBe(esperado);
     });
 });

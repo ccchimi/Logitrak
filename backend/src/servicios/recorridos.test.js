@@ -1,6 +1,13 @@
 import { beforeEach, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { decodificarPolilinea, ErrorRecorrido, limpiarCacheRecorridos, obtenerRecorrido } from './recorridos.js';
+import {
+    decodificarPolilinea,
+    ErrorRecorrido,
+    limpiarCacheDistancias,
+    limpiarCacheRecorridos,
+    obtenerDistanciaPorCalle,
+    obtenerRecorrido,
+} from './recorridos.js';
 import { consultaRecorrido } from '../esquemas/recorridos.js';
 
 const ORIGEN = { lat: -34.5627, lng: -58.4565 };
@@ -98,5 +105,52 @@ describe('consultaRecorrido', () => {
         assert.equal(consultaRecorrido.safeParse({ origenLat: '95', origenLng: '0', destinoLat: '0', destinoLng: '0' }).success, false);
         assert.equal(consultaRecorrido.safeParse({ origenLat: 'abc', origenLng: '0', destinoLat: '0', destinoLng: '0' }).success, false);
         assert.equal(consultaRecorrido.safeParse({ origenLat: '1', origenLng: '0', destinoLat: '0' }).success, false);
+    });
+});
+
+describe('obtenerDistanciaPorCalle (cotización, pendiente #27)', () => {
+    beforeEach(() => limpiarCacheDistancias());
+
+    const ROSARIO = {
+        status: 'OK',
+        routes: [{ legs: [{ distance: { value: 300400 }, duration: { value: 11700 } }] }],
+    };
+
+    test('consulta por dirección (con ", Argentina") y devuelve km y minutos', async () => {
+        const { fetchImpl, llamadas } = googleResponde(ROSARIO);
+        const d = await obtenerDistanciaPorCalle('Av. Corrientes 1300, CABA', 'Bv. Oroño 1200, Rosario, Santa Fe', { clave: 'k', fetchImpl });
+
+        assert.deepEqual(d, { km: 300.4, duracionMin: 195 });
+        const url = new URL(llamadas[0]);
+        assert.equal(url.searchParams.get('origin'), 'Av. Corrientes 1300, CABA, Argentina');
+        assert.equal(url.searchParams.get('destination'), 'Bv. Oroño 1200, Rosario, Santa Fe, Argentina');
+        assert.equal(url.searchParams.get('region'), 'ar');
+        assert.equal(url.searchParams.get('key'), 'k');
+    });
+
+    test('sin clave no consulta a Google y devuelve null', async () => {
+        const { fetchImpl, llamadas } = googleResponde(ROSARIO);
+        assert.equal(await obtenerDistanciaPorCalle('A 1, CABA', 'B 2, CABA', { clave: '', fetchImpl }), null);
+        assert.equal(llamadas.length, 0);
+    });
+
+    test('la misma consulta sale de la caché (sin distinguir mayúsculas) hasta que vence', async () => {
+        const { fetchImpl, llamadas } = googleResponde(ROSARIO);
+        const opciones = { clave: 'k', fetchImpl, ahora: 0 };
+        await obtenerDistanciaPorCalle('A 1, CABA', 'B 2, Rosario', opciones);
+        await obtenerDistanciaPorCalle('a 1, caba', 'b 2, rosario', opciones);
+        assert.equal(llamadas.length, 1);
+        await obtenerDistanciaPorCalle('A 1, CABA', 'B 2, Rosario', { ...opciones, ahora: 31 * 60 * 1000 });
+        assert.equal(llamadas.length, 2);
+    });
+
+    test('sin ruta, con la clave rechazada o sin respuesta devuelve null en lugar de fallar', async () => {
+        for (const cuerpo of [{ status: 'ZERO_RESULTS' }, { status: 'REQUEST_DENIED', error_message: 'clave' }, { status: 'OK', routes: [{ legs: [] }] }]) {
+            limpiarCacheDistancias();
+            const { fetchImpl } = googleResponde(cuerpo);
+            assert.equal(await obtenerDistanciaPorCalle('A 1, CABA', 'B 2, CABA', { clave: 'k', fetchImpl }), null);
+        }
+        const caido = async () => { throw new Error('timeout'); };
+        assert.equal(await obtenerDistanciaPorCalle('A 1, CABA', 'B 2, CABA', { clave: 'k', fetchImpl: caido }), null);
     });
 });

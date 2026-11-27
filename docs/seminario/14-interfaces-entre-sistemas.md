@@ -14,7 +14,7 @@ Describe cada interfaz entre Logitrak y otro sistema: quién llama a quién, con
 | I-06 | Mercado Pago | API | Webhook HTTPS | Firma HMAC-SHA256 (`x-signature`) | Avisar que un pago cambió |
 | I-07 | API | MODO | HTTPS (REST) | OAuth: token con `MODO_CLIENT_ID` y `MODO_CLIENT_SECRET` | Pagar con billeteras bancarias |
 | I-08 | API | Expo Push (FCM / APNs) | HTTPS (`expo-server-sdk`) | `EXPO_ACCESS_TOKEN` opcional | Notificaciones en el teléfono |
-| I-09 | API | Google Directions | HTTPS (REST) | `GOOGLE_DIRECTIONS_KEY`, solo en el servidor | Recorrido por calle para el mapa del teléfono (la cotización todavía no lo usa, pendiente #27) |
+| I-09 | API | Google Directions | HTTPS (REST) | `GOOGLE_DIRECTIONS_KEY`, solo en el servidor | Distancia por calle para la cotización y recorrido para el mapa del teléfono |
 | I-10 | App | Google Maps | SDK de mapas | Claves públicas restringidas por app y dominio | Dibujar el mapa |
 | I-11 | App y API | Sentry | HTTPS (SDK) | DSN | Reportar errores |
 | I-12 | API | RENAPER | — | — | Validación oficial de identidad. **No implementada** (pendiente #23) |
@@ -154,4 +154,4 @@ sequenceDiagram
 | Realtime | La app vuelve a consultar la API: el seguimiento cada 10 segundos y el chat cada 5 (con Realtime conectado, la consulta de respaldo es cada 60) |
 | Mercado Pago | El checkout responde 502 y propone otro medio; un reembolso rechazado queda para resolver a mano |
 | Expo Push | El aviso queda en la bandeja de la app y el fallo en el log; el push no se reintenta |
-| Google Directions | El mapa muestra los puntos de retiro y entrega sin la ruta por calles (la cotización no depende de Directions) |
+| Google Directions | La cotización usa la distancia estimada entre localidades (espera como máximo 3 s) y el mapa muestra los puntos de retiro y entrega sin la ruta |

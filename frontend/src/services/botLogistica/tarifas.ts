@@ -1,6 +1,6 @@
 import { clasificarCarga } from './cargas';
 import { CONFIG_OPERATIVA, FLOTA } from './conocimiento';
-import { analizarDireccion, esMismaDireccion, estimarDistancia } from './direcciones';
+import { analizarDireccion, esMismaDireccion, estimarDistancia, type EstimacionDistancia } from './direcciones';
 import {
     AnalisisDireccion,
     Cotizacion,
@@ -147,6 +147,31 @@ export function plazoRetiroMin(distanciaKm: number, etaRetiroMin: number): numbe
     return Math.round(etaRetiroMin) + margen;
 }
 
+/** Distancia más larga que se acepta de Google: el viaje más largo de la cobertura con margen. */
+export const MAX_DISTANCIA_POR_CALLE_KM = 5000;
+
+function distanciaPorCalle(km: number | undefined): EstimacionDistancia | null {
+    if (typeof km !== 'number' || !Number.isFinite(km) || km <= 0 || km > MAX_DISTANCIA_POR_CALLE_KM) return null;
+    return { km: Math.round(km * 10) / 10, estimada: false, detalle: 'por calle, según Google Maps' };
+}
+
+/**
+ * Controla que la distancia por calle de Google sea coherente con la estimación
+ * entre localidades. Si Google ubicó mal una dirección (por ejemplo, la calle
+ * Corrientes en la ciudad de Corrientes), la diferencia es enorme y conviene
+ * cobrar con la estimación antes que con un recorrido equivocado.
+ * - Tramo interurbano estimado: la distancia por calle tiene que estar entre la
+ *   mitad y el doble de la estimada.
+ * - Tramo urbano estimado: hasta el doble del umbral interurbano (100 km), sin
+ *   mínimo, porque dentro de una ciudad la estimación es un valor fijo.
+ */
+export function distanciaPorCallePlausible(estimadaKm: number, calleKm: number): boolean {
+    if (!Number.isFinite(estimadaKm) || !Number.isFinite(calleKm) || calleKm <= 0) return false;
+    const { umbralInterurbanoKm } = CONFIG_OPERATIVA;
+    if (estimadaKm > umbralInterurbanoKm) return calleKm >= estimadaKm * 0.5 && calleKm <= estimadaKm * 2;
+    return calleKm <= umbralInterurbanoKm * 2;
+}
+
 function redondear(monto: number): number {
     const { redondeoARS } = CONFIG_OPERATIVA;
     return Math.round(monto / redondeoARS) * redondeoARS;
@@ -258,7 +283,7 @@ export function cotizarSync(solicitud: SolicitudCotizacion): RespuestaCotizacion
     const pesoVolumetricoKg = (volumenUnitarioCm3 * bultos) / CONFIG_OPERATIVA.divisorVolumetrico;
     const pesoFacturableKg = Math.max(pesoRealKg, pesoVolumetricoKg);
 
-    const distancia = estimarDistancia(origen, destino);
+    const distancia = distanciaPorCalle(solicitud.distanciaPorCalleKm) ?? estimarDistancia(origen, destino);
     const factores = calcularFactoresContexto(fecha, origen, destino);
 
     const seleccion = seleccionarVehiculo(pesoFacturableKg, bultos, volumenTotalDm3, carga, distancia.km);

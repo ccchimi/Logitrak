@@ -131,6 +131,12 @@ export interface SolicitudCotizacion {
     dimensiones?: DimensionesCm;
     valorDeclarado?: number;
     fecha?: Date;
+    /**
+     * Distancia por calle que obtuvo el servidor (Google Directions). Si viene
+     * un número válido reemplaza a la estimación entre localidades. La app no
+     * lo manda: el servidor la consulta y la controla antes de pasarla.
+     */
+    distanciaPorCalleKm?: number;
 }
 
 export type TipoLineaDesglose = 'base' | 'variable' | 'recargo' | 'descuento';

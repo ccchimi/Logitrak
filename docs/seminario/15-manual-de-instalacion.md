@@ -157,7 +157,7 @@ npm run typecheck
 npm test
 ```
 
-Resultado esperado al 26/11/2026: 392 pruebas del backend y 300 de la app, todas en verde. La CI de GitHub Actions corre lo mismo en cada push a `main`.
+Resultado esperado al 27/11/2026: 401 pruebas del backend y 319 de la app, todas en verde. La CI de GitHub Actions corre lo mismo en cada push a `main`.
 
 ## 15.6 Problemas frecuentes
 

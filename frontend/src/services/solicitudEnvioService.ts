@@ -52,7 +52,13 @@ export async function cotizarYGuardar(data: EnvioData): Promise<ResultadoCotizac
     }
 
     let texto = `Listo. Analicé ruta, carga y contexto operativo: esta es mi cotización con un ${guardado.cotizacion.puntajeConfianza}% de confianza.`;
-    if (guardado.precioAjustado) texto += "\n\nAjusté el precio con la tarifa vigente del servidor.";
+    if (guardado.precioAjustado) {
+      const kmServidor = guardado.cotizacion.distanciaKm;
+      texto +=
+        kmServidor !== respuesta.cotizacion.distanciaKm
+          ? `\n\nAjusté el precio con la distancia por calle: ${kmServidor.toLocaleString("es-AR")} km.`
+          : "\n\nAjusté el precio con la tarifa vigente del servidor.";
+    }
     return { texto, cotizacion: guardado.cotizacion };
   } catch {
     return { texto: "No pude calcular la cotización en este momento. Revisá los datos e intentá nuevamente." };

@@ -1,6 +1,6 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cotizarEnServidor, horaOperativa, verificarCotizacionParaEnvio } from './index.js';
+import { cotizarConDistanciaPorCalle, cotizarEnServidor, horaOperativa, verificarCotizacionParaEnvio } from './index.js';
 
 const MIERCOLES_VALLE = new Date('2026-10-14T17:00:00Z');
 
@@ -124,5 +124,69 @@ describe('verificarCotizacionParaEnvio', () => {
             verificarCotizacionParaEnvio({ ...emitida, estado: 'descartada' }, 7, dentroDePlazo).valida,
             false
         );
+    });
+});
+
+describe('cotizarConDistanciaPorCalle (pendiente #27)', () => {
+    const aRosario = { ...documentos, destino: 'Bv. Oroño 1200, Rosario' };
+    const proveedor = (respuesta) => {
+        const consultas = [];
+        return {
+            consultas,
+            consultarDistancia: async (origen, destino) => {
+                consultas.push([origen, destino]);
+                if (respuesta instanceof Error) throw respuesta;
+                return respuesta;
+            },
+        };
+    };
+
+    test('cobra con la distancia por calle cuando es coherente con la estimada', async () => {
+        const estimada = cotizacionOk(cotizarEnServidor(aRosario, MIERCOLES_VALLE));
+        const { consultarDistancia, consultas } = proveedor({ km: 300.4, duracionMin: 195 });
+
+        const c = cotizacionOk(await cotizarConDistanciaPorCalle(aRosario, MIERCOLES_VALLE, { consultarDistancia }));
+
+        assert.deepEqual(consultas, [['Av. Corrientes 1300, CABA', 'Bv. Oroño 1200, Rosario, Santa Fe']]);
+        assert.equal(c.distanciaKm, 300.4);
+        assert.equal(c.distanciaEstimada, false);
+        assert.match(c.explicacion, /por calle, según Google Maps/);
+        assert.ok(estimada.distanciaKm > 300.4);
+        assert.ok(c.precio < estimada.precio, 'menos km tiene que costar menos');
+    });
+
+    test('si Google ubica mal una dirección (distancia incoherente) queda la estimada', async () => {
+        const estimada = cotizacionOk(cotizarEnServidor(aRosario, MIERCOLES_VALLE));
+        const { consultarDistancia } = proveedor({ km: 1100, duracionMin: 700 });
+
+        const c = cotizacionOk(await cotizarConDistanciaPorCalle(aRosario, MIERCOLES_VALLE, { consultarDistancia }));
+
+        assert.equal(c.distanciaKm, estimada.distanciaKm);
+        assert.match(c.explicacion, /por red vial estimada/);
+        assert.equal(c.precio, estimada.precio);
+    });
+
+    test('sin clave, sin ruta o con Google caído queda la estimada', async () => {
+        for (const respuesta of [null, new Error('caído')]) {
+            const { consultarDistancia } = proveedor(respuesta);
+            const c = cotizacionOk(await cotizarConDistanciaPorCalle(documentos, MIERCOLES_VALLE, { consultarDistancia }));
+            assert.equal(c.distanciaEstimada, true);
+            assert.equal(c.precio, 3500);
+        }
+    });
+
+    test('con datos inválidos rechaza sin consultar a Google', async () => {
+        const { consultarDistancia, consultas } = proveedor({ km: 10, duracionMin: 20 });
+
+        const r = await cotizarConDistanciaPorCalle({ ...documentos, pesoKg: 0 }, MIERCOLES_VALLE, { consultarDistancia });
+
+        assert.equal(r.exito, false);
+        assert.equal(consultas.length, 0);
+    });
+
+    test('el cliente no puede imponer la distancia por calle en el pedido', () => {
+        const c = cotizacionOk(cotizarEnServidor({ ...documentos, distanciaPorCalleKm: 1 }, MIERCOLES_VALLE));
+        assert.equal(c.distanciaKm, 7.7);
+        assert.equal(c.distanciaEstimada, true);
     });
 });

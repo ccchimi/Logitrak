@@ -1,4 +1,6 @@
-import { cotizarSync } from './cotizador.generado.js';
+import { cotizarSync, distanciaPorCallePlausible } from './cotizador.generado.js';
+import { obtenerDistanciaPorCalle } from '../recorridos.js';
+import { log } from '../../observabilidad/logger.js';
 
 const ZONA_OPERATIVA = 'America/Argentina/Buenos_Aires';
 
@@ -37,7 +39,9 @@ function texto(v, max) {
     return typeof v === 'string' ? v.trim().slice(0, max) : '';
 }
 
-export function cotizarEnServidor(datos, instante = new Date()) {
+// `distanciaPorCalleKm` no sale de `datos` (lo que mandó el cliente): solo la
+// pasa cotizarConDistanciaPorCalle después de consultarla a Google.
+export function cotizarEnServidor(datos, instante = new Date(), { distanciaPorCalleKm } = {}) {
     const largo = numero(datos.largoCm);
     const ancho = numero(datos.anchoCm);
     const alto = numero(datos.altoCm);
@@ -56,10 +60,48 @@ export function cotizarEnServidor(datos, instante = new Date()) {
         },
         valorDeclarado: valorDeclarado > 0 ? valorDeclarado : undefined,
         fecha: horaOperativa(instante),
+        distanciaPorCalleKm,
     });
 
     if (respuesta.exito) respuesta.cotizacion.emitidaEn = instante.toISOString();
     return respuesta;
+}
+
+/**
+ * Cotiza con la distancia por calle de Google Directions cuando se puede.
+ * 1. Cotiza con la estimación entre localidades: si los datos no sirven, el
+ *    rechazo sale sin gastar una consulta a Google.
+ * 2. Pide la distancia por calle entre las direcciones normalizadas.
+ * 3. Si es coherente con la estimación (`distanciaPorCallePlausible`), vuelve a
+ *    cotizar con esos km; si no, o si Google no respondió, queda la estimada.
+ */
+export async function cotizarConDistanciaPorCalle(datos, instante = new Date(), { consultarDistancia = obtenerDistanciaPorCalle } = {}) {
+    const estimada = cotizarEnServidor(datos, instante);
+    if (!estimada.exito) return estimada;
+
+    const c = estimada.cotizacion;
+    const origen = c.origen.textoNormalizado || c.origen.textoOriginal;
+    const destino = c.destino.textoNormalizado || c.destino.textoOriginal;
+    let porCalle = null;
+    try {
+        porCalle = await consultarDistancia(origen, destino);
+    } catch (e) {
+        log().warn({ err: e }, 'Falló la consulta de distancia por calle: se usa la estimada');
+    }
+    if (!porCalle) return estimada;
+
+    if (!distanciaPorCallePlausible(c.distanciaKm, porCalle.km)) {
+        log().warn(
+            { estimadaKm: c.distanciaKm, porCalleKm: porCalle.km },
+            'La distancia de Google no es coherente con la estimada: se cobra con la estimada'
+        );
+        return estimada;
+    }
+
+    const conCalle = cotizarEnServidor(datos, instante, { distanciaPorCalleKm: porCalle.km });
+    // Con la distancia real puede no haber vehículo para la carga (por ejemplo,
+    // una moto que no hace tramos interurbanos): en ese caso vale la estimada.
+    return conCalle.exito ? conCalle : estimada;
 }
 
 export function verificarCotizacionParaEnvio(fila, clienteId, instante = new Date()) {

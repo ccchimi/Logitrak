@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { consultar } from '../db/pool.js';
 import { autenticar, exigirRol } from '../middleware/auth.js';
-import { cotizarEnServidor } from '../servicios/cotizador/index.js';
+import { cotizarConDistanciaPorCalle } from '../servicios/cotizador/index.js';
 import { limiteCotizaciones } from '../middleware/limites.js';
 import { validarRequest } from '../middleware/validar.js';
 import { guardarCotizacion } from '../esquemas/envios.js';
@@ -44,7 +44,7 @@ rutasCotizaciones.post('/', limiteCotizaciones, autenticar, exigirRol('cliente',
     const b = req.body;
     const { codigo } = b;
 
-    const calculo = cotizarEnServidor(b);
+    const calculo = await cotizarConDistanciaPorCalle(b);
     if (!calculo.exito) {
         return res.status(422).json({ exito: false, error: calculo.motivo, problemas: calculo.problemas });
     }
