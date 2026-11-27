@@ -60,7 +60,7 @@ Hoy la distancia se **estima** en línea recta entre localidades (fórmula de Ha
 
 - **Puerto y adaptadores:** `estimarDistancia` pasa a ser una implementación de una interfaz `ProveedorDistancias` (`distancia(origen, destino) → { km, estimada, detalle }`). El cálculo actual se conserva como `DistanciaHaversine`, y la API externa entra como un segundo adaptador, `DistanciaGoogleRoutes`. El cotizador depende de la interfaz y no de Google.
 - **Respaldo (*fallback*):** si la API tarda más de 2 s, devuelve error o se agota la cuota, se usa Haversine y la cotización queda marcada como `distanciaEstimada: true`, como hoy.
-- **Del lado del servidor:** la consulta a la API se hace desde el backend, que es donde se va a calcular el precio definitivo después de DEF-02. Así la clave de Google no queda dentro de la app (es el pendiente #10 del proyecto).
+- **Del lado del servidor:** la consulta a la API se hace desde el backend, que es donde se va a calcular el precio definitivo después de DEF-02. Así la clave de Google no queda dentro de la app.
 - **Activación gradual:** una variable de entorno (`PROVEEDOR_DISTANCIAS=haversine|google`) permite encender y apagar la integración sin publicar una versión nueva.
 - **Pruebas:** las pruebas unitarias del cotizador usan un proveedor *mock* (`jest.fn()`) que devuelve distancias fijas, así siguen siendo deterministas. Se suman pruebas de **contrato** del adaptador contra respuestas grabadas de la API (éxito, error 429 de cuota y *timeout*). Las pruebas de caracterización (1.4) muestran exactamente qué precios cambian al pasar de distancia estimada a real.
 
@@ -166,6 +166,19 @@ Un mantenimiento **no se despliega** si alguna de estas herramientas marca un pr
 | Actualización de Expo SDK para eliminar las vulnerabilidades críticas de `tar` y `shell-quote` | `frontend/package.json` | Planificado (mantenimiento adaptativo) |
 | Corrección de DEF-02 (precio calculado en el servidor) | `backend/src/servicios/cotizador/`, rutas de cotizaciones y envíos | Implementado (02/11/2026) |
 | Adaptador de distancias, alternativas de vehículo y refactorización | — | Planificado (este plan) |
+
+**Estado al 27/11/2026.** La tabla anterior es la foto del TP3. Desde entonces:
+
+| Elemento | Estado hoy |
+|---|---|
+| Pipeline de CI | Implementado y ampliado: suma las pruebas del backend contra un PostgreSQL descartable, con umbral de cobertura (85 % de líneas; hoy 94 %), la verificación de que el cotizador del servidor esté al día y la cobertura informativa de toda la app. `npm audit` sigue informativo y solo sobre el frontend. |
+| Actualización de Expo SDK | **Hecha:** de SDK 54 a 58, de a una versión, con la batería de regresión en verde en cada salto. Ya no hay vulnerabilidades críticas; quedan 6 moderadas en herramientas de build (pendiente #13). |
+| ESLint | Configurado (`frontend/eslint.config.mjs`, `npm run lint`) pero fuera de la CI y del *pre-commit*. SonarCloud, CodeQL y Dependabot siguen sin configurar. |
+| Branch protection en `main` | Pendiente. Render despliega cada push a `main` sin esperar a la CI. |
+| Clave de Google fuera de la app | **Hecha** para el recorrido del mapa: lo calcula el backend (`GET /api/recorridos`) con `GOOGLE_DIRECTIONS_KEY`. |
+| Adaptador de distancias (1.2) | Pendiente #27: la cotización sigue estimando la distancia entre localidades, también en el servidor. |
+| Demora simulada y alternativas de vehículo (1.3) | Sin cambios: `cotizarEnvio` mantiene la demora de 0,5 a 1 s. |
+| Refactorización de `cotizarSync` (1.4) | Sin cambios; la red de caracterización está lista para hacerla. |
 
 ### Resultado de la ejecución
 

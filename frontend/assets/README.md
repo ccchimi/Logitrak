@@ -1,12 +1,37 @@
 # Recursos visuales de Logitrak
 
-- `fonts/Poppins-*.ttf`: Google Fonts, familia Poppins, pesos 400/500/600/700. Licencia SIL Open Font License incluida en `fonts/OFL-Poppins.txt`. La familia se eligió por correspondencia visual: Canva contiene capturas y no expone la fuente interna del mockup.
-- `fonts/MaterialIcons.ttf`: Google Material Icons, iconografía consistente para navegación, formularios y acciones. Licencia Apache 2.0 incluida en `fonts/LICENSE-MaterialIcons.txt`. Fuente: https://github.com/google/material-design-icons/tree/master/font
-- `hero-warehouse.webp`: copia local de la imagen de Unsplash que el proyecto ya usaba como `HERO_IMAGE`, reducida a 1600 px y convertida a WebP (de 831 KB en JPG a 243 KB; TP4 de Calidad de Software); se conserva su URL de origen en `src/constants/contenidoInicio.ts`. Fuente: https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d
-- `illustrations/vehicles.svg`, `vehicles-mobile.svg`: recreaciones vectoriales de los vehículos cenitales de la referencia. PNG equivalentes para compatibilidad con React Native nativo.
-- `illustrations/boxy_sonriente.png`, `boxy_pensandoV2.png`: variantes rasterizadas del personaje Boxy. Los archivos `boxy_sonriente.svg` y `boxy_pensandoV2.svg` también contienen datos PNG pese a su extensión; no son originales vectoriales editables. No existe un recurso llamado `boxy.svg`.
-- `illustrations/money-mobile.svg` y `money-mobile.png`: ilustración de cobro/pago móvil en formatos vectorial y rasterizado.
-- `illustrations/metodos-escritorio.png`: ilustración de métodos para escritorio. No hay un SVG equivalente versionado ni un recurso llamado `money.svg`.
-- `illustrations/vehiculos-acceso.png`: ilustración de vehículos del marco `src/components/AuthFrame.tsx`, que usan las pantallas de inicio de sesión, registro, recuperación y métodos de pago. Solo existe en PNG; no hay un SVG equivalente versionado.
+Fuentes, íconos e ilustraciones que usa la app, con su origen y licencia. Los recursos del rediseño están copiados en el repositorio: ninguno depende de una URL temporal de Canva o de un CDN.
 
-Los archivos `vehicles.svg`, `vehicles-mobile.svg` y `money-mobile.svg` contienen SVG editables y tienen versiones PNG. Las variantes de Boxy con extensión `.svg` son PNG y requieren corregir su formato o extensión en una tarea de recursos; cambiar solo la extensión no las convierte en vectores. La aplicación utiliza los PNG sin un renderizador SVG adicional. Los recursos esenciales del rediseño no dependen de URLs temporales de Canva o CDN.
+## Fuentes
+
+| Fuente | Dónde está | Uso | Licencia |
+|---|---|---|---|
+| Poppins 400, 500, 600 y 700 | `fonts/Poppins-*.ttf` | Fuente principal: títulos, textos, formularios y botones (`theme/diseno.ts` y los estilos de cada pantalla) | SIL Open Font License, en `fonts/OFL-Poppins.txt` |
+| DM Sans 300 a 700 | Paquete `@expo-google-fonts/dm-sans` | Portada, login, inicio del cliente, avisos emergentes, tarjeta del viaje y mapa web | SIL Open Font License (incluida en el paquete) |
+| Syne 400, 700 y 800 | Paquete `@expo-google-fonts/syne` | Se carga al iniciar, pero hoy ninguna pantalla la usa: se puede quitar de `App.tsx` y del `package.json` | SIL Open Font License (incluida en el paquete) |
+| Material Icons | `fonts/MaterialIcons.ttf` | Íconos de navegación, formularios y acciones | Apache 2.0, en `fonts/LICENSE-MaterialIcons.txt` ([origen](https://github.com/google/material-design-icons/tree/master/font)) |
+
+Todas se cargan en `App.tsx` con `useFonts` antes de mostrar la primera pantalla. Poppins se eligió por parecido visual con el diseño de Canva, que exporta capturas y no informa la fuente original.
+
+## Íconos de la app
+
+| Archivo | Uso (declarado en `app.json`) |
+|---|---|
+| `icon.png` | Ícono general de la app |
+| `android-icon-foreground.png`, `android-icon-background.png`, `android-icon-monochrome.png` | Ícono adaptativo de Android (capas y versión monocromática) |
+| `favicon.png` | Ícono de la pestaña en la Web App |
+
+`logo.png` y `splash-icon.png` no están referenciados en el código ni en la configuración: quedaron de la plantilla inicial de Expo y se pueden borrar o usar para la pantalla de carga.
+
+## Imágenes e ilustraciones
+
+| Archivo | Uso | Origen |
+|---|---|---|
+| `hero-warehouse.webp` | Imagen principal de la portada | Foto de Unsplash, reducida a 1600 px y convertida a WebP (de 831 KB a 243 KB, TP4 de Calidad de Software). La URL original queda en `src/constants/contenidoInicio.ts` |
+| `noticias/interfaz.png`, `envio-movil.png`, `cupones.png`, `soporte.png` | Tarjetas de novedades del panel (`components/PanelCanva.tsx`) | Material del rediseño en Canva |
+| `illustrations/vehiculos-acceso.png` | Ilustración principal del marco de ingreso y registro (`components/AuthFrame.tsx`) | Rediseño; solo existe en PNG |
+| `illustrations/vehicles.png`, `vehicles-mobile.png` (y sus SVG) | Flota vista desde arriba en el mismo marco, en escritorio y en el teléfono | Recreación vectorial de los vehículos de la referencia de diseño |
+| `illustrations/metodos-escritorio.png`, `money-mobile.png` (y su SVG) | Marco de las pantallas de métodos de pago y cobro, en escritorio y en el teléfono | Rediseño; la de escritorio solo existe en PNG |
+| `illustrations/boxy_sonriente.png`, `boxy_pensandoV2.png` | Personaje Boxy en sus dos estados (`components/BoxyMark.tsx`) | Rediseño; solo rasterizado |
+
+La app usa siempre los PNG, porque React Native no dibuja SVG sin una librería extra. Los SVG de la flota y del cobro son vectoriales y editables. En cambio, `boxy_sonriente.svg` y `boxy_pensandoV2.svg` tienen adentro una imagen PNG aunque su extensión diga otra cosa: no son vectores y no se usan. Para tener a Boxy en vectorial hay que redibujarlo; cambiar la extensión no alcanza.

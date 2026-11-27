@@ -10,11 +10,11 @@ La Mobile App usa Expo, React Native y TypeScript y comparte el código de [`fro
 
 ## Funcionalidades y alcance
 
-El código móvil contempla registro e inicio de sesión, cotización con Boxy, pago y seguimiento de envíos, chat entre cliente y chofer durante el viaje, calificación del chofer, historial, perfil con descarga de los datos de la cuenta, cupones con aviso antes de que venzan, soporte y notificaciones. El flujo de chofer incluye postulación, DNI, selfie, vehículo, ofertas filtradas por peso y bultos, avances, entrega con PIN y foto, y su promedio de calificaciones. Soporte y administración acceden a las pantallas y operaciones que permiten sus capacidades.
+El código móvil contempla registro e inicio de sesión, cotización con Boxy, pago y seguimiento de envíos, chat entre cliente y chofer durante el viaje, calificación del chofer, historial, perfil con descarga de los datos de la cuenta, cupones con aviso antes de que venzan, soporte y notificaciones. El flujo de chofer incluye postulación con DNI, selfie y vehículo; ofertas filtradas por peso facturable, bultos, volumen y capacidad especial; un viaje a la vez con su ubicación GPS compartida; avances, entrega con PIN y foto, y su promedio de calificaciones. Soporte y administración acceden a las pantallas y operaciones que permiten sus capacidades.
 
-Estas funciones dependen del backend y de la configuración de cada integración. Para validar cada versión, seguí las comprobaciones de esta guía y registrá los resultados por plataforma y tipo de build.
+Todo lo que necesita datos pasa por la API; los mapas y el push dependen además de las claves y credenciales de cada plataforma, que se describen más abajo.
 
-El pago directo con tarjeta es simulado y la edición de varios datos de perfil está limitada. RENAPER real está pendiente de implementación en backend. Las restricciones compartidas se detallan en los README de frontend y backend.
+El pago directo con tarjeta es simulado, el nombre de usuario no se cambia y el domicilio y el vehículo de un chofer los modifica el equipo. La validación con RENAPER está pendiente en el backend (pendiente #23). Las restricciones compartidas se detallan en los README de frontend y backend.
 
 ## Tecnologías y archivos de referencia
 
@@ -78,7 +78,7 @@ Los comandos de las siguientes secciones se ejecutan desde **`Logitrak/frontend/
 | `GOOGLE_SERVICES_JSON` | Ruta/variable de archivo de Firebase para Android cuando se configura en el build. |
 | `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT` | Configuración privada de Sentry durante el build, si se usa. |
 
-`EXPO_PUBLIC_GOOGLE_MAPS_WEB_KEY` corresponde al navegador; no habilita los mapas nativos de Android. La configuración actual inyecta la clave de Maps solo en Android. `MapaSeguimiento.tsx` fuerza `PROVIDER_GOOGLE` también en iOS, pero los archivos Expo versionados no configuran su clave nativa iOS: no hay una selección automática de Apple Maps. Falta completar esa integración y validar el build antes de presentar el mapa iOS como funcional.
+`EXPO_PUBLIC_GOOGLE_MAPS_WEB_KEY` corresponde al navegador; no habilita los mapas nativos de Android. `app.config.js` inyecta la clave de Maps solo en Android. `MapaSeguimiento.tsx` usa `PROVIDER_GOOGLE` también en iOS, pero falta cargar la clave nativa de iOS (`ios.config.googleMapsApiKey`) y probarlo en un build de iOS; el componente no cambia solo a Apple Maps.
 
 Las variables `EXPO_PUBLIC_*` viajan en la aplicación y no son secretas. La clave de Android se restringe en Google Cloud por package, huella de firma y API. Las credenciales privadas de servidor no van en la app.
 
@@ -175,7 +175,7 @@ Para un build iOS:
 npx eas-cli build --platform ios --profile development
 ```
 
-Los perfiles actuales no declaran `ios.simulator: true`: ese comando no debe presentarse como una compilación de simulador ya configurada. La distribución interna en un iPhone requiere la firma y dispositivos autorizados que correspondan. Compilar en EAS o con `npm run ios` tampoco publica automáticamente la aplicación en una tienda.
+Los perfiles actuales no declaran `ios.simulator: true`, así que ese comando genera un build para un iPhone físico, no para el simulador. La distribución interna en un iPhone requiere la firma y dispositivos autorizados que correspondan. Compilar en EAS o con `npm run ios` tampoco publica automáticamente la aplicación en una tienda.
 
 ## Capacidades y limitaciones de plataforma
 
@@ -188,10 +188,10 @@ Los perfiles actuales no declaran `ios.simulator: true`: ese comando no debe pre
 | Mapa | `MapaSeguimiento.tsx`; la ruta por calles se obtiene de `/api/recorridos`, con `GOOGLE_DIRECTIONS_KEY` solo en servidor. El marcador del chofer muestra su posición real; solo la vista de demostración, sin envío, lo anima. La configuración de Google Maps iOS está pendiente. |
 | Push | Dispositivo, permisos, credenciales FCM/APNs, registro de token y entrega por Expo. |
 | Sesión | Token y refresh token en `expo-secure-store` (Keychain/Keystore), con migración automática desde AsyncStorage; requiere un build que incluya el módulo, y uno viejo sigue usando AsyncStorage. |
-| Preferencias | Tema y modo silencioso locales; el modo silencioso no está aplicado globalmente al sonido push. |
+| Preferencias | Tema y modo silencioso guardados en el dispositivo. La app no reproduce sonidos propios, así que el modo silencioso no tiene efecto visible, y el sonido del push lo decide el sistema operativo. |
 | Identidad oficial | RENAPER real no está implementado aunque existan nombres de variables para configurarlo. |
 
-Expo Go puede servir para comprobaciones parciales, pero no es el entorno de referencia para verificar todos los módulos nativos de este proyecto. Las suscripciones Realtime, mapas y pagos también necesitan validar su configuración del lado del servidor.
+Expo Go sirve para recorrer las pantallas, pero no incluye los módulos nativos propios del proyecto (ML Kit, ubicación en segundo plano, push): para probarlos hace falta un build de EAS.
 
 ## Comprobaciones antes de demostrar la app
 

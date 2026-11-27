@@ -29,7 +29,7 @@ Perfil de cliente → Postularme como chofer → DNI y selfie → Alta como chof
 |---|---|---|
 | Panel de chofer y modo online | `ChoferScreen.tsx` | Suma la ubicación GPS compartida durante el viaje, el chat con el cliente y la reputación del chofer |
 | Envío y actualización del estado | `ChoferScreen.tsx` (viaje en curso) y `EntregaModal` | La entrega se cierra con el PIN de quien recibe y una foto de comprobante |
-| Estadística | `EstadisticasScreen.tsx` | Ganancias y entregas por día de los últimos 7 días |
+| Estadística | `EstadisticasScreen.tsx` | Ofertas, entregas, porcentaje completado y ganancias de los últimos 7, 30 o 365 días, con el gráfico de entregas de la semana |
 | Método de cobro | `MetodosScreen.tsx` | Pantalla de maqueta: todavía no guarda la cuenta ni transfiere el pago (pendiente #22) |
 | Postulación | `TrabajaConNosotrosScreen.tsx` | Escaneo del código PDF417 del DNI, selfie y prueba de vida opcional |
 | Panel de cliente, Boxy, pago y seguimiento | Las mismas pantallas que la web ([documento 5](05-prototipo-web.md)) | Un solo código para las dos plataformas |

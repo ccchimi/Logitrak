@@ -10,10 +10,10 @@ La aplicación comparte una base de código para **web, Android e iOS**, desarro
 | API | [logitrak.onrender.com](https://logitrak.onrender.com) — Render |
 | Salud de la API | [GET /api/salud](https://logitrak.onrender.com/api/salud) |
 | Base de datos | PostgreSQL en Supabase |
-| Archivos privados | Supabase Storage, según configuración |
+| Archivos privados | Supabase Storage, bucket privado con links firmados |
 | Builds móviles | Expo Application Services (EAS Build) |
 
-Estas direcciones corresponden a la configuración documentada del proyecto; su disponibilidad y las credenciales activas se verifican en cada entorno.
+Render despliega la API automáticamente con cada push a `main`; la Web App se publica con el workflow [`web.yml`](.github/workflows/web.yml).
 
 ## Funcionalidades y roles
 
@@ -26,15 +26,15 @@ El sistema tiene cuatro roles. Los permisos efectivos se comprueban en el backen
 | `soporte` | Lo asigna un administrador. Accede al panel operativo, consulta envíos, usuarios, cotizaciones y pagos; atiende consultas y puede desbloquear un PIN de entrega. |
 | `admin` | Si la base no tiene ningún admin, el primero se crea al arrancar con `ADMIN_INICIAL_USUARIO` y `ADMIN_INICIAL_CONTRASENA`; los demás los nombra otro administrador desde Usuarios. Tiene las capacidades de soporte y permisos adicionales sobre reembolsos, roles, edición de los datos de otras cuentas, documentación y mantenimiento. |
 
-El panel del equipo incluye métricas e indicadores calculados en el servidor, las devoluciones que hay que hacer a mano, consulta de pedidos con filtros y listado de usuarios con búsqueda, filtros y paginación, desde donde el admin corrige los datos de otras cuentas. Los datos se obtienen de la API: los indicadores temporales y parte de los filtros de pedidos se calculan sobre la lista recuperada por el frontend. El listado de envíos tiene límites de consulta, por lo que no debe asumirse que toda visualización equivale a un histórico completo.
+El panel del equipo muestra los indicadores de las últimas 24 horas, la serie de pedidos por día y las alertas, todo calculado en el servidor (`GET /api/envios/panel`). Desde ahí se ven las devoluciones que hay que hacer a mano, se consultan todos los pedidos con filtros, orden y paginación del lado del servidor, y se administra el listado de usuarios con búsqueda y filtros: el admin corrige los datos de otras cuentas y soporte genera las contraseñas temporales de recuperación.
 
-La aplicación también incluye una página pública de presentación, acceso y registro, recuperación de contraseña, Mi Perfil, preferencias de tema, notificaciones y formularios de postulación de choferes.
+La aplicación también incluye una página pública de presentación, acceso y registro, recuperación de contraseña, Mi Perfil, preferencias de tema, notificaciones y la postulación de choferes.
 
 ## Circuito de un envío
 
 1. **Cotización.** Boxy interpreta direcciones y carga en el dispositivo y propone vehículo y tarifa. El backend recalcula el importe con una versión empaquetada del mismo cotizador; el precio del cliente no se acepta como autoridad.
 2. **Pedido y pago.** Al confirmar se crea un envío pendiente, con vencimiento para el pago. El pago aprobado habilita la oferta para la flota.
-3. **Asignación.** El envío se ofrece a choferes cuyos vehículos admiten el peso y la cantidad de bultos.
+3. **Asignación.** El envío se ofrece solo a los choferes cuyo vehículo admite el peso facturable, los bultos, el volumen y la capacidad especial que pide la carga (las mismas reglas del cotizador). Lo toma el primero que acepta, y cada chofer lleva un viaje a la vez.
 4. **Seguimiento.** El chofer registra hitos del viaje; el cliente consulta estados, datos del chofer, historial de eventos y una ruta en el mapa. Mientras lleva el envío, la app del chofer comparte su ubicación GPS (con la app abierta y, si el chofer lo activa, también minimizada) y el cliente lo ve moverse en el mapa, con la antigüedad de la última posición. Solo se guarda la última posición del viaje en curso y se borra al terminar. Mientras el envío está asignado o en viaje, cliente y chofer conversan en el chat del envío, con texto y fotos; al terminar, la conversación queda para leer. Realtime complementa las consultas periódicas de estados, eventos, ubicación y mensajes cuando está configurado.
 5. **Entrega.** Se confirma mediante el PIN del receptor y una foto de comprobante. Hay un límite de intentos y un mecanismo de desbloqueo para soporte y administración. Desde que el envío está pago, el cliente descarga un comprobante en PDF con el envío, el pago y la entrega.
 6. **Eventos y avisos.** El servidor registra eventos en un outbox y los procesa para generar notificaciones y solicitar envíos push cuando corresponde.
@@ -92,7 +92,7 @@ La persistencia incluye usuarios, sesiones, choferes, vehículos, cotizaciones, 
 |---|---|
 | Aplicación | Expo SDK 58, React Native 0.88, React 19.3 y TypeScript 6.0 |
 | Navegación y web | React Navigation 7 y `react-native-web` |
-| UI y recursos | Componentes propios, fuentes Poppins, Syne y DM Sans; Material Icons |
+| UI y recursos | Componentes propios, fuentes Poppins y DM Sans; Material Icons |
 | Mapas y ubicación | `react-native-maps`, Google Maps JavaScript, Directions y `expo-location` |
 | Identidad | `expo-camera`, ML Kit en móvil y comparación facial en backend |
 | Persistencia local | `expo-secure-store` para la sesión en el teléfono; AsyncStorage para las preferencias y la sesión en la web |
@@ -106,7 +106,7 @@ La persistencia incluye usuarios, sesiones, choferes, vehículos, cotizaciones, 
 
 El mapa tiene implementaciones separadas: `MapaSeguimiento.tsx` para móvil y `MapaSeguimiento.web.tsx` para web. La ruta por calles del móvil se solicita a `GET /api/recorridos`; la clave de Directions del servidor no se entrega a la aplicación.
 
-Los módulos nativos de detección facial y prueba de vida requieren un build de desarrollo compatible. No debe asumirse que el circuito completo de identidad funciona en web o Expo Go. Las notificaciones push nativas también necesitan dispositivo, permisos y credenciales de plataforma; el código omite su registro en web.
+Los módulos nativos de detección facial y prueba de vida requieren un build de desarrollo compatible. En la web la postulación se puede hacer, pero el escaneo del DNI con la cámara de la computadora es menos confiable (la propia pantalla lo advierte) y no hay prueba de vida, que tampoco funciona en Expo Go. Las notificaciones push nativas también necesitan dispositivo, permisos y credenciales de plataforma; el código omite su registro en web.
 
 ## Puesta en marcha
 
@@ -229,7 +229,7 @@ La publicación web toma variables y secretos de GitHub Actions. Los builds de E
 
 Los endpoints de inicio de pago admiten `Idempotency-Key`; el frontend conserva la clave de una operación cuando debe reintentar por falta de conexión. Esto reduce duplicados por reintentos, pero no reemplaza la conciliación de pagos aprobados por vías distintas.
 
-No se deben ingresar datos reales de tarjetas en el procesador simulado. Para cobrar tarjetas de verdad se necesita integrar un proveedor que tokenice los datos del lado del cliente. Los reembolsos reales y las notificaciones de proveedores requieren validación específica del entorno; la existencia del código no certifica su funcionamiento productivo.
+No se deben ingresar datos reales de tarjetas en el procesador simulado. Para cobrar tarjetas de verdad hay que integrar un proveedor que tokenice los datos del lado del cliente (pendiente #22). El checkout, el webhook firmado y los reembolsos de Mercado Pago están cubiertos por pruebas de integración contra una pasarela simulada; con credenciales productivas falta probarlos de punta a punta (ver [integraciones](docs/integraciones.md)).
 
 ## Sesiones, Mi Perfil y preferencias
 
@@ -243,7 +243,7 @@ En Mi Perfil:
 - "Descargar mis datos" entrega, con la contraseña, un archivo JSON con todo lo que Logitrak guarda de la cuenta (derecho de acceso de la Ley 25.326): datos personales, cotizaciones, envíos, pagos, cupones, soporte, notificaciones, sesiones e ingresos; a los choferes les suma verificación, viajes y calificaciones. No incluye contraseñas, tokens ni las fotos.
 - Admin y soporte pueden activar la verificación en dos pasos: escanean un QR con una app autenticadora, confirman el primer código y reciben 10 códigos de respaldo de un solo uso. Desde ahí, el login pide el código después de la contraseña. Desactivarla o generar códigos nuevos pide contraseña y código, y un admin puede restablecérsela a quien perdió el teléfono.
 - La eliminación de cuenta solicita contraseña y está sujeta a restricciones por rol y operaciones activas. El backend anonimiza datos y conserva los comprobantes previstos por su implementación.
-- El tema claro/oscuro y el modo silencioso se conservan localmente. No son preferencias sincronizadas con el servidor. El modo silencioso no está integrado de forma global con el sonido de las notificaciones push.
+- El tema claro/oscuro y el modo silencioso se guardan en el dispositivo, no en el servidor. El modo silencioso ya se respeta en el código, pero hoy la app no reproduce sonidos propios, y no cambia el sonido de las notificaciones push, que decide el sistema operativo.
 
 La recuperación de contraseña la resuelve soporte, porque todavía no hay un proveedor de correo para mandar un link. La persona deja su usuario y un email o teléfono en "¿Te olvidaste la contraseña?", y el pedido llega como consulta a soporte; la respuesta es la misma exista o no la cuenta. Soporte verifica por ese contacto que la cuenta es de quien la pide y genera desde Usuarios una contraseña temporal, que se muestra una sola vez, vence a las 24 horas y cierra las sesiones abiertas. Al entrar con ella, la app pide elegir una contraseña nueva antes de abrir la sesión. Las cuentas del equipo y las que tienen verificación en dos pasos no se recuperan por este camino.
 
@@ -260,7 +260,7 @@ npm run build:web
 npm run verify:backend
 ```
 
-Jest corre dos grupos: **lógica** (servicios, helpers y el cotizador, `*.test.ts`) y **pantallas** (componentes renderizados con `jest-expo` y Testing Library, `*.test.tsx`: la tarjeta de cotización, la entrega con PIN y foto, y el login con verificación en dos pasos). La cobertura se informa por separado: `test:coverage` exige el umbral sobre el cotizador (tarifas, cargas, direcciones y NLP, hoy 98,7 % de líneas) y `test:cobertura:app` mide toda la app (hoy 23 % de líneas), que la CI publica en el resumen de cada ejecución sin frenar. `verify:backend` solo consulta la salud de la API configurada.
+Jest corre dos grupos: **lógica** (servicios, helpers y el cotizador, `*.test.ts`) y **pantallas** (componentes renderizados con `jest-expo` y Testing Library, `*.test.tsx`: el botón, la tarjeta de cotización, la entrega con PIN y foto, el login con verificación en dos pasos y con contraseña temporal, y el pedido de recuperación). Hoy son 280 pruebas de lógica y 20 de pantallas. La cobertura se informa por separado: `test:coverage` exige el umbral sobre el cotizador (tarifas, cargas, direcciones y NLP, hoy 98,7 % de líneas) y `test:cobertura:app` mide toda la app (hoy 24 % de líneas), que la CI publica en el resumen de cada ejecución sin frenar. `verify:backend` solo consulta la salud de la API configurada.
 
 Desde `backend/`, con dependencias instaladas:
 
@@ -269,7 +269,7 @@ npm test
 npm run test:cobertura
 ```
 
-El backend tiene además una prueba del **circuito completo** de un envío (`src/integracion/circuito-completo.test.js`): cotización calculada en el servidor, pago, oferta solo al chofer con el vehículo adecuado, retiro, entrega con PIN y foto, avisos, calificación, comprobante e historial.
+El backend suma 392 pruebas (cobertura de alrededor del 94 % de líneas), entre ellas una del **circuito completo** de un envío (`src/integracion/circuito-completo.test.js`): cotización calculada en el servidor, pago, oferta solo al chofer con el vehículo adecuado, retiro, entrega con PIN y foto, avisos, calificación, comprobante e historial.
 
 Las pruebas que necesitan PostgreSQL deben usar `TEST_DATABASE_URL` con una base descartable. Sin esa configuración, parte de las pruebas de integración se omite. No se debe reutilizar la base operativa para ejecutar pruebas.
 
@@ -280,13 +280,13 @@ Los resultados y la cantidad de pruebas de cada ejecución están disponibles en
 ## Despliegue y operación
 
 - **Frontend web:** GitHub Actions instala dependencias, exporta Expo y publica `frontend/dist` en GitHub Pages cuando cambian los archivos definidos por el workflow en `main`.
-- **Backend:** Render ejecuta la API. El repositorio documenta `npm install` y `npm start`; la configuración efectiva de despliegue automático se verifica en el panel de Render.
+- **Backend:** Render construye la API desde `ccchimi/Logitrak` con `npm install` y la arranca con `npm start` en cada push a `main`.
 - **Base y archivos:** PostgreSQL y Storage privado en Supabase. Las migraciones se aplican durante el arranque del backend.
 - **Móvil:** EAS Build utiliza los perfiles `development`, `preview` y `production`. El perfil `preview` es un perfil de compilación interna, no una vista previa local que evite la autenticación.
 - **Salud:** `GET /api/salud/vivo` verifica que el proceso responde; `GET /api/salud` informa preparación y estado de la base y componentes. Ninguno reemplaza pruebas funcionales.
 - **Observabilidad:** logs estructurados con Pino, identificador de solicitud y reporte opcional a Sentry. La configuración de Sentry y el envío de símbolos requieren credenciales del entorno correspondiente.
 
-El repositorio documenta el uso de Render Free. Cuando el servicio está detenido por inactividad o reiniciándose, el primer acceso puede demorarse y los trabajos de fondo no se ejecutan hasta que el proceso vuelva a estar activo. Para necesidades productivas, debe evaluarse la disponibilidad requerida del servicio y de sus integraciones.
+La API corre en el plan gratuito de Render: después de un rato sin tráfico el servicio se suspende, el primer acceso tarda alrededor de un minuto y los trabajos de fondo se reanudan recién cuando el proceso vuelve a arrancar (al hacerlo, barren lo que quedó vencido). Para operar en serio hace falta un plan sin suspensión.
 
 ## Limitaciones y trabajo pendiente
 
@@ -295,11 +295,11 @@ Además de las restricciones de Mi Perfil y pagos ya descritas:
 - Guardar tarjetas o cuentas de cobro desde las pantallas de métodos está pendiente; esas pantallas no persisten los datos ingresados.
 - El listado de envíos se pagina por cursor y el historial carga de a 20. El panel del equipo calcula en el servidor sus indicadores, la serie por día (en hora de Argentina) y las alertas, y "Todos los pedidos" filtra, ordena y pagina en el servidor.
 - La compatibilidad y configuración de identidad, mapas y push deben validarse por plataforma. El despliegue iOS necesita sus credenciales específicas.
-- Las notificaciones por correo no están implementadas como canal general; el registro de clientes no pide email. Por eso el comprobante del envío se descarga desde la app y no se manda por mail.
+- Las notificaciones por correo no están implementadas como canal general; no hay proveedor de correo, el registro no pide email y el que se carga en Mi Perfil no se confirma. Por eso el comprobante del envío se descarga desde la app y no se manda por mail.
 - La recuperación de contraseña depende de que soporte verifique bien la identidad por el contacto del pedido. Con un proveedor de correo podría pasar a un link de un solo uso. Las cuentas admin creadas antes del cambio de seguridad deben cambiar su contraseña desde Mi Perfil: al arrancar, el log avisa si alguna todavía es igual al usuario.
 - La inteligencia logística predictiva descrita en el roadmap es una evolución propuesta, no una capacidad ya implementada de Boxy.
 
-Consultá los [pendientes técnicos](docs/pendientes-logitrak.md) y el [roadmap](docs/ROADMAP.md). Esos documentos pueden contener referencias históricas: ante diferencias, debe contrastarse cada punto con el código y la configuración desplegada.
+El detalle de cada punto abierto, con su prioridad y qué hace falta para cerrarlo, está en los [pendientes técnicos](docs/pendientes-logitrak.md); la evolución a mediano plazo, en el [roadmap](docs/ROADMAP.md).
 
 ## Documentación relacionada
 

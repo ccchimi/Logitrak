@@ -1,4 +1,5 @@
 # Pendientes de Logitrak
+
 Lista de tareas pendientes y limitaciones conocidas. Lo que ya está implementado
 y verificado se saca de acá; el historial queda en los commits.
 
@@ -57,8 +58,11 @@ Otros documentos con pendientes de un tema puntual:
     solo a Directions. Después, rotar la clave de Directions vieja, que estuvo
     expuesta en versiones anteriores de la app, y borrar el secret
     `EXPO_PUBLIC_GOOGLE_DIRECTIONS_KEY` del repo.
-9. Verificación de identidad tiers 2 y 3 (liveness y match facial). Funcionan
-    solo con dev build, no en Expo Go ni web. Se activan por variable de entorno.
+9. Verificación de identidad tiers 2 y 3 (prueba de vida y comparación facial).
+    La prueba de vida con ML Kit funciona solo en un build nativo, no en Expo Go
+    ni en la web, y se exige con `LIVENESS_REQUERIDO=true`. La comparación facial
+    del servidor necesita instalar `@tensorflow/tfjs-node` y los modelos en
+    `backend/models`; hoy no corre en Render.
 10. Sesión en la web: el refresh token queda en localStorage, protegido por
     la rotación y la detección de reuso. Lo más seguro sería una cookie
     `HttpOnly`, que necesita servir la Web App y la API desde el mismo dominio.
@@ -92,8 +96,9 @@ Otros documentos con pendientes de un tema puntual:
     (Settings > Health Check Path) y, si se arma staging, crear un segundo
     servicio con `ENTORNO=staging` y su propia base y credenciales.
 17. Mails: para mandar las notificaciones y el comprobante del envío también
-    por mail haría falta guardar el email de los clientes, que hoy no se pide,
-    y un proveedor de correo (por ejemplo, Resend). La bandeja en la app, el
+    por mail hace falta un proveedor de correo (por ejemplo, Resend) y que el
+    email del cliente esté confirmado (punto 2): el registro no lo pide y el
+    que se carga en Mi Perfil se guarda sin confirmar. La bandeja en la app, el
     push y el comprobante en PDF descargable ya están.
 18. GPS del chofer en segundo plano: el código está, pero hay que probarlo en
     el build nuevo de Android (no funciona en Expo Go) y declarar el uso de
@@ -105,10 +110,10 @@ Otros documentos con pendientes de un tema puntual:
     `envio_mensajes` entrega los mensajes (localmente se probó con la consulta
     de respaldo) y probar en el teléfono la cámara para mandar fotos.
 20. Cargar `GOOGLE_DIRECTIONS_KEY` en Render. Sin esa clave, `/api/salud`
-    muestra `googleDirections: no_configurado` y las distancias de la
-    cotización y el recorrido se estiman en línea recta. Es la observación del
-    Parcial 2 sobre la precisión de las distancias. Después aplicarle las
-    restricciones del punto 8.
+    muestra `googleDirections: no_configurado` y el mapa del seguimiento en el
+    teléfono muestra solo los puntos de retiro y entrega, sin la ruta por
+    calles. Después aplicarle las restricciones del punto 8. Cargar la clave no
+    cambia la distancia de la cotización: eso es el punto 27.
 21. Activar MODO: pedir las credenciales (`MODO_CLIENT_ID`,
     `MODO_CLIENT_SECRET`, `MODO_STORE_ID`) y cargarlas en Render. Sin ellas
     `/api/salud` muestra `modo: no_configurado` y la app no ofrece MODO.
@@ -130,3 +135,14 @@ Otros documentos con pendientes de un tema puntual:
 26. La app de Android instalada usa el formato viejo del pedido de
     recuperación: al pedirla muestra "Dejanos un email o un teléfono…" y no
     puede completarla. Se resuelve con el build nuevo del punto 13.
+27. Distancia por calle en la cotización (observación del Parcial 2 sobre la
+    precisión de las distancias). Hoy `estimarDistancia` (`direcciones.ts`)
+    calcula la distancia en línea recta entre las localidades por un factor de
+    ruta, o usa un valor fijo para un tramo dentro de la misma localidad; no
+    consulta ningún servicio, ni en la app ni en el servidor. Google Directions
+    solo se usa para dibujar el recorrido (`GET /api/recorridos`). Falta que
+    `POST /api/cotizaciones` pida la distancia por calle a Directions (con la
+    clave del punto 20) y se la pase al cotizador, con la estimación actual como
+    respaldo si Directions falla. Es el adaptador de distancias propuesto en el
+    [plan de mantenimiento](qa/plan-de-mantenimiento.md#12-mantenimiento-adaptativo).
+    Como cambia precios, hay que actualizar las pruebas de caracterización.

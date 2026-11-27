@@ -14,7 +14,7 @@ Describe cada interfaz entre Logitrak y otro sistema: quién llama a quién, con
 | I-06 | Mercado Pago | API | Webhook HTTPS | Firma HMAC-SHA256 (`x-signature`) | Avisar que un pago cambió |
 | I-07 | API | MODO | HTTPS (REST) | OAuth: token con `MODO_CLIENT_ID` y `MODO_CLIENT_SECRET` | Pagar con billeteras bancarias |
 | I-08 | API | Expo Push (FCM / APNs) | HTTPS (`expo-server-sdk`) | `EXPO_ACCESS_TOKEN` opcional | Notificaciones en el teléfono |
-| I-09 | API | Google Directions | HTTPS (REST) | `GOOGLE_DIRECTIONS_KEY`, solo en el servidor | Recorrido por calle y distancia |
+| I-09 | API | Google Directions | HTTPS (REST) | `GOOGLE_DIRECTIONS_KEY`, solo en el servidor | Recorrido por calle para el mapa del teléfono (la cotización todavía no lo usa, pendiente #27) |
 | I-10 | App | Google Maps | SDK de mapas | Claves públicas restringidas por app y dominio | Dibujar el mapa |
 | I-11 | App y API | Sentry | HTTPS (SDK) | DSN | Reportar errores |
 | I-12 | API | RENAPER | — | — | Validación oficial de identidad. **No implementada** (pendiente #23) |
@@ -151,7 +151,7 @@ sequenceDiagram
 | La API (Render dormido) | La primera llamada tarda; la app muestra el aviso de conexión y reintenta. Los pagos se confirman por consulta aunque el webhook se haya perdido |
 | PostgreSQL | La API responde error a los 10–15 s; `/api/salud` muestra la base caída |
 | Storage | Las fotos no se guardan y se informa; los archivos a borrar quedan anotados para reintentar |
-| Realtime | La app consulta cada 60 segundos |
+| Realtime | La app vuelve a consultar la API: el seguimiento cada 10 segundos y el chat cada 5 (con Realtime conectado, la consulta de respaldo es cada 60) |
 | Mercado Pago | El checkout responde 502 y propone otro medio; un reembolso rechazado queda para resolver a mano |
-| Expo Push | El aviso queda en la bandeja de la app; el Outbox lo reintenta y, si agota los intentos, lo registra como fallido |
-| Google Directions | Se muestran los puntos sin la ruta y la distancia se estima en línea recta |
+| Expo Push | El aviso queda en la bandeja de la app y el fallo en el log; el push no se reintenta |
+| Google Directions | El mapa muestra los puntos de retiro y entrega sin la ruta por calles (la cotización no depende de Directions) |

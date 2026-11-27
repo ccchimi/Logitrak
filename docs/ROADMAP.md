@@ -1,75 +1,32 @@
-# Roadmap de evolución — Logitrak
+# Roadmap de evolución
 
-Este documento presenta posibles líneas de evolución para Logitrak a partir de las funcionalidades actualmente desarrolladas.
+Hacia dónde puede crecer Logitrak una vez cerrado lo necesario para operar. Lo que falta para salir a producción (claves, cobros reales, pruebas en el teléfono) no está acá: está ordenado por etapas en el [plan post cursada](seminario/16-plan-post-cursada.md) y detallado en los [pendientes](pendientes-logitrak.md). Este documento cubre lo que viene después.
 
-El objetivo es continuar transformando la plataforma en una solución logística capaz no solo de gestionar y monitorear envíos, sino también de anticipar problemas y asistir en la toma de decisiones operativas.
+## Punto de partida
 
-## Estado actual
+Lo que el sistema ya resuelve y sobre lo que se apoya cada línea:
 
-Logitrak actualmente contempla funcionalidades como:
+- **Cotización en el servidor** con el mismo motor que Boxy: tarifa, vehículo, peso facturable, franjas horarias y plazo de retiro comprometido.
+- **Asignación por oferta:** el envío pago se publica a los choferes cuyo vehículo puede llevarlo y lo toma el primero que acepta, uno por chofer.
+- **Seguimiento en vivo:** última posición GPS del chofer, eventos del viaje, chat y aviso push.
+- **SLA de retiro con compensación automática:** cupón del 10 % si el chofer llega tarde al retiro, revisado por un trabajo del servidor.
+- **Panel del equipo** con indicadores, serie por día y alertas calculadas en la base.
 
-* Cotización de envíos mediante Boxy.
-* Gestión de clientes y conductores.
-* Verificación de identidad.
-* Pagos.
-* Seguimiento de envíos en tiempo real.
-* Gestión de SLA.
-* Compensaciones automáticas ante incumplimientos.
+## Líneas de evolución
 
-## Próxima evolución — Inteligencia logística predictiva
+| Línea | Qué agrega | Datos que necesita | Depende de |
+|---|---|---|---|
+| **1. Riesgo de retiro tarde** | Probabilidad de incumplir el SLA de retiro mientras todavía se puede actuar; nueva alerta en el panel. Detalle en el [módulo predictivo](MODULO-IA-PREDICTIVA.md). | Envíos cerrados con `sla_vence_en` y `retirado_en`, que ya se guardan | Algunos cientos de envíos reales |
+| **2. Oferta priorizada** | Mostrar primero la oferta al chofer compatible más cercano al retiro y abrirla al resto si no la toma en un minuto. Sigue siendo una oferta, no una asignación impuesta. | Última posición de los choferes disponibles (hoy solo se guarda durante un viaje) | Que el chofer comparta su ubicación mientras está disponible, con su consentimiento |
+| **3. Varios envíos por viaje** | Que un chofer con lugar en el vehículo sume un segundo envío cercano y la app le proponga el orden de las paradas. | Capacidad libre del vehículo y recorrido por calles (Google Directions) | Cambiar la regla de un viaje a la vez y el índice `uq_envios_un_viaje_por_chofer` |
+| **4. Demanda por zona y horario** | Ver en el panel en qué zonas y franjas se concentran los pedidos y las ofertas que vencen sin chofer, para convocar choferes donde faltan. | Origen, franja y resultado de cada oferta, que ya se guardan | Volumen de envíos reales |
+| **5. Cotización con datos propios** | Ajustar los recargos por franja y zona con lo observado, en lugar de los valores fijos de `tarifas.ts`. | Las líneas 1 y 4 | Validar cada cambio de tarifa con la batería de caracterización del cotizador |
 
-Se propone incorporar un módulo de inteligencia artificial orientado a analizar información operativa y anticipar posibles demoras.
+## Orden propuesto
 
-El sistema podría utilizar variables como:
+1. **Línea 4 primero:** es una consulta sobre datos que ya existen y no cambia ninguna regla. Sirve además para saber si hay volumen suficiente para las demás.
+2. **Línea 1** como MVP del módulo predictivo, con la regla fija como base de comparación.
+3. **Línea 2**, que reduce el tiempo hasta el retiro y por lo tanto los cupones. Necesita definir antes cómo se informa y se pide el consentimiento para compartir la ubicación fuera de un viaje.
+4. **Líneas 3 y 5**, que tocan reglas centrales del negocio (un viaje por chofer y la tarifa) y conviene encararlas con datos reales de las anteriores.
 
-* Distancia del envío.
-* Horario.
-* Zona.
-* Tipo de vehículo.
-* Cantidad de entregas asignadas.
-* Disponibilidad de conductores.
-* Tiempo restante del SLA.
-* Historial de entregas.
-
-A partir de estos datos, el sistema podría calcular una probabilidad de incumplimiento del SLA.
-
-Ejemplo:
-
-> Envío #142 — Riesgo de demora: 82%.
-
-## Alertas preventivas
-
-En lugar de detectar únicamente un incumplimiento una vez producido, Logitrak podría generar alertas anticipadas.
-
-Ejemplo:
-
-> Riesgo alto de demora detectado. Se recomienda evaluar la reasignación del envío.
-
-## Asignación inteligente
-
-Como evolución posterior, el sistema podría recomendar el conductor más conveniente para cada envío considerando ubicación, disponibilidad, tipo de vehículo y carga de trabajo.
-
-## Optimización de rutas
-
-También podría analizar múltiples entregas y sugerir un orden de recorrido que permita reducir tiempos y kilómetros innecesarios.
-
-## Predicción de demanda
-
-El historial de operaciones podría utilizarse para identificar patrones de demanda según zona, día y horario.
-
-Esto permitiría anticipar necesidades de vehículos y conductores.
-
-## MVP propuesto
-
-La primera versión del módulo se limitaría a:
-
-1. Analizar información básica de un envío.
-2. Calcular una probabilidad estimada de demora.
-3. Clasificar el riesgo como bajo, medio o alto.
-4. Mostrar una alerta y recomendación al administrador.
-
-Las funcionalidades de reasignación automática, optimización de rutas y predicción de demanda quedarían como evoluciones posteriores.
-
-## Objetivo
-
-Esta evolución permitiría que Logitrak pase de gestionar y detectar incidencias a comenzar a anticiparlas, utilizando los datos generados por la propia operación para apoyar la toma de decisiones.
+Cada línea se considera terminada con pruebas automáticas propias, su documentación en el README del backend y, si cambia el precio, la batería de caracterización del cotizador en verde.

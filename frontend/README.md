@@ -8,7 +8,7 @@ El código de `frontend/` se comparte con Android e iOS mediante Expo y React Na
 - [API configurada en Render](https://logitrak.onrender.com).
 - [Documentación general](../README.md) y [backend](../backend/README.md).
 
-Las funciones que requieren sesión, datos, mapas, pagos o notificaciones dependen de la API y de las credenciales configuradas en cada entorno. Esta guía describe el navegador; los requisitos nativos se documentan por separado.
+Todo lo que necesita sesión o datos pasa por la API; los mapas y Sentry usan además las claves públicas de `.env`. Esta guía describe el navegador; los requisitos nativos están en la guía mobile.
 
 ## Tecnologías
 
@@ -17,7 +17,7 @@ Las funciones que requieren sesión, datos, mapas, pagos o notificaciones depend
 | Base | Expo SDK 58, React Native 0.88, React 19.3 y TypeScript 6.0 |
 | Navegación | React Navigation 7, stack nativo y contexto de flujo raíz |
 | Web | `react-native-web` y exportación estática de Expo |
-| UI | Componentes propios, `expo-linear-gradient`, fuentes Poppins, Syne y DM Sans, Material Icons |
+| UI | Componentes propios, `expo-linear-gradient`, fuentes Poppins y DM Sans, Material Icons |
 | Mapas web | Google Maps JavaScript y componente `MapaSeguimiento.web.tsx` |
 | Permisos y cámara web | Integración de los componentes compartidos según soporte del navegador |
 | Sesión y preferencias | `expo-secure-store` para la sesión en el teléfono, AsyncStorage para preferencias (y la sesión en la web), cliente HTTP compartido y hooks de tema/preferencias |
@@ -36,21 +36,22 @@ El mapa web tiene su implementación en `MapaSeguimiento.web.tsx`. No se utiliza
 | `src/navigation/RootFlowContext.tsx` | Comunicación con el flujo raíz. |
 | `src/screens/` | Pantallas. |
 | `src/components/` | Controles reutilizables, modales, marco de aplicación, mapas y escáner. |
-| `src/components/boxy/`, `admin/`, `inicio/` | Componentes específicos de cotización, operación y presentación pública. |
+| `src/components/boxy/`, `inicio/`, `pago/`, `postulacion/` | Cotización de Boxy, portada pública, pantalla de pago y pasos de la postulación. |
+| `src/components/chofer/`, `envio/`, `perfil/`, `admin/`, `auth/` | Piezas de las pantallas grandes (consola del chofer, detalle del envío, Mi Perfil, panel del equipo y cambio de la contraseña temporal), separadas para que cada pantalla quede en coordinación de estado y llamadas. |
 | `src/services/api.ts` | URL base, HTTP, encabezados, sesiones, refresh y tratamiento de errores de conexión. |
 | `src/services/*Service.ts` | Contratos y operaciones de cada dominio. |
 | `src/services/botLogistica/` | Conversación, interpretación y cotización de Boxy. |
 | `src/services/botSoporte/` | Asistente local de soporte. |
 | `src/services/realtime*.ts` | Suscripciones para seguimiento y soporte. |
 | `src/services/almacenamiento.ts`, `monitoreo/` | Persistencia local y reporte de errores. |
-| `src/hooks/` | Tema, preferencias, movimiento reducido, frases y panel operativo. |
-| `src/helpers/`, `constants/` | Funciones auxiliares y contenido estático. |
+| `src/hooks/` | Tema, preferencias, movimiento reducido, animaciones de Boxy, panel del equipo y GPS del viaje (`useGpsDelViaje`, `useCompartirUbicacion`). |
+| `src/helpers/`, `constants/` | Funciones puras con pruebas propias (formato, cupones, chat, perfil, panel, actividad del chofer, detalle del envío, postulación) y contenido estático. |
 | `src/theme/`, `styles/` | Paletas, variables de diseño y estilos. |
 | `assets/` | Fuentes, ilustraciones, iconos e imágenes; ver [recursos y licencias](assets/README.md). |
 | `scripts/verificar-backend.mjs` | Comprobación de salud de la API configurada. |
 | `app.config.js`, `app.json` | Configuración Expo y prefijo de exportación web. Los perfiles EAS se explican en la guía mobile. |
 
-La mayoría de las operaciones de negocio se centralizan en los servicios y en `api.ts`. Los mapas, Realtime, push y otros módulos de plataforma tienen integraciones específicas; no todas las conexiones de red pasan por el mismo cliente HTTP.
+Las pantallas no llaman a la API con `fetch` directamente: usan los servicios, que pasan por `api.ts` (URL base, token, renovación de sesión y errores de conexión). Las excepciones son las que hablan con otros servicios: Google Maps en la web, Supabase Realtime y el registro de push en Expo.
 
 ## Boxy y las cotizaciones
 
@@ -66,7 +67,7 @@ Boxy es un motor basado en reglas que se ejecuta en el cliente; no es un modelo 
 
 La inferencia inicial es local, pero **las direcciones y los datos de carga sí se envían al backend** al guardar la cotización y crear el pedido. El backend recalcula con una versión empaquetada del mismo motor y su importe es la referencia para cobrar. Las franjas horarias, fechas y demás condiciones operativas también influyen en el resultado.
 
-No debe confundirse este motor con las propuestas de predicción logística del roadmap, que siguen siendo una evolución futura.
+La predicción logística del [roadmap](../docs/MODULO-IA-PREDICTIVA.md) es una evolución propuesta; hoy Boxy no aprende de los envíos anteriores.
 
 ## Pantallas y navegación
 
@@ -85,16 +86,16 @@ No debe confundirse este motor con las propuestas de predicción logística del 
 | `Cuponera` | Cupones acreditados con su vencimiento ("Vence en 3 días", "Venció el…"), resaltado en la última semana, y cómo usarlos. El aviso de cupón por vencer abre esta pantalla. |
 | `TrabajaConNosotros` | Formulario de postulación por pasos, vehículo, DNI y selfie. |
 | `Chofer` | Ofertas que su vehículo puede llevar (un viaje a la vez), asignación, avances, chat con el cliente, cierre de viaje y la tarjeta "Tu calificación" con su promedio y los últimos comentarios. |
-| `Estadisticas` | Estadísticas disponibles para el flujo del chofer. |
-| `TodosPedidos` | Consulta operativa de pedidos con filtros y búsqueda. |
+| `Estadisticas` | Actividad del chofer en los últimos 7, 30 o 365 días: ofertas recibidas, entregas completadas y su porcentaje, ganancias y un gráfico de entregas de la última semana. Se calcula en la app con el historial de asignaciones. |
+| `TodosPedidos` | Todos los pedidos con filtros (estado, cliente, chofer, fechas, "requiere atención"), búsqueda, orden y páginas numeradas, resueltos en el servidor. |
 | `UsuariosAdmin` | Usuarios con filtros, paginación, edición de datos y cambio de roles según permisos. |
 | `Soporte` | Asistente, tickets, conversación y atención del equipo. |
 | `Notificaciones` | Bandeja y lectura de avisos. |
-| `MetodosPago`, `MetodoCobro` | Formularios visuales de métodos; su guardado todavía no está implementado. |
+| `MetodosPago`, `MetodoCobro` | Maquetas de los métodos de pago del cliente y de cobro del chofer: avisan que todavía no guardan nada (pendiente #22). |
 
 Las ofertas, su toma y el aviso a los choferes usan las mismas reglas con las que el cotizador eligió el vehículo: peso facturable (el mayor entre el real y el volumétrico), bultos, volumen y capacidad especial (cadena de frío, carga voluminosa o mercancía peligrosa). El backend las aplica (`servicios/envios/compatibilidad.js`). Un chofer con un envío asignado o en viaje no recibe ofertas ni puede tomar otro; la consola ya ocultaba las ofertas durante el viaje.
 
-El chofer inicia en su consola. El acceso operativo se decide por capacidades devueltas en la sesión y consultadas por `permisos.ts`. El backend vuelve a comprobar los permisos y el acceso a cada recurso; registrar una pantalla en el navegador no concede autorización.
+El chofer inicia en su consola. Qué pantallas y botones ve cada cuenta lo decide `permisos.ts` con la lista de capacidades que devuelve el login; el backend vuelve a comprobar el permiso y el acceso al recurso en cada pedido, así que esconder un botón es solo una cuestión de interfaz.
 
 ### Panel del equipo
 
@@ -131,17 +132,17 @@ La aplicación guarda la sesión y utiliza refresh tokens para renovar el acceso
 | Verificación en dos pasos | Solo admin y soporte. `DobleFactorModal` guía la activación: contraseña, QR (o la clave en grupos de 4 para cargarla a mano), primer código y los 10 códigos de respaldo, que se pueden descargar en un `.txt`. Con la verificación activa, la tarjeta muestra cuántos códigos quedan (avisa con 3 o menos) y permite generar nuevos o desactivarla con contraseña y código (`services/dobleFactorService.ts`, `helpers/dobleFactor.ts`). En el login, `iniciarSesion` devuelve el desafío y `completarSegundoFactor` termina el ingreso; el campo acepta el código pegado con espacios y los de respaldo con o sin guion. |
 | Descargar mis datos | `ExportarDatosModal` pide la contraseña y guarda un JSON con todo lo de la cuenta: en la web se descarga, en Android se elige la carpeta y en iOS se abre la hoja de compartir (`services/descargas.ts`). |
 | Eliminación de cuenta | Conectada al endpoint correspondiente, con contraseña y restricciones por rol y operaciones activas. |
-| Tema claro/oscuro y modo silencioso | Guardados localmente por `preferenciasService.ts`; no se sincronizan con el servidor. |
+| Tema claro/oscuro y modo silencioso | Guardados en el dispositivo por `preferenciasService.ts` (AsyncStorage); no viajan al servidor, así que cada dispositivo tiene los suyos. |
 
-La comprobación previa de credenciales no entrega un permiso reutilizable para editar campos. La edición segura de datos sensibles requiere un contrato adicional del backend.
+La comprobación previa solo sirve para no abrir el editor con una contraseña equivocada: no deja ninguna autorización guardada, y `/api/perfil/datos` vuelve a pedir la contraseña al guardar.
 
-El modo silencioso controla los sonidos que consultan el servicio de preferencias; no modifica las notificaciones externas del navegador. Los hooks y transiciones contemplan movimiento reducido en las partes que los utilizan; no constituyen una certificación de accesibilidad de todas las pantallas. La limitación del sonido push nativo se documenta en la guía mobile.
+El modo silencioso se guarda y `reproducirSonido` lo respeta, pero hoy ninguna pantalla reproduce sonidos propios, así que el interruptor no tiene efecto visible; tampoco cambia el sonido de las notificaciones push, que decide el sistema operativo. Las animaciones respetan la preferencia de movimiento reducido del sistema (`useMovimientoReducido`).
 
 La recuperación de contraseña la resuelve soporte. `RecuperarScreen` manda el usuario y un email o teléfono de contacto (`pedirRecuperacion`) y muestra siempre el mismo mensaje, exista o no la cuenta; no pide una contraseña nueva. Cuando alguien entra con la contraseña temporal que generó soporte, el login no abre la sesión: muestra `components/auth/CambioContrasenaTemporal.tsx` para elegir una nueva (`completarCambioDeContrasena`) y recién ahí entra. Una vez validada, la contraseña se borra del campo y de la memoria del login.
 
 ## Pagos e identidad: alcance actual
 
-La interfaz ofrece Mercado Pago y tarjeta. La integración directa con MODO permanece en servicios, pero no aparece como un método independiente seleccionable. El QR de Checkout Pro representa el enlace devuelto por Mercado Pago; la compatibilidad de lectura y pago desde otras billeteras debe validarse con el proveedor, no deducirse del texto de la interfaz.
+La interfaz ofrece Mercado Pago (link y QR) y tarjeta. La integración directa con MODO está en el backend, pero no aparece como método en la pantalla de pago (pendiente #21). El QR que se muestra es el link de Checkout Pro de Mercado Pago.
 
 El formulario de tarjeta utiliza un **procesador simulado en el backend**. No deben ingresarse tarjetas reales. Guardar tarjetas o cuentas de cobro desde `MetodosScreen` también está pendiente.
 
@@ -190,7 +191,7 @@ Ejecutá los comandos desde `frontend/`:
 
 Para abrir la versión de desarrollo ejecutá `npm run web` y usá la dirección que informe Expo. Para comprobar la exportación, ejecutá `npm run build:web` y serví `dist/` con un servidor estático; abrir el archivo HTML directamente no equivale al despliegue web.
 
-Jest corre dos grupos (`jest.config.js`): **lógica**, con `ts-jest`, para el cotizador, los helpers y los servicios (`*.test.ts`), y **pantallas**, con `jest-expo` y Testing Library (`*.test.tsx`, preparación en `src/__pruebas__/`), para componentes renderizados: la tarjeta de cotización con una cotización real de Boxy, la entrega con PIN y foto, y el login con verificación en dos pasos. El umbral de `jest.config.js` se aplica a la cobertura del cotizador (tarifas, cargas, direcciones y NLP); la de toda la app se mide aparte con `jest.cobertura-app.config.js`, que cuenta cada archivo una sola vez, y la CI la publica en el resumen sin frenar. La cantidad de casos y su resultado deben consultarse en la ejecución correspondiente.
+Jest corre dos grupos (`jest.config.js`): **lógica**, con `ts-jest`, para el cotizador, los helpers y los servicios (`*.test.ts`), y **pantallas**, con `jest-expo` y Testing Library (`*.test.tsx`, preparación en `src/__pruebas__/`), para componentes renderizados: el botón, la tarjeta de cotización con una cotización real de Boxy, la entrega con PIN y foto, el login con verificación en dos pasos y con contraseña temporal, y el pedido de recuperación. Hoy son 280 pruebas de lógica y 20 de pantallas. El umbral de `jest.config.js` se aplica a la cobertura del cotizador (tarifas, cargas, direcciones y NLP, 98,7 % de líneas); la de toda la app (24 % de líneas) se mide aparte con `jest.cobertura-app.config.js`, que cuenta cada archivo una sola vez, y la CI la publica en el resumen sin frenar.
 
 ### Publicación web
 
@@ -204,11 +205,11 @@ Los perfiles de EAS y la instalación Android/iOS se explican únicamente en la 
 
 - Los cupones vigentes se eligen en la pantalla de pago, con su vencimiento al lado del código, y el total muestra el descuento. `helpers/cupones.ts` trata como vencido un cupón pasado de fecha aunque el servidor todavía no lo haya marcado.
 - Los vencimientos de pedidos impagos, ofertas y compensaciones dependen de trabajos del servidor, no de mantener abierta esta aplicación.
-- El panel operativo necesita mejorar la consulta paginada de pedidos para escalar a históricos completos.
-- Algunas ediciones de perfil y el guardado de métodos son funciones pendientes, aunque existan controles visuales.
-- La salud de la API y las funciones reales dependen del despliegue; una exportación web correcta no valida la integración completa.
-- Las propuestas predictivas no forman parte del cotizador actual.
+- El email nuevo de Mi Perfil no se confirma con un código, porque no hay proveedor de correo.
+- Los métodos de pago y de cobro no se guardan (pendiente #22).
+- Las estadísticas del chofer se calculan en la app con su historial; con muchos viajes convendría que las calcule el servidor, como el panel del equipo.
+- La cobertura de pantallas es baja (24 % de toda la app): las pruebas renderizadas cubren los flujos de ingreso, cotización y entrega, no todas las pantallas.
 
-Ver [pendientes](../docs/pendientes-logitrak.md), [plan de pruebas](../docs/qa/plan-de-pruebas-cotizador.md), [mantenimiento](../docs/qa/plan-de-mantenimiento.md) y [roadmap](../docs/ROADMAP.md). Los prototipos (5 y 6), los casos de uso (4) y el diseño de la app (12 y 13) están en [análisis y diseño](../docs/seminario/README.md). Ante diferencias entre textos históricos y código, verificá el contrato vigente.
+Ver [pendientes](../docs/pendientes-logitrak.md), [plan de pruebas](../docs/qa/plan-de-pruebas-cotizador.md), [mantenimiento](../docs/qa/plan-de-mantenimiento.md) y [roadmap](../docs/ROADMAP.md). Los prototipos (5 y 6), los casos de uso (4) y el diseño de la app (12 y 13) están en [análisis y diseño](../docs/seminario/README.md).
 
 `node_modules/`, `dist/`, archivos de entorno reales y credenciales de build están excluidos por las reglas de Git. Las dependencias y la exportación se regeneran desde los archivos versionados.

@@ -10,8 +10,6 @@ persistentes con pg-boss y un outbox de eventos.
 La API documentada del equipo está en [Render](https://logitrak.onrender.com).
 El frontend web se publica por separado en [GitHub Pages](https://ccchimi.github.io/Logitrak/).
 Ver también el [README general](../README.md) y el [del frontend](../frontend/README.md).
-La configuración activa y la disponibilidad de cada servicio deben comprobarse
-en el entorno correspondiente.
 
 ## Modelo de datos
 
@@ -22,9 +20,9 @@ registrada en la tabla `pgmigrations`. Ver [Migraciones](#migraciones).
 
 Las cuentas y sus roles viven en `usuarios`, y cuando alguien se convierte en
 chofer se le crea además una ficha en `choferes` con su verificación de identidad
-y el vehículo que declaró. Los intentos de login que llegan a la validación de credenciales se registran
-en `auditoria_accesos`; los rechazos previos por esquema o límite de pedidos no
-recorren necesariamente esa función. La flota disponible está en `vehiculos`, que es la que
+y el vehículo que declaró. Cada intento de login con usuario y contraseña bien
+formados queda en `auditoria_accesos`, con su resultado; los pedidos que corta
+antes la validación del esquema o el límite por IP no llegan a registrarse. La flota disponible está en `vehiculos`, que es la que
 determina qué envíos puede tomar cada chofer.
 
 Del lado operativo, `cotizaciones` guarda cada presupuesto que emite Boxy con su
@@ -37,8 +35,8 @@ incumplido en `cupones`. Cuando el envío se entrega, el cliente puede dejar una
 calificación del chofer en `valoraciones` (una por envío, de 1 a 5 estrellas y
 con comentario opcional). También se registran sesiones, tickets y mensajes de
 soporte, eventos outbox, notificaciones y tokens push. El estado de pago se
-mantiene separado del estado logístico. Las migraciones, no un diagrama o un
-README histórico, definen el esquema vigente.
+mantiene separado del estado logístico. El diagrama entidad relación, generado
+desde la base, está en [docs/seminario/08](../docs/seminario/08-diagrama-entidad-relacion.md).
 
 ## Requisitos
 
@@ -92,11 +90,10 @@ Con la conexión y `JWT_SECRET` configurados, `npm run dev` inicializa la base
 antes de habilitar las rutas de negocio. `npm run db:init` permite ejecutar esa
 inicialización por separado, pero también escribe en la base.
 
-TLS está activo por defecto. La configuración actual solo verifica la cadena
-del certificado cuando `PGSSL_STRICT=true`; cifrar la conexión y verificar la
-identidad del servidor son controles distintos. La validación del certificado
-debe configurarse y comprobarse según el proveedor. `PGSSL=false` está disponible
-para un PostgreSQL local que no use SSL, no como solución general de despliegue.
+TLS está activo por defecto: la conexión siempre va cifrada, pero la cadena del
+certificado solo se verifica con `PGSSL_STRICT=true` (para eso hay que cargar el
+certificado raíz de Supabase). `PGSSL=false` existe para un PostgreSQL local sin
+SSL, como el contenedor de pruebas; no se usa en los entornos desplegados.
 
 Cada conexión del pool (`src/db/pool.js`) trabaja con límites de tiempo, para
 que una consulta trabada o una caída de Supabase devuelvan un error en lugar de
@@ -178,11 +175,10 @@ cada componente. Ejemplo ilustrativo, no una medición del despliegue actual:
 - **Directions, MODO y Sentry** solo informan si están configurados: consultar
   Directions cuesta cuota.
 
-Los motivos internos de los fallos de componentes se registran en los logs;
-`version` toma el prefijo de `RENDER_GIT_COMMIT`, o `null` fuera de ese entorno.
-La salud no prueba login, cobros ni entregas completas y la falta de una
-integración opcional puede aparecer como `no_configurado` sin convertir todo el
-servicio en un error. Como health
+Los motivos internos de los fallos de componentes se registran en los logs y
+no salen en la respuesta pública; `version` toma el prefijo de
+`RENDER_GIT_COMMIT`, o `null` fuera de Render. Una integración opcional que
+falta aparece como `no_configurado` y no cambia el estado general. Como health
 check de Render conviene `/api/salud/vivo`: si Supabase tiene un corte, no tiene
 sentido que Render reinicie la API.
 
@@ -224,8 +220,8 @@ ese límite el checkout, la tarjeta y la confirmación sandbox responden 409 con
 hora. Transcurrido un minuto adicional de gracia, el pedido puede ser recogido
 por un barrido y eliminado: en cascada se van sus eventos e intentos de pago,
 la cotización queda `vencida` y se registra un evento para notificar al cliente.
-No se garantiza la eliminación en un segundo exacto: depende del barrido, los
-reintentos y la disponibilidad del proceso. Antes de borrar se le pregunta a la pasarela por los
+En la práctica el pedido desaparece entre uno y dos minutos después del
+vencimiento, según cuándo pase el barrido. Antes de borrar se le pregunta a la pasarela por los
 intentos reales pendientes: si figura un pago aprobado o en proceso, el pedido
 no se borra; si la pasarela no responde, se reintenta.
 
@@ -293,9 +289,8 @@ al cliente mediante bandeja y, cuando está configurado, push) pasa por el patr�
 1. La transacción que produce el hecho inserta una fila en `outbox_events` con
    `registrarEvento(cliente, …)`. Si la transacción se revierte, el evento no
    existe; si se confirma, queda garantizado aunque el proceso se caiga justo
-   después. `registrarEvento` persiste el hecho sin enviar por sí mismo un aviso
-   externo. Esto no implica que todas las otras transacciones de la aplicación
-   estén libres de llamadas a proveedores.
+   después. `registrarEvento` solo inserta la fila: no llama a ningún servicio
+   externo dentro de la transacción.
 2. El trabajo `despachar-outbox` (pg-boss) toma los pendientes y ejecuta el
    manejador de cada tipo. Cada evento se procesa en su propia transacción con
    `FOR UPDATE SKIP LOCKED`, junto con la marca `processed`: los efectos en la
@@ -305,8 +300,8 @@ al cliente mediante bandeja y, cuando está configurado, push) pasa por el patr�
    Sentry. Los procesados se borran a los 30 días.
 
 El despachador corre cada minuto y, además, 2 segundos después de cada evento
-registrado. El tiempo efectivo depende de la cola y del servidor; no es una
-garantía de entrega en tres segundos.
+registrado, así que un aviso suele aparecer en la bandeja a los pocos segundos;
+si el proceso estaba ocupado o reiniciándose, lo toma el barrido siguiente.
 
 | Evento | Lo produce | Efecto |
 |---|---|---|
@@ -327,11 +322,10 @@ garantía de entrega en tres segundos.
 
 Los payloads llevan ids, códigos y montos, nunca nombres ni direcciones. Las
 notificaciones (`notificaciones`) son la bandeja de cada usuario en la app y se
-borran al eliminar la cuenta. No hay mail: el modelo no guarda el email de los
-clientes. El envío push ya está implementado después de confirmar el evento:
-si falla, se registra y la notificación permanece en la bandeja. El outbox
-protege la persistencia de los efectos en la base; no garantiza por sí solo la
-entrega de un push al dispositivo.
+borran al eliminar la cuenta. No hay canal de mail: no hay proveedor de correo,
+el registro no pide email y el que se carga en Mi Perfil no está confirmado. El push se manda después de confirmar el evento: si Expo no lo acepta, el fallo
+queda en el log y la notificación sigue en la bandeja, pero ese push no se
+reintenta.
 
 ## Entrega segura
 
@@ -377,9 +371,10 @@ Realtime, sin volver a pedir el envío entero.
 **Seguimiento en tiempo real.** La pantalla de seguimiento escucha por Supabase
 Realtime los cambios de su envío (`envios`) y sus eventos nuevos
 (`envio_eventos`), con el mismo token que el chat de soporte (lo firma el
-backend en `GET /api/soporte/realtime`). El cliente ignora el payload de los
-cambios recibidos y los usa como señal para volver a consultar la API; esto no
-significa que el transporte de Realtime carezca de datos de filas. Con Realtime conectado, la consulta queda como respaldo cada
+backend en `GET /api/soporte/realtime`). Para envíos y eventos, la app toma el aviso
+de Realtime como señal y vuelve a pedir el envío a la API, que aplica los
+permisos y arma la respuesta completa (la ubicación del chofer, en cambio, se
+usa directo de la fila recibida). Con Realtime conectado, la consulta queda como respaldo cada
 60 segundos; sin Realtime, cada 10 (antes era cada 5). Las políticas de solo
 lectura dejan escuchar al cliente sus envíos, al chofer los que tiene asignados
 y al personal autorizado (soporte y admin) la operación. Realtime se activa
@@ -391,9 +386,9 @@ conectarse a Realtime, y con esa clave la API REST de Supabase expone cualquier
 tabla del schema `public` sin RLS. Por eso todas las tablas tienen RLS activo:
 sin políticas, quien entre con la anon key o con el token de Realtime no lee
 nada, salvo lo que habilitan las políticas de solo lectura de soporte y
-seguimiento. El acceso del backend usa la conexión PostgreSQL configurada. El efecto de RLS
-depende del rol de esa conexión y de los permisos realmente aplicados; no debe
-suponerse que cualquier usuario de base puede omitir las políticas. Una
+seguimiento. El backend se conecta con el usuario dueño de las tablas, al que PostgreSQL no
+le aplica RLS (no se usa `FORCE ROW LEVEL SECURITY`), así que la API no depende
+de las políticas: hace sus propios controles de acceso. Una
 prueba de integración verifica que no quede ninguna tabla sin RLS: toda tabla
 nueva tiene que activarlo en su migración.
 
@@ -493,10 +488,10 @@ más de la cuenta.
 
 ## Despliegue
 
-El proyecto documenta Render como Web Service en
-[logitrak.onrender.com](https://logitrak.onrender.com), con instalación mediante
-`npm install` y arranque con `npm start`. Se despliega automáticamente con cada
-push a `main`.
+La API corre en Render como Web Service, en
+[logitrak.onrender.com](https://logitrak.onrender.com): construye desde
+`ccchimi/Logitrak` con `npm install`, arranca con `npm start` y se despliega
+automáticamente con cada push a `main`.
 
 Las variables no salen del `.env`, que no se versiona, sino que se cargan en el
 panel del servicio, en la sección Environment: van ahí `DATABASE_URL`,
@@ -506,18 +501,18 @@ conviene conservar el valor asignado por Render. La plataforma permite
 reemplazarlo: si se cambia, el valor configurado y el puerto de escucha deben
 coincidir. Ver [configuración de puertos de Render](https://render.com/docs/web-services#port-binding).
 
-La documentación del proyecto contempla Render Free y sus períodos de
-inactividad. Si el proceso está detenido o reiniciándose, se demoran el primer
-acceso, la atención de webhooks y los trabajos en segundo plano. No se garantiza
-un plazo fijo de arranque; la disponibilidad requerida debe evaluarse antes de
-usar el servicio para operaciones productivas.
+El servicio usa el plan gratuito, que se suspende después de un rato sin
+tráfico. El primer pedido posterior tarda alrededor de un minuto en responder, y
+mientras está suspendido no corren los trabajos en segundo plano (al despertar,
+los barridos recuperan lo vencido). Mercado Pago reintenta los webhooks que no
+reciben respuesta, así que un aviso de pago no se pierde. Para una operación
+real hace falta un plan sin suspensión.
 
 ## Endpoints
 
 Inventario extraído de `src/app.js` y `src/rutas/`. Salvo las excepciones
 públicas indicadas, las rutas requieren `Authorization: Bearer <token>` y las
-reglas de acceso del recurso. Una capacidad del backend no implica que exista
-un control equivalente en el frontend.
+reglas de acceso del recurso.
 
 ### Salud y autenticación
 
@@ -631,8 +626,7 @@ un control equivalente en el frontend.
 Los detalles de body, límites y validaciones están en cada ruta y en
 `src/esquemas/`. Las respuestas de negocio suelen usar `exito` y `error`, pero
 los webhooks pueden responder solo con estado HTTP y `/api/pagos/retorno`
-devuelve HTML. No debe asumirse que todos los endpoints comparten un único
-formato JSON.
+devuelve HTML.
 
 Los errores incluyen 400 (entrada inválida), 401 (credenciales/token),
 403 (permisos), 404 (recurso/ruta), 409 (conflicto o pedido vencido),
@@ -852,32 +846,33 @@ recibe en vivo las consultas y ve los envíos.
 La implementación activa sin credenciales RENAPER verifica datos de DNI por
 PDF417, coincidencia con nombre y apellido ingresados y el resultado de selfie
 que envía el cliente. `LIVENESS_REQUERIDO=true` exige además el resultado de la
-prueba de vida. Esta comprobación offline no equivale a una validación oficial
-de identidad, ni una bandera enviada por la app constituye por sí sola una
-prueba biométrica verificable por el servidor.
+prueba de vida. Es una comprobación de consistencia, no una validación oficial:
+el servidor confía en el resultado de la prueba de vida que informa la app,
+porque no recibe el video.
 
 **RENAPER real todavía no está implementado.** `llamarApiReal` en
-`src/servicios/verificacionIdentidad.js` lanza un error. Definir
-`RENAPER_API_URL` y `RENAPER_API_KEY` selecciona ese camino pendiente, no una
-integración funcional. Hace falta implementar y validar el contrato antes de
-configurarlo como proveedor activo.
+`src/servicios/verificacionIdentidad.js` lanza un error, así que esas dos
+variables no deben cargarse hasta implementar el contrato del proveedor
+(pendiente #23).
 
 La prueba de vida con ML Kit se ejecuta en un build nativo compatible de la app;
 no está disponible de forma equivalente en web o Expo Go. La comparación facial
 de servidor usa `faceMatch.js`, requiere `@tensorflow/tfjs-node` y los modelos
 `ssdMobilenetv1`, `faceLandmark68Net` y `faceRecognitionNet` en `backend/models`
-o `FACE_MODELS_DIR`. El runtime TensorFlow no está declarado como dependencia
-normal del backend y su instalación/compatibilidad debe resolverse por separado.
+o `FACE_MODELS_DIR`. `@tensorflow/tfjs-node` no figura en el `package.json`
+(solo `@vladmandic/face-api`), así que sin instalarlo aparte la comparación
+facial del servidor no corre.
 
-`FACE_MATCH_REQUERIDO=true` rechaza una comparación disponible que no coincide.
-Actualmente, si faltan imágenes, runtime o modelos, o si no se detecta una cara,
-la ruta no aplica el mismo rechazo: no debe describirse esta bandera como una
-garantía de bloqueo ante toda verificación facial incompleta. Cuando hay
-comparación se registra su distancia en `face_match_score`.
+`FACE_MATCH_REQUERIDO=true` rechaza la postulación cuando la comparación se hace
+y las caras no coinciden. Si la comparación no se puede hacer (faltan las
+imágenes, el runtime o los modelos, o no se detecta una cara), la postulación
+sigue adelante. Cuando hay comparación se registra su distancia en
+`face_match_score`.
 
 La postulación aprobada crea la ficha y cambia el rol a `chofer` en una
-transacción. Esto no implementa una cola general de revisión manual por un
-administrador.
+misma transacción. No hay una etapa de revisión manual: si pasa las
+comprobaciones, el alta es inmediata, y el admin puede revisar después las
+fotos con `GET /api/choferes/:codigo/documentos`.
 
 ### Dónde quedan las fotos
 
@@ -886,8 +881,7 @@ por defecto se llama `verificacion-identidad`. En la base guardamos únicamente 
 ruta interna del objeto, en `selfie_path` y `dni_frente_path`, nunca la imagen ni
 una URL pública. Para revisarlas está `GET /api/choferes/:codigo/documentos`,
 que solo responde a un admin y devuelve URLs firmadas que vencen a los 5 minutos,
-sin publicar directamente los objetos del bucket. Las URLs firmadas siguen
-siendo accesos temporales y deben tratarse como información privada. Los adjuntos del chat de soporte
+sin publicar los objetos del bucket. Los adjuntos del chat de soporte
 usan el mismo bucket con URLs de 10 minutos. Antes de la primera subida, el servidor revisa que
 el bucket sea privado y se niega a subir nada si alguien lo marcó como público.
 
@@ -901,8 +895,9 @@ La configuración va en el `.env` y en el panel de Render:
 
 El bucket hay que crearlo antes del primer uso. Si estas variables quedan vacías
 las imágenes caen al disco local, lo cual alcanza para desarrollo. En entornos desplegados (`staging` o `produccion`, según
-`src/config/entorno.js`) no se escriben fotos de documentos en disco: sin Storage, el alta puede continuar sin fotos de verificación y se registra
-el problema. La entrega con foto tiene sus propios requisitos de almacenamiento.
+`src/config/entorno.js`) no se escriben fotos en disco: sin Storage, el alta
+sigue sin guardar las fotos de verificación (queda en el log) y la entrega
+responde 503, porque la foto de comprobante es obligatoria.
 
 ## Chat del envío (RF13)
 
@@ -945,7 +940,7 @@ ni un comprobante fiscal. Lo descargan el dueño del envío y el personal con
 `envios.ver_todos`; responde `Cache-Control: no-store`. Por defecto devuelve el
 PDF como adjunto; la app pide `Accept: application/json` y lo recibe en base64,
 para usar el mismo cliente HTTP con renovación de sesión. El envío por mail
-queda pendiente: el modelo no guarda el email de los clientes.
+queda pendiente: falta un proveedor de correo y que el email esté confirmado.
 
 ## Pagos
 
@@ -987,26 +982,24 @@ medio queda con `detalle.reembolsoEnRevision` y un aviso a los admins, y no se
 marca como devuelto hasta que alguien lo haga.
 
 El QR real se genera a partir del enlace `init_point` de Checkout Pro. El texto
-de la interfaz menciona MODO, pero este código no implementa por sí mismo un QR
-interoperable de Transferencias 3.0. La aceptación desde otras billeteras debe
-validarse con el proveedor y un flujo de prueba autorizado.
+de la interfaz menciona MODO, pero el código no genera un QR interoperable
+propio de Transferencias 3.0: eso depende de la integración directa con MODO
+(pendiente #21).
 
 La integración directa con MODO no está seleccionable en la pantalla actual.
 `servicios/pagos/modo.js` y su webhook siguen presentes: admiten configuración
 mediante `MODO_API_URL`, `MODO_CLIENT_ID`, `MODO_CLIENT_SECRET`, `MODO_STORE_ID`
 y las URLs opcionales `MODO_TOKEN_URL`, `MODO_INTENTION_URL`, `MODO_STATUS_URL`.
-Sin configuración se usa sandbox. La disponibilidad de credenciales no confirma
-compatibilidad productiva ni activa por sí sola una opción en la interfaz.
+Sin configuración se usa sandbox. Cargar las credenciales no agrega la opción a
+la pantalla de pago: falta sumarla en `PagoScreen` y probar el circuito con MODO.
 
 El pago con tarjeta, en cambio, es simulado siempre. El procesador valida el
 número por el algoritmo de Luhn, la marca, el vencimiento y el CVV, y guarda
 únicamente la marca y los últimos cuatro dígitos: el número completo nunca se
 persiste en el registro de pago. **No deben usarse tarjetas reales en este
-circuito simulado.** Para cobrar de verdad hace falta diseñar una integración
-con un proveedor que tokenice los datos en el cliente y revisar los requisitos
-aplicables al tratamiento de datos de pago. Habría que reemplazar `servicios/pagos/tarjeta.js` por
-un gateway que tokenice la tarjeta del lado del cliente, de forma que el número
-no pase nunca por este backend. En el sandbox se aprueban las tarjetas de las
+circuito simulado.** Para cobrar de verdad hay que reemplazar
+`servicios/pagos/tarjeta.js` por un gateway que tokenice la tarjeta del lado del
+cliente, de forma que el número no pase nunca por este backend (pendiente #22). En el sandbox se aprueban las tarjetas de las
 marcas admitidas que superan todas las validaciones de número, titular,
 vencimiento y CVV, salvo el `4000 0000 0000 0002`, que rechazamos a propósito para
 poder mostrar el camino de error. Las transferencias bancarias no están
@@ -1028,7 +1021,8 @@ revocan los refresh tokens de la cuenta. Cambiar la contraseña desde Mi Perfil
 (`PUT /api/perfil`) también los revoca y le devuelve un `refreshToken` nuevo al
 dispositivo que hizo el cambio, para que siga adentro. Un JWT de acceso ya
 emitido no se invalida inmediatamente por revocar el refresh: `autenticar`
-comprueba firma y expiración, no consulta el estado de la sesión en la base. Un token de acceso vencido responde 401 con `codigo: 'token_vencido'`, y
+comprueba firma y expiración, no consulta el estado de la sesión en la base, así
+que sigue valiendo hasta vencer (15 minutos como máximo). Un token de acceso vencido responde 401 con `codigo: 'token_vencido'`, y
 la app lo renueva sola y repite el pedido.
 
 Compatibilidad: la app nueva se identifica con el encabezado
@@ -1037,10 +1031,11 @@ recibiendo el token de `JWT_EXPIRA` (8 h) sin refresh token, como antes; ese
 camino se puede quitar cuando nadie las use.
 
 **Validación de entradas** (`src/middleware/validar.js` y `src/esquemas/`):
-auth, cotizaciones, creación de envíos, pagos y postulación usan esquemas de
-Zod. Otras operaciones, como partes de perfil, soporte y cupones, mantienen
-validaciones manuales; la validación no está unificada en todas las rutas. Si el pedido no lo cumple se corta antes de
-tocar la base con un 400 estándar:
+auth, perfil, doble factor, cotizaciones, envíos, chat, asignaciones, pagos,
+postulación, administración, notificaciones y recorridos usan esquemas de Zod
+antes de entrar a la ruta. Soporte y cupones todavía validan a mano dentro de
+la ruta. Si el pedido no cumple el esquema, se corta antes de tocar la base con
+un 400 estándar:
 
 ```json
 { "exito": false, "status": "fail", "error": "Ingresá un email válido.",
@@ -1090,9 +1085,9 @@ de los archivos (solo se indica si existen). La respuesta lleva
 
 **Eliminación y anonimización** (`src/servicios/eliminacionCuenta.js`):
 `POST /api/perfil/eliminar-cuenta` pide la contraseña. El usuario se anonimiza
-en lugar de borrarse físicamente y se conservan registros de la operación. Esta
-descripción refleja el código, no certifica cumplimiento legal ni define por sí
-sola los plazos de conservación. En una transacción:
+en lugar de borrarse físicamente y se conservan registros de la operación. Los plazos de
+conservación están en la [política de datos](../docs/politica-de-datos.md). En
+una transacción:
 
 - el usuario pasa a llamarse `eliminado-<id>`, pierde nombre y contraseña
   (queda un hash al azar) y se marca `eliminado_en`; el nombre de usuario queda
@@ -1117,8 +1112,7 @@ terminar (responde 409 explicando el motivo).
 `GET /api/recorridos`, que llama a Google Directions con `GOOGLE_DIRECTIONS_KEY`.
 Esa clave nunca sale del servidor; las respuestas se guardan 30 minutos en
 memoria y el endpoint exige sesión y tiene un límite de 60 consultas cada 10
-minutos por IP. Esto limita su uso pero no equivale a una garantía de ausencia
-de abuso o consumo de cuota. Sin la clave responde 503
+minutos por IP, para acotar el consumo de cuota. Sin la clave responde 503
 y la app muestra solo los puntos de retiro y entrega.
 
 **Logs y errores** (`src/observabilidad/`): los logs salen con `pino`, en JSON,
@@ -1134,11 +1128,10 @@ El `requestId` se devuelve en el encabezado `X-Request-Id` y en el cuerpo de los
 500, así que si alguien reporta un error se busca ese id en los logs de Render y
 aparecen juntas la línea del pedido y la del error. Los servicios loguean con
 `log()`, que ya trae el `requestId` y el `userId` del pedido en curso aunque no
-reciban el `req`. El logger contiene reglas de ocultamiento para contraseñas, tokens,
-números de tarjeta, DNI y `Authorization`. Esas reglas deben mantenerse y
-verificarse al introducir campos o mensajes nuevos; no habilitan registrar
-cuerpos sensibles sin revisión. El chequeo de
-salud solo se loguea cuando falla.
+reciban el `req`. El logger oculta contraseñas, tokens, números de tarjeta, DNI y el encabezado
+`Authorization` (`redact` de pino, con su prueba en `logger.test.js`); un campo
+sensible nuevo hay que sumarlo a esa lista. El chequeo de salud solo se loguea
+cuando falla.
 
 Los errores inesperados pasan por `registrarError`, que además del log los manda
 a Sentry si está configurado `SENTRY_DSN`. A Sentry va solo el id del usuario:
@@ -1151,10 +1144,9 @@ como rastro, de modo que el error de la app se puede cruzar con el del servidor.
 Si se corta una conexión inactiva con PostgreSQL (reinicio del pooler, corte de
 red), el pool lo registra y abre otra: antes ese evento tiraba abajo el proceso.
 
-**Dependencias**: el resultado de `npm audit` depende de la fecha, el lockfile
-y las bases de avisos vigentes. No se afirma un número permanente de
-vulnerabilidades. Debe ejecutarse y evaluarse en cada revisión; el workflow
-actual no impone una auditoría de dependencias del backend como condición.
+**Dependencias**: la CI no corre `npm audit` como condición, así que la revisión
+de vulnerabilidades se hace a mano en cada actualización de dependencias (ver el
+[plan de mantenimiento](../docs/qa/plan-de-mantenimiento.md)).
 
 Las contraseñas de usuarios se almacenan con bcrypt. Los tokens de acceso
 usan `ACCESS_TOKEN_EXPIRA` en el circuito con refresh y `JWT_EXPIRA` en el
@@ -1165,11 +1157,10 @@ diez intentos por IP cada quince minutos, y los intentos que llegan a la funció
 El registro público crea clientes. La recuperación no cambia contraseñas desde
 un pedido público: la contraseña temporal la genera soporte o un admin, y excluye
 las cuentas del equipo y las que tienen verificación en dos pasos.
-Los permisos por rol no certifican por sí solos la seguridad de todos los flujos.
-Las consultas usan parámetros para valores y algunas construyen filtros o
-columnas con listas controladas; hay que mantener esa separación al agregar
-consultas. No se afirma que el sistema esté libre de inyección u otras
-vulnerabilidades por usar esas técnicas.
+Las consultas pasan los valores como parámetros (`$1`, `$2`…); las pocas que
+arman el `ORDER BY` dinámico (consulta de pedidos y listado de usuarios) eligen
+la columna de una lista fija, nunca del texto que manda el cliente. Las
+consultas nuevas tienen que seguir esa regla.
 
 Los datos de ficha y el cambio de rol del alta de chofer se guardan en una
 transacción. Las subidas a Storage son efectos externos y no se revierten de
@@ -1202,12 +1193,11 @@ forma automática por un rollback de PostgreSQL.
 - El borrado de archivos externos después de anonimizar puede fallar; queda
   anotado en `archivos_por_borrar` y el trabajo `borrar-archivos` lo reintenta
   hasta 10 veces. Después hay que revisarlo a mano.
-- Disponibilidad, restricciones de claves y credenciales de servicios externos
-  deben revisarse en sus paneles; no se verifican leyendo el repositorio.
+- Las restricciones de las claves (Google, Supabase, Mercado Pago) se
+  configuran en el panel de cada proveedor; el estado de cada una está en
+  [integraciones](../docs/integraciones.md).
 
 Ver [pendientes](../docs/pendientes-logitrak.md), [roadmap](../docs/ROADMAP.md) y
 [plan de mantenimiento](../docs/qa/plan-de-mantenimiento.md). El diseño del backend
 está en [análisis y diseño](../docs/seminario/README.md): entidad relación (8),
-clases de diseño (12), componentes (13) e interfaces entre sistemas (14). Son documentación
-de apoyo y pueden conservar referencias históricas que deben contrastarse con
-el código.
+clases de diseño (12), componentes (13) e interfaces entre sistemas (14).
