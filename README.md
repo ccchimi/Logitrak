@@ -303,6 +303,7 @@ Consultá los [pendientes técnicos](docs/pendientes-logitrak.md) y el [roadmap]
 
 ## Documentación relacionada
 
+- [Análisis y diseño (entregables del Seminario Final)](docs/seminario/README.md): requerimientos, casos de uso, prototipos, diagramas de clases, entidad relación y componentes, casos de prueba, trazabilidad, interfaces, manual de instalación y plan post cursada.
 - [Backend: configuración, endpoints y operación](backend/README.md).
 - [Frontend: aplicación y estructura](frontend/README.md).
 - [Mobile App: instalación, configuración y builds Android/iOS](docs/mobile/README.md).

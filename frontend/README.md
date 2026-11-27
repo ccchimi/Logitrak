@@ -209,6 +209,6 @@ Los perfiles de EAS y la instalación Android/iOS se explican únicamente en la 
 - La salud de la API y las funciones reales dependen del despliegue; una exportación web correcta no valida la integración completa.
 - Las propuestas predictivas no forman parte del cotizador actual.
 
-Ver [pendientes](../docs/pendientes-logitrak.md), [plan de pruebas](../docs/qa/plan-de-pruebas-cotizador.md), [mantenimiento](../docs/qa/plan-de-mantenimiento.md) y [roadmap](../docs/ROADMAP.md). Ante diferencias entre textos históricos y código, verificá el contrato vigente.
+Ver [pendientes](../docs/pendientes-logitrak.md), [plan de pruebas](../docs/qa/plan-de-pruebas-cotizador.md), [mantenimiento](../docs/qa/plan-de-mantenimiento.md) y [roadmap](../docs/ROADMAP.md). Los prototipos (5 y 6), los casos de uso (4) y el diseño de la app (12 y 13) están en [análisis y diseño](../docs/seminario/README.md). Ante diferencias entre textos históricos y código, verificá el contrato vigente.
 
 `node_modules/`, `dist/`, archivos de entorno reales y credenciales de build están excluidos por las reglas de Git. Las dependencias y la exportación se regeneran desde los archivos versionados.

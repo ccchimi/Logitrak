@@ -1206,6 +1206,8 @@ forma automática por un rollback de PostgreSQL.
   deben revisarse en sus paneles; no se verifican leyendo el repositorio.
 
 Ver [pendientes](../docs/pendientes-logitrak.md), [roadmap](../docs/ROADMAP.md) y
-[plan de mantenimiento](../docs/qa/plan-de-mantenimiento.md). Son documentación
+[plan de mantenimiento](../docs/qa/plan-de-mantenimiento.md). El diseño del backend
+está en [análisis y diseño](../docs/seminario/README.md): entidad relación (8),
+clases de diseño (12), componentes (13) e interfaces entre sistemas (14). Son documentación
 de apoyo y pueden conservar referencias históricas que deben contrastarse con
 el código.
